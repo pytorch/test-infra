@@ -481,12 +481,7 @@ export default function GreenLightPill({
     case "no_verdict": {
       const signal = noVerdictSignal(state.reason);
       words = signal;
-      held = (
-        <>
-          <Lead headline={signal.headline} />
-          {signal.body !== "" && <Body>{signal.body}</Body>}
-        </>
-      );
+      held = <Lead headline={signal.headline} />;
       break;
     }
     case "unavailable": {

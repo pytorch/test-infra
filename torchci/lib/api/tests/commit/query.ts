@@ -55,5 +55,6 @@ WITH (
       "run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))",
     ],
     byJob: true,
+    jobIds: "(SELECT arrayJoin(matched_job_ids))",
   };
 }

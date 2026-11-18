@@ -8,7 +8,8 @@
 // equal to that baseline. --live repeats EXPLAIN and alternating,
 // complete-row comparisons of before with the working-tree counts query for
 // each case, runs each lookup once, and prints the complete evidence
-// document.
+// document. --live --lookups runs the lookups alone and keeps the cases as
+// recorded, for a change to a lookup after a case's runs left retention.
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -43,6 +44,7 @@ const {
   buildCommitPullRequestByHeadQuery,
   buildCommitPullRequestQuery,
   buildCommitTestCountsQuery,
+  NEIGHBOUR_DIRECTIONS,
 } = require("lib/api/tests/commit/summary/query");
 const {
   parseCommitSummaryParams,
@@ -68,12 +70,14 @@ function generate(raw) {
 // The lookups the summary makes besides the counts, each run once live: the
 // commit's own, its pull request's record, the pull request its SHA has been
 // the head of (a fork head's, whose runs record none) and its branch
-// neighbours (a branch commit's).
+// neighbours (a branch commit's): among the nearest pushes, and the full
+// search of both sides.
 function lookups(recorded) {
   const branch = {
     repo: recorded.raw.repo,
     branch: recorded.branch,
     committedAtMs: recorded.committed_at_ms,
+    directions: NEIGHBOUR_DIRECTIONS,
   };
   return {
     info: buildCommitInfoQuery(parsed(recorded.raw)),
@@ -85,7 +89,8 @@ function lookups(recorded) {
       sha: recorded.raw.sha,
       repo: recorded.raw.repo,
     }),
-    neighbours: buildCommitNeighboursQuery(branch),
+    neighbours: buildCommitNeighboursQuery({ ...branch, near: true }),
+    neighbours_far: buildCommitNeighboursQuery({ ...branch, near: false }),
   };
 }
 
@@ -93,7 +98,8 @@ async function main() {
   const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
   const args = process.argv.slice(2);
   const live = args.includes("--live");
-  const requested = args.filter((arg) => arg !== "--live");
+  const lookupsOnly = args.includes("--lookups");
+  const requested = args.filter((arg) => !arg.startsWith("--"));
   const names = requested.length ? requested : Object.keys(evidence.cases);
   for (const name of names) {
     const recorded = evidence.cases[name];
@@ -113,7 +119,10 @@ async function main() {
       `${name}: before is the working-tree query`
     );
   }
-  for (const [name, recorded] of Object.entries(evidence.lookups)) {
+  // A live run of the lookups alone records them anew.
+  for (const [name, recorded] of live && lookupsOnly
+    ? []
+    : Object.entries(evidence.lookups)) {
     const generated = lookups(recorded);
     for (const kind of Object.keys(generated)) {
       assert.deepEqual(
@@ -162,10 +171,10 @@ async function main() {
       server_version: (
         await execute({ sql: "SELECT version() AS version", params: {} })
       ).body.data[0].version,
-      cases: {},
+      cases: lookupsOnly ? evidence.cases : {},
       lookups: {},
     };
-    for (const name of names) {
+    for (const name of lookupsOnly ? [] : names) {
       const { raw, before } = evidence.cases[name];
       const { after } = generate(raw);
       // Keeps the case's notes, such as when it was regenerated.
@@ -223,7 +232,12 @@ async function main() {
     }
     for (const [name, recorded] of Object.entries(evidence.lookups)) {
       const queries = lookups(recorded);
-      const result = { ...recorded, queries, results: {} };
+      const result = {
+        ...recorded,
+        queries,
+        results: {},
+        measured_at: report.measured_at,
+      };
       for (const [kind, query] of Object.entries(queries)) {
         const { body, memory_usage } = await execute(query);
         result.results[kind] = {

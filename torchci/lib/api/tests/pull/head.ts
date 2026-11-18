@@ -1,3 +1,4 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import { pullPageUrl } from "lib/api/tests/pages/links";
 import type { PullRequestQuery } from "lib/api/tests/pull/parameters";
 import {
@@ -6,7 +7,6 @@ import {
 } from "lib/api/tests/pull/query";
 import type { PullRequestHead } from "lib/api/tests/pull/types";
 import { timed } from "lib/api/tests/timed";
-import { queryClickhouse } from "lib/clickhouse";
 
 // The pull request's latest retained record.
 export interface PullRequestRecordRow {

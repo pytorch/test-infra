@@ -64,7 +64,8 @@ export async function paginateRows<
 // the page itself such as an empty page's refresh lookup. Settings, when
 // given, go to the page query and to its probe alike: the probe runs the
 // page's whole query for one row, so a heavy page has an equally heavy probe
-// (app/api/README.md, Heavy queries).
+// (app/api/README.md, Heavy queries). A caller that keeps its connections
+// passes its own query function for the two.
 export async function queryPage<
   Row,
   Cursor extends { direction?: PageDirection }
@@ -77,6 +78,7 @@ export async function queryPage<
   createCursor,
   encodeCursor,
   settings,
+  query = queryClickhouse,
 }: {
   build: (
     _cursor: Cursor | null,
@@ -89,16 +91,11 @@ export async function queryPage<
   createCursor: (_row: Row, _direction: PageDirection) => Cursor;
   encodeCursor: (_cursor: Cursor) => string;
   settings?: ClickHouseSettings;
+  query?: typeof queryClickhouse;
 }) {
   const { sql, params } = build(cursor, limit);
   const queryStartedAt = performance.now();
-  const rows: Row[] = await queryClickhouse(
-    sql,
-    params,
-    queryId,
-    undefined,
-    settings
-  );
+  const rows: Row[] = await query(sql, params, queryId, undefined, settings);
   await afterQuery?.(rows);
   const queryDurationMs = Math.round(performance.now() - queryStartedAt);
   let boundaryDurationMs = 0;
@@ -111,7 +108,7 @@ export async function queryPage<
     hasRows: async (boundary) => {
       const probe = build(boundary, 0);
       const started = performance.now();
-      const found = await queryClickhouse(
+      const found = await query(
         probe.sql,
         probe.params,
         `${queryId}_boundary`,

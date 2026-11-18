@@ -116,8 +116,9 @@ export function smallPillColors(theme: Theme, hue: Hue): SmallPillColors {
   return pillColors(theme, hue).small;
 }
 
-// A solid of the hue, for the commit summary's bar segments and legend
-// dots: the small pill's hover fill, the strongest of its shades.
+// A solid of the hue, for the commit page's title bar, its counts' dots and
+// the timeline's marks: the small pill's hover fill, the strongest of its
+// shades.
 export function solidHueColor(theme: Theme, hue: Hue): string {
   return pillColors(theme, hue).small.hoverFill;
 }

@@ -1,10 +1,10 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import {
   type CostChangesParams,
   parseDayRange,
 } from "lib/api/tests/cost/parameters";
 import { changesDaysQuery, changesQuery } from "lib/api/tests/cost/query";
 import type { CostChanges } from "lib/api/tests/cost/types";
-import { queryClickhouse } from "lib/clickhouse";
 
 interface ChangesRow {
   side: number | string;

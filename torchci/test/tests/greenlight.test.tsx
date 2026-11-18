@@ -217,17 +217,6 @@ describe("noVerdictSignal", () => {
       lamp: "unlit",
       word: "No verdict",
       headline: "Green Light has no review of this commit",
-      body: "",
-    });
-  });
-
-  test("a commit of no pull request says that, and what GreenLight reviews", () => {
-    expect(noVerdictSignal("no_pull_request")).toEqual({
-      tone: "neutral",
-      lamp: "unlit",
-      word: "No verdict",
-      headline: "This commit is not part of a pull request",
-      body: "Green Light reviews pull requests.",
     });
   });
 
@@ -237,7 +226,6 @@ describe("noVerdictSignal", () => {
       lamp: "unlit",
       word: "No verdict",
       headline: "Green Light recorded a status HUD does not recognize",
-      body: "",
     });
   });
 
@@ -279,22 +267,8 @@ describe("commitGreenlightState", () => {
     ).toEqual({ kind: "verdict", verdict: verdictOf() });
   });
 
-  test.each([
-    ["not_reviewed"],
-    ["no_pull_request"],
-    ["unrecognized_status"],
-  ] as const)("no verdict because %s is said, with its reason", (reason) => {
-    expect(
-      commitGreenlightState(
-        answered({ no_verdict_reason: reason }),
-        undefined,
-        retry
-      )
-    ).toEqual({ kind: "no_verdict", reason });
-  });
-
-  test.each([["unknown_commit"], ["repository_not_reviewed"], [null]] as const)(
-    "no verdict because %s has no pill",
+  test.each([["not_reviewed"], ["unrecognized_status"]] as const)(
+    "no verdict because %s is said, with its reason",
     (reason) => {
       expect(
         commitGreenlightState(
@@ -302,9 +276,24 @@ describe("commitGreenlightState", () => {
           undefined,
           retry
         )
-      ).toBeNull();
+      ).toEqual({ kind: "no_verdict", reason });
     }
   );
+
+  test.each([
+    ["no_pull_request"],
+    ["unknown_commit"],
+    ["repository_not_reviewed"],
+    [null],
+  ] as const)("no verdict because %s has no pill", (reason) => {
+    expect(
+      commitGreenlightState(
+        answered({ no_verdict_reason: reason }),
+        undefined,
+        retry
+      )
+    ).toBeNull();
+  });
 
   test("a failure with no answer is said, with the way to ask again", () => {
     const failure = new Error("An error occurred while fetching the data");
@@ -701,12 +690,6 @@ describe("the pill, closed", () => {
       "Green Light has no review of this commit",
     ],
     [
-      "a commit of no pull request",
-      { kind: "no_verdict", reason: "no_pull_request" },
-      "Green Light No verdict",
-      "This commit is not part of a pull request",
-    ],
-    [
       "a verdict that could not be read",
       { kind: "unavailable", error: new Error("no"), retry: () => undefined },
       "Green Light Unavailable",
@@ -810,6 +793,47 @@ describe("the commit header", () => {
     expect(placeholder).toBeLessThan(html.indexOf("#204150", placeholder));
     expect(html.lastIndexOf("#204150")).toBeGreaterThan(placeholder);
   });
+
+  // The pill is a pull request head's. A commit on a branch has none,
+  // whatever pull request it landed from and whatever GreenLight's answer,
+  // and no place is held for one while the answer is on its way.
+  const landed: Partial<CommitRecord> = {
+    title: `${commit.title} (#204150)`,
+    branch: "main",
+    pull_request_head: false,
+  };
+  test.each<[string, Partial<CommitRecord>, CommitGreenlightState]>([
+    ["that landed from a pull request, with a verdict", landed, verdictState()],
+    [
+      "that landed from a pull request, with no review",
+      landed,
+      { kind: "no_verdict", reason: "not_reviewed" },
+    ],
+    [
+      "that landed from a pull request, its answer on its way",
+      landed,
+      { kind: "loading" },
+    ],
+    [
+      "of no pull request, its answer on its way",
+      { branch: "nightly", pull_request_head: false, pull_request: null },
+      { kind: "loading" },
+    ],
+  ])(
+    "has no pill, and holds no place for one, on a branch's commit %s",
+    (_name, changes, greenlight) => {
+      const { html } = rendered(
+        <CommitHeader
+          repo={REPO}
+          commit={{ ...commit, ...changes }}
+          greenlight={greenlight}
+        />
+      );
+      expect(html).not.toContain("Green Light");
+      expect(html).not.toContain("<button");
+      expect(html).not.toContain("MuiSkeleton-root");
+    }
+  );
 
   test.each([[null], [undefined]])(
     "has no pill, and holds no place for one, where the commit gets none (%s)",

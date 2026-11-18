@@ -1,25 +1,19 @@
 import {
   allPassed,
+  barWeight,
   clockLabel,
   commitCrumbs,
   commitPullRequestNumber,
-  CommitTestCounts,
-  COUNT_FIGURE_MIN_SIZE,
-  COUNT_FIGURE_SIZE,
-  COUNT_GAP,
-  countGap,
-  fittingCountSize,
   headline,
   problemHue,
   pullRequestUrl,
   shareLabel,
   shortSha,
   statusWord,
-  SUMMARY_TEXT_SIZE,
-  summaryStatuses,
   timeRangeLabel,
   whenLabel,
 } from "lib/tests/commit";
+import { noCounts } from "lib/tests/timeline";
 
 describe("headline", () => {
   it("takes the pull request off the end and sets backticks as code", () => {
@@ -139,91 +133,20 @@ describe("summary labels", () => {
     expect(problemHue("skipped")).toBeNull();
     expect(problemHue("xfailed")).toBeNull();
   });
-  it("say a status as the legend's word", () => {
+  it("say a status as the counts' word", () => {
     expect(statusWord("timed_out")).toBe("timed out");
     expect(statusWord("xfailed")).toBe("expected failures");
     expect(statusWord("passed")).toBe("passed");
   });
 });
 
-// Counts with each status's runs and jobs; the tests behind them are a
-// third of the runs, as on a main commit, and the worst-status counts a
-// third again.
-function counts(
-  byRuns: Partial<Record<string, [number, number]>>
-): CommitTestCounts {
-  const statuses = [
-    "failed",
-    "timed_out",
-    "flaky",
-    "passed",
-    "other",
-    "xfailed",
-    "skipped",
-  ] as const;
-  const byStatus = Object.fromEntries(
-    statuses.map((status) => {
-      const [runs, jobs] = byRuns[status] ?? [0, 0];
-      return [status, { runs, jobs, tests: Math.ceil(runs / 3) }];
-    })
-  ) as CommitTestCounts["by_status"];
-  const byWorst = Object.fromEntries(
-    statuses.map((status) => [
-      status,
-      { tests: Math.ceil(byStatus[status].tests / 3), jobs: 0 },
-    ])
-  ) as CommitTestCounts["by_worst_status"];
-  const runs = statuses.reduce((sum, status) => sum + byStatus[status].runs, 0);
-  return {
-    total: { tests: Math.ceil(runs / 12), jobs: 333, runs },
-    by_worst_status: byWorst,
-    by_status: byStatus,
-  };
-}
-
-describe("summaryStatuses", () => {
-  it("lists the statuses with runs in order, weighted by log10(runs + 1), with their true share", () => {
-    const statuses = summaryStatuses(
-      counts({
-        failed: [5, 5],
-        timed_out: [8, 4],
-        flaky: [87, 46],
-        passed: [4721574, 333],
-        xfailed: [81000, 290],
-        skipped: [4375055, 326],
-      })
-    );
-    expect(statuses.map((item) => item.status)).toEqual([
-      "failed",
-      "timed_out",
-      "flaky",
-      "passed",
-      "xfailed",
-      "skipped",
-    ]);
-    expect(statuses.map((item) => item.weight)).toEqual(
-      [6, 9, 88, 4721575, 81001, 4375056].map((runs) => Math.log10(runs))
-    );
+describe("barWeight", () => {
+  it("is the logarithm of a status's tests, and nothing for none", () => {
+    expect(barWeight(0)).toBe(0);
+    expect(barWeight(5)).toBe(Math.log10(6));
     // The bar is not to scale: five failures get about a tenth of the
     // passes' width; the share says what the proportion is.
-    expect(statuses[0].weight / statuses[3].weight).toBeCloseTo(0.117, 3);
-    expect(statuses.map((item) => item.share)).toEqual([
-      "under 0.01%",
-      "under 0.01%",
-      "under 0.01%",
-      "51.4%",
-      "0.883%",
-      "47.7%",
-    ]);
-    expect(statuses[0].counts).toEqual({ runs: 5, jobs: 5, tests: 2 });
-  });
-  it("leaves out a status with no runs", () => {
-    expect(
-      summaryStatuses(
-        counts({ timed_out: [8, 4], flaky: [33, 22], passed: [1, 1] })
-      ).map((item) => item.status)
-    ).toEqual(["timed_out", "flaky", "passed"]);
-    expect(summaryStatuses(counts({}))).toEqual([]);
+    expect(barWeight(5) / barWeight(4721574)).toBeCloseTo(0.117, 3);
   });
 });
 
@@ -240,48 +163,20 @@ describe("shareLabel", () => {
   });
 });
 
-describe("the counts' fit", () => {
-  it("keeps the full size while the counts fit, steps down a pixel at a time and stops at the facts' size", () => {
-    // The counts' width at a figure size: 100px of dots and words, 40px a
-    // pixel of figures.
-    const widthAt = (size: number) => 100 + 40 * size;
-    expect(fittingCountSize(100 + 40 * COUNT_FIGURE_SIZE, widthAt)).toBe(
-      COUNT_FIGURE_SIZE
-    );
-    const tried: number[] = [];
-    expect(
-      fittingCountSize(100 + 40 * 19 + 10, (size) => {
-        tried.push(size);
-        return widthAt(size);
-      })
-    ).toBe(19);
-    expect(tried).toEqual([22, 21, 20, 19]);
-    // Nothing fits: the floor, the facts' own size, never tried below.
-    expect(fittingCountSize(0, widthAt)).toBe(COUNT_FIGURE_MIN_SIZE);
-    expect(COUNT_FIGURE_MIN_SIZE).toBe(SUMMARY_TEXT_SIZE);
-  });
-  it("shrinks the gap between counts with the figures", () => {
-    expect(countGap(COUNT_FIGURE_SIZE)).toBe(COUNT_GAP);
-    expect(countGap(18)).toBe(25);
-    expect(countGap(COUNT_FIGURE_MIN_SIZE)).toBe(20);
-  });
-});
-
 describe("allPassed", () => {
-  it("holds when the commit has runs and none failed, timed out or was flaky", () => {
+  it("holds when tests were recorded and none failed, timed out or was flaky", () => {
     expect(
-      allPassed(
-        counts({
-          passed: [172935, 108],
-          xfailed: [3908, 90],
-          skipped: [48024, 100],
-        })
-      )
+      allPassed({
+        ...noCounts(),
+        passed: 172935,
+        xfailed: 3908,
+        skipped: 48024,
+      })
     ).toBe(true);
-    expect(allPassed(counts({ flaky: [36, 21], passed: [10, 3] }))).toBe(false);
-    expect(allPassed(counts({ failed: [1, 1] }))).toBe(false);
-    // A commit with no runs says nothing of passing.
-    expect(allPassed(counts({}))).toBe(false);
+    expect(allPassed({ ...noCounts(), flaky: 36, passed: 10 })).toBe(false);
+    expect(allPassed({ ...noCounts(), failed: 1 })).toBe(false);
+    // No test says nothing of passing.
+    expect(allPassed(noCounts())).toBe(false);
   });
 });
 

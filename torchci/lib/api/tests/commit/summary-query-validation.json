@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-11-06T01:04:47.484Z",
+  "measured_at": "2026-11-17T18:37:11.606Z",
   "server_version": "26.6.1.2455",
   "database": "ci",
   "settings": {
@@ -10,7 +10,7 @@
     "date_time_output_format": "iso"
   },
   "pairs": 3,
-  "description": "The commit summary's test counts (GET /api/tests/commit/{sha}/summary): per worst result the tests and their jobs, and for the whole commit the tests, jobs and bundles of each status and the span of the runs. before: the statement the working tree is compared with, recorded rather than regenerated: until 2026-11-05 every retained run of the commit's jobs read with FINAL and grouped into bundles, the functional baseline; since each case's `regenerated` note, the counts query it replaced, which had been recorded equal to that baseline. after: the working-tree SQL, which groups the commit's rows by job and test through by_job, classifies the keys holding one stored row straight off their outcome and reads FINAL only for the other keys' rows at their shared starts, each test's bundles aggregated as parallel arrays of jobs and ranks. Each case runs alternating pairs and requires identical complete rows (sorted by category). The lookups, the commit's own, its pull request's title, the pull request its SHA has been the head of (a fork head's) and its branch neighbours, are recorded for SQL drift and run once live.",
+  "description": "The commit summary's test counts (GET /api/tests/commit/{sha}/summary): per worst result the tests and their jobs, and for the whole commit the tests, jobs and bundles of each status and the span of the runs. before: the statement the working tree is compared with, recorded rather than regenerated: until 2026-11-05 every retained run of the commit's jobs read with FINAL and grouped into bundles, the functional baseline; since each case's `regenerated` note, the counts query it replaced, which had been recorded equal to that baseline. after: the working-tree SQL, which groups the commit's rows by job and test through by_job, classifies the keys holding one stored row straight off their outcome and reads FINAL only for the other keys' rows at their shared starts, each test's bundles aggregated as parallel arrays of jobs and ranks. Each case runs alternating pairs and requires identical complete rows (sorted by category). The lookups, the commit's own, its pull request's title, the pull request its SHA has been the head of (a fork head's) and its branch neighbours (among the nearest pushes, and the full search of both sides), are recorded for SQL drift and run once live; `--live --lookups` runs them alone and keeps the cases as recorded.",
   "fixtures": {
     "commit_ce6ff46": "A main commit (PR #202376) with 9,177,729 bundles: 672,763 tests in 333 jobs, 4 failed, 8 timed out, 68 flaky.",
     "pull_request_head_06b5f47": "A pull request head whose tests all passed.",
@@ -2183,53 +2183,71 @@
             "ref": "refs/heads/main",
             "committed_at_ms": 1793362199000
           },
-          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    tupleElement(candidate, 1) AS direction,\n    if(direction = 'newer', argMin(tupleElement(candidate, 2), tupleElement(candidate, 3)), argMax(tupleElement(candidate, 2), tupleElement(candidate, 3))) AS neighbour\nFROM (SELECT arrayJoin(candidates) AS candidate)\nWHERE tupleElement(candidate, 2) IN (\n    SELECT head_sha\n    FROM default.workflow_run\n    WHERE id IN (\n        SELECT run_id\n        FROM default.workflow_job\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_job_by_head_sha\n            WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n        )\n            AND name LIKE '% / test (%'\n    )\n        AND repository.full_name = {repo: String}\n)\nGROUP BY direction\nORDER BY direction\n"
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 2\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n            AND tupleElement(head_commit, 'timestamp') >= fromUnixTimestamp64Milli({committed_at_ms: Int64}) - INTERVAL 7 DAY\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 2\n    )\n) AS candidates\nSELECT\n    direction,\n    count() AS pushes,\n    if(direction = 'newer', argMinIf(sha, committed_at, tested), argMaxIf(sha, committed_at, tested)) AS neighbour\nFROM (\n    SELECT\n        tupleElement(candidate, 1) AS direction,\n        tupleElement(candidate, 2) AS sha,\n        tupleElement(candidate, 3) AS committed_at,\n        sha IN (\n            SELECT head_sha\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT run_id\n                FROM default.workflow_job\n                WHERE id IN (\n                    SELECT id\n                    FROM materialized_views.workflow_job_by_head_sha\n                    WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n                )\n                    AND name LIKE '% / test (%'\n            )\n                AND repository.full_name = {repo: String}\n        ) AS tested\n    FROM (SELECT arrayJoin(candidates) AS candidate)\n)\nGROUP BY direction\nORDER BY direction\n"
+        },
+        "neighbours_far": {
+          "params": {
+            "repo": "pytorch/pytorch",
+            "ref": "refs/heads/main",
+            "committed_at_ms": 1793362199000
+          },
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    direction,\n    count() AS pushes,\n    if(direction = 'newer', argMinIf(sha, committed_at, tested), argMaxIf(sha, committed_at, tested)) AS neighbour\nFROM (\n    SELECT\n        tupleElement(candidate, 1) AS direction,\n        tupleElement(candidate, 2) AS sha,\n        tupleElement(candidate, 3) AS committed_at,\n        sha IN (\n            SELECT head_sha\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT run_id\n                FROM default.workflow_job\n                WHERE id IN (\n                    SELECT id\n                    FROM materialized_views.workflow_job_by_head_sha\n                    WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n                )\n                    AND name LIKE '% / test (%'\n            )\n                AND repository.full_name = {repo: String}\n        ) AS tested\n    FROM (SELECT arrayJoin(candidates) AS candidate)\n)\nGROUP BY direction\nORDER BY direction\n"
         }
       },
       "results": {
         "info": {
           "rows": 1,
           "statistics": {
-            "elapsed": 0.049883082,
-            "rows_read": 55676,
-            "bytes_read": 14837830
+            "elapsed": 0.114637629,
+            "rows_read": 60662,
+            "bytes_read": 25154949
           },
-          "memory_usage": "601088",
+          "memory_usage": "704464",
           "digest": "6e19e7ac2c5c12a9b44717e2d04e06ce8342baa1901ebb72f83de022b6f28e23"
         },
         "pull_request": {
           "rows": 1,
           "statistics": {
-            "elapsed": 0.008963215,
-            "rows_read": 1935,
-            "bytes_read": 175825
+            "elapsed": 0.013391039,
+            "rows_read": 2235,
+            "bytes_read": 179530
           },
-          "memory_usage": "7674096",
+          "memory_usage": "5562983",
           "digest": "fad8538b3d26e0abd548a8a3f29e0f454f52cf038020909d92e09d9ef3b64d5c"
         },
         "pull_request_by_head": {
           "rows": 0,
           "statistics": {
-            "elapsed": 0.006440138,
-            "rows_read": 8683,
-            "bytes_read": 373369
+            "elapsed": 0.00783604,
+            "rows_read": 16384,
+            "bytes_read": 704512
           },
-          "memory_usage": "2458088",
+          "memory_usage": "3841652",
           "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
         },
         "neighbours": {
           "rows": 2,
           "statistics": {
-            "elapsed": 0.483721504,
-            "rows_read": 4551326,
-            "bytes_read": 458226488
+            "elapsed": 0.533450244,
+            "rows_read": 299352,
+            "bytes_read": 212035222
           },
-          "memory_usage": "7389303",
-          "digest": "38a8a94af81678a393eaed8452e731547aae93e6c4e7a4e1d88dfa9af835996a"
+          "memory_usage": "1446671",
+          "digest": "794c0300a0a1cb2127167ab9c772bb4accf99b083178c5398db516706c7af3fd"
+        },
+        "neighbours_far": {
+          "rows": 2,
+          "statistics": {
+            "elapsed": 0.814262732,
+            "rows_read": 2753786,
+            "bytes_read": 462187133
+          },
+          "memory_usage": "2549906",
+          "digest": "9b88e04e1c2ce0bedbabf01f8c9b1321bb2893bd3bc95638996d9477b770653c"
         }
       },
-      "measured_at": "2026-11-06T01:04:47.484Z",
-      "note": "2026-11-01: the pull request lookup is scoped to the commit's repository (base.repo.full_name), the commit lookup gathers the push runs' branches as an array, and the neighbours query gathers its candidates once and finds their test jobs through the job table's head_sha view instead of a scan of the job table (139 million rows before, about 5 million after; same rows on five commits of main, nightly and viable/strict). Later that day the case's committed_at_ms was corrected to the commit's own head_commit.timestamp (2026-10-30T12:09:59Z, which both the push and the workflow runs record and the summary passes to the neighbours query); the 12:09:17Z recorded before made the commit its own newer neighbour in the recorded result. 2026-11-02: a fourth lookup, branch_head, the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02: a fourth and a fifth lookup, branch_head and record_head (the time of a commit a record names, by its runs; recorded here on the case's own commit), the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02 (later): a sixth lookup, pull_request_by_head (buildCommitPullRequestByHeadQuery): the pull request a commit is or was the head of, through materialized_views.pr_by_sha and the repository's record, which the summary runs for a commit whose runs record no pull request and that no push run put on a branch. Every run of a pull request from a fork records none (333 of 333 fork head commits of the two days before, their ciflow tag pushes included, against 440 of 440 heads in the repository), so until this lookup a fork head was described as a branch commit with no branch; the fork_head_c7ee7fb5 case is such a head (#189727, branch xpu_serial_ci in the fork), on which the lookup finds the record where the info lookup's pull_requests is empty. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded."
+      "measured_at": "2026-11-17T18:37:11.606Z",
+      "note": "2026-11-01: the pull request lookup is scoped to the commit's repository (base.repo.full_name), the commit lookup gathers the push runs' branches as an array, and the neighbours query gathers its candidates once and finds their test jobs through the job table's head_sha view instead of a scan of the job table (139 million rows before, about 5 million after; same rows on five commits of main, nightly and viable/strict). Later that day the case's committed_at_ms was corrected to the commit's own head_commit.timestamp (2026-10-30T12:09:59Z, which both the push and the workflow runs record and the summary passes to the neighbours query); the 12:09:17Z recorded before made the commit its own newer neighbour in the recorded result. 2026-11-02: a fourth lookup, branch_head, the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02: a fourth and a fifth lookup, branch_head and record_head (the time of a commit a record names, by its runs; recorded here on the case's own commit), the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02 (later): a sixth lookup, pull_request_by_head (buildCommitPullRequestByHeadQuery): the pull request a commit is or was the head of, through materialized_views.pr_by_sha and the repository's record, which the summary runs for a commit whose runs record no pull request and that no push run put on a branch. Every run of a pull request from a fork records none (333 of 333 fork head commits of the two days before, their ciflow tag pushes included, against 440 of 440 heads in the repository), so until this lookup a fork head was described as a branch commit with no branch; the fork_head_c7ee7fb5 case is such a head (#189727, branch xpu_serial_ci in the fork), on which the lookup finds the record where the info lookup's pull_requests is empty. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded. 2026-11-17: the neighbours lookup asks the nearest pushes first, two a side and the older ones of the week before the commit, and answers a row per side: its candidates and the nearest of them with a test job. neighbours_far is the full search of twenty a side, which the summary runs only for a side the nearest leave open. Both were recorded, the cases kept as they were since their runs have left retention; the other lookups were run again and return the rows recorded on 2026-11-06. The two return the neighbours of the single query they replace on 74 commits of main, nightly, viable/strict and two release branches and on the three recorded here (commit/query-validation.md)."
     },
     "commit_7a43f10": {
       "raw": {
@@ -2267,53 +2285,71 @@
             "ref": "refs/heads/gh/desertfire/822/head",
             "committed_at_ms": 1793586462000
           },
-          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    tupleElement(candidate, 1) AS direction,\n    if(direction = 'newer', argMin(tupleElement(candidate, 2), tupleElement(candidate, 3)), argMax(tupleElement(candidate, 2), tupleElement(candidate, 3))) AS neighbour\nFROM (SELECT arrayJoin(candidates) AS candidate)\nWHERE tupleElement(candidate, 2) IN (\n    SELECT head_sha\n    FROM default.workflow_run\n    WHERE id IN (\n        SELECT run_id\n        FROM default.workflow_job\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_job_by_head_sha\n            WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n        )\n            AND name LIKE '% / test (%'\n    )\n        AND repository.full_name = {repo: String}\n)\nGROUP BY direction\nORDER BY direction\n"
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 2\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n            AND tupleElement(head_commit, 'timestamp') >= fromUnixTimestamp64Milli({committed_at_ms: Int64}) - INTERVAL 7 DAY\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 2\n    )\n) AS candidates\nSELECT\n    direction,\n    count() AS pushes,\n    if(direction = 'newer', argMinIf(sha, committed_at, tested), argMaxIf(sha, committed_at, tested)) AS neighbour\nFROM (\n    SELECT\n        tupleElement(candidate, 1) AS direction,\n        tupleElement(candidate, 2) AS sha,\n        tupleElement(candidate, 3) AS committed_at,\n        sha IN (\n            SELECT head_sha\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT run_id\n                FROM default.workflow_job\n                WHERE id IN (\n                    SELECT id\n                    FROM materialized_views.workflow_job_by_head_sha\n                    WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n                )\n                    AND name LIKE '% / test (%'\n            )\n                AND repository.full_name = {repo: String}\n        ) AS tested\n    FROM (SELECT arrayJoin(candidates) AS candidate)\n)\nGROUP BY direction\nORDER BY direction\n"
+        },
+        "neighbours_far": {
+          "params": {
+            "repo": "pytorch/pytorch",
+            "ref": "refs/heads/gh/desertfire/822/head",
+            "committed_at_ms": 1793586462000
+          },
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    direction,\n    count() AS pushes,\n    if(direction = 'newer', argMinIf(sha, committed_at, tested), argMaxIf(sha, committed_at, tested)) AS neighbour\nFROM (\n    SELECT\n        tupleElement(candidate, 1) AS direction,\n        tupleElement(candidate, 2) AS sha,\n        tupleElement(candidate, 3) AS committed_at,\n        sha IN (\n            SELECT head_sha\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT run_id\n                FROM default.workflow_job\n                WHERE id IN (\n                    SELECT id\n                    FROM materialized_views.workflow_job_by_head_sha\n                    WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n                )\n                    AND name LIKE '% / test (%'\n            )\n                AND repository.full_name = {repo: String}\n        ) AS tested\n    FROM (SELECT arrayJoin(candidates) AS candidate)\n)\nGROUP BY direction\nORDER BY direction\n"
         }
       },
       "results": {
         "info": {
           "rows": 1,
           "statistics": {
-            "elapsed": 0.043477944,
-            "rows_read": 53931,
-            "bytes_read": 11102681
+            "elapsed": 0.064258985,
+            "rows_read": 58744,
+            "bytes_read": 20752400
           },
-          "memory_usage": "519856",
+          "memory_usage": "629040",
           "digest": "fccd4f708e1106edc78e1691c8aea16d8f411dedd2d7ee0f8661866b24ad5e15"
         },
         "pull_request": {
           "rows": 1,
           "statistics": {
-            "elapsed": 0.00791597,
-            "rows_read": 1379,
-            "bytes_read": 86069
+            "elapsed": 0.009244055,
+            "rows_read": 1942,
+            "bytes_read": 132514
           },
-          "memory_usage": "6587137",
+          "memory_usage": "4480680",
           "digest": "2de767e24489ab8fc41c15619340a10c5a3e707586d209e1b1cae1fbb19e2aea"
         },
         "pull_request_by_head": {
           "rows": 1,
           "statistics": {
-            "elapsed": 0.013485025,
-            "rows_read": 10062,
-            "bytes_read": 534777
+            "elapsed": 0.02254916,
+            "rows_read": 18331,
+            "bytes_read": 918785
           },
-          "memory_usage": "8992009",
+          "memory_usage": "9122624",
           "digest": "90483244b61e74347f4afa93e7bc70aede1a80b7ee9944f9e03443564fb765ac"
         },
         "neighbours": {
           "rows": 2,
           "statistics": {
-            "elapsed": 0.429763125,
-            "rows_read": 3261246,
-            "bytes_read": 134728863
+            "elapsed": 0.218720575,
+            "rows_read": 254832,
+            "bytes_read": 18666004
           },
-          "memory_usage": "2158038",
-          "digest": "55570e140897f48c0f7e29cf524b51562979940ecd7c1ce0a4c23e59e8c9e8da"
+          "memory_usage": "1439158",
+          "digest": "053d53ab341039e782bc09e2d69e77c943f5cd83a30fc6d56167365a43e1cb5e"
+        },
+        "neighbours_far": {
+          "rows": 2,
+          "statistics": {
+            "elapsed": 0.5284888,
+            "rows_read": 2995831,
+            "bytes_read": 112051366
+          },
+          "memory_usage": "2120423",
+          "digest": "85f49f623abce45e7f6e8c06401873dbe8d8292c7959609f61ae484f28f512e9"
         }
       },
-      "measured_at": "2026-11-06T01:04:47.484Z",
-      "note": "2026-11-02: a fourth lookup, branch_head, the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02: a fourth and a fifth lookup, branch_head and record_head (the time of a commit a record names, by its runs; recorded here on the case's own commit), the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02 (later): a sixth lookup, pull_request_by_head (buildCommitPullRequestByHeadQuery): the pull request a commit is or was the head of, through materialized_views.pr_by_sha and the repository's record, which the summary runs for a commit whose runs record no pull request and that no push run put on a branch. Every run of a pull request from a fork records none (333 of 333 fork head commits of the two days before, their ciflow tag pushes included, against 440 of 440 heads in the repository), so until this lookup a fork head was described as a branch commit with no branch; the fork_head_c7ee7fb5 case is such a head (#189727, branch xpu_serial_ci in the fork), on which the lookup finds the record where the info lookup's pull_requests is empty. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded."
+      "measured_at": "2026-11-17T18:37:11.606Z",
+      "note": "2026-11-02: a fourth lookup, branch_head, the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02: a fourth and a fifth lookup, branch_head and record_head (the time of a commit a record names, by its runs; recorded here on the case's own commit), the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02 (later): a sixth lookup, pull_request_by_head (buildCommitPullRequestByHeadQuery): the pull request a commit is or was the head of, through materialized_views.pr_by_sha and the repository's record, which the summary runs for a commit whose runs record no pull request and that no push run put on a branch. Every run of a pull request from a fork records none (333 of 333 fork head commits of the two days before, their ciflow tag pushes included, against 440 of 440 heads in the repository), so until this lookup a fork head was described as a branch commit with no branch; the fork_head_c7ee7fb5 case is such a head (#189727, branch xpu_serial_ci in the fork), on which the lookup finds the record where the info lookup's pull_requests is empty. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded. 2026-11-17: the neighbours lookup asks the nearest pushes first, two a side and the older ones of the week before the commit, and answers a row per side: its candidates and the nearest of them with a test job. neighbours_far is the full search of twenty a side, which the summary runs only for a side the nearest leave open. Both were recorded, the cases kept as they were since their runs have left retention; the other lookups were run again and return the rows recorded on 2026-11-06. The two return the neighbours of the single query they replace on 74 commits of main, nightly, viable/strict and two release branches and on the three recorded here (commit/query-validation.md)."
     },
     "fork_head_c7ee7fb5": {
       "raw": {
@@ -2323,7 +2359,7 @@
       "pull_request_number": 189727,
       "branch": "xpu_serial_ci",
       "committed_at_ms": 1793644001000,
-      "note": "Added 2026-11-02: a pull request head from a fork (#189727, head branch xpu_serial_ci in the fork), whose seven runs (pull_request, pull_request_target and its ciflow/xpu tag push) record no pull request; the info lookup's pull_requests is empty and pull_request_by_head finds the record. The neighbours and branch_head lookups are recorded for completeness; the summary makes neither for a pull request head, and the fork's branch has no pushes here. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded.",
+      "note": "Added 2026-11-02: a pull request head from a fork (#189727, head branch xpu_serial_ci in the fork), whose seven runs (pull_request, pull_request_target and its ciflow/xpu tag push) record no pull request; the info lookup's pull_requests is empty and pull_request_by_head finds the record. The neighbours and branch_head lookups are recorded for completeness; the summary makes neither for a pull request head, and the fork's branch has no pushes here. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded. 2026-11-17: the neighbours lookup asks the nearest pushes first, two a side and the older ones of the week before the commit, and answers a row per side: its candidates and the nearest of them with a test job. neighbours_far is the full search of twenty a side, which the summary runs only for a side the nearest leave open. Both were recorded, the cases kept as they were since their runs have left retention; the other lookups were run again and return the rows recorded on 2026-11-06. The two return the neighbours of the single query they replace on 74 commits of main, nightly, viable/strict and two release branches and on the three recorded here (commit/query-validation.md).",
       "queries": {
         "info": {
           "params": {
@@ -2352,52 +2388,70 @@
             "ref": "refs/heads/xpu_serial_ci",
             "committed_at_ms": 1793644001000
           },
-          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    tupleElement(candidate, 1) AS direction,\n    if(direction = 'newer', argMin(tupleElement(candidate, 2), tupleElement(candidate, 3)), argMax(tupleElement(candidate, 2), tupleElement(candidate, 3))) AS neighbour\nFROM (SELECT arrayJoin(candidates) AS candidate)\nWHERE tupleElement(candidate, 2) IN (\n    SELECT head_sha\n    FROM default.workflow_run\n    WHERE id IN (\n        SELECT run_id\n        FROM default.workflow_job\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_job_by_head_sha\n            WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n        )\n            AND name LIKE '% / test (%'\n    )\n        AND repository.full_name = {repo: String}\n)\nGROUP BY direction\nORDER BY direction\n"
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 2\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n            AND tupleElement(head_commit, 'timestamp') >= fromUnixTimestamp64Milli({committed_at_ms: Int64}) - INTERVAL 7 DAY\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 2\n    )\n) AS candidates\nSELECT\n    direction,\n    count() AS pushes,\n    if(direction = 'newer', argMinIf(sha, committed_at, tested), argMaxIf(sha, committed_at, tested)) AS neighbour\nFROM (\n    SELECT\n        tupleElement(candidate, 1) AS direction,\n        tupleElement(candidate, 2) AS sha,\n        tupleElement(candidate, 3) AS committed_at,\n        sha IN (\n            SELECT head_sha\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT run_id\n                FROM default.workflow_job\n                WHERE id IN (\n                    SELECT id\n                    FROM materialized_views.workflow_job_by_head_sha\n                    WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n                )\n                    AND name LIKE '% / test (%'\n            )\n                AND repository.full_name = {repo: String}\n        ) AS tested\n    FROM (SELECT arrayJoin(candidates) AS candidate)\n)\nGROUP BY direction\nORDER BY direction\n"
+        },
+        "neighbours_far": {
+          "params": {
+            "repo": "pytorch/pytorch",
+            "ref": "refs/heads/xpu_serial_ci",
+            "committed_at_ms": 1793644001000
+          },
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    direction,\n    count() AS pushes,\n    if(direction = 'newer', argMinIf(sha, committed_at, tested), argMaxIf(sha, committed_at, tested)) AS neighbour\nFROM (\n    SELECT\n        tupleElement(candidate, 1) AS direction,\n        tupleElement(candidate, 2) AS sha,\n        tupleElement(candidate, 3) AS committed_at,\n        sha IN (\n            SELECT head_sha\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT run_id\n                FROM default.workflow_job\n                WHERE id IN (\n                    SELECT id\n                    FROM materialized_views.workflow_job_by_head_sha\n                    WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n                )\n                    AND name LIKE '% / test (%'\n            )\n                AND repository.full_name = {repo: String}\n        ) AS tested\n    FROM (SELECT arrayJoin(candidates) AS candidate)\n)\nGROUP BY direction\nORDER BY direction\n"
         }
       },
       "results": {
         "info": {
           "rows": 1,
           "statistics": {
-            "elapsed": 0.049960554,
-            "rows_read": 53887,
-            "bytes_read": 13138458
+            "elapsed": 0.110355155,
+            "rows_read": 57469,
+            "bytes_read": 27388201
           },
-          "memory_usage": "506152",
+          "memory_usage": "588568",
           "digest": "d21abe213c565cd49e5fe7b7ed2f821780158af49f19023667550df6f2dd45aa"
         },
         "pull_request": {
           "rows": 1,
           "statistics": {
-            "elapsed": 0.010493706,
-            "rows_read": 2975,
-            "bytes_read": 165063
+            "elapsed": 0.028435911,
+            "rows_read": 3208,
+            "bytes_read": 170119
           },
-          "memory_usage": "8756751",
+          "memory_usage": "2420058",
           "digest": "3083311832d0a4106ea5d1466b131b9249f372729c22eceddf49cccb9da02ba3"
         },
         "pull_request_by_head": {
           "rows": 1,
           "statistics": {
-            "elapsed": 0.017600388,
-            "rows_read": 11658,
-            "bytes_read": 622154
+            "elapsed": 0.019466244,
+            "rows_read": 19592,
+            "bytes_read": 958526
           },
-          "memory_usage": "448885",
+          "memory_usage": "473163",
           "digest": "1aec84b6c047f4898ee3904789a13d3adb9e3f20ba56db11ee5fef3d14d1e764"
         },
         "neighbours": {
           "rows": 0,
           "statistics": {
-            "elapsed": 0.460502355,
-            "rows_read": 2653206,
-            "bytes_read": 88271843
+            "elapsed": 0.093034819,
+            "rows_read": 93431,
+            "bytes_read": 3173959
           },
-          "memory_usage": "1857464",
+          "memory_usage": "1027359",
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "neighbours_far": {
+          "rows": 0,
+          "statistics": {
+            "elapsed": 0.436045264,
+            "rows_read": 2712500,
+            "bytes_read": 90283758
+          },
+          "memory_usage": "1666591",
           "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
         }
       },
-      "measured_at": "2026-11-06T01:04:47.484Z"
+      "measured_at": "2026-11-17T18:37:11.606Z"
     }
   }
 }

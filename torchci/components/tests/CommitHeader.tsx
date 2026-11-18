@@ -37,8 +37,8 @@ export interface CommitHeaderProps {
   // place, or there is none, so it says only what the page is.
   loading?: boolean;
   // What there is to show for GreenLight's verdict on the commit
-  // (useCommitGreenlight), the first pill; null or left out where the commit
-  // gets none, in a repository GreenLight does not review.
+  // (useCommitGreenlight), the first pill of a pull request's head; null or
+  // left out in a repository GreenLight does not review.
   greenlight?: CommitGreenlightState | null;
 }
 
@@ -184,13 +184,13 @@ function PullRequestAndCommit({
 
 // The header of a commit's page, set from the hub's header pieces
 // (PageHeader): where the commit lives, as a monospace breadcrumb; its
-// title, the headline; and a row of facts as pills: first GreenLight's
-// verdict on the commit, a pill in its tone that opens the reasons behind
-// it, or says that there is none (GreenLightPill); then the pull request
-// and the commit as one pill (PullRequestAndCommit), the author, when it
-// was committed, and on a branch its neighbours, older to the left and
-// newer to the right, the branch itself being in the breadcrumb, or for a
-// pull request head its branch.
+// title, the headline; and a row of facts as pills: first, on a pull
+// request's head, GreenLight's verdict on it, a pill in its tone that
+// opens the reasons behind it, or says that there is none (GreenLightPill);
+// then the pull request and the commit as one pill (PullRequestAndCommit),
+// the author, when it was committed, and on a branch its neighbours, older
+// to the left and newer to the right, the branch itself being in the
+// breadcrumb, or for a pull request head its branch.
 // Until the commit arrives a skeleton holds each line's place; with no
 // commit to show the headline says "Commit" and the rest is left out.
 export default function CommitHeader({
@@ -215,7 +215,11 @@ export default function CommitHeader({
       <HeaderCrumbs crumbs={commitCrumbs(repo, commit)} />
       <Title repo={repo} commit={commit} />
       <FactsRow>
-        {greenlight != null && (
+        {/* GreenLight reviews pull requests: the pill is a pull request
+            head's. A commit on a branch has none, whatever pull request it
+            landed from, and no place held for one while GreenLight's answer
+            is on its way. */}
+        {greenlight != null && commit.pull_request_head && (
           <GreenLightPill repo={repo} sha={commit.sha} state={greenlight} />
         )}
         <PullRequestAndCommit repo={repo} commit={commit} />

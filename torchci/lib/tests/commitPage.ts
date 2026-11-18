@@ -1,3 +1,7 @@
+import type { CommitJobsField } from "lib/api/tests/commit/jobs/parameters";
+import type { CommitSummary } from "lib/api/tests/commit/summary/types";
+import { JobIdSchema } from "lib/api/tests/job/parameters";
+import type { JobDetail } from "lib/api/tests/job/types";
 import {
   COMMIT_PAGE_DEFAULT_SORT,
   COMMIT_PAGE_DEFAULT_STATUSES,
@@ -21,6 +25,15 @@ import {
   phraseList,
   TestsFacet,
 } from "lib/tests/facets";
+import {
+  commitCounts,
+  LISTED_TESTS,
+  noCounts,
+  nodeOfPick,
+  StatusCounts,
+  Timeline,
+  TimelinePick,
+} from "lib/tests/timeline";
 import type { UrlQuery } from "lib/tests/url";
 
 // The commit page's glue between its URL, its state and the API, free of
@@ -80,6 +93,57 @@ export interface CommitPageState {
   statuses: BundleStatus[];
   // The API sort parameter, without the outcome the page puts first.
   sort: string;
+  // What is picked in the timeline, whose tests the table lists; null for
+  // nothing, the whole commit.
+  pick: TimelinePick | null;
+}
+
+// The outcomes listed until the URL says otherwise: the page's defaults for
+// the whole commit, and every outcome of a pick, failures first.
+export function usualStatuses(pick: TimelinePick | null): BundleStatus[] {
+  return BUNDLE_STATUSES.filter(
+    (status) => pick !== null || COMMIT_PAGE_DEFAULT_STATUSES.includes(status)
+  );
+}
+
+// The pick the URL's parameters name: a job, with a file of it and a test
+// of that file; else a workflow, with its run and attempt and a build of it.
+function pickFromUrl(
+  values: Partial<Record<string, string | string[]>>
+): TimelinePick | null {
+  const text = (name: string) => {
+    const value = values[name];
+    return typeof value === "string" && value !== "" ? value : undefined;
+  };
+  const jobId = JobIdSchema.safeParse(text("job_id"));
+  const file = text("file");
+  const caseName = text("case_name");
+  const workflow = text("workflow");
+  const build = text("build");
+  if (jobId.success) {
+    if (file === undefined) return { kind: "job", jobId: jobId.data };
+    return caseName === undefined
+      ? { kind: "file", jobId: jobId.data, file }
+      : {
+          kind: "test",
+          jobId: jobId.data,
+          file,
+          suite: text("suite") ?? "",
+          caseName,
+        };
+  }
+  if (workflow === undefined) return null;
+  const { run_id, run_attempt } = COMMIT_PAGE_PARAMETER_DEFINITIONS;
+  const runId = run_id.schema.safeParse(text("run_id")).data;
+  const attempt = run_attempt.schema.safeParse(text("run_attempt")).data;
+  const row = {
+    workflow,
+    ...(runId !== undefined && { runId }),
+    ...(attempt !== undefined && { attempt }),
+  };
+  return build === undefined
+    ? { kind: "workflow", ...row }
+    : { kind: "build", ...row, build };
 }
 
 // Reads the page's URL: each parameter by its definition, a value its
@@ -94,37 +158,79 @@ export function commitPageStateFromUrl(url: UrlQuery): CommitPageState {
     const given = values[facet];
     filters[facet as TestsFacet] = given === undefined ? [] : [...given];
   }
+  const pick = pickFromUrl(values);
   return {
     search: values.search ?? "",
     filters,
-    statuses: [...BUNDLE_STATUSES].filter((status) =>
-      (statuses.success
-        ? statuses.data
-        : COMMIT_PAGE_DEFAULT_STATUSES
-      ).includes(status)
-    ),
+    statuses:
+      values.status !== undefined && statuses.success
+        ? [...BUNDLE_STATUSES].filter((status) =>
+            statuses.data.includes(status)
+          )
+        : usualStatuses(pick),
     sort: (sort.success ? sort.data : [...COMMIT_PAGE_DEFAULT_SORT]).join(","),
+    pick,
   };
 }
 
 // The URL parameters for a state, the defaults left off.
 export function commitUrlParams(state: CommitPageState): UrlQuery {
+  const { pick } = state;
+  const row =
+    pick?.kind === "workflow" || pick?.kind === "build" ? pick : undefined;
   const values: Record<string, string | string[] | undefined> = {
     search: state.search === "" ? undefined : state.search,
-    status: state.statuses,
     sort: state.sort.split(","),
+    workflow: row?.workflow,
+    run_id: row?.runId,
+    run_attempt: row?.attempt?.toString(),
+    build: pick?.kind === "build" ? pick.build : undefined,
+    job_id:
+      pick?.kind === "job" || pick?.kind === "file" || pick?.kind === "test"
+        ? pick.jobId
+        : undefined,
+    file:
+      pick?.kind === "file" || pick?.kind === "test" ? pick.file : undefined,
+    suite: pick?.kind === "test" ? pick.suite : undefined,
+    case_name: pick?.kind === "test" ? pick.caseName : undefined,
   };
   for (const facet of COMMIT_FACETS) {
     values[facet] = state.filters[facet as TestsFacet];
   }
-  return pageUrlParams(values, COMMIT_PAGE_PARAMETER_DEFINITIONS);
+  const usual = usualStatuses(pick);
+  return {
+    ...pageUrlParams(values, COMMIT_PAGE_PARAMETER_DEFINITIONS),
+    // Left off while they are the usual ones for what is picked.
+    status:
+      state.statuses.length === usual.length &&
+      state.statuses.every((status) => usual.includes(status))
+        ? undefined
+        : state.statuses,
+  };
 }
 
-// Where the API answers for a commit.
+// Whether two states are one view: the URL would say the same of both.
+export function sameView(left: CommitPageState, right: CommitPageState) {
+  return (
+    JSON.stringify(commitUrlParams(left)) ===
+    JSON.stringify(commitUrlParams(right))
+  );
+}
+
+// Where the API answers for a commit. Of the summary the page asks for what
+// its header shows, the commit and the retention's start: the counts, which
+// read every run of the commit, are the timeline's here.
+export const COMMIT_HEADER_FIELDS = ["commit", "retention_starts_at"] as const;
+export type CommitHeaderSummary = Required<
+  Pick<CommitSummary, (typeof COMMIT_HEADER_FIELDS)[number]>
+>;
+
 export function commitSummaryApiUrl(repo: string, sha: string): string {
   return `/api/tests/commit/${encodeURIComponent(
     sha
-  )}/summary?repo=${encodeURIComponent(repo)}`;
+  )}/summary?repo=${encodeURIComponent(repo)}${COMMIT_HEADER_FIELDS.map(
+    (field) => `&fields=${field}`
+  ).join("")}`;
 }
 
 export function commitGreenlightApiUrl(repo: string, sha: string): string {
@@ -133,23 +239,133 @@ export function commitGreenlightApiUrl(repo: string, sha: string): string {
   )}/greenlight?repo=${encodeURIComponent(repo)}`;
 }
 
+// One field of the commit's jobs endpoint: the jobs, or what their tests
+// did. The page asks for the two apart, at once, and draws the jobs while
+// the tests are read.
+export function commitJobsApiUrl(
+  repo: string,
+  sha: string,
+  field: CommitJobsField
+): string {
+  return `/api/tests/commit/${encodeURIComponent(
+    sha
+  )}/jobs?repo=${encodeURIComponent(repo)}&fields=${field}`;
+}
+
+export function jobApiUrl(jobId: string): string {
+  return `/api/tests/job/${encodeURIComponent(jobId)}`;
+}
+
+// The tests a file of a job names in the timeline: the failed and flaky
+// first, then the slowest.
+export function fileTestsApiUrl(
+  repo: string,
+  sha: string,
+  jobId: string,
+  file: string
+): string {
+  const search = new URLSearchParams({ repo, job_id: jobId, file });
+  search.set("sort", "-status,-duration_milliseconds");
+  search.set("limit", String(LISTED_TESTS));
+  return `/api/tests/commit/${encodeURIComponent(sha)}?${search.toString()}`;
+}
+
+// How the commit's runs endpoint narrows to a pick: a job by its ID, with
+// the file and the test's name for those; a workflow by its path, or with
+// its jobs' IDs when given, as a build always is.
+export interface PickFilter {
+  jobIds?: readonly string[];
+  workflowPath?: string;
+  file?: string;
+  suite?: string;
+  caseName?: string;
+}
+
+// The filter for a pick. A job, a file and a test name their job; a build
+// is its jobs, and a workflow its path, or its row's jobs where it has
+// several rows, which the commit's jobs say: "waiting" while those are on
+// their way, "nothing" for a pick the commit does not have.
+export function pickFilterOf(
+  pick: TimelinePick | null,
+  timeline: Timeline | undefined
+): PickFilter | "waiting" | "nothing" {
+  if (pick === null) return {};
+  if (pick.kind === "job") return { jobIds: [pick.jobId] };
+  if (pick.kind === "file") return { jobIds: [pick.jobId], file: pick.file };
+  if (pick.kind === "test") {
+    return {
+      jobIds: [pick.jobId],
+      file: pick.file,
+      suite: pick.suite,
+      caseName: pick.caseName,
+    };
+  }
+  if (timeline === undefined) return "waiting";
+  const node = nodeOfPick(timeline, pick);
+  const jobs = node?.jobs ?? [];
+  if (node === null || jobs.length === 0) return "nothing";
+  const { path } = jobs[0].job.workflow;
+  const onlyRow = node.runId === undefined && node.attempt === undefined;
+  return pick.kind === "workflow" && path !== null && onlyRow
+    ? { workflowPath: path }
+    : { jobIds: jobs.map(({ job }) => job.id) };
+}
+
+// Whether nothing can match: a workflow is picked that the Test Config
+// header's workflow filter leaves out.
+export function pickFilteredOut(
+  filters: FacetValues,
+  pick: PickFilter
+): boolean {
+  const workflows = filters.workflow_path ?? [];
+  return (
+    pick.workflowPath !== undefined &&
+    workflows.length > 0 &&
+    !workflows.includes(pick.workflowPath)
+  );
+}
+
+// Where the table's first page comes from for a view; null while the jobs
+// that say what a workflow or a build holds are on their way, and for a
+// view that can list nothing.
+export function listedRunsApiUrl(
+  repo: string,
+  sha: string,
+  state: CommitPageState,
+  timeline: Timeline | undefined
+): string | null {
+  const filter = pickFilterOf(state.pick, timeline);
+  return typeof filter !== "object" || pickFilteredOut(state.filters, filter)
+    ? null
+    : commitRunsApiUrl(repo, sha, state, PAGE_SIZE, filter);
+}
+
 // A page of the commit's runs with the outcomes listed, narrowed by the
-// page's filters and search, in outcome order and within it the page's
-// sort: the API's status sort, worst first, then the page's.
+// pick, the page's filters and search, in outcome order and within it the
+// page's sort: the API's status sort, worst first, then the page's.
 export function commitRunsApiUrl(
   repo: string,
   sha: string,
   state: Pick<CommitPageState, "search" | "filters" | "sort" | "statuses">,
-  limit: number
+  limit: number,
+  pick: PickFilter = {}
 ): string {
   const search = new URLSearchParams();
   search.set("repo", repo);
   for (const status of state.statuses) search.append("status", status);
   if (state.search !== "") search.set("search", state.search);
   for (const facet of COMMIT_FACETS) {
-    for (const value of state.filters[facet as TestsFacet] ?? []) {
-      search.append(facet, value);
-    }
+    const values =
+      facet === "workflow_path" && pick.workflowPath !== undefined
+        ? [pick.workflowPath]
+        : state.filters[facet as TestsFacet] ?? [];
+    for (const value of values) search.append(facet, value);
+  }
+  for (const jobId of pick.jobIds ?? []) search.append("job_id", jobId);
+  if (pick.file !== undefined) search.set("file", pick.file);
+  if (pick.caseName !== undefined) {
+    search.set("suite", pick.suite ?? "");
+    search.set("case_name", pick.caseName);
   }
   search.set("sort", `-status,${state.sort}`);
   search.set("limit", String(limit));
@@ -159,6 +375,38 @@ export function commitRunsApiUrl(
 // The status of a run's bundle, from its attempts' outcomes.
 export function runStatus(run: RunRecord): BundleStatus {
   return bundleStatus(run.attempts.map((attempt) => attempt.outcome));
+}
+
+// What the table's title sums up: the tests of what is picked by status, a
+// test run in several jobs once per job, from what the page has read for
+// it: the timeline's for the whole commit, a workflow, a build or a job,
+// the job's files for a file, and a test's own runs; undefined while what
+// it needs is on its way, the jobs' tests for the timeline's.
+export function testCountsOf(read: {
+  pick: TimelinePick | null;
+  timeline: Timeline | undefined;
+  job: JobDetail | undefined;
+  runs: readonly RunRecord[] | undefined;
+}): StatusCounts | undefined {
+  const { pick } = read;
+  const counts = noCounts();
+  if (pick?.kind === "test") {
+    if (read.runs === undefined) return undefined;
+    for (const run of read.runs) counts[runStatus(run)] += 1;
+    return counts;
+  }
+  if (pick?.kind === "file") {
+    if (read.job === undefined) return undefined;
+    const file = read.job.files.find(
+      (candidate) => (candidate.file ?? "") === pick.file
+    );
+    return file?.tests_by_status ?? counts;
+  }
+  if (read.timeline === undefined || read.timeline.testsPending) {
+    return undefined;
+  }
+  if (pick === null) return commitCounts(read.timeline);
+  return nodeOfPick(read.timeline, pick)?.totals.counts ?? counts;
 }
 
 // Whether the page asks for the next page by itself: while one follows, the
@@ -182,7 +430,7 @@ export const COMMIT_COLUMN_DESCRIPTIONS = {
     "How the run ended on this commit, with what its attempts did; the filter chooses which outcomes are listed.",
   duration:
     "How long the run took: every attempt that executed, skipped attempts left out.",
-  job: "The GitHub job that ran the test, with its shard and runner.",
+  job: "The GitHub job that ran the test, with its shard and runner; the filter picks one job, in the timeline too.",
 };
 
 // ---------------------------------------------------------------------------

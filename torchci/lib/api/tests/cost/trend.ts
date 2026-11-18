@@ -1,3 +1,4 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import type { CostTrendParams } from "lib/api/tests/cost/parameters";
 import {
   trendDailyQuery,
@@ -6,7 +7,6 @@ import {
 } from "lib/api/tests/cost/query";
 import type { CostTrend } from "lib/api/tests/cost/types";
 import { TREND_PERIODS, type TrendRollup } from "lib/api/tests/cost/windows";
-import { queryClickhouse } from "lib/clickhouse";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

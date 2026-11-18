@@ -30,13 +30,9 @@ function* walk(
   }
 }
 
-// The three lists run heavy queries: they alone document the 429 of a refused
+// The tests list runs heavy queries: it alone documents the 429 of a refused
 // query (app/api/README.md, Heavy queries).
-const HEAVY_PATHS = [
-  "/api/tests",
-  "/api/tests/test/{test_id}/runs",
-  "/api/tests/commit/{sha}",
-];
+const HEAVY_PATHS = ["/api/tests"];
 
 // The document's paths under one tag: `tests` for the JSON API served by
 // app/api, `pages` for the HUD pages under pages/tests built on it.
@@ -376,7 +372,7 @@ describe("GET /api/openapi.json", () => {
     ).toEqual({ $ref: "#/components/schemas/ReleaseArtifactPage" });
   });
 
-  test("documents the 429 of a refused heavy query on the lists alone", () => {
+  test("documents the 429 of a refused heavy query on the tests list alone", () => {
     for (const [path, item] of Object.entries<any>(document.paths)) {
       const overloaded = item.get.responses["429"];
       expect({ path, documented: overloaded !== undefined }).toEqual({
@@ -572,6 +568,36 @@ describe("GET /api/openapi.json", () => {
         operation.responses[status].content["application/json"].schema
       ).toEqual({ $ref: "#/components/schemas/ErrorResponse" });
     }
+  });
+
+  test("an endpoint about one commit documents its own parameters: one's fields are not another's", () => {
+    const documented = (path: string) =>
+      document.paths[path].get.parameters.map((parameter: any) => [
+        parameter.name,
+        parameter.schema.items?.enum,
+      ]);
+    const commit = [
+      ["sha", undefined],
+      ["repo", undefined],
+    ];
+    expect(documented("/api/tests/commit/{sha}/greenlight")).toEqual(commit);
+    expect(documented("/api/tests/commit/{sha}/summary")).toEqual([
+      ...commit,
+      [
+        "fields",
+        [
+          "commit",
+          "counts",
+          "first_started_at",
+          "last_ended_at",
+          "retention_starts_at",
+        ],
+      ],
+    ]);
+    expect(documented("/api/tests/commit/{sha}/jobs")).toEqual([
+      ...commit,
+      ["fields", ["jobs", "tests"]],
+    ]);
   });
 
   test("detail responses reuse the list's test, owner and health shapes", () => {

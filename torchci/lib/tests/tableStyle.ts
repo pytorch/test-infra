@@ -21,6 +21,9 @@ import { CELL_VERTICAL_PADDING, ROW_HEIGHT } from "lib/tests/rows";
 // columns, so the header and the title read as one system. Every color
 // follows the theme's mode.
 
+// The class of the skeleton rows a grid without rows draws while its first
+// rows are on their way (HubDataGrid).
+export const SKELETON_ROWS = "tests-skeleton-rows";
 // The class of a header that holds a filter, which makes room for it.
 export const FILTERABLE_HEADER = "tests-filterable-header";
 // The class of the Name header, which holds the search field.
@@ -74,6 +77,11 @@ export function hubTableSx(
     // set for both modes in globals.css.
     border: `${TABLE_BORDER}px solid var(--table-border-color)`,
     "--DataGrid-rowBorderColor": hairline,
+    // The skeleton rows are as tall as they are, and the grid as they make
+    // it: the grid would give them its own height.
+    [`& .MuiDataGrid-overlayWrapperInner:has(.${SKELETON_ROWS})`]: {
+      height: "auto !important",
+    },
     "& .MuiDataGrid-columnHeaders": { backgroundColor: headerBand },
     "& .MuiDataGrid-columnHeader, & .MuiDataGrid-columnHeaders .MuiDataGrid-filler, & .MuiDataGrid-columnHeaders .MuiDataGrid-scrollbarFiller":
       { backgroundColor: "transparent" },

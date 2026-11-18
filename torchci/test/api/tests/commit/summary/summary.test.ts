@@ -6,6 +6,7 @@ import {
   buildCommitPullRequestByHeadQuery,
   buildCommitPullRequestQuery,
   buildCommitTestCountsQuery,
+  NEIGHBOUR_DIRECTIONS,
 } from "lib/api/tests/commit/summary/query";
 import { getCommitSummary } from "lib/api/tests/commit/summary/summary";
 import { CommitSummarySchema } from "lib/api/tests/commit/summary/types";
@@ -21,6 +22,8 @@ const SHA = "ce6ff46d8ca967ef333ba9b804e081f26b432796";
 const REPO = "pytorch/pytorch";
 const ROUTE = "/api/tests/commit/{sha}/summary";
 const COMMITTED_AT_MS = Date.parse("2026-10-30T12:09:17.000Z");
+const NEWER = "6d587b8".padEnd(40, "0");
+const OLDER = "c8d39cb".padEnd(40, "0");
 
 function infoRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -99,6 +102,8 @@ function answer(
     pullRequest?: Record<string, unknown>[];
     pullRequestByHead?: Record<string, unknown>[];
     neighbours?: Record<string, unknown>[];
+    // The full search's rows; a test that does not expect one fails on it.
+    neighboursFar?: Record<string, unknown>[];
   }
 ) {
   queryClickhouse.mockImplementation(async (_sql, _params, queryId) => {
@@ -123,10 +128,13 @@ function answer(
       case "api_commit_summary_neighbours":
         return (
           answers.neighbours ?? [
-            { direction: "newer", neighbour: "6d587b8".padEnd(40, "0") },
-            { direction: "older", neighbour: "c8d39cb".padEnd(40, "0") },
+            { direction: "newer", pushes: "2", neighbour: NEWER },
+            { direction: "older", pushes: "2", neighbour: OLDER },
           ]
         );
+      case "api_commit_summary_neighbours_far":
+        if (answers.neighboursFar !== undefined) return answers.neighboursFar;
+      // falls through
       default:
         throw new Error(`unexpected query ${queryId}`);
     }
@@ -165,8 +173,8 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
         title:
           "dynamo: Handle symbolic truthiness of user-defined objects in `not`",
       },
-      newer_sha: "6d587b8".padEnd(40, "0"),
-      older_sha: "c8d39cb".padEnd(40, "0"),
+      newer_sha: NEWER,
+      older_sha: OLDER,
     });
     // The runs are every status's bundles, which add up since a bundle has
     // one status; the same figure as the runs endpoint's stats.total.
@@ -231,6 +239,121 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
     expect(queryClickhouse.mock.calls.map((call) => call[4])).toEqual(
       queryClickhouse.mock.calls.map(() => undefined)
     );
+  });
+
+  test("answers the fields a request names, and reads only what they need", async () => {
+    const ask = async (...fields: string[]) => {
+      queryClickhouse.mockClear();
+      answer(queryClickhouse, {});
+      const res = await callRoute(GET, ROUTE, { sha: SHA, repo: REPO, fields });
+      expect(res.status).toBe(200);
+      expect(CommitSummarySchema.parse(res.body)).toEqual(res.body);
+      return [
+        Object.keys(res.body),
+        queryClickhouse.mock.calls
+          .map((call) => call[2].replace("api_commit_summary_", ""))
+          .sort(),
+      ];
+    };
+    // The commit page's header: the commit without the counts, which read
+    // every run of the commit.
+    // The page and the timing are in every answer.
+    const ALWAYS = ["hud_url", "query_duration_ms"];
+    expect(await ask("retention_starts_at", "commit")).toEqual([
+      ["commit", "retention_starts_at", ...ALWAYS],
+      ["info", "neighbours", "pull_request"],
+    ]);
+    // The counts and the span of the runs are one read; the commit's own
+    // lookup always runs, since it says whether HUD knows the commit.
+    expect(await ask("counts")).toEqual([
+      ["counts", ...ALWAYS],
+      ["counts", "info"],
+    ]);
+    expect(await ask("last_ended_at", "first_started_at")).toEqual([
+      ["first_started_at", "last_ended_at", ...ALWAYS],
+      ["counts", "info"],
+    ]);
+    expect(await ask("retention_starts_at")).toEqual([
+      ["retention_starts_at", ...ALWAYS],
+      ["info"],
+    ]);
+
+    answer(queryClickhouse, {
+      info: [infoRow({ workflow_runs: 0, pushes: 0 })],
+    });
+    expect(
+      (await callRoute(GET, ROUTE, { sha: SHA, repo: REPO, fields: "commit" }))
+        .status
+    ).toBe(404);
+    const unknown = await callRoute(GET, ROUTE, {
+      sha: SHA,
+      repo: REPO,
+      fields: ["commit", "tests"],
+    });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body).toMatchObject({
+      code: "invalid_parameters",
+      issues: [{ path: ["fields", 1] }],
+    });
+  });
+
+  test("a side the nearest pushes leave open is searched in full", async () => {
+    // The sides each full search asked for.
+    const searched = () =>
+      queryClickhouse.mock.calls
+        .filter((call) => call[2] === "api_commit_summary_neighbours_far")
+        .map((call) =>
+          [...call[0].matchAll(/SELECT '(newer|older)' AS direction/g)]
+            .map((side) => side[1])
+            .join(" and ")
+        );
+    const neighbours = async (
+      near: Record<string, unknown>[],
+      far?: Record<string, unknown>[]
+    ) => {
+      queryClickhouse.mockClear();
+      answer(queryClickhouse, { neighbours: near, neighboursFar: far });
+      const summary = await getCommitSummary({ sha: SHA, repo: REPO });
+      const commit = summary?.commit;
+      return [commit?.newer_sha, commit?.older_sha, searched()];
+    };
+    const none = (direction: string, pushes: number) => ({
+      direction,
+      pushes: String(pushes),
+      neighbour: "",
+    });
+    const newer = { direction: "newer", pushes: "2", neighbour: NEWER };
+    const older = { direction: "older", pushes: "1", neighbour: OLDER };
+    // The newest commit of its branch: no push follows it, and none is
+    // looked for again.
+    expect(await neighbours([older])).toEqual([null, OLDER, []]);
+    // Fewer newer pushes than were asked for are all there are.
+    expect(await neighbours([none("newer", 1), older])).toEqual([
+      null,
+      OLDER,
+      [],
+    ]);
+    // As many as were asked for, none with a test job: more may follow.
+    expect(
+      await neighbours([none("newer", 2), older], [none("newer", 20)])
+    ).toEqual([null, OLDER, ["newer"]]);
+    // The older side's nearest are a week's, so pushes may precede them
+    // however few they are.
+    const far = "f".repeat(40);
+    expect(
+      await neighbours(
+        [newer, none("older", 1)],
+        [{ direction: "older", pushes: "20", neighbour: far }]
+      )
+    ).toEqual([NEWER, far, ["older"]]);
+    expect(await neighbours([newer], [])).toEqual([NEWER, null, ["older"]]);
+    // Both sides open are one search.
+    expect(
+      await neighbours(
+        [none("newer", 2), none("older", 2)],
+        [{ direction: "newer", pushes: "20", neighbour: far }]
+      )
+    ).toEqual([far, null, ["newer and older"]]);
   });
 
   test("a pull request head takes the pull request's title and its head branch, and has no neighbours", async () => {
@@ -412,8 +535,8 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
       author: { name: "Doc Writer", login: "hameerabbasi" },
       committed_at: "2026-10-30T12:09:17.000Z",
     });
-    expect(summary?.counts.total).toEqual({ tests: 0, jobs: 0, runs: 0 });
-    expect(summary?.counts.by_status.skipped).toEqual({
+    expect(summary?.counts?.total).toEqual({ tests: 0, jobs: 0, runs: 0 });
+    expect(summary?.counts?.by_status.skipped).toEqual({
       tests: 0,
       jobs: 0,
       runs: 0,
@@ -528,10 +651,15 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
       "AND base.repo.full_name = {repo: String}\nORDER BY number ASC, updated_at DESC\nLIMIT 1"
     );
     expect(byHead.sql).not.toContain(SHA);
-    const neighbours = buildCommitNeighboursQuery({
+    const commit = {
       repo: REPO,
       branch: "main",
       committedAtMs: COMMITTED_AT_MS,
+    };
+    const neighbours = buildCommitNeighboursQuery({
+      ...commit,
+      directions: NEIGHBOUR_DIRECTIONS,
+      near: false,
     });
     expect(neighbours.params).toEqual({
       repo: REPO,
@@ -548,8 +676,8 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
       /^\s*WITH \(\s+SELECT groupArray\(\(direction, sha, committed_at\)\)/
     );
     expect(neighbours.sql).not.toContain("WITH candidates AS");
-    expect(neighbours.sql).toContain(
-      "FROM materialized_views.workflow_job_by_head_sha\n            WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))"
+    expect(neighbours.sql).toMatch(
+      /FROM materialized_views\.workflow_job_by_head_sha\s+WHERE head_sha IN \(SELECT tupleElement\(candidate, 2\) FROM \(SELECT arrayJoin\(candidates\) AS candidate\)\)/
     );
     expect(neighbours.sql).toMatch(
       /FROM default\.workflow_job\s+WHERE id IN \(/
@@ -557,14 +685,54 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
     expect(neighbours.sql).not.toMatch(
       /FROM default\.workflow_job\s+WHERE name/
     );
+    const after =
+      "tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})";
+    const before =
+      "tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})";
+    const sinceAWeek =
+      "tupleElement(head_commit, 'timestamp') >= fromUnixTimestamp64Milli({committed_at_ms: Int64}) - INTERVAL 7 DAY";
+    const ascending = "ORDER BY tupleElement(head_commit, 'timestamp') ASC";
+    const descending = "ORDER BY tupleElement(head_commit, 'timestamp') DESC";
     expect(neighbours.sql).toContain(
-      "AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC"
+      `AND ${after}\n        ${ascending}\n        LIMIT 20`
     );
     expect(neighbours.sql).toContain(
-      "AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC"
+      `AND ${before}\n        ${descending}\n        LIMIT 20`
     );
     expect(neighbours.sql).not.toMatch(
       /(?:<|>|ORDER BY) head_commit\.timestamp/
+    );
+    // A row per side: its candidates, and the nearest with a test job.
+    expect(neighbours.sql).toContain("count() AS pushes");
+    expect(neighbours.sql).toContain(
+      "if(direction = 'newer', argMinIf(sha, committed_at, tested), argMaxIf(sha, committed_at, tested)) AS neighbour"
+    );
+    // The nearest pushes: two a side, the older ones of the week before
+    // the commit, which bounds that side's read of the push table.
+    const near = buildCommitNeighboursQuery({
+      ...commit,
+      directions: NEIGHBOUR_DIRECTIONS,
+      near: true,
+    });
+    expect(near.params).toEqual(neighbours.params);
+    expect(near.sql).toContain(
+      `AND ${after}\n        ${ascending}\n        LIMIT 2\n`
+    );
+    expect(near.sql).toContain(
+      `AND ${before}\n            AND ${sinceAWeek}\n        ${descending}\n        LIMIT 2\n`
+    );
+    expect(near.sql.split(sinceAWeek)).toHaveLength(2);
+    expect(neighbours.sql).not.toContain("INTERVAL");
+    // One side alone.
+    const older = buildCommitNeighboursQuery({
+      ...commit,
+      directions: ["older"],
+      near: false,
+    });
+    expect(older.sql).not.toContain("'newer' AS direction");
+    expect(older.sql).not.toContain("UNION ALL");
+    expect(older.sql).toContain(
+      `AND ${before}\n        ${descending}\n        LIMIT 20`
     );
     // The counts read the commit's jobs as the runs endpoint does, resolve
     // replacements by key, and roll the categories up.

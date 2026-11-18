@@ -66,7 +66,8 @@ and env var catalogs for the response. See the 2026-11-03 history entry for
 the before/after comparison.
 
 For one test's runs, the test catalog can use the already-bound test ID directly.
-Commit runs still discover matching test IDs from their scoped runs. Both endpoints
+A commit's test filter reads the catalog whole, and a sort by a test field joins
+it bounded by the test IDs of the commit's runs. Both endpoints
 paginate bundles by test, environment, environment-variable set and workflow job;
 attempt filters select bundles and the full attempts fetch returns every execution
 as `FINAL` would. Commit pages can group the `by_job` projection directly when

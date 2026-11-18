@@ -134,56 +134,34 @@ describe("group selection and attempt retrieval", () => {
   test("fetches exactly selected raw groups across reports and original counters without limits or attempt filters", () => {
     const second = {
       ...group,
-      tests_id: "9007199254740993",
       environments_id: "0",
       env_vars_id: "1",
       github_workflow_job_id: "9223372036854775807",
     };
     const { sql, params } = buildRunAttemptsQuery([group, second]);
-    expect(params).toEqual(
-      Object.fromEntries(
-        [group, second].flatMap((value, index) =>
-          Object.entries(value).map(([field, id]) => [
-            `group_${index}_${field}`,
-            id,
-          ])
-        )
-      )
+    expect(params).toEqual({
+      tests_ids: [group.tests_id, second.tests_id],
+      environments_ids: [group.environments_id, second.environments_id],
+      env_vars_ids: [group.env_vars_id, second.env_vars_id],
+      github_workflow_job_ids: [
+        group.github_workflow_job_id,
+        second.github_workflow_job_id,
+      ],
+    });
+    for (const id of Object.values(group)) expect(sql).not.toContain(id);
+    // One test in two jobs: FINAL reads the starts a plain read of the
+    // bundles finds, and the complete group keys alone select the executions.
+    const membership =
+      "WHERE (run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id) IN (";
+    expect(sql.split(membership)).toHaveLength(3);
+    expect(sql).toContain(
+      "CAST({github_workflow_job_ids: Array(String)}, 'Array(Int64)')"
     );
-    expect(sql).toContain("FROM ci.runs AS run FINAL");
-    for (const [index, value] of [group, second].entries()) {
-      for (const [field, id] of Object.entries(value)) {
-        expect(sql).toContain(
-          `{group_${index}_${field}: ${
-            field === "github_workflow_job_id" ? "Int64" : "UInt64"
-          }}`
-        );
-        if (id.length > 1) expect(sql).not.toContain(id);
-      }
-    }
-    // FINAL reads the starts a plain read of the bundles finds, and the
-    // complete group keys alone select the executions.
-    const membership = `(run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id) IN (${[
-      0, 1,
-    ]
-      .map(
-        (index) =>
-          `({group_${index}_tests_id: UInt64}, {group_${index}_environments_id: UInt64}, {group_${index}_env_vars_id: UInt64}, {group_${index}_github_workflow_job_id: Int64})`
-      )
-      .join(", ")})`;
-    expect(
-      sql.slice(
-        sql.indexOf("FROM ci.runs AS run FINAL"),
-        sql.lastIndexOf("ORDER BY")
-      )
-    ).toBe(`FROM ci.runs AS run FINAL
+    expect(sql).toContain(`FROM ci.runs AS run FINAL
 PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (
     SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at
     FROM ci.runs AS run
-    WHERE ${membership}
-)
-WHERE ${membership}
-`);
+    ${membership}`);
     expect(sql).not.toMatch(
       /\bLIMIT\b|cursor_|\b(?:now|today)\s*\(|\bINTERVAL\b/
     );
@@ -191,5 +169,24 @@ WHERE ${membership}
       "ORDER BY run.started_at ASC, run.ended_at ASC, toString(run.id) ASC"
     );
     expect(sql).toContain("optimize_move_to_prewhere_if_final = 0");
+  });
+
+  test("reads the bundles of more tests than jobs through by_job, FINAL only at shared starts", () => {
+    const { sql } = buildRunAttemptsQuery([
+      group,
+      { ...group, tests_id: "9007199254740993" },
+    ]);
+    // The same group keys select the executions in every read: by_job's
+    // direct one, the shared starts' and FINAL's at those starts.
+    const membership =
+      "WHERE (identity(run.tests_id), identity(run.environments_id), identity(run.env_vars_id), run.github_workflow_job_id) IN (";
+    expect(sql.split(membership)).toHaveLength(5);
+    expect(sql).toContain(
+      "AND (identity(run.tests_id), identity(run.started_at)) NOT IN (SELECT run.tests_id, run.started_at"
+    );
+    expect(sql).toContain(
+      "FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at"
+    );
+    expect(sql).not.toMatch(/\bLIMIT\b|\b(?:now|today)\s*\(|\bINTERVAL\b/);
   });
 });

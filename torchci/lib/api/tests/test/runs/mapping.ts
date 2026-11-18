@@ -1,6 +1,11 @@
 import { expandRunCatalog } from "lib/api/tests/test/runs/catalog";
 import { runReport } from "lib/api/tests/test/runs/report";
-import { RunFields, RunGroup, RunRecord } from "lib/api/tests/test/runs/types";
+import {
+  RunFields,
+  RunGroup,
+  RunRecord,
+  RunWorkflowFields,
+} from "lib/api/tests/test/runs/types";
 import { expandRunWorkflow } from "lib/api/tests/test/runs/workflow";
 
 export interface RunGroupRow {
@@ -44,9 +49,49 @@ function compareAttempts(left: RunRow, right: RunRow) {
   return 0;
 }
 
+// The metadata bundles share, by bundle: the catalogs' records and the
+// workflow's. It follows from a bundle's keys alone, so a page reads it
+// alongside its attempts.
+export interface RunMetadata {
+  byGroup: Map<
+    string,
+    {
+      catalog: Pick<RunRecord, "test" | "environment" | "env_vars" | "owners">;
+      workflow: RunWorkflowFields;
+    }
+  >;
+  query_duration_ms: number;
+}
+
+// The two lookups are independent.
+export async function lookupRunMetadata(
+  groups: readonly RunGroup[]
+): Promise<RunMetadata> {
+  const [expanded, withWorkflow] = await Promise.all([
+    expandRunCatalog([...groups]),
+    expandRunWorkflow(
+      groups.map(({ github_workflow_job_id }) => ({ github_workflow_job_id }))
+    ),
+  ]);
+  return {
+    byGroup: new Map(
+      groups.map((group, index) => [
+        groupKey(group),
+        { catalog: expanded.runs[index], workflow: withWorkflow.runs[index] },
+      ])
+    ),
+    query_duration_ms:
+      expanded.query_duration_ms + withWorkflow.query_duration_ms,
+  };
+}
+
+// The bundles of the given attempts, in the order given or as they come,
+// with their metadata: the one handed in, or read here for the bundles that
+// have attempts.
 export async function expandRunRows(
   rows: RunRow[],
-  groupOrder?: readonly RunGroup[]
+  groupOrder?: readonly RunGroup[],
+  metadata?: RunMetadata
 ): Promise<{ runs: RunRecord[]; query_duration_ms: number }> {
   // Group by stored foreign keys before catalog expansion: null metadata must
   // never collapse different tests, configurations or jobs into one bundle.
@@ -63,41 +108,23 @@ export async function expandRunRows(
         return attempts ? [attempts] : [];
       })
     : Array.from(byGroup.values());
-  const representatives: RunFields[] = groups.map((attempts) => {
-    attempts.sort(compareAttempts);
-    const row = attempts[0];
-    return {
-      ...runGroup(row),
-      id: row.id,
-      report_uuid: row.report_uuid,
-      rerun_number: row.rerun_number,
-      outcome: row.outcome,
-      outcome_summary: row.outcome_summary,
-      started_at: row.started_at,
-      ended_at: row.ended_at,
-    };
-  });
-  // Shared metadata is expanded once per selected bundle. The two lookups are
-  // independent, and preserve the page order even if attempts arrived unordered.
-  const [expanded, withWorkflow] = await Promise.all([
-    expandRunCatalog(representatives),
-    expandRunWorkflow(
-      representatives.map(({ github_workflow_job_id }) => ({
-        github_workflow_job_id,
-      }))
-    ),
-  ]);
+  for (const attempts of groups) attempts.sort(compareAttempts);
+  const bundles = groups.map((attempts) => runGroup(attempts[0]));
+  // Shared metadata is expanded once per selected bundle, and the page
+  // order kept even if attempts arrived unordered.
+  const { byGroup: metadataOf, query_duration_ms } =
+    metadata ?? (await lookupRunMetadata(bundles));
   return {
     runs: groups.map((attempts, index) => {
-      const catalog = expanded.runs[index];
-      const workflow = withWorkflow.runs[index];
+      const bundle = bundles[index];
+      const { catalog, workflow } = metadataOf.get(groupKey(bundle))!;
       return {
         test: catalog.test,
         environment: catalog.environment,
         env_vars: catalog.env_vars,
         owners: catalog.owners,
         github_workflow: {
-          job_id: catalog.github_workflow_job_id,
+          job_id: bundle.github_workflow_job_id,
           run_id: workflow.github_workflow_run_id,
           path: workflow.workflow_path,
           commit_sha: workflow.commit_sha,
@@ -111,7 +138,7 @@ export async function expandRunRows(
           report: runReport(
             {
               test: catalog.test,
-              github_workflow_job_id: catalog.github_workflow_job_id,
+              github_workflow_job_id: bundle.github_workflow_job_id,
               report_uuid: row.report_uuid,
             },
             workflow
@@ -124,7 +151,6 @@ export async function expandRunRows(
         })),
       };
     }),
-    query_duration_ms:
-      expanded.query_duration_ms + withWorkflow.query_duration_ms,
+    query_duration_ms,
   };
 }

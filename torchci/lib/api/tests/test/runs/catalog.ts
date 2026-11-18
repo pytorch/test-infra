@@ -1,3 +1,4 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import {
   EnvironmentRow,
   EnvVarsRow,
@@ -7,8 +8,11 @@ import {
   toTest,
 } from "lib/api/tests/mapping";
 import { buildRunCatalogQuery } from "lib/api/tests/test/runs/catalog-query";
-import { RunCatalogRecord, RunFields } from "lib/api/tests/test/runs/types";
-import { queryClickhouse } from "lib/clickhouse";
+import {
+  RunCatalogRecord,
+  RunFields,
+  RunRecord,
+} from "lib/api/tests/test/runs/types";
 
 export interface RunCatalogRow extends TestRow, EnvironmentRow, EnvVarsRow {
   requested_tests_id_string: string;
@@ -76,8 +80,11 @@ export function catalogRecords(
   };
 }
 
-export async function expandRunCatalog(runs: RunFields[]): Promise<{
-  runs: RunCatalogRecord[];
+export async function expandRunCatalog<Run extends RunConfiguration>(
+  runs: Run[]
+): Promise<{
+  runs: (Omit<Run, keyof RunConfiguration> &
+    Pick<RunRecord, "test" | "environment" | "env_vars" | "owners">)[];
   query_duration_ms: number;
 }> {
   // Expand only the returned page; catalog availability cannot change which

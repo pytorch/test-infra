@@ -431,23 +431,16 @@ function groupFixtures(rows: Fixture[]): Fixture[] {
 }
 
 function matchingAttempts(params: Record<string, unknown>, rows = fixtures) {
-  const tests = Object.keys(params).filter((key) =>
-    /^group_\d+_tests_id$/.test(key)
-  );
+  const ids = params as Record<string, string[]>;
   return finalFixtures(rows)
     .filter(({ run }) =>
-      tests.some((parameter) => {
-        const prefix = parameter.slice(0, -"tests_id".length);
-        return [
-          "tests_id",
-          "environments_id",
-          "env_vars_id",
-          "github_workflow_job_id",
-        ].every(
-          (field) =>
-            run[field as keyof RunFields] === params[`${prefix}${field}`]
-        );
-      })
+      ids.tests_ids.some(
+        (testId, bundle) =>
+          run.tests_id === testId &&
+          run.environments_id === ids.environments_ids[bundle] &&
+          run.env_vars_id === ids.env_vars_ids[bundle] &&
+          run.github_workflow_job_id === ids.github_workflow_job_ids[bundle]
+      )
     )
     .map(({ run }) => attemptRow(run));
 }
@@ -746,11 +739,9 @@ describe.each([false, true])("last-attempt filtering (commit=%s)", (commit) => {
         const attemptParams = queryClickhouse.mock.calls.find(
           (call) => call[2] === "api_run_attempts"
         )![1];
-        expect(
-          Object.entries(attemptParams)
-            .filter(([key]) => key.endsWith("github_workflow_job_id"))
-            .map(([, job]) => job)
-        ).toEqual(expectedJobs.map(String));
+        expect(attemptParams.github_workflow_job_ids).toEqual(
+          expectedJobs.map(String)
+        );
         offset += page.runs.length;
         expect(offset).toBeLessThanOrEqual(jobs.length);
         expect(page.next_cursor !== null).toBe(offset < jobs.length);

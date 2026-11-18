@@ -1,4 +1,5 @@
 import {
+  COMMIT_PAGE_PARAMETER_DEFINITIONS,
   commitPagePath,
   pageQueryString,
   PageQueryValues,
@@ -54,11 +55,17 @@ export function testPageUrl(
   )}`;
 }
 
-// The commit's page, bare: the page chooses the outcomes it lists, its
-// filters and its sort itself, so every response about a commit links the
-// same URL.
-export function commitPageUrl(repo: string, sha: string): string {
-  return `${hudOrigin()}${commitPagePath(repo, sha)}`;
+// The commit's page: bare, since the page chooses the outcomes it lists,
+// its filters and its sort itself, so every response about a commit links
+// the same URL; or opened on the given choices, a job's response on the job.
+export function commitPageUrl(
+  repo: string,
+  sha: string,
+  values: PageQueryValues<typeof COMMIT_PAGE_PARAMETER_DEFINITIONS> = {}
+): string {
+  return `${hudOrigin()}${commitPagePath(repo, sha)}${pageQueryString(
+    pageUrlParams(values, COMMIT_PAGE_PARAMETER_DEFINITIONS)
+  )}`;
 }
 
 // The pull request's page, bare: it opens the commit page of the pull

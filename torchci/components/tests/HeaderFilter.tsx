@@ -1,8 +1,11 @@
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import FacetMenu, { FacetSection } from "components/tests/FacetMenu";
-import type { FacetValues } from "lib/tests/facets";
+import FacetMenu, {
+  FacetMenuProps,
+  FacetSection,
+} from "components/tests/FacetMenu";
+import type { TestsFacet } from "lib/tests/facets";
 import {
   headerKeyColors,
   headerKeyFocusRing,
@@ -11,16 +14,15 @@ import {
 import { HEADER_FILTER_INSET, HEADER_FILTER_SIZE } from "lib/tests/layout";
 import { KeyboardEvent, MouseEvent, useId, useState } from "react";
 
-export interface HeaderFilterProps {
+export interface HeaderFilterProps<Key extends string = TestsFacet>
+  extends Pick<FacetMenuProps<Key>, "value" | "onChange" | "single" | "width"> {
   // The column, lowercase, for what the control says: "environment".
   column: string;
   // What is chosen, as the tooltip says it; empty when nothing is.
   summary: string;
   // The menu's first item: "Any environment".
   anyLabel: string;
-  sections: readonly FacetSection[];
-  value: FacetValues;
-  onChange: (_next: Partial<FacetValues>) => void;
+  sections: readonly FacetSection<Key>[];
 }
 
 // A column's filter, in its header: a small key at the header's right edge
@@ -30,14 +32,16 @@ export interface HeaderFilterProps {
 // own color while nothing is chosen. While something is, the key is filled
 // in the accent color with a solid funnel, and the choice is its tooltip.
 // Neither clicking it nor pressing a key on it sorts the column.
-export default function HeaderFilter({
+export default function HeaderFilter<Key extends string = TestsFacet>({
   column,
   summary,
   anyLabel,
   sections,
   value,
   onChange,
-}: HeaderFilterProps) {
+  single,
+  width,
+}: HeaderFilterProps<Key>) {
   const theme = useTheme();
   const menuId = useId();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -101,6 +105,10 @@ export default function HeaderFilter({
         sections={sections}
         value={value}
         onChange={onChange}
+        single={single}
+        width={width}
+        // One choice: the first item is it while the key is not filled.
+        nothingChosen={single ? !active : undefined}
       />
     </Box>
   );

@@ -5,7 +5,7 @@ import {
   GreenlightVerdict,
   NoVerdictReason,
 } from "lib/api/tests/commit/greenlight/types";
-import type { CommitSummaryQuery } from "lib/api/tests/commit/summary/parameters";
+import type { CommitQuery } from "lib/api/tests/commit/parameters";
 import { lookUpCommit } from "lib/api/tests/commit/summary/summary";
 import { commitPageUrl } from "lib/api/tests/pages/links";
 import { timed } from "lib/api/tests/timed";
@@ -70,7 +70,7 @@ function toVerdict(row: GreenlightPrStateRow): GreenlightVerdict | null {
 // before it. A repository GreenLight does not review is answered without a
 // query.
 export async function getCommitGreenlight(
-  query: CommitSummaryQuery
+  query: CommitQuery
 ): Promise<CommitGreenlight> {
   const [owner, project] = query.repo.split("/");
   const answer = (

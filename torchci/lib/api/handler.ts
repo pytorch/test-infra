@@ -222,17 +222,21 @@ export function errorResponses(ref: SchemaRef, invalidRequest: string) {
   };
 }
 
-// Every list runs a heavy query (app/api/README.md, Heavy queries), so a list
-// can also be refused.
-export function listErrorResponses(ref: SchemaRef) {
+// A list that runs a heavy query (app/api/README.md, Heavy queries) can also
+// be refused.
+export function listErrorResponses(ref: SchemaRef, { heavy = false } = {}) {
   return {
     ...errorResponses(
       ref,
       "A missing, malformed or unsupported parameter (invalid_parameters); a malformed or unsupported cursor, including one for a different resource (invalid_cursor); or a cursor issued for a different query (cursor_query_mismatch)."
     ),
-    "429": errorResponse(
-      ref,
-      "The database's queue for heavy queries is full; retry after the Retry-After seconds (overloaded)."
-    ),
+    ...(heavy
+      ? {
+          "429": errorResponse(
+            ref,
+            "The database's queue for heavy queries is full; retry after the Retry-After seconds (overloaded)."
+          ),
+        }
+      : {}),
   };
 }

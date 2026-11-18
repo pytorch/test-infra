@@ -111,6 +111,15 @@ describe("the commit page's parameters", () => {
     }
     expect(Object.keys(COMMIT_PAGE_PARAMETER_DEFINITIONS)).toEqual([
       ...COMMIT_PAGE_FILTER_NAMES,
+      // The timeline's pick.
+      "workflow",
+      "run_id",
+      "run_attempt",
+      "build",
+      "job_id",
+      "file",
+      "suite",
+      "case_name",
       "status",
       "sort",
     ]);

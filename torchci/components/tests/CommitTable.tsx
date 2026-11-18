@@ -34,7 +34,6 @@ import {
 import TestName from "components/tests/TestName";
 import TextButton from "components/tests/TextButton";
 import TextLink from "components/tests/TextLink";
-import Updated from "components/tests/Updated";
 import type { TestOptions } from "lib/api/tests/options/types";
 import { testPagePath } from "lib/api/tests/pages/parameters";
 import type { RunRecord } from "lib/api/tests/test/runs/types";
@@ -62,13 +61,25 @@ import type { Token } from "lib/tests/environment";
 import { FacetValues, noFacetValues } from "lib/tests/facets";
 import { OUTCOME_WORDS } from "lib/tests/grid";
 import { jobDetailLine, parseJobName } from "lib/tests/jobName";
-import { COMMIT_COLUMN_WIDTHS } from "lib/tests/layout";
+import { COMMIT_COLUMN_WIDTHS, JOB_MENU_WIDTH } from "lib/tests/layout";
 import { CELL_HORIZONTAL_PADDING } from "lib/tests/rows";
 import { durationLabel, sortModelOf, sortParamOf } from "lib/tests/table";
 import { FILTERABLE_HEADER } from "lib/tests/tableStyle";
+import type { JobFilter } from "lib/tests/timeline";
+import { useHeldPlace } from "lib/tests/useHeldPlace";
 import { useMounted } from "lib/tests/useMounted";
 import type { PageTiming } from "lib/tests/useTestsListing";
-import { useMemo, useState } from "react";
+import {
+  createContext,
+  memo,
+  ReactNode,
+  useCallback,
+  useContext,
+  useDeferredValue,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 // A row of the grid: one of the table's rows (CommitTableRow in
 // lib/tests/commitPage.ts) with what the shared columns read (HubRow); a
@@ -113,8 +124,11 @@ export interface CommitTableProps {
   onRetry: () => void;
   // How long the first page took; null before it arrives.
   timing: PageTiming | null;
-  // When the summary shown arrived, for the "Updated" caption.
-  refreshedAt: string | null;
+  // The table's top, inside its frame over the header band: the title's bar
+  // and counts (CommitTestsTitle).
+  top: ReactNode;
+  // What the table says with no row to show.
+  emptyText: string;
   // The API sort parameter in force; the headers change it.
   sort: string;
   onSortChange: (_sort: string) => void;
@@ -130,6 +144,10 @@ export interface CommitTableProps {
   search: string;
   onSearchInput: (_text: string) => void;
   onSearch: (_text: string) => void;
+  // The Job header's filter, which is the timeline's pick (jobFilterOf),
+  // and a job chosen in it; null for any job.
+  jobFilter: JobFilter;
+  onJobFilter: (_jobId: string | null) => void;
 }
 
 // The chevron that opens a run's attempts.
@@ -319,6 +337,32 @@ function OutcomeCell({ run }: { run: RunRecord }) {
   );
 }
 
+// The Job header's filter reaches its header past the grids. Its choices
+// change when the jobs and then their tests arrive, and as a part of the
+// column they would draw every row of the table again.
+const JobFilterContext = createContext<Pick<
+  CommitTableProps,
+  "jobFilter" | "onJobFilter"
+> | null>(null);
+
+function JobHeaderFilter() {
+  const header = useContext(JobFilterContext);
+  if (header === null) return null;
+  const { jobFilter, onJobFilter } = header;
+  return (
+    <HeaderFilter
+      column="job"
+      summary={jobFilter.summary}
+      anyLabel="Any job"
+      sections={jobFilter.sections}
+      value={jobFilter.value}
+      single
+      width={JOB_MENU_WIDTH}
+      onChange={(next) => onJobFilter(Object.values(next).flat()[0] ?? null)}
+    />
+  );
+}
+
 // What the shared columns read of a row that is not a run.
 const NOTHING: HubRow = {
   test: null,
@@ -329,13 +373,9 @@ const NOTHING: HubRow = {
   environmentRepeated: false,
 };
 
-// The runs of a commit from GET /api/tests/commit/{sha}, one list in
-// outcome order and within it the sort, filtered by the API
-// (commitTableRows); the hub's table (HubDataGrid) with the hub's Name,
-// Environment, Test Config and Owners columns (sharedColumns) and this
-// page's Outcome, Duration and Job. A run's rows of attempts and the "Show
-// more" row are rows of the grid spanning every column.
-export default function CommitTable({
+// The table's grids. They draw again for what they show only, not for the
+// top over them, which follows the timeline's pick ahead of the runs.
+const CommitGrids = memo(function CommitGrids({
   repo,
   runs,
   loading,
@@ -344,10 +384,7 @@ export default function CommitTable({
   onLoadMore,
   statuses,
   onStatusesChange,
-  error,
-  onRetry,
-  timing,
-  refreshedAt,
+  emptyText,
   sort,
   onSortChange,
   options,
@@ -357,7 +394,10 @@ export default function CommitTable({
   search,
   onSearchInput,
   onSearch,
-}: CommitTableProps) {
+}: Omit<
+  CommitTableProps,
+  "error" | "onRetry" | "timing" | "top" | "jobFilter" | "onJobFilter"
+>) {
   const theme = useTheme();
   const sortModel = useMemo(
     () => sortModelOf(sort, COMMIT_TABLE_SORT_FIELDS),
@@ -539,11 +579,15 @@ export default function CommitTable({
       {
         field: "job",
         headerName: "Job",
+        headerClassName: FILTERABLE_HEADER,
         renderHeader: () => (
-          <ColumnTitle
-            title="Job"
-            description={COMMIT_COLUMN_DESCRIPTIONS.job}
-          />
+          <>
+            <ColumnTitle
+              title="Job"
+              description={COMMIT_COLUMN_DESCRIPTIONS.job}
+            />
+            <JobHeaderFilter />
+          </>
         ),
         width: COMMIT_COLUMN_WIDTHS.job,
         display: "flex",
@@ -611,59 +655,103 @@ export default function CommitTable({
   // the skeleton rows while it has none.
   const busy = loading || loadingMore;
   return (
+    <>
+      {chunks.map((chunk, index) => (
+        <HubDataGrid
+          key={index}
+          headerless={index > 0}
+          blockFields={["outcome"]}
+          mutedFields={[]}
+          twoLineHeaderFields={[]}
+          searchExtraHeight={searchExtraHeight}
+          rows={chunk}
+          columns={columns}
+          getRowId={(row: CommitRow) => row.id}
+          getRowClassName={({ row }) =>
+            row.kind === "run" ? "" : `commit-${row.kind}`
+          }
+          loading={index === 0 && busy}
+          sortModel={sortModel}
+          onSortModelChange={handleSortModelChange}
+          hideFooter
+          // The grids are stacked as one table, each as tall as its rows.
+          disableVirtualization
+          localeText={{ noRowsLabel: emptyText }}
+          sx={{
+            "& .MuiDataGrid-row.commit-attempts": {
+              backgroundColor: theme.palette.action.hover,
+              "&:hover": { backgroundColor: theme.palette.action.hover },
+            },
+            "& .MuiDataGrid-row.commit-more .MuiDataGrid-cell": {
+              minHeight: 36,
+            },
+            // The top and the stacked grids read as one table: no rule or
+            // rounding where one meets the next.
+            borderTop: 0,
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
+            ...(index < chunks.length - 1
+              ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
+              : {}),
+          }}
+        />
+      ))}
+    </>
+  );
+});
+
+// The runs of a commit from GET /api/tests/commit/{sha}, one list in
+// outcome order and within it the sort, filtered by the API
+// (commitTableRows); the hub's table (HubDataGrid) with the hub's Name,
+// Environment, Test Config and Owners columns (sharedColumns) and this
+// page's Outcome, Duration and Job. A run's rows of attempts and the "Show
+// more" row are rows of the grid spanning every column.
+export default function CommitTable({
+  error,
+  onRetry,
+  timing,
+  top,
+  jobFilter,
+  onJobFilter,
+  ...grids
+}: CommitTableProps) {
+  // The list follows a step behind, in a render the browser may interrupt:
+  // taking hundreds of rows down for another list does not hold up the
+  // timeline, or the picked name on its way to the title.
+  const listed = {
+    runs: useDeferredValue(grids.runs),
+    loading: useDeferredValue(grids.loading),
+    loadingMore: useDeferredValue(grids.loadingMore),
+    hasMore: useDeferredValue(grids.hasMore),
+    statuses: useDeferredValue(grids.statuses),
+    emptyText: useDeferredValue(grids.emptyText),
+  };
+  // A job chosen in the Job header opens its rows in the timeline above:
+  // the table stays where the reader has it.
+  const frame = useRef<HTMLDivElement>(null);
+  const holdPlace = useHeldPlace();
+  const handleJobFilter = useCallback(
+    (jobId: string | null) => {
+      holdPlace(frame.current);
+      onJobFilter(jobId);
+    },
+    [holdPlace, onJobFilter]
+  );
+  const jobHeader = useMemo(
+    () => ({ jobFilter, onJobFilter: handleJobFilter }),
+    [jobFilter, handleJobFilter]
+  );
+  return (
     <Stack spacing={1.5}>
       {error !== undefined && (
         <LoadError what="the runs" error={error} onRetry={onRetry} />
       )}
-      <Box>
-        <Box sx={{ mb: 1.5 }}>
-          <Updated refreshedAt={refreshedAt} cadence={null} />
-        </Box>
-        {chunks.map((chunk, index) => (
-          <HubDataGrid
-            key={index}
-            headerless={index > 0}
-            blockFields={["outcome"]}
-            mutedFields={[]}
-            twoLineHeaderFields={[]}
-            searchExtraHeight={searchExtraHeight}
-            rows={chunk}
-            columns={columns}
-            getRowId={(row: CommitRow) => row.id}
-            getRowClassName={({ row }) =>
-              row.kind === "run" ? "" : `commit-${row.kind}`
-            }
-            loading={index === 0 && busy}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            hideFooter
-            // The grids are stacked as one table, each as tall as its rows.
-            disableVirtualization
-            localeText={{ noRowsLabel: "No runs with the outcomes listed" }}
-            sx={{
-              "& .MuiDataGrid-row.commit-attempts": {
-                backgroundColor: theme.palette.action.hover,
-                "&:hover": { backgroundColor: theme.palette.action.hover },
-              },
-              "& .MuiDataGrid-row.commit-more .MuiDataGrid-cell": {
-                minHeight: 36,
-              },
-              // Stacked grids read as one table: no rule or rounding where
-              // one meets the next.
-              ...(index > 0
-                ? {
-                    borderTop: 0,
-                    borderTopLeftRadius: 0,
-                    borderTopRightRadius: 0,
-                  }
-                : {}),
-              ...(index < chunks.length - 1
-                ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
-                : {}),
-            }}
-          />
-        ))}
-        <LoadTime timing={timing} loading={loading} />
+      <Box ref={frame}>
+        {top}
+        <JobFilterContext.Provider value={jobHeader}>
+          <CommitGrids {...grids} {...listed} />
+        </JobFilterContext.Provider>
+        <LoadTime timing={timing} loading={grids.loading} />
       </Box>
     </Stack>
   );
