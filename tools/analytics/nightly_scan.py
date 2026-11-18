@@ -7,14 +7,19 @@ misc.release_event. Two release portal checks are read here:
   pytorch/pytorch are green (https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1).
 - `viable_strict_lag`: how many hours viable/strict is behind main. A branch that stops
   advancing means trunk CI is red, and a release branch cut from it would not be green.
+- `rc_binaries`: the same wheel, libtorch and docker builds for the newest release candidate
+  of the release (the runs of its v<version>-rc<N> tag, which is a commit of the release
+  branch, as https://hud.pytorch.org/hud/pytorch/pytorch/release%2F2.15/1 shows them).
 
-Both are one branch for every release, so each is read once and written for every release in
-flight that is before its branch cut (release/X.Y does not exist yet). Each run records the
+The nightly and viable/strict are one branch for every release, so each is read once and
+written for every release in flight that is before its branch cut (release/X.Y does not exist yet). Each run records the
 newest nightly commit whose workflow runs have all finished, and the newest row of a step is
 what the board shows, so a result replaces all the earlier ones. A nightly that is not green,
 or a viable/strict that is too far behind, is written as `blocked` with the blocking flag, which
 the board shows in red. Once the release branch is cut the steps are not written any more and
-the last result stands (the board stops flagging them, see `blocks_until_branch_cut`).
+the last result stands (the board stops flagging them, see `blocks_until_branch_cut`). The
+release candidate builds are the other way round: they exist after the cut, and are written
+for every release in flight that has a release candidate tag, until the release tag exists.
 
 A job counts for the category it belongs to: the jobs of the Build Official Docker Images
 workflow are docker, the jobs named libtorch-* are libtorch, and every other job of the
@@ -28,6 +33,7 @@ v<version> tag does not exist yet.
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -47,7 +53,12 @@ from github_analyze import (  # noqa: E402
 
 CHECK_TYPE = "nightly_binaries"
 VIABLE_STRICT_CHECK_TYPE = "viable_strict_lag"
+RC_CHECK_TYPE = "rc_binaries"
 DOCKER_WORKFLOW = ".github/workflows/docker-release.yml"
+# The workflows that build the binaries, on the nightly branch and on a release candidate tag
+# (a tag also starts others, like the builds of the manywheel docker images, which are not
+# binaries).
+BINARY_WORKFLOW = re.compile(r"^\.github/workflows/generated-.*binary.*\.yml$")
 CATEGORIES = ("wheel", "libtorch", "docker")
 # A job that ended in one of these is not a failure.
 GREEN = ("success", "skipped", "neutral")
@@ -129,9 +140,12 @@ def nightly_result(
     branch: str,
     runs: List[Dict[str, Any]],
     jobs_of: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
+    url: Optional[str] = None,
 ) -> Tuple[str, str, str, Dict[str, Any]]:
     """
-    The status, evidence text, evidence URL and details of the nightly_binaries step: done
+    The status, evidence text, evidence URL and details of the nightly_binaries step (and,
+    with a tag as `branch` and the HUD page of the release branch as `url`, of the
+    rc_binaries step): done
     when green, blocked when a build failed or a category has no jobs, in_progress while the
     newest runs are going and nothing has failed yet.
 
@@ -140,7 +154,7 @@ def nightly_result(
     green (waiting for the rest would hide the failure, and a run that is re-run stays open
     for hours); if nothing has failed yet, the result of the latest finished commit stands.
     """
-    url = hud_url(repo, branch)
+    url = url or hud_url(repo, branch)
     details: Dict[str, Any] = {"repo": repo, "branch": branch}
     sha, finished, newest = latest_finished_commit(runs)
 
@@ -215,13 +229,14 @@ def step_row(
     run_id: str,
     run_url: str,
     observed_at: datetime,
+    rc: str = "",
 ) -> Dict[str, Any]:
     """A misc.release_event row; a blocked step is the one the board flags in red."""
     status, evidence, url, details = result
     return {
         "release": release,
         "step_id": step_id,
-        "rc": "",
+        "rc": rc,
         "status": status,
         "blocking": int(status == "blocked"),
         "evidence_text": evidence,
@@ -357,6 +372,74 @@ def run_jobs(repo: str, run: Dict[str, Any]) -> List[Dict[str, Any]]:
         page += 1
 
 
+def latest_rc(repo: str, version: str) -> Optional[Tuple[str, str, str]]:
+    """The newest release candidate tag of a release: (rc1, v2.15.0-rc1, commit sha)."""
+    pattern = re.compile(rf"refs/tags/v{re.escape(version)}-rc(\d+)")
+    found = []
+    for ref in github_get(f"repos/{repo}/git/matching-refs/tags/v{version}-rc"):
+        match = pattern.fullmatch(ref["ref"])
+        if match:
+            found.append((int(match[1]), ref))
+    if not found:
+        return None
+    number, ref = max(found, key=lambda f: f[0])
+    sha = ref["object"]["sha"]
+    if ref["object"]["type"] == "tag":  # an annotated tag points at the commit
+        sha = github_get(f"repos/{repo}/git/tags/{sha}")["object"]["sha"]
+    return f"rc{number}", f"v{version}-rc{number}", sha
+
+
+def rc_runs(repo: str, tag: str, sha: str) -> List[Dict[str, Any]]:
+    """The binary build runs the push of a release candidate tag started."""
+    found = github_get(
+        f"repos/{repo}/actions/runs?head_sha={sha}&per_page={RUNS_PER_PAGE}"
+    )
+    return [
+        r
+        for r in found["workflow_runs"]
+        if r["event"] == "push"
+        and r["head_branch"] == tag
+        and (r["path"] == DOCKER_WORKFLOW or BINARY_WORKFLOW.match(r["path"]))
+    ]
+
+
+def rc_step_rows(
+    release: str,
+    config: Dict[str, Any],
+    result_for: Callable[[str, str], Optional[Tuple[str, Tuple[str, str, str, Dict]]]],
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """
+    The rows of one scan of a release: one per rc_binaries step, for the newest release
+    candidate (the step is RC-scoped, so the row is that candidate's). Nothing before the
+    first release candidate tag.
+    """
+    rows = []
+    for step in config["steps"]:
+        if step["check"]["type"] != RC_CHECK_TYPE:
+            continue
+        found = result_for(step["check"]["repo"], release)
+        if found is not None:
+            rc, result = found
+            rows.append(
+                step_row(
+                    release,
+                    step["id"],
+                    RC_CHECK_TYPE,
+                    result,
+                    config_sha,
+                    run_id,
+                    run_url,
+                    observed_at,
+                    rc,
+                )
+            )
+    return rows
+
+
 def branch_head(repo: str, branch: str) -> Dict[str, Any]:
     """The sha and commit time of the head of a branch."""
     commit = github_get(f"repos/{repo}/commits/{quote(branch, safe='/')}")
@@ -373,19 +456,27 @@ def branch_exists(repo: str, branch: str) -> bool:
 
 
 def failed_job_lines(rows: List[Dict[str, Any]]) -> List[str]:
-    """The failed jobs of the nightly for the job summary (the same for every release)."""
-    nightly = [r for r in rows if r["check_type"] == CHECK_TYPE]
-    if not nightly:
-        return []
-    details = json.loads(nightly[0]["details"])
-    failed = details.get("failed", [])
-    if not failed:
-        return []
-    lines = [f"Failed jobs on nightly {details.get('date', '')}:", ""]
-    for job in failed[:MAX_FAILED_LISTED]:
-        name = f"{job['workflow']} / {job['job']}: {job['conclusion']}"
-        lines.append(f"- [{name}]({job['url']})" if job["url"] else f"- {name}")
-    return lines
+    """The failed jobs of the nightly and of the release candidates, for the job summary."""
+    lines: List[str] = []
+    for row in rows:
+        if row["check_type"] not in (CHECK_TYPE, RC_CHECK_TYPE):
+            continue
+        details = json.loads(row["details"])
+        failed = details.get("failed", [])
+        if not failed:
+            continue
+        what = (
+            f"nightly {details.get('date', '')}"
+            if row["check_type"] == CHECK_TYPE
+            else details["branch"]
+        )
+        if f"Failed jobs on {what}:" in lines:  # the same for every release in flight
+            continue
+        lines += ["", f"Failed jobs on {what}:", ""]
+        for job in failed[:MAX_FAILED_LISTED]:
+            name = f"{job['workflow']} / {job['job']}: {job['conclusion']}"
+            lines.append(f"- [{name}]({job['url']})" if job["url"] else f"- {name}")
+    return lines[1:]
 
 
 def scan_release(
@@ -405,15 +496,14 @@ def scan_release(
         )
         return False
     config = load_resolved(release)
-    if not any(
-        s["check"]["type"] in (CHECK_TYPE, VIABLE_STRICT_CHECK_TYPE)
-        for s in config["steps"]
-    ):
-        print(f"{release} has no nightly_binaries or viable_strict_lag step")
+    types = {s["check"]["type"] for s in config["steps"]}
+    before_cut = bool(types & {CHECK_TYPE, VIABLE_STRICT_CHECK_TYPE})
+    if not (before_cut or RC_CHECK_TYPE in types):
+        print(f"{release} has no nightly, viable/strict or release candidate step")
         return True
-    if branch_exists("pytorch/pytorch", config["branch"]):
+    if before_cut and branch_exists("pytorch/pytorch", config["branch"]):
         print(f"{release}: {config['branch']} is cut, the last nightly result stands")
-        return True
+        before_cut = False
 
     def result_for(repo: str, branch: str) -> Tuple[str, str, str, Dict[str, Any]]:
         # the nightly is the same for every release: read it once
@@ -440,6 +530,25 @@ def scan_release(
             )
         return lag_results[key]
 
+    def rc_for(
+        repo: str, version: str
+    ) -> Optional[Tuple[str, Tuple[str, str, str, Dict[str, Any]]]]:
+        found = latest_rc(repo, version)
+        if found is None:
+            print(f"{release}: no release candidate tag yet")
+            return None
+        rc, tag, sha = found
+        result = nightly_result(
+            repo,
+            tag,
+            rc_runs(repo, tag, sha),
+            lambda run: run_jobs(repo, run),
+            f"https://hud.pytorch.org/hud/{repo}/"
+            f"{quote(config['branch'], safe='')}/1?per_page=50",
+        )
+        result[3]["rc"] = rc
+        return rc, result
+
     run_id, run_url = workflow_run_info()
     common = (
         os.environ.get("GITHUB_SHA", "0" * 40),
@@ -447,12 +556,16 @@ def scan_release(
         run_url,
         datetime.now(timezone.utc),
     )
-    rows = nightly_step_rows(
-        release, config, result_for, *common
-    ) + viable_strict_step_rows(release, config, viable_strict_for, *common)
+    rows = []
+    if before_cut:
+        rows = nightly_step_rows(
+            release, config, result_for, *common
+        ) + viable_strict_step_rows(release, config, viable_strict_for, *common)
+    rows += rc_step_rows(release, config, rc_for, *common)
     summary_rows.extend(rows)
     for row in rows:
-        print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
+        rc = f" {row['rc']}" if row["rc"] else ""
+        print(f"step {row['step_id']}{rc}: {row['status']}: {row['evidence_text']}")
     if write and rows:
         insert_clickhouse_rows("misc.release_event", rows)
         print(f"Inserted {len(rows)} rows into misc.release_event")
@@ -499,7 +612,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         finally:
             print("::endgroup::")
     write_step_summary(
-        "Nightly binary builds and viable/strict",
+        "Nightly binaries, viable/strict and release candidate binaries",
         summary_rows,
         args.write_to_clickhouse,
         failed_job_lines(summary_rows),

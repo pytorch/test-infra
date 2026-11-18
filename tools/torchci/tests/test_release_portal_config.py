@@ -363,6 +363,17 @@ class TestChecks(TestCase):
             with self.subTest(check=bad):
                 self.assertNotEqual(self.errors(bad), [])
 
+    def test_the_rc_binaries_check(self):
+        good = {"type": "rc_binaries", "repo": "pytorch/pytorch"}
+        self.assertEqual(self.errors(good), [])
+        for bad in (
+            {"type": "rc_binaries"},
+            {"type": "rc_binaries", "repo": "pytorch"},
+            {**good, "branch": "x"},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
+
     def test_the_viable_strict_lag_check(self):
         good = {
             "type": "viable_strict_lag",

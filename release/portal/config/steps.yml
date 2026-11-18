@@ -255,7 +255,7 @@ steps:
     owner: release-manager
     rc_scoped: true
     depends_on: ["2.1"]
-    check: {type: github_workflow_run, repo: pytorch/pytorch, workflow: generated-linux-binary-manywheel-nightly.yml, ref: "v{version}-{rc}"}
+    check: {type: rc_binaries, repo: pytorch/pytorch}
   - id: "2.4"
     phase: 2
     name: RC artifacts are on download.pytorch.org

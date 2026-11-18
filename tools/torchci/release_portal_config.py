@@ -96,6 +96,7 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
     },
     "crcr_summary": {"required": set(), "optional": set()},
     "nightly_binaries": {"required": {"repo", "branch"}, "optional": set()},
+    "rc_binaries": {"required": {"repo"}, "optional": set()},
     "viable_strict_lag": {
         "required": {"repo", "branch", "base", "max_hours"},
         "optional": set(),
@@ -269,6 +270,10 @@ def _check_errors(where: str, check: Any) -> List[str]:
         repo = check.get("repo")
         if isinstance(repo, str) and repo and "/" not in repo:
             errors.append(f"{where}: check nightly_binaries `repo` must be owner/name")
+    elif ctype == "rc_binaries":
+        repo = check.get("repo")
+        if "repo" in check and not (isinstance(repo, str) and "/" in repo):
+            errors.append(f"{where}: check rc_binaries `repo` must be owner/name")
     elif ctype == "viable_strict_lag":
         for key in ("repo", "branch", "base"):
             if key in check and not (isinstance(check[key], str) and check[key]):

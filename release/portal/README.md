@@ -96,6 +96,7 @@ run (or run the "GitHub Analytics Daily" workflow by hand once the post is up).
 | `crcr_summary` | none | downstream CI results for the RC (phase 2 of the portal) |
 | `nightly_binaries` | `repo`, `branch` | the wheel, libtorch and docker builds of the latest finished nightly of `repo` are green (below) |
 | `viable_strict_lag` | `repo`, `branch`, `base`, `max_hours` | `branch` is less than `max_hours` hours behind `base` by the commit time of their heads (below) |
+| `rc_binaries` | `repo` | the wheel, libtorch and docker builds of the newest release candidate tag of the release are green (below) |
 | `triton_release_branch` | none | `triton-lang/triton` has the release branch `release/X.Y.x` of `versions.triton`, and the triton pin of pytorch is on it (below) |
 | `pypi_release` | `package`, `version` | `version` of the package is on PyPI |
 | `dev_discuss_post` | `title_regex` (one pattern, or one per release type), `carries_dates` (optional) | a post whose title matches exists in the Release Announcements category of dev-discuss (below) |
@@ -175,6 +176,18 @@ step is done when viable/strict is less than `max_hours` behind main, and blocke
 more (`details` has `hours_behind`). viable/strict only advances when trunk CI is green, so a
 branch that is far behind means a red trunk, and a release branch cut from it would not be
 green. The check runs once a day with the rest of the scan, so it is the lag at that moment.
+
+`rc_binaries` is checked by the same script, for every release in flight that has a release
+candidate tag `v<version>-rc<N>` (it uses the newest), until the release tag exists. A tag push
+starts the same binary workflows as the nightly, on the commit of the release branch the tag
+points at, which is why
+[the HUD page of the release branch](https://hud.pytorch.org/hud/pytorch/pytorch/release%2F2.15/1?per_page=50)
+shows them. The runs read are those of the tag, from the workflows `generated-*binary*.yml` and
+`docker-release.yml` (the other workflows a tag starts, like the manywheel docker image builds,
+are not binary builds), and are judged as the nightly is: the step is done when the wheel,
+libtorch and docker builds all ran and none failed, and blocked otherwise, so a red candidate
+shows in red on the board. It is RC-scoped: the row is the newest candidate's, and a new candidate
+starts the step again.
 
 A **blocked** step is the red flag: the collector writes it with the blocking flag, the board
 counts it in the blocking steps, shows the row in red and shows the release as blocked. A step
