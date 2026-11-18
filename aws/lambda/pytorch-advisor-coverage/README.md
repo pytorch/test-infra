@@ -77,6 +77,15 @@ bucket — that normalized job at the observed commit, and the page prefers a na
 verdict over a coverage one for the same (commit, job). No confidence gate is
 applied: any non-`unsure` verdict is a classification.
 
+A coverage dispatch is keyed to the observed commit, not the culprit, so the page
+ranks a coverage `related`/`revert`/`not_related`/`garbage` verdict BELOW its own
+persistence check: it classifies a red only when the page sees that red as
+isolated. A coverage `infra_issue` describes the failure itself and keeps the
+native rank (above persistence). So when the Lambda dispatches on a red that later
+turns out persistent (its window cannot see runs that finish later or out of
+commit order, nor sibling shards of the normalized job), that verdict is spent
+but the page still shows a real regression.
+
 ## What it does NOT do
 
 - Writes **nothing** to ClickHouse or S3. It only READS ClickHouse, HEAD-checks
@@ -102,8 +111,20 @@ cap; when it stops early it returns `next_as_of`. Re-invoke with
 // response -> {"next_as_of": "2026-02-20T00:00:00", ...} ; repeat until null
 ```
 
-Locally, one process completes the whole range (unlimited budget, only the gap
-throttle applies):
+Every Lambda invocation starts with an empty in-memory dedup set, and the
+windowless dedup only sees verdicts that have LANDED (~15-20 min after dispatch:
+workflow -> S3 -> clickhouse-replicator). A capped chunk resumes at its own start,
+so re-invoking sooner re-dispatches the same reds. If you drive a backfill through
+Lambda invocations: wait at least 25 min between them, use a CLI read timeout
+above the 260 s Lambda timeout, stop on a `FunctionError`, on `stop_reason: error`
+or on any `per_chunk[].errors > 0`, and do not treat an unchanged `next_as_of` as
+stuck while invocations still dispatch.
+
+For long ranges prefer the local run: one process completes the whole range with
+one dedup set for the run, no per-run cap and no cursor (only the gap throttle
+applies). `DRY_RUN` defaults to `true` locally too: set `DRY_RUN=false` to
+dispatch. A dry run still sleeps the gap per would-dispatch, so it is a smoke test,
+not a volume estimate.
 
 ```bash
 MODE=backfill AS_OF_START=2026-02-19 AS_OF_END=2026-08-18 \
@@ -138,8 +159,14 @@ sees its neighbouring trunk commits for the lag/lead persistence check (reds are
 dispatched only within the core chunk). The one remaining edge is inherent: the
 newest trunk commit in ongoing mode has no lookahead (the next commit doesn't
 exist yet), so a just-observed red that will turn out persistent may be
-dispatched once. This is bounded, safe (non-reverting), and matches
-/flaky_trunk's own newest-commit semantics.
+dispatched once. This is bounded, safe (non-reverting), and since the page ranks a
+coverage attribution verdict below persistence (see "How verdicts land on
+/flaky_trunk") it costs a dispatch but does not relabel the regression.
+
+A dispatch that fails (`stats.errors`) is logged and the chunk still completes, so
+`stop_reason: complete` does not mean every red was dispatched: after a backfill,
+re-run the chunks whose `per_chunk[].errors > 0` once in-flight verdicts have
+landed (dedup skips what landed).
 
 ## Environment variables
 
@@ -152,9 +179,9 @@ dispatched once. This is bounded, safe (non-reverting), and matches
 | `GITHUB_APP_SECRET` / `GITHUB_TOKEN` | `""` | base64 PEM / raw token (local dev) |
 | `SECRET_STORE_NAME` | `""` | `pytorch-autorevert-secrets` in prod |
 | `REPO_FULL_NAME` | `pytorch/pytorch` | pinned to an allowlist |
-| `WORKFLOWS` | empty = all | optional JSON array / CSV filter |
+| `WORKFLOWS` | empty = all | JSON array / CSV filter. Deploy an explicit list of push/schedule CI workflows: empty also enumerates workflows started by issues, comments or `workflow_run` (e.g. "Claude Code"), whose logs hold user-written text the advisor would read. /flaky_trunk counts every workflow by default, so a CI workflow left off the list stays unclassified there |
 | `HOURS` | `24` | ongoing enumeration window |
-| `MIN_RUNS` | `20` | min total runs for a job to be enumerated (matches /flaky_trunk) |
+| `MIN_RUNS` | `20` | min total runs of a job INSIDE the enumeration window (`HOURS` + margin); the page's tables apply 20 over their whole window and its graph none, so low-frequency jobs need a low value (deployed: 1) |
 | `MODE` | `ongoing` | `ongoing` \| `backfill` |
 | `AS_OF_START` / `AS_OF_END` | — | backfill range (UTC) |
 | `AS_OF_STEP_HOURS` | `24` | backfill chunk size |
