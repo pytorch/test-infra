@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-Check the nightly binary builds before the branch cut of the releases in flight, and record
-it in misc.release_event: for every release portal step whose check is `nightly_binaries`,
-whether the wheel, libtorch and docker builds of the latest nightly of pytorch/pytorch are
-green (https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1).
+Check the CI signals before the branch cut of the releases in flight, and record them in
+misc.release_event. Two release portal checks are read here:
 
-The nightly is one branch, so it is read once and written for every release in flight that is
-before its branch cut (release/X.Y does not exist yet). Each run records the newest nightly
-commit whose workflow runs have all finished, and the newest row of a step is what the board
-shows, so a result replaces all the earlier ones. Once the release branch is cut the step is
-not written any more and the last result stands.
+- `nightly_binaries`: whether the wheel, libtorch and docker builds of the latest nightly of
+  pytorch/pytorch are green (https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1).
+- `viable_strict_lag`: how many hours viable/strict is behind main. A branch that stops
+  advancing means trunk CI is red, and a release branch cut from it would not be green.
+
+Both are one branch for every release, so each is read once and written for every release in
+flight that is before its branch cut (release/X.Y does not exist yet). Each run records the
+newest nightly commit whose workflow runs have all finished, and the newest row of a step is
+what the board shows, so a result replaces all the earlier ones. A nightly that is not green,
+or a viable/strict that is too far behind, is written as `blocked` with the blocking flag, which
+the board shows in red. Once the release branch is cut the steps are not written any more and
+the last result stands (the board stops flagging them, see `blocks_until_branch_cut`).
 
 A job counts for the category it belongs to: the jobs of the Build Official Docker Images
 workflow are docker, the jobs named libtorch-* are libtorch, and every other job of the
@@ -41,6 +46,7 @@ from github_analyze import (  # noqa: E402
 
 
 CHECK_TYPE = "nightly_binaries"
+VIABLE_STRICT_CHECK_TYPE = "viable_strict_lag"
 DOCKER_WORKFLOW = ".github/workflows/docker-release.yml"
 CATEGORIES = ("wheel", "libtorch", "docker")
 # A job that ended in one of these is not a failure.
@@ -125,7 +131,9 @@ def nightly_result(
     jobs_of: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
 ) -> Tuple[str, str, str, Dict[str, Any]]:
     """
-    The status, evidence text, evidence URL and details of the nightly_binaries step.
+    The status, evidence text, evidence URL and details of the nightly_binaries step: done
+    when green, blocked when a build failed or a category has no jobs, in_progress while the
+    newest runs are going and nothing has failed yet.
 
     The newest commit is what counts. When all its runs have finished it is read as it is.
     While some are still running, a job of it that has failed already makes the step not
@@ -167,10 +175,10 @@ def nightly_result(
                 text += " (other runs are still going)"
             elif missing:
                 text += f"; no {', '.join(missing)} jobs"
-            return "in_progress", text, url, details
+            return "blocked", text, url, details
         if missing:
             return (
-                "in_progress",
+                "blocked",
                 f"no {', '.join(missing)} jobs on {where}",
                 url,
                 details,
@@ -198,6 +206,36 @@ def nightly_result(
     return report(sha, finished, summarize(finished, jobs_of), False)
 
 
+def step_row(
+    release: str,
+    step_id: str,
+    check_type: str,
+    result: Tuple[str, str, str, Dict[str, Any]],
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> Dict[str, Any]:
+    """A misc.release_event row; a blocked step is the one the board flags in red."""
+    status, evidence, url, details = result
+    return {
+        "release": release,
+        "step_id": step_id,
+        "rc": "",
+        "status": status,
+        "blocking": int(status == "blocked"),
+        "evidence_text": evidence,
+        "evidence_url": url,
+        "check_type": check_type,
+        "source": "collector",
+        "run_id": run_id,
+        "run_url": run_url,
+        "config_sha": config_sha,
+        "details": json.dumps(details),
+        "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+    }
+
+
 def nightly_step_rows(
     release: str,
     config: Dict[str, Any],
@@ -210,33 +248,89 @@ def nightly_step_rows(
     """
     The misc.release_event rows of one scan of a release: one per nightly_binaries step, done
     when the wheel, libtorch and docker builds of the latest finished nightly are green and
-    in_progress until then.
+    blocked when they are not.
     """
-    rows = []
-    for step in config["steps"]:
-        check = step["check"]
-        if check["type"] != CHECK_TYPE:
-            continue
-        status, evidence, url, details = result_for(check["repo"], check["branch"])
-        rows.append(
-            {
-                "release": release,
-                "step_id": step["id"],
-                "rc": "",
-                "status": status,
-                "blocking": 0,
-                "evidence_text": evidence,
-                "evidence_url": url,
-                "check_type": CHECK_TYPE,
-                "source": "collector",
-                "run_id": run_id,
-                "run_url": run_url,
-                "config_sha": config_sha,
-                "details": json.dumps(details),
-                "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-            }
+    return [
+        step_row(
+            release,
+            step["id"],
+            CHECK_TYPE,
+            result_for(step["check"]["repo"], step["check"]["branch"]),
+            config_sha,
+            run_id,
+            run_url,
+            observed_at,
         )
-    return rows
+        for step in config["steps"]
+        if step["check"]["type"] == CHECK_TYPE
+    ]
+
+
+def parse_time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def viable_strict_result(
+    repo: str,
+    branch: str,
+    base: str,
+    max_hours: float,
+    head_of: Callable[[str], Dict[str, Any]],
+) -> Tuple[str, str, str, Dict[str, Any]]:
+    """
+    The status, evidence text, evidence URL and details of the viable_strict_lag step: how many
+    hours the head commit of `branch` is behind the head commit of `base` (by commit time).
+    Done below `max_hours`, blocked at `max_hours` or more.
+    """
+    base_head = head_of(base)
+    head = head_of(branch)
+    hours = (parse_time(base_head["date"]) - parse_time(head["date"])).total_seconds()
+    hours = max(hours, 0) / 3600
+    details = {
+        "repo": repo,
+        "branch": branch,
+        "base": base,
+        "hours_behind": round(hours, 1),
+        "max_hours": max_hours,
+        "sha": head["sha"],
+        "date": head["date"],
+        "base_sha": base_head["sha"],
+        "base_date": base_head["date"],
+    }
+    url = f"https://github.com/{repo}/compare/{head['sha']}...{base_head['sha']}"
+    text = (
+        f"{branch} is {hours:.1f} hours behind {base} ({head['sha'][:10]} of "
+        f"{head['date'][:16].replace('T', ' ')} UTC; {base} is at {base_head['sha'][:10]})"
+    )
+    if hours >= max_hours:
+        return "blocked", f"{text}, {max_hours:g} or more", url, details
+    return "done", text, url, details
+
+
+def viable_strict_step_rows(
+    release: str,
+    config: Dict[str, Any],
+    result_for: Callable[[Dict[str, Any]], Tuple[str, str, str, Dict[str, Any]]],
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """The rows of one scan of a release: one per viable_strict_lag step."""
+    return [
+        step_row(
+            release,
+            step["id"],
+            VIABLE_STRICT_CHECK_TYPE,
+            result_for(step["check"]),
+            config_sha,
+            run_id,
+            run_url,
+            observed_at,
+        )
+        for step in config["steps"]
+        if step["check"]["type"] == VIABLE_STRICT_CHECK_TYPE
+    ]
 
 
 def nightly_runs(repo: str, branch: str) -> List[Dict[str, Any]]:
@@ -263,6 +357,12 @@ def run_jobs(repo: str, run: Dict[str, Any]) -> List[Dict[str, Any]]:
         page += 1
 
 
+def branch_head(repo: str, branch: str) -> Dict[str, Any]:
+    """The sha and commit time of the head of a branch."""
+    commit = github_get(f"repos/{repo}/commits/{quote(branch, safe='/')}")
+    return {"sha": commit["sha"], "date": commit["commit"]["committer"]["date"]}
+
+
 def branch_exists(repo: str, branch: str) -> bool:
     return (
         github_get(
@@ -274,9 +374,10 @@ def branch_exists(repo: str, branch: str) -> bool:
 
 def failed_job_lines(rows: List[Dict[str, Any]]) -> List[str]:
     """The failed jobs of the nightly for the job summary (the same for every release)."""
-    if not rows:
+    nightly = [r for r in rows if r["check_type"] == CHECK_TYPE]
+    if not nightly:
         return []
-    details = json.loads(rows[0]["details"])
+    details = json.loads(nightly[0]["details"])
     failed = details.get("failed", [])
     if not failed:
         return []
@@ -291,6 +392,7 @@ def scan_release(
     release: str,
     write: bool,
     results: Dict[Tuple[str, str], Tuple[str, str, str, Dict[str, Any]]],
+    lag_results: Dict[Tuple[Any, ...], Tuple[str, str, str, Dict[str, Any]]],
     summary_rows: List[Dict[str, Any]],
 ) -> bool:
     """Scan and print one release; returns False when it has no release file."""
@@ -303,8 +405,11 @@ def scan_release(
         )
         return False
     config = load_resolved(release)
-    if not any(s["check"]["type"] == CHECK_TYPE for s in config["steps"]):
-        print(f"{release} has no nightly_binaries step")
+    if not any(
+        s["check"]["type"] in (CHECK_TYPE, VIABLE_STRICT_CHECK_TYPE)
+        for s in config["steps"]
+    ):
+        print(f"{release} has no nightly_binaries or viable_strict_lag step")
         return True
     if branch_exists("pytorch/pytorch", config["branch"]):
         print(f"{release}: {config['branch']} is cut, the last nightly result stands")
@@ -321,16 +426,30 @@ def scan_release(
             )
         return results[(repo, branch)]
 
+    def viable_strict_for(
+        check: Dict[str, Any]
+    ) -> Tuple[str, str, str, Dict[str, Any]]:
+        key = (check["repo"], check["branch"], check["base"], check["max_hours"])
+        if key not in lag_results:
+            lag_results[key] = viable_strict_result(
+                check["repo"],
+                check["branch"],
+                check["base"],
+                check["max_hours"],
+                lambda branch: branch_head(check["repo"], branch),
+            )
+        return lag_results[key]
+
     run_id, run_url = workflow_run_info()
-    rows = nightly_step_rows(
-        release,
-        config,
-        result_for,
+    common = (
         os.environ.get("GITHUB_SHA", "0" * 40),
         run_id,
         run_url,
         datetime.now(timezone.utc),
     )
+    rows = nightly_step_rows(
+        release, config, result_for, *common
+    ) + viable_strict_step_rows(release, config, viable_strict_for, *common)
     summary_rows.extend(rows)
     for row in rows:
         print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
@@ -359,12 +478,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Releases in flight: {', '.join(releases) if releases else 'none'}")
     ok = True
     results: Dict[Tuple[str, str], Tuple[str, str, str, Dict[str, Any]]] = {}
+    lag_results: Dict[Tuple[Any, ...], Tuple[str, str, str, Dict[str, Any]]] = {}
     summary_rows: List[Dict[str, Any]] = []
     for release in releases:
         print(f"::group::{release}")
         try:
             ok = (
-                scan_release(release, args.write_to_clickhouse, results, summary_rows)
+                scan_release(
+                    release,
+                    args.write_to_clickhouse,
+                    results,
+                    lag_results,
+                    summary_rows,
+                )
                 and ok
             )
         except Exception as err:
@@ -373,7 +499,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         finally:
             print("::endgroup::")
     write_step_summary(
-        "Nightly binary builds",
+        "Nightly binary builds and viable/strict",
         summary_rows,
         args.write_to_clickhouse,
         failed_job_lines(summary_rows),

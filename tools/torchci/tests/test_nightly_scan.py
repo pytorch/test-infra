@@ -16,6 +16,8 @@ from analytics.nightly_scan import (  # noqa: E402
     nightly_result,
     nightly_step_rows,
     run_jobs,
+    viable_strict_result,
+    viable_strict_step_rows,
 )
 
 from torchci import release_portal_config as cfg  # noqa: E402
@@ -110,10 +112,10 @@ class TestResult(TestCase):
         self.assertEqual(details["jobs"], {"wheel": 1, "libtorch": 1, "docker": 1})
         self.assertEqual(details["failed"], [])
 
-    def test_a_failed_job_leaves_the_step_in_progress_and_is_listed(self):
+    def test_a_failed_job_blocks_the_step_and_is_listed(self):
         jobs = {**GREEN_JOBS, 2: [job("build (13.4, runtime)", "failure")]}
         status, text, _, details = result(finished(), jobs)
-        self.assertEqual(status, "in_progress")
+        self.assertEqual(status, "blocked")
         self.assertIn("docker 1 failed", text)
         self.assertEqual(
             details["failed"][0]["workflow"], "Build Official Docker Images"
@@ -129,13 +131,13 @@ class TestResult(TestCase):
             ],
         }
         status, text, _, _ = result(finished(), jobs)
-        self.assertEqual(status, "in_progress")
+        self.assertEqual(status, "blocked")
         self.assertIn("wheel 1 failed", text)
 
     def test_a_missing_category_is_not_green(self):
         jobs = {1: [job("manywheel-py3_10-cpu-build")], 2: GREEN_JOBS[2]}
         status, text, _, _ = result(finished(), jobs)
-        self.assertEqual(status, "in_progress")
+        self.assertEqual(status, "blocked")
         self.assertIn("no libtorch jobs", text)
 
     def test_the_latest_finished_commit_replaces_older_results(self):
@@ -148,7 +150,7 @@ class TestResult(TestCase):
         }
         # the old commit was red and the new one is green, and the other way round
         status, _, _, details = result(old + finished("b", "2026-11-16"), jobs)
-        self.assertEqual((status, details["sha"]), ("in_progress", "b" * 40))
+        self.assertEqual((status, details["sha"]), ("blocked", "b" * 40))
         jobs[1], jobs[2] = GREEN_JOBS[1], GREEN_JOBS[2]
         jobs[12] = [job("build (cpu)", "failure")]
         status, _, _, details = result(old + finished("b", "2026-11-16"), jobs)
@@ -187,7 +189,7 @@ class TestResult(TestCase):
             ],
         }
         status, text, _, details = result(runs, jobs)
-        self.assertEqual(status, "in_progress")
+        self.assertEqual(status, "blocked")
         self.assertIn("nightly 2026-11-17", text)
         self.assertIn("wheel 1 failed", text)
         self.assertIn("still going", text)
@@ -218,7 +220,7 @@ class TestResult(TestCase):
         runs = [run(3, "b", "2026-11-17T07:00:00Z", status="in_progress")]
         jobs = {3: [job("wheel-py3_11-cpu-build", "failure")]}
         status, text, _, _ = result(runs, jobs)
-        self.assertEqual(status, "in_progress")
+        self.assertEqual(status, "blocked")
         self.assertIn("not green", text)
 
     def test_nothing_finished_yet_and_no_runs(self):
@@ -245,6 +247,28 @@ class TestRows(TestCase):
             },
         ]
     }
+
+    def test_a_blocked_step_is_written_with_the_blocking_flag(self):
+        rows = nightly_step_rows(
+            "2.16.0",
+            self.config,
+            lambda repo, branch: ("blocked", "docker 1 failed", "https://hud", {}),
+            "0" * 40,
+            "1-1",
+            "https://run",
+            NOW,
+        )
+        self.assertEqual((rows[0]["status"], rows[0]["blocking"]), ("blocked", 1))
+        rows = nightly_step_rows(
+            "2.16.0",
+            self.config,
+            lambda repo, branch: ("in_progress", "still running", "https://hud", {}),
+            "0" * 40,
+            "1-1",
+            "https://run",
+            NOW,
+        )
+        self.assertEqual((rows[0]["status"], rows[0]["blocking"]), ("in_progress", 0))
 
     def test_one_collector_row_per_nightly_step(self):
         seen = []
@@ -283,6 +307,73 @@ class TestRows(TestCase):
         )
         self.assertEqual(json.loads(rows[0]["details"]), {"sha": "a"})
         self.assertEqual(rows[0]["observed_at"], "2026-11-17 14:00:00.000")
+
+
+def heads(base_date, branch_date):
+    commits = {
+        "main": {"sha": "m" * 40, "date": base_date},
+        "viable/strict": {"sha": "v" * 40, "date": branch_date},
+    }
+    return lambda branch: commits[branch]
+
+
+def lag(base_date, branch_date, max_hours=12):
+    return viable_strict_result(
+        "pytorch/pytorch",
+        "viable/strict",
+        "main",
+        max_hours,
+        heads(base_date, branch_date),
+    )
+
+
+class TestViableStrictLag(TestCase):
+    def test_done_when_less_than_the_limit_behind(self):
+        status, text, url, details = lag("2026-11-17T12:00:00Z", "2026-11-17T01:30:00Z")
+        self.assertEqual(status, "done")
+        self.assertIn("viable/strict is 10.5 hours behind main", text)
+        self.assertEqual(details["hours_behind"], 10.5)
+        self.assertEqual(
+            url,
+            "https://github.com/pytorch/pytorch/compare/" + "v" * 40 + "..." + "m" * 40,
+        )
+
+    def test_blocked_at_the_limit_and_beyond(self):
+        status, text, _, details = lag("2026-11-17T12:00:00Z", "2026-11-17T00:00:00Z")
+        self.assertEqual(status, "blocked")
+        self.assertIn("12.0 hours behind main", text)
+        self.assertIn("12 or more", text)
+        self.assertEqual(details["max_hours"], 12)
+        status, _, _, details = lag("2026-11-17T12:00:00Z", "2026-11-14T12:00:00Z")
+        self.assertEqual((status, details["hours_behind"]), ("blocked", 72.0))
+
+    def test_not_behind_at_all(self):
+        status, _, _, details = lag("2026-11-17T12:00:00Z", "2026-11-17T12:00:00Z")
+        self.assertEqual((status, details["hours_behind"]), ("done", 0.0))
+        # a clock skew never gives a negative lag
+        _, _, _, details = lag("2026-11-17T12:00:00Z", "2026-11-17T12:05:00Z")
+        self.assertEqual(details["hours_behind"], 0.0)
+
+    def test_rows_are_written_with_the_blocking_flag_when_blocked(self):
+        config = cfg.load_resolved("2.16.0")
+        for stale, blocking in ((True, 1), (False, 0)):
+            rows = viable_strict_step_rows(
+                "2.16.0",
+                config,
+                lambda check: lag(
+                    "2026-11-17T12:00:00Z",
+                    "2026-11-16T00:00:00Z" if stale else "2026-11-17T11:00:00Z",
+                    check["max_hours"],
+                ),
+                "0" * 40,
+                "1-1",
+                "https://run",
+                NOW,
+            )
+            self.assertEqual([r["step_id"] for r in rows], ["1.4"])
+            self.assertEqual(rows[0]["check_type"], "viable_strict_lag")
+            self.assertEqual(rows[0]["blocking"], blocking)
+            self.assertEqual(rows[0]["status"], "blocked" if stale else "done")
 
 
 class TestSummary(TestCase):
@@ -361,6 +452,23 @@ class TestRunJobs(TestCase):
 
 
 class TestConfig(TestCase):
+    def test_step_1_4_checks_how_far_viable_strict_is_behind_main(self):
+        steps = {s["id"]: s for s in cfg.load_resolved("2.16.0")["steps"]}
+        self.assertEqual(
+            steps["1.4"]["check"],
+            {
+                "type": "viable_strict_lag",
+                "repo": "pytorch/pytorch",
+                "branch": "viable/strict",
+                "base": "main",
+                "max_hours": 12,
+            },
+        )
+        for step_id in ("1.4", "1.5"):
+            self.assertTrue(steps[step_id]["blocks_until_branch_cut"])
+        patch = {s["id"] for s in cfg.load_resolved("2.15.1")["steps"]}
+        self.assertNotIn("1.4", patch)
+
     def test_step_1_5_checks_the_pytorch_nightly(self):
         steps = {s["id"]: s for s in cfg.load_resolved("2.16.0")["steps"]}
         self.assertEqual(

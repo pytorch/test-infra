@@ -335,6 +335,12 @@ const ConfigStepSchema = z
       .describe(
         "Whether the step, once done, ends the release without a tag: it is shown as Cancelled. Only for steps of patch releases."
       ),
+    blocks_until_branch_cut: z
+      .boolean()
+      .optional()
+      .describe(
+        "Whether the step's blocking flag (shown in red) only counts until the release branch exists. Only for steps of minor releases."
+      ),
     depends_on: z
       .array(z.string())
       .optional()

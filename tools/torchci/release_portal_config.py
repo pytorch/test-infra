@@ -96,6 +96,10 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
     },
     "crcr_summary": {"required": set(), "optional": set()},
     "nightly_binaries": {"required": {"repo", "branch"}, "optional": set()},
+    "viable_strict_lag": {
+        "required": {"repo", "branch", "base", "max_hours"},
+        "optional": set(),
+    },
     "triton_release_branch": {"required": set(), "optional": set()},
     "pypi_release": {"required": {"package", "version"}, "optional": set()},
     "dev_discuss_post": {
@@ -122,6 +126,7 @@ STEP_FIELDS = {
     "rc_scoped",
     "informational",
     "cancels_release",
+    "blocks_until_branch_cut",
     "depends_on",
     "due",
     "runbook",
@@ -264,6 +269,22 @@ def _check_errors(where: str, check: Any) -> List[str]:
         repo = check.get("repo")
         if isinstance(repo, str) and repo and "/" not in repo:
             errors.append(f"{where}: check nightly_binaries `repo` must be owner/name")
+    elif ctype == "viable_strict_lag":
+        for key in ("repo", "branch", "base"):
+            if key in check and not (isinstance(check[key], str) and check[key]):
+                errors.append(
+                    f"{where}: check viable_strict_lag `{key}` must be a non-empty string"
+                )
+        repo = check.get("repo")
+        if isinstance(repo, str) and repo and "/" not in repo:
+            errors.append(f"{where}: check viable_strict_lag `repo` must be owner/name")
+        hours = check.get("max_hours")
+        if "max_hours" in check and (
+            isinstance(hours, bool) or not isinstance(hours, (int, float)) or hours <= 0
+        ):
+            errors.append(
+                f"{where}: check viable_strict_lag `max_hours` must be a positive number"
+            )
     elif ctype == "release_only_changes":
         for key in ("repo", "title_regex"):
             if key in check and not (isinstance(check[key], str) and check[key]):
@@ -342,6 +363,14 @@ def _step_errors(where: str, step: Any) -> List[str]:
             errors.append(
                 f"{where}: cancels_release is only for patch releases, so it needs "
                 "types: [patch]"
+            )
+    if "blocks_until_branch_cut" in step:
+        if not isinstance(step["blocks_until_branch_cut"], bool):
+            errors.append(f"{where}: blocks_until_branch_cut must be true or false")
+        elif step["blocks_until_branch_cut"] and step.get("types") != ["minor"]:
+            errors.append(
+                f"{where}: blocks_until_branch_cut is only for minor releases (a patch "
+                "release has no branch cut), so it needs types: [minor]"
             )
     if "depends_on" in step and not (
         isinstance(step["depends_on"], list)
