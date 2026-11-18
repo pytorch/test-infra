@@ -428,7 +428,7 @@ describe("getPrStatusMessage", () => {
 });
 
 describe("hasPrStatusLabel", () => {
-  test("true only for enabled workflow labels", () => {
+  test("true only for the workflow labels", () => {
     expect(hasPrStatusLabel([])).toBe(false);
     expect(hasPrStatusLabel(["module: cuda"])).toBe(false);
     expect(hasPrStatusLabel(["module: cuda", PR_STATUS_LABEL_TRIAGED])).toBe(
