@@ -638,6 +638,13 @@
       "xpu"
     ]
   ],
+  "test_event_handle_exporter_generic_event_xpu_event_xpu (__main__.TestXPUMultiprocessingXPU)": [
+    "205484",
+    "https://github.com/pytorch/pytorch/issues/205484",
+    [
+      "xpu"
+    ]
+  ],
   "test_event_record_after_input_mutation_non_escaping_generator_finally_cuda (__main__.TestStreamsCUDA)": [
     "205474",
     "https://github.com/pytorch/pytorch/issues/205474",
@@ -1375,6 +1382,13 @@
       "rocm"
     ]
   ],
+  "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
+    "205483",
+    "https://github.com/pytorch/pytorch/issues/205483",
+    [
+      "xpu"
+    ]
+  ],
   "test_row_reduction_output_precision (__main__.TestNativeMatmulRowReduction)": [
     "203500",
     "https://github.com/pytorch/pytorch/issues/203500",
@@ -1515,6 +1529,13 @@
       "xpu"
     ]
   ],
+  "test_sparse_add_aliased_out_xpu_float64 (__main__.TestSparseCSRDeviceXPU)": [
+    "205479",
+    "https://github.com/pytorch/pytorch/issues/205479",
+    [
+      "xpu"
+    ]
+  ],
   "test_sparse_add_xpu_complex128 (__main__.TestSparseCSRDeviceXPU)": [
     "205267",
     "https://github.com/pytorch/pytorch/issues/205267",
@@ -1522,9 +1543,23 @@
       "xpu"
     ]
   ],
+  "test_sparse_add_xpu_complex64 (__main__.TestSparseCSRDeviceXPU)": [
+    "205481",
+    "https://github.com/pytorch/pytorch/issues/205481",
+    [
+      "xpu"
+    ]
+  ],
   "test_sparse_add_xpu_float32 (__main__.TestSparseCSRDeviceXPU)": [
     "205323",
     "https://github.com/pytorch/pytorch/issues/205323",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_add_xpu_float64 (__main__.TestSparseCSRDeviceXPU)": [
+    "205482",
+    "https://github.com/pytorch/pytorch/issues/205482",
     [
       "xpu"
     ]
@@ -1574,6 +1609,13 @@
   "test_sparse_sparse_mul_xpu_int16 (__main__.TestSparseXPU)": [
     "205414",
     "https://github.com/pytorch/pytorch/issues/205414",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_sparse_mul_xpu_int32 (__main__.TestSparseXPU)": [
+    "205480",
+    "https://github.com/pytorch/pytorch/issues/205480",
     [
       "xpu"
     ]
