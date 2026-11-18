@@ -135,6 +135,20 @@
       "rocm"
     ]
   ],
+  "test_codegen_per_stream_alignment_copy_multi_stream (__main__.TestUserStreamCompile)": [
+    "194171",
+    "https://github.com/pytorch/pytorch/issues/194171",
+    [
+      "linux"
+    ]
+  ],
+  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
+    "181318",
+    "https://github.com/pytorch/pytorch/issues/181318",
+    [
+      "linux"
+    ]
+  ],
   "test_col2im_uint32_overflow (__main__.TestMPS)": [
     "187289",
     "https://github.com/pytorch/pytorch/issues/187289",
@@ -622,6 +636,13 @@
     "https://github.com/pytorch/pytorch/issues/205484",
     [
       "xpu"
+    ]
+  ],
+  "test_event_record_after_input_mutation_non_escaping_cross_stream_wait_cuda (__main__.TestStreamsCUDA)": [
+    "205509",
+    "https://github.com/pytorch/pytorch/issues/205509",
+    [
+      "linux"
     ]
   ],
   "test_event_record_after_input_mutation_non_escaping_generator_finally_cuda (__main__.TestStreamsCUDA)": [
