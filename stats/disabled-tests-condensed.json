@@ -631,6 +631,13 @@
       "slow"
     ]
   ],
+  "test_event_handle_exporter_generic_event_generic_event_xpu (__main__.TestXPUMultiprocessingXPU)": [
+    "205412",
+    "https://github.com/pytorch/pytorch/issues/205412",
+    [
+      "xpu"
+    ]
+  ],
   "test_event_record_after_input_mutation_non_escaping_generator_finally_cuda (__main__.TestStreamsCUDA)": [
     "205474",
     "https://github.com/pytorch/pytorch/issues/205474",
