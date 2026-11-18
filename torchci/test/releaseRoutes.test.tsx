@@ -267,8 +267,8 @@ describe("release routes", () => {
     const html = renderToStaticMarkup(
       <ReleaseIndexPageContent resource={resource(done)} />
     );
-    expect(html).toContain("release completed");
-    expect(html).not.toContain("in progress");
+    expect(html).toContain(">Done<");
+    expect(html).not.toContain(">In progress<");
   });
 
   test("renders the release board and an unknown-release state", () => {
