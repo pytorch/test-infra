@@ -76,6 +76,7 @@ const board: ReleaseBoard = {
           owner: "release-manager",
           rc: "rc3",
           status: "blocked",
+          informational: false,
           blocking: true,
           depends_on: [],
           due: "2026-12-01",
@@ -86,6 +87,25 @@ const board: ReleaseBoard = {
           },
           manual: null,
           last_checked: "2026-11-13T00:00:00Z",
+        },
+        {
+          id: "2.10",
+          name: "No performance regressions",
+          tier: "M",
+          owner: "release-manager",
+          rc: "rc3",
+          status: "todo",
+          informational: true,
+          blocking: false,
+          depends_on: [],
+          due: null,
+          runbook: null,
+          evidence: null,
+          manual: {
+            what_to_check: "Benchmark runs show no regressions",
+            link: "https://example.com/benchmarks",
+          },
+          last_checked: null,
         },
       ],
     },
@@ -201,6 +221,11 @@ describe("release routes", () => {
     expect(html).toContain("Release 2.16.0");
     expect(html).toContain("Build RC binaries");
     expect(html).toContain("View release artifacts");
+    // a step for information says "info", not a state, and what to look at
+    expect(html).toContain("2.10 · No performance regressions");
+    expect(html).toContain(">info<");
+    expect(html).toContain('href="https://example.com/benchmarks"');
+    expect(html).toContain("Benchmark runs show no regressions");
 
     const missing = renderToStaticMarkup(
       <ReleaseBoardPageContent

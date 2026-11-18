@@ -148,6 +148,11 @@ export const ReleaseStepSchema = z
     status: z
       .enum(STEP_STATUSES)
       .describe("The step's state; todo before it was first checked."),
+    informational: z
+      .boolean()
+      .describe(
+        "True for a step that is shown for information only: it is not counted in the stats, never blocks and does not hold back the release; its status is not work to do."
+      ),
     blocking: z
       .boolean()
       .describe("Whether the step is blocking the go or no-go call."),
@@ -312,6 +317,12 @@ const ConfigStepSchema = z
       .optional()
       .describe(
         "Whether the step has a separate state for each release candidate."
+      ),
+    informational: z
+      .boolean()
+      .optional()
+      .describe(
+        "Whether the step is for information only: not counted in the steps done, never blocking."
       ),
     depends_on: z
       .array(z.string())

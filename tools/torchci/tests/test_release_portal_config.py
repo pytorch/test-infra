@@ -75,7 +75,7 @@ class TestCommittedConfig(TestCase):
     def test_the_shared_steps_cover_five_phases_and_resolve(self):
         resolved = cfg.load_resolved("2.16.0")
         self.assertEqual([p["id"] for p in resolved["phases"]], [1, 2, 3, 4, 5])
-        self.assertEqual(len(resolved["steps"]), 51)
+        self.assertEqual(len(resolved["steps"]), 49)
         self.assertEqual(resolved["branch"], "release/2.16")
 
     def test_every_step_id_is_unique_and_in_its_phase(self):
@@ -97,6 +97,21 @@ class TestValidateShared(TestCase):
     def test_step_id_must_match_its_phase(self):
         errors = self.errors(_shared(_step("1.1", phase=2)))
         self.assertTrue(any("does not belong to phase 2" in e for e in errors), errors)
+
+    def test_informational_must_be_a_boolean(self):
+        self.assertEqual(self.errors(_shared(_step("1.1", informational=True))), [])
+        errors = self.errors(_shared(_step("1.1", informational="yes")))
+        self.assertTrue(
+            any("informational must be true or false" in e for e in errors), errors
+        )
+
+    def test_the_steps_for_information_are_flagged_and_the_removed_steps_are_gone(self):
+        steps = {s["id"]: s for s in cfg.load_resolved("2.16.0")["steps"]}
+        for step_id in ("1.3", "1.7", "2.10", "2.11", "4.8", "5.3"):
+            self.assertIs(steps[step_id]["informational"], True, step_id)
+        self.assertNotIn("3.9", steps)
+        self.assertNotIn("5.2", steps)
+        self.assertEqual(steps["4.1"]["depends_on"], ["3.4", "3.5", "3.7"])
 
     def test_duplicate_id(self):
         errors = self.errors(_shared(_step("1.1"), _step("1.1")))
@@ -291,6 +306,54 @@ class TestChecks(TestCase):
 
     def test_check_types_without_parameters(self):
         self.assertEqual(self.errors({"type": "crcr_summary"}), [])
+
+    def test_the_nightly_binaries_check(self):
+        good = {
+            "type": "nightly_binaries",
+            "repo": "pytorch/pytorch",
+            "branch": "nightly",
+        }
+        self.assertEqual(self.errors(good), [])
+        for bad in (
+            {"type": "nightly_binaries", "repo": "pytorch/pytorch"},
+            {"type": "nightly_binaries", "repo": "pytorch", "branch": "nightly"},
+            {"type": "nightly_binaries", "repo": "pytorch/pytorch", "branch": ""},
+            {**good, "workflow": "x"},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
+
+    def test_the_release_only_changes_check(self):
+        good = {
+            "type": "release_only_changes",
+            "repo": "pytorch/pytorch",
+            "title_regex": "(?i)release[- ]only changes",
+        }
+        self.assertEqual(self.errors(good), [])
+        for bad in (
+            {k: v for k, v in good.items() if k != "title_regex"},
+            {**good, "repo": "pytorch"},
+            {**good, "title_regex": ""},
+            {**good, "title_regex": "("},
+            {**good, "branch": "release/2.15"},
+            {**good, "workflow": "x"},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
+
+    def test_the_milestone_prs_on_branch_check(self):
+        good = {
+            "type": "milestone_prs_on_branch",
+            "repo": "pytorch/pytorch",
+            "milestone": "{milestone}",
+        }
+        self.assertEqual(self.errors(good), [])
+        for bad in (
+            {"type": "milestone_prs_on_branch", "repo": "a/b"},
+            {**good, "x": 1},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
 
     def test_the_milestone_and_revert_checks(self):
         self.assertEqual(

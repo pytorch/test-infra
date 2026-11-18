@@ -1,9 +1,11 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from unittest import main, TestCase
+from unittest.mock import patch
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -11,12 +13,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from datetime import datetime, timezone
 
 from analytics.github_analyze import (  # noqa: E402
+    find_release_only_changes_prs,
     GitRepo,
+    milestone_issue_statuses,
+    milestone_pr_step_rows,
     milestone_step_rows,
     release_in_preparation,
+    release_only_changes_step_rows,
     releases_in_flight,
     releases_just_shipped,
     revert_step_rows,
+    write_step_summary,
 )
 
 
@@ -315,6 +322,316 @@ class MilestoneStepRows(TestCase):
         self.assertEqual(
             row["evidence_text"], "No outstanding items in milestone 2.15.0"
         )
+
+
+def _milestone_item(number, state, reason, pull_request=True):
+    item = {
+        "number": number,
+        "title": f"item {number}",
+        "html_url": f"https://github.com/pytorch/pytorch/"
+        f"{'pull' if pull_request else 'issues'}/{number}",
+        "state": state,
+    }
+    if pull_request:
+        item["pull_request"] = {}
+    return {"issue": item, "outstanding": False, "reason": reason}
+
+
+class MilestoneIgnoredIssues(TestCase):
+    def reasons(self, items):
+        class _Repo:
+            def ref_exists(self, ref):
+                return False  # before the cut: only open items are outstanding
+
+        issues = [
+            {
+                "number": number,
+                "title": title,
+                "html_url": f"https://github.com/pytorch/pytorch/issues/{number}",
+                "state": state,
+                "labels": [],
+                **({"pull_request": {}} if is_pr else {}),
+            }
+            for number, title, state, is_pr in items
+        ]
+        with patch(
+            "analytics.github_analyze.gh_get_milestone_issues", return_value=issues
+        ):
+            statuses = milestone_issue_statuses(
+                _Repo(), "release/2.15", "orig/release/2.15", 69
+            )
+        return {s["issue"]["number"]: (s["reason"], s["outstanding"]) for s in statuses}
+
+    def test_the_rfc_the_tracker_and_the_validation_issue_are_not_counted(self):
+        reasons = self.reasons(
+            [
+                (190875, "[RFC] Integrating FlyDSL with PyTorch DSL", "open", False),
+                (
+                    204614,
+                    "[RFC][ONNX] Own native ONNX operator translations",
+                    "open",
+                    False,
+                ),
+                (199813, "[v.2.15.0] Release Tracker", "open", False),
+                (
+                    201644,
+                    "Release 2.15 validations checklist and cherry-picks",
+                    "open",
+                    False,
+                ),
+            ]
+        )
+        self.assertEqual(set(reasons.values()), {("ignored_issue", False)}, reasons)
+
+    def test_other_open_items_and_every_pr_are_still_counted(self):
+        reasons = self.reasons(
+            [
+                (1, "Python 3.15 support for PyTorch", "open", False),
+                (2, "[RFC] looks like an RFC but is a PR", "open", True),
+                (3, "Release tracker fix", "open", True),
+            ]
+        )
+        self.assertEqual(reasons[1], ("open", True))
+        self.assertEqual(reasons[2], ("open", True))
+        self.assertEqual(reasons[3], ("open", True))
+
+
+class StepSummary(TestCase):
+    def write(self, rows, written=True, extra=None, env=True):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "summary.md"
+            old = os.environ.pop("GITHUB_STEP_SUMMARY", None)
+            if env:
+                os.environ["GITHUB_STEP_SUMMARY"] = str(path)
+            try:
+                write_step_summary("Title", rows, written, extra)
+            finally:
+                os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                if old is not None:
+                    os.environ["GITHUB_STEP_SUMMARY"] = old
+            return path.read_text() if path.exists() else None
+
+    ROW = {
+        "release": "2.15.0",
+        "step_id": "1.11",
+        "status": "done",
+        "evidence_text": "#1 [release 2.15] Apply | changes\nmerged",
+        "evidence_url": "https://github.com/pytorch/pytorch/pull/1",
+    }
+
+    def test_a_table_of_the_steps_with_linked_evidence(self):
+        text = self.write([self.ROW], True, ["- extra"])
+        self.assertIn("## Title", text)
+        self.assertIn("| Release | Step | Status | Evidence |", text)
+        # one line, the pipe and the brackets escaped, linked to the evidence
+        self.assertIn(
+            "| 2.15.0 | 1.11 | ✅ done | "
+            "[#1 \\[release 2.15\\] Apply \\| changes merged]"
+            "(https://github.com/pytorch/pytorch/pull/1) |",
+            text,
+        )
+        self.assertIn("Recorded in `misc.release_event`.", text)
+        self.assertTrue(text.rstrip().endswith("- extra"))
+
+    def test_a_run_that_does_not_write_says_so(self):
+        text = self.write(
+            [dict(self.ROW, status="in_progress", evidence_url="")], False
+        )
+        self.assertIn("🟡 in progress", text)
+        self.assertIn("Not recorded", text)
+
+    def test_nothing_is_written_without_rows_or_a_summary_file(self):
+        self.assertIsNone(self.write([]))
+        self.assertIsNone(self.write([self.ROW], env=False))
+
+
+class MilestonePrStepRows(TestCase):
+    def rows(self, statuses, branch_cut=True, released=False):
+        return milestone_pr_step_rows(
+            "2.15.0",
+            "release/2.15",
+            69,
+            [{"id": "3.2"}],
+            statuses,
+            branch_cut,
+            "0" * 40,
+            "1-1",
+            "https://github.com/pytorch/test-infra/actions/runs/1",
+            datetime(2026, 10, 20, tzinfo=timezone.utc),
+            released,
+        )
+
+    def test_every_closed_pr_on_the_branch_makes_the_step_done(self):
+        (row,) = self.rows(
+            [
+                _milestone_item(1, "closed", "on_release_branch"),
+                _milestone_item(2, "closed", "landed_before_cut"),
+            ]
+        )
+        self.assertEqual((row["step_id"], row["status"]), ("3.2", "done"))
+        self.assertEqual(row["check_type"], "milestone_prs_on_branch")
+        self.assertEqual(row["blocking"], 0)
+        self.assertEqual(
+            row["evidence_text"],
+            "All 2 closed PR(s) of milestone 2.15.0 are on release/2.15",
+        )
+        self.assertEqual(
+            row["evidence_url"],
+            "https://github.com/pytorch/pytorch/milestone/69?closed=1",
+        )
+
+    def test_a_closed_pr_that_is_not_on_the_branch_keeps_the_step_open(self):
+        (row,) = self.rows(
+            [
+                _milestone_item(1, "closed", "on_release_branch"),
+                _milestone_item(2, "closed", "not_on_release_branch"),
+            ]
+        )
+        self.assertEqual(row["status"], "in_progress")
+        self.assertEqual(
+            row["evidence_text"],
+            "1 closed PR(s) of milestone 2.15.0 not on release/2.15: #2",
+        )
+        details = json.loads(row["details"])
+        self.assertEqual([m["number"] for m in details["missing"]], [2])
+        self.assertEqual(
+            details["by_reason"], {"on_release_branch": 1, "not_on_release_branch": 1}
+        )
+
+    def test_open_issues_are_not_looked_at_but_are_listed(self):
+        # an [RFC], the release tracker and the validation issue stay open until the end
+        (row,) = self.rows(
+            [
+                _milestone_item(1, "closed", "on_release_branch"),
+                _milestone_item(190875, "open", "open", pull_request=False),
+                _milestone_item(199813, "open", "open", pull_request=False),
+            ]
+        )
+        self.assertEqual(row["status"], "done")
+        details = json.loads(row["details"])
+        self.assertEqual(
+            [i["number"] for i in details["open_issues_not_checked"]], [190875, 199813]
+        )
+        self.assertEqual(details["pull_requests"], 1)
+
+    def test_an_open_pr_is_not_a_closed_one(self):
+        # open PRs are what the milestone check (3.1) holds the release for
+        (row,) = self.rows([_milestone_item(5, "open", "open")])
+        self.assertEqual(row["status"], "done")
+        self.assertEqual(json.loads(row["details"])["closed_pull_requests"], 0)
+
+    def test_before_the_branch_cut_there_is_nothing_to_check(self):
+        (row,) = self.rows(
+            [_milestone_item(1, "closed", "closed_before_cut")], branch_cut=False
+        )
+        self.assertEqual(row["status"], "todo")
+        self.assertIn("is not cut yet", row["evidence_text"])
+
+    def test_the_step_is_done_once_the_release_tag_exists(self):
+        (row,) = self.rows(
+            [_milestone_item(2, "closed", "not_on_release_branch")], released=True
+        )
+        self.assertEqual(row["status"], "done")
+        self.assertEqual(
+            row["evidence_text"],
+            "Release tag v2.15.0 exists, so the step is done; "
+            "1 closed PR(s) of milestone 2.15.0 not on release/2.15: #2",
+        )
+
+
+def _pr(number, title, state="closed", merged_at=None):
+    return {
+        "number": number,
+        "title": title,
+        "state": state,
+        "merged_at": merged_at,
+        "html_url": f"https://github.com/pytorch/pytorch/pull/{number}",
+    }
+
+
+class ReleaseOnlyChanges(TestCase):
+    TITLE = "[release 2.15] Apply Release only changes to 2.15 branch"
+
+    def rows(self, prs):
+        return release_only_changes_step_rows(
+            "2.15.0",
+            "release/2.15",
+            "pytorch/pytorch",
+            [{"id": "1.11"}],
+            prs,
+            "0" * 40,
+            "1-1",
+            "https://github.com/pytorch/test-infra/actions/runs/1",
+            datetime(2026, 10, 6, tzinfo=timezone.utc),
+        )
+
+    def test_a_merged_pr_makes_the_step_done(self):
+        (row,) = self.rows([_pr(199819, self.TITLE, "closed", "2026-10-05T21:55:46Z")])
+        self.assertEqual((row["step_id"], row["status"]), ("1.11", "done"))
+        self.assertEqual(row["check_type"], "release_only_changes")
+        self.assertEqual(row["blocking"], 0)
+        self.assertEqual(row["rc"], "")
+        self.assertEqual(
+            row["evidence_url"], "https://github.com/pytorch/pytorch/pull/199819"
+        )
+        self.assertIn("#199819", row["evidence_text"])
+        self.assertIn("2026-10-05", row["evidence_text"])
+        details = json.loads(row["details"])
+        self.assertEqual(details["branch"], "release/2.15")
+        self.assertEqual(details["pull_requests"][0]["number"], 199819)
+
+    def test_an_open_pr_keeps_the_step_in_progress(self):
+        (row,) = self.rows([_pr(5, self.TITLE, "open")])
+        self.assertEqual(row["status"], "in_progress")
+        self.assertIn("is open", row["evidence_text"])
+        self.assertEqual(
+            row["evidence_url"], "https://github.com/pytorch/pytorch/pull/5"
+        )
+
+    def test_a_pr_closed_without_merging_keeps_the_step_in_progress(self):
+        (row,) = self.rows([_pr(5, self.TITLE, "closed", None)])
+        self.assertEqual(row["status"], "in_progress")
+        self.assertIn("closed without merging", row["evidence_text"])
+
+    def test_a_merged_pr_wins_over_an_earlier_closed_one(self):
+        (row,) = self.rows(
+            [
+                _pr(5, self.TITLE, "closed", None),
+                _pr(6, self.TITLE, "closed", "2026-10-05T21:55:46Z"),
+            ]
+        )
+        self.assertEqual(row["status"], "done")
+        self.assertIn("#6", row["evidence_text"])
+        self.assertEqual(len(json.loads(row["details"])["pull_requests"]), 2)
+
+    def test_no_pr_yet_links_to_the_pulls_of_the_branch(self):
+        (row,) = self.rows([])
+        self.assertEqual(row["status"], "in_progress")
+        self.assertEqual(
+            row["evidence_text"], "no release-only changes PR into release/2.15 yet"
+        )
+        self.assertEqual(
+            row["evidence_url"],
+            "https://github.com/pytorch/pytorch/pulls?q=is%3Apr+base%3Arelease/2.15",
+        )
+
+    def test_the_pulls_of_the_branch_are_filtered_by_title(self):
+        pulls = [
+            _pr(1, "[release 2.15] Cherry pick something"),
+            _pr(2, "[RELEASE 2.10] Release only changes"),
+            _pr(3, self.TITLE),
+        ]
+        with patch(
+            "analytics.github_analyze.fetch_multipage_json", return_value=pulls
+        ) as fetch:
+            found = find_release_only_changes_prs(
+                "pytorch/pytorch", "release/2.15", "(?i)release[- ]only changes"
+            )
+        self.assertEqual([pr["number"] for pr in found], [2, 3])
+        url, params = fetch.call_args.args
+        self.assertEqual(url, "https://api.github.com/repos/pytorch/pytorch/pulls")
+        self.assertEqual(params["base"], "release/2.15")
+        self.assertEqual(params["state"], "all")
 
 
 if __name__ == "__main__":

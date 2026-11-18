@@ -381,6 +381,79 @@ describe("the links found in the rows", () => {
   });
 });
 
+describe("informational steps", () => {
+  const config = resolveRelease(
+    {
+      ...SHARED,
+      steps: [
+        ...SHARED.steps,
+        step({ id: "2.9", informational: true }),
+        step({ id: "2.8", informational: true }),
+      ],
+    },
+    { release: "2.16.0", dates: MINOR.dates },
+    "2.16.0"
+  );
+
+  test("are shown as steps, but are not counted, never block, and are not work", () => {
+    const board = buildBoard(
+      config,
+      [
+        row({ step_id: "2.9", status: "blocked", blocking: 1 }),
+        row({ step_id: "2.8", status: "done" }),
+      ],
+      NOW
+    );
+    expect(ReleaseBoardSchema.parse(board)).toEqual(board);
+    const steps = stepsOf(board);
+    expect(steps["2.9"]).toMatchObject({
+      informational: true,
+      blocking: false,
+    });
+    expect(steps["2.1"].informational).toBe(false);
+    expect(board.stats).toMatchObject({
+      done: 0,
+      total: MINOR.steps.length,
+      blocking: 0,
+    });
+  });
+
+  test("do not hold back a phase, the release phase or its status", () => {
+    const rows = MINOR.steps.map((s) =>
+      row({ step_id: s.id, status: "done", rc: s.rc_scoped ? "rc1" : "" })
+    );
+    const board = buildBoard(config, rows, NOW);
+    expect(board.stats).toMatchObject({
+      done: MINOR.steps.length,
+      total: MINOR.steps.length,
+    });
+    // the phase is complete although its information steps have no state
+    const phase = board.phases.find((p) => p.id === 2);
+    expect(phase?.collapsed).toBe(true);
+    const index = buildIndex([{ config, rows }], NOW);
+    expect(index.releases[0]).toMatchObject({
+      status: "done",
+      phase: "Released",
+      progress: { done: MINOR.steps.length, total: MINOR.steps.length },
+    });
+    expect(index.active).toEqual([]);
+  });
+
+  test("a phase of only information steps is not collapsed", () => {
+    const only = resolveRelease(
+      {
+        ...SHARED,
+        phases: [...SHARED.phases, { id: 3, name: "Info" }],
+        steps: [...SHARED.steps, step({ id: "3.1", informational: true })],
+      },
+      { release: "2.16.0", dates: MINOR.dates },
+      "2.16.0"
+    );
+    const board = buildBoard(only, [], NOW);
+    expect(board.phases.find((p) => p.id === 3)?.collapsed).toBe(false);
+  });
+});
+
 describe("buildIndex", () => {
   const patch = resolveRelease(SHARED, { release: "2.15.1" }, "2.15.1");
   const older = resolveRelease(SHARED, null, "2.15.0");

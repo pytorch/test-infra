@@ -485,6 +485,14 @@ def print_contributor_stats(commits, delta: Optional[timedelta] = None) -> None:
         print(f"{author}: {count}")
 
 
+# Issues of a milestone that are not work to land and are left open until the release is out:
+# an [RFC], the release tracker ("[v.2.15.0] Release Tracker") and the validation issue
+# ("Release 2.15 validations checklist and cherry-picks"). The milestone checks ignore them.
+IGNORED_MILESTONE_ISSUE = re.compile(
+    r"^\s*\[RFC\]|release tracker|^release \S+ validations", re.IGNORECASE
+)
+
+
 def milestone_issue_statuses(
     repo: GitRepo, branch: str, orig_branch: str, milestone_idx: int
 ) -> List[Dict[str, Any]]:
@@ -493,6 +501,8 @@ def milestone_issue_statuses(
     "outstanding": bool, "reason": str}. The reasons:
 
     - feature_request: labelled release-feature-request, not counted
+    - ignored_issue: an issue (not a PR) that is an [RFC], the release tracker or the
+      validation issue (IGNORED_MILESTONE_ISSUE), open or not, not counted
     - open: still open
     - closed_before_cut: closed, and the release branch is not cut yet (so there is
       nothing to pick)
@@ -520,6 +530,10 @@ def milestone_issue_statuses(
         issue_url, state = issue["html_url"], issue["state"]
         if "release-feature-request" in labels:
             outstanding, reason = False, "feature_request"
+        elif "pull_request" not in issue and IGNORED_MILESTONE_ISSUE.search(
+            issue["title"]
+        ):
+            outstanding, reason = False, "ignored_issue"
         elif state != "closed":
             outstanding, reason = True, "open"
         elif not branch_cut:
@@ -634,6 +648,105 @@ def milestone_step_rows(
     ]
 
 
+def milestone_pr_step_rows(
+    release: str,
+    branch: str,
+    milestone_idx: int,
+    steps: List[Dict[str, Any]],
+    statuses: List[Dict[str, Any]],
+    branch_cut: bool,
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+    released: bool = False,
+) -> List[Dict[str, Any]]:
+    """
+    The misc.release_event rows for one scan of the pull requests of a release's milestone:
+    one per release portal step that checks milestone_prs_on_branch, done when every closed
+    PR of the milestone that landed on main after the branch cut is on the release branch
+    (milestone_issue_statuses: not_on_release_branch is the one that is missing).
+
+    Only the PRs count. The open issues of the milestone (an [RFC], the release tracker, the
+    validation issue) are not looked at: they are what milestone_outstanding_items is for, and
+    they are listed in `details`. Before the cut there is nothing to pick, so the step is todo.
+    Once the release is out (its v<version> tag exists) the step is done whatever is missing,
+    and the evidence still lists the PRs.
+    """
+    prs = [status for status in statuses if "pull_request" in status["issue"]]
+    missing = [status for status in prs if status["reason"] == "not_on_release_branch"]
+    by_reason: Dict[str, int] = {}
+    for status in prs:
+        by_reason[status["reason"]] = by_reason.get(status["reason"], 0) + 1
+    closed = sum(1 for status in prs if status["issue"]["state"] == "closed")
+    if missing:
+        numbers = ", ".join(f"#{status['issue']['number']}" for status in missing)
+        evidence = f"{len(missing)} closed PR(s) of milestone {release} not on {branch}: {numbers}"
+        if released:
+            evidence = f"Release tag v{release} exists, so the step is done; {evidence}"
+    elif not branch_cut and not released:
+        evidence = (
+            f"{branch} is not cut yet: no closed PR of milestone {release} to check"
+        )
+    else:
+        evidence = f"All {closed} closed PR(s) of milestone {release} are on {branch}"
+    if released or (branch_cut and not missing):
+        status_value = "done"
+    elif branch_cut:
+        status_value = "in_progress"
+    else:
+        status_value = "todo"
+    details = json.dumps(
+        {
+            "milestone": milestone_idx,
+            "branch": branch,
+            "branch_cut": branch_cut,
+            "released": released,
+            "pull_requests": len(prs),
+            "closed_pull_requests": closed,
+            "by_reason": by_reason,
+            "missing": [
+                {
+                    "number": status["issue"]["number"],
+                    "title": status["issue"]["title"],
+                    "url": status["issue"]["html_url"],
+                }
+                for status in missing
+            ],
+            # not looked at: the open issues (an [RFC], the tracker, the validation issue)
+            "open_issues_not_checked": [
+                {
+                    "number": status["issue"]["number"],
+                    "title": status["issue"]["title"],
+                    "url": status["issue"]["html_url"],
+                }
+                for status in statuses
+                if "pull_request" not in status["issue"]
+                and status["issue"]["state"] == "open"
+            ],
+        }
+    )
+    return [
+        {
+            "release": release,
+            "step_id": step["id"],
+            "rc": "",
+            "status": status_value,
+            "blocking": 0,
+            "evidence_text": evidence,
+            "evidence_url": f"https://github.com/pytorch/pytorch/milestone/{milestone_idx}?closed=1",
+            "check_type": "milestone_prs_on_branch",
+            "source": "collector",
+            "run_id": run_id,
+            "run_url": run_url,
+            "config_sha": config_sha,
+            "details": details,
+            "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+        }
+        for step in steps
+    ]
+
+
 def insert_clickhouse_rows(table: str, rows: List[Dict[str, Any]]) -> None:
     """Append rows to a ClickHouse table over its HTTP interface (JSONEachRow)."""
     from urllib.parse import quote
@@ -671,6 +784,56 @@ def workflow_run_info() -> Tuple[str, str]:
     return run_id, run_url
 
 
+STATUS_LABELS = {"done": "✅ done", "in_progress": "🟡 in progress", "todo": "⚪ todo"}
+
+
+def _markdown_cell(text: str) -> str:
+    """Text for a table cell: one line, the pipes escaped."""
+    return " ".join(text.split()).replace("|", "\\|")
+
+
+def write_step_summary(
+    title: str,
+    rows: List[Dict[str, Any]],
+    written: bool,
+    extra: Optional[List[str]] = None,
+) -> None:
+    """
+    Append the state of the portal steps of one scan to the job summary of the GitHub Actions
+    run ($GITHUB_STEP_SUMMARY; nothing outside of one): a table with the release, the step,
+    its status and its evidence (linked), then `extra` lines. `written` says whether the rows
+    went to misc.release_event or the run only showed them (a pull request).
+    """
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path or not rows:
+        return
+    lines = [
+        f"## {title}",
+        "",
+        "| Release | Step | Status | Evidence |",
+        "| --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        text = (
+            _markdown_cell(row["evidence_text"]).replace("[", "\\[").replace("]", "\\]")
+        )
+        evidence = f"[{text}]({row['evidence_url']})" if row["evidence_url"] else text
+        status = STATUS_LABELS.get(row["status"], row["status"])
+        lines.append(f"| {row['release']} | {row['step_id']} | {status} | {evidence} |")
+    lines += [
+        "",
+        (
+            "Recorded in `misc.release_event`."
+            if written
+            else "Not recorded in `misc.release_event` (this run does not write)."
+        ),
+    ]
+    if extra:
+        lines += ["", *extra]
+    with open(path, "a") as f:
+        f.write("\n".join(lines) + "\n\n")
+
+
 def record_milestone_steps(
     repo: GitRepo,
     release: str,
@@ -689,21 +852,35 @@ def record_milestone_steps(
         for step in config["steps"]
         if step["check"]["type"] == "milestone_outstanding_items"
     ]
+    pr_steps = [
+        step
+        for step in config["steps"]
+        if step["check"]["type"] == "milestone_prs_on_branch"
+    ]
     statuses = milestone_issue_statuses(repo, branch, f"orig/{branch}", milestone_idx)
     run_id, run_url = workflow_run_info()
-    rows = milestone_step_rows(
-        release,
-        branch,
-        milestone_idx,
-        milestone_steps,
-        statuses,
-        repo.ref_exists(branch),
-        os.environ.get("GITHUB_SHA", "0" * 40),
-        run_id,
-        run_url,
-        datetime.now(timezone.utc),
-        repo.tag_exists(f"v{release}"),
-    )
+    branch_cut, released = repo.ref_exists(branch), repo.tag_exists(f"v{release}")
+    # both kinds of step read the same scan of the milestone
+    rows = [
+        row
+        for make_rows, kind_steps in (
+            (milestone_step_rows, milestone_steps),
+            (milestone_pr_step_rows, pr_steps),
+        )
+        for row in make_rows(
+            release,
+            branch,
+            milestone_idx,
+            kind_steps,
+            statuses,
+            branch_cut,
+            os.environ.get("GITHUB_SHA", "0" * 40),
+            run_id,
+            run_url,
+            datetime.now(timezone.utc),
+            released,
+        )
+    ]
     outstanding = [status for status in statuses if status["outstanding"]]
     print(
         f"{release}: milestone {milestone_idx}, {len(statuses)} issues, "
@@ -719,6 +896,16 @@ def record_milestone_steps(
     if write:
         insert_clickhouse_rows("misc.release_event", rows)
         print(f"Inserted {len(rows)} rows into misc.release_event")
+    write_step_summary(
+        f"{release}: milestone steps",
+        rows,
+        write,
+        [
+            f"- [#{status['issue']['number']}]({status['issue']['html_url']}) "
+            f"{_markdown_cell(status['issue']['title'])} ({status['reason']})"
+            for status in outstanding
+        ],
+    )
 
 
 def release_in_preparation(repo: GitRepo, ref: str) -> Optional[str]:
@@ -831,6 +1018,13 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
             # has the same window (opens: branch_cut, closes: ga).
             if repo.ref_exists(config["branch"]) and not repo.tag_exists(f"v{release}"):
                 scans.append(lambda: record_revert_steps(repo, release, config, write))
+            # The release-only changes PR is opened right after the cut. A release that has
+            # shipped is scanned too (its milestone is open): the step is done once the PR
+            # is merged, and a release that skipped the scans before is filled in.
+            if repo.ref_exists(config["branch"]):
+                scans.append(
+                    lambda: record_release_only_changes_steps(release, config, write)
+                )
             scans.append(
                 lambda: record_milestone_steps(
                     repo, release, config, milestone_idx, write
@@ -1174,6 +1368,161 @@ def record_revert_steps(
     if write and rows:
         insert_clickhouse_rows("misc.release_event", rows)
         print(f"Inserted {len(rows)} rows into misc.release_event")
+    write_step_summary(
+        f"{release}: reverts missing from {branch}", rows, write and bool(rows)
+    )
+
+
+def find_release_only_changes_prs(
+    repo_name: str, branch: str, title_regex: str
+) -> List[Dict[str, Any]]:
+    """
+    The pull requests whose base is the release branch and whose title matches title_regex
+    (the release-only changes PR: it changes the workflows from main to the release branch),
+    oldest first. It is opened right after the branch cut, so it is at the start of the list.
+    """
+    pattern = re.compile(title_regex)
+    pulls = fetch_multipage_json(
+        f"https://api.github.com/repos/{repo_name}/pulls",
+        {
+            "base": branch,
+            "state": "all",
+            "sort": "created",
+            "direction": "asc",
+            "per_page": 100,
+        },
+    )
+    return [pull for pull in pulls if pattern.search(pull["title"])]
+
+
+def release_only_changes_step_rows(
+    release: str,
+    branch: str,
+    repo_name: str,
+    steps: List[Dict[str, Any]],
+    prs: List[Dict[str, Any]],
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """
+    The misc.release_event rows for one scan of the release-only changes PR of a release
+    branch: one per release portal step that checks release_only_changes, done when such a
+    PR is merged into the branch (the newest one, if there are several), and in progress
+    until then (its evidence says whether the PR is open, closed unmerged or not there yet).
+    """
+    merged = sorted(
+        (pr for pr in prs if pr.get("merged_at")), key=lambda pr: pr["merged_at"]
+    )
+    open_prs = [pr for pr in prs if pr["state"] == "open"]
+    if merged:
+        pr = merged[-1]
+        status = "done"
+        evidence = f"#{pr['number']} {pr['title']} merged into {branch} on {pr['merged_at'][:10]}"
+    elif open_prs:
+        pr = open_prs[-1]
+        status = "in_progress"
+        evidence = (
+            f"#{pr['number']} {pr['title']} is open, not merged into {branch} yet"
+        )
+    elif prs:
+        pr = prs[-1]
+        status = "in_progress"
+        evidence = (
+            f"#{pr['number']} {pr['title']} was closed without merging into {branch}"
+        )
+    else:
+        pr = None
+        status = "in_progress"
+        evidence = f"no release-only changes PR into {branch} yet"
+    details = json.dumps(
+        {
+            "branch": branch,
+            "pull_requests": [
+                {
+                    "number": candidate["number"],
+                    "title": candidate["title"],
+                    "url": candidate["html_url"],
+                    "state": candidate["state"],
+                    "merged_at": candidate.get("merged_at"),
+                }
+                for candidate in prs
+            ],
+        }
+    )
+    return [
+        {
+            "release": release,
+            "step_id": step["id"],
+            "rc": "",
+            "status": status,
+            "blocking": 0,
+            "evidence_text": evidence,
+            "evidence_url": (
+                pr["html_url"]
+                if pr
+                else f"https://github.com/{repo_name}/pulls?q=is%3Apr+base%3A{branch}"
+            ),
+            "check_type": "release_only_changes",
+            "source": "collector",
+            "run_id": run_id,
+            "run_url": run_url,
+            "config_sha": config_sha,
+            "details": details,
+            "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+        }
+        for step in steps
+    ]
+
+
+def record_release_only_changes_steps(
+    release: str, config: Dict[str, Any], write: bool
+) -> None:
+    """
+    Look for the release-only changes PR of the release's branch (config["branch"]) and
+    print the state of each release portal step that checks it. With write, record those
+    rows in misc.release_event.
+    """
+    branch = config["branch"]
+    steps = [
+        step
+        for step in config["steps"]
+        if step["check"]["type"] == "release_only_changes"
+    ]
+    if not steps:
+        print(f"{release} has no release_only_changes step")
+        return
+    run_id, run_url = workflow_run_info()
+    # one search per distinct check; the steps that share it share its result
+    by_check: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    for step in steps:
+        check = step["check"]
+        by_check.setdefault((check["repo"], check["title_regex"]), []).append(step)
+    rows: List[Dict[str, Any]] = []
+    for (repo_name, title_regex), check_steps in by_check.items():
+        prs = find_release_only_changes_prs(repo_name, branch, title_regex)
+        for pr in prs:
+            print(
+                f"{pr['html_url']} ;{pr['title']};{pr['state']};merged_at={pr.get('merged_at')}"
+            )
+        rows += release_only_changes_step_rows(
+            release,
+            branch,
+            repo_name,
+            check_steps,
+            prs,
+            os.environ.get("GITHUB_SHA", "0" * 40),
+            run_id,
+            run_url,
+            datetime.now(timezone.utc),
+        )
+    for row in rows:
+        print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
+    if write and rows:
+        insert_clickhouse_rows("misc.release_event", rows)
+        print(f"Inserted {len(rows)} rows into misc.release_event")
+    write_step_summary(f"{release}: release-only changes", rows, write and bool(rows))
 
 
 def parse_arguments():
@@ -1221,6 +1570,13 @@ def parse_arguments():
         "portal steps that check the milestone in misc.release_event (CLICKHOUSE_ENDPOINT, "
         "CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD)",
     )
+    parser.add_argument(
+        "--release-only-changes",
+        action="store_true",
+        help="With --release, look for the release-only changes PR of its release branch "
+        "and print the state of the portal steps that check it. --write-to-clickhouse "
+        "records them in misc.release_event",
+    )
     parser.add_argument("--date", type=lambda d: datetime.strptime(d, "%Y-%m-%d"))
     parser.add_argument("--issue-num", type=int)
     return parser.parse_args()
@@ -1260,6 +1616,9 @@ def main():
     if args.write_to_clickhouse and not args.release:
         print("Error: --release is required with --write-to-clickhouse")
         sys.exit(1)
+    if args.release_only_changes and not args.release:
+        print("Error: --release is required with --release-only-changes")
+        sys.exit(1)
     if args.release:
         # The release portal config says which steps check the milestone, the release
         # branch to check it against and, by default, the milestone's title.
@@ -1267,6 +1626,11 @@ def main():
         from torchci.release_portal_config import load_resolved
 
         config = load_resolved(args.release)
+        if args.release_only_changes:
+            record_release_only_changes_steps(
+                args.release, config, args.write_to_clickhouse
+            )
+            return
         args.branch = args.branch or config["branch"]
         args.milestone_id = args.milestone_id or args.release
 

@@ -79,7 +79,8 @@ describe("GET /api/releases", () => {
       ga_date: null,
       status: "in_progress",
     });
-    expect(body.releases[1].progress.total).toBe(35);
+    // 34 steps, of which 2.10, 2.11 and 5.3 are for information only
+    expect(body.releases[1].progress.total).toBe(31);
     expect(headers.get("Cache-Control")).toMatch(/^public, /);
   });
 
@@ -226,7 +227,7 @@ describe("GET /api/releases/{version}/config", () => {
       type: "patch",
       branch: "release/2.15",
     });
-    expect(body.steps).toHaveLength(35);
+    expect(body.steps).toHaveLength(34);
   });
 
   test("a release with a file of its own has a config before any state exists", async () => {

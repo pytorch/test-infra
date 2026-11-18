@@ -70,8 +70,16 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
         "required": {"repo", "milestone", "max_outstanding"},
         "optional": set(),
     },
+    "milestone_prs_on_branch": {
+        "required": {"repo", "milestone"},
+        "optional": set(),
+    },
     "reverts_missing_from_branch": {
         "required": {"repo", "branch"},
+        "optional": set(),
+    },
+    "release_only_changes": {
+        "required": {"repo", "title_regex"},
         "optional": set(),
     },
     "github_ref_exists": {
@@ -87,6 +95,7 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
         "optional": set(),
     },
     "crcr_summary": {"required": set(), "optional": set()},
+    "nightly_binaries": {"required": {"repo", "branch"}, "optional": set()},
     "triton_release_branch": {"required": set(), "optional": set()},
     "pypi_release": {"required": {"package", "version"}, "optional": set()},
     "dev_discuss_post": {
@@ -111,6 +120,7 @@ STEP_FIELDS = {
     "owner",
     "check",
     "rc_scoped",
+    "informational",
     "depends_on",
     "due",
     "runbook",
@@ -244,6 +254,34 @@ def _check_errors(where: str, check: Any) -> List[str]:
             )
     elif ctype == "dev_discuss_post":
         errors.extend(_dev_discuss_post_errors(where, check))
+    elif ctype == "nightly_binaries":
+        for key in ("repo", "branch"):
+            if key in check and not (isinstance(check[key], str) and check[key]):
+                errors.append(
+                    f"{where}: check nightly_binaries `{key}` must be a non-empty string"
+                )
+        repo = check.get("repo")
+        if isinstance(repo, str) and repo and "/" not in repo:
+            errors.append(f"{where}: check nightly_binaries `repo` must be owner/name")
+    elif ctype == "release_only_changes":
+        for key in ("repo", "title_regex"):
+            if key in check and not (isinstance(check[key], str) and check[key]):
+                errors.append(
+                    f"{where}: check release_only_changes `{key}` must be a non-empty string"
+                )
+        repo = check.get("repo")
+        if isinstance(repo, str) and repo and "/" not in repo:
+            errors.append(
+                f"{where}: check release_only_changes `repo` must be owner/name"
+            )
+        pattern = check.get("title_regex")
+        if isinstance(pattern, str) and pattern:
+            try:
+                re.compile(pattern)
+            except re.error as err:
+                errors.append(
+                    f"{where}: check release_only_changes `title_regex` is not a valid pattern: {err}"
+                )
     elif ctype == "pypi_release":
         for key in ("package", "version"):
             if key in check and not (isinstance(check[key], str) and check[key]):
@@ -294,6 +332,8 @@ def _step_errors(where: str, step: Any) -> List[str]:
             errors.append(f"{where}: {key} must be a non-empty string")
     if "rc_scoped" in step and not isinstance(step["rc_scoped"], bool):
         errors.append(f"{where}: rc_scoped must be true or false")
+    if "informational" in step and not isinstance(step["informational"], bool):
+        errors.append(f"{where}: informational must be true or false")
     if "depends_on" in step and not (
         isinstance(step["depends_on"], list)
         and all(isinstance(d, str) for d in step["depends_on"])

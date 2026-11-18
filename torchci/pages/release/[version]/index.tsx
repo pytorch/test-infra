@@ -146,12 +146,18 @@ export function ReleaseBoardPageContent({
               <TableBody>
                 {phase.steps.map((step) => {
                   const evidenceUrl = step.evidence?.url;
+                  // a step for information has no check to show, so say what to look at
+                  const manualLink = step.informational
+                    ? step.manual?.link
+                    : null;
                   return (
                     <TableRow key={step.id}>
                       <TableCell>
                         {step.id} · {step.name}
                       </TableCell>
-                      <TableCell>{statusLabel(step.status)}</TableCell>
+                      <TableCell>
+                        {step.informational ? "info" : statusLabel(step.status)}
+                      </TableCell>
                       <TableCell>{step.owner}</TableCell>
                       <TableCell>{step.due ?? "—"}</TableCell>
                       <TableCell>
@@ -164,8 +170,21 @@ export function ReleaseBoardPageContent({
                           >
                             {step.evidence?.text || "Open evidence"}
                           </Link>
+                        ) : isSafeReleaseUrl(manualLink) ? (
+                          <Link
+                            href={manualLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            underline="hover"
+                          >
+                            {step.manual?.what_to_check}
+                          </Link>
                         ) : (
-                          step.evidence?.text || "—"
+                          step.evidence?.text ||
+                          (step.informational
+                            ? step.manual?.what_to_check
+                            : null) ||
+                          "—"
                         )}
                       </TableCell>
                     </TableRow>

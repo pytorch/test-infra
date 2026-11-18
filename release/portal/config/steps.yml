@@ -21,6 +21,11 @@
 #           Before it opens the step is to do and its check is not run; after it closes
 #           the step is done and its check is not run.
 #
+# One optional step field says the step is for information only:
+#   informational  the step is shown on the board as information, not as work to do: it is
+#                  not counted in the steps done, never blocks, and does not hold back the
+#                  release phase or status. For what release engineering validates itself.
+#
 # Template variables usable in check parameters, links and runbooks:
 #   {version} 2.16.0   {minor} 2.16   {branch} release/2.16   {rc} rc1
 #   {tracker_issue} {validation_issue} {milestone}   (from the release file)
@@ -104,6 +109,7 @@ steps:
     types: [minor]
     tier: M
     owner: release-manager
+    informational: true
     due: {anchor: branch_cut, offset_days: -3}
     check: {type: manual_link, what_to_check: "Workflows for every OS, Python, CPU architecture and accelerator exist in pytorch and the domain libraries", link: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#cutting-a-release-branch-preparations"}
   - id: "1.4"
@@ -121,7 +127,7 @@ steps:
     tier: M
     owner: release-manager
     due: {anchor: branch_cut, offset_days: -1}
-    check: {type: manual_link, what_to_check: "The nightly HUD pages for pytorch and each domain library are green", link: "https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1"}
+    check: {type: nightly_binaries, repo: pytorch/pytorch, branch: nightly}
   - id: "1.6"
     phase: 1
     name: Release tracker issue created
@@ -135,6 +141,7 @@ steps:
     types: [minor]
     tier: M
     owner: release-manager
+    informational: true
     due: {anchor: branch_cut, offset_days: -3}
     check: {type: manual_link, what_to_check: "Launch execution core XFN sync held with core, marketing, release engineering, docs, release notes and partners", link: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#running-launch-execution-team-core-xfn-sync"}
   - id: "1.8"
@@ -173,7 +180,7 @@ steps:
     due: {anchor: branch_cut, offset_days: 2}
     depends_on: ["1.8"]
     runbook: {script: scripts/release/apply-release-changes.sh}
-    check: {type: manual_link, what_to_check: "The release-only changes PR (workflow refs, triton, version files, bc tests on RC binaries) is merged", link: "https://github.com/pytorch/pytorch/tree/{branch}"}
+    check: {type: release_only_changes, repo: pytorch/pytorch, title_regex: '(?i)release[- ]only changes'}
   - id: "1.12"
     phase: 1
     name: Nightly versions bumped to the next minor on main
@@ -275,6 +282,7 @@ steps:
     name: No performance regressions against the previous release
     tier: M
     owner: release-manager
+    informational: true
     rc_scoped: true
     depends_on: ["2.4"]
     check: {type: manual_link, what_to_check: "Benchmark runs show no regressions", link: "https://github.com/pytorch/benchmark"}
@@ -283,6 +291,7 @@ steps:
     name: Downstream CI results for the RC (CRCR)
     tier: A
     owner: release-manager
+    informational: true
     rc_scoped: true
     depends_on: ["2.4"]
     check: {type: crcr_summary}
@@ -335,7 +344,7 @@ steps:
     tier: S
     owner: release-manager
     due: {anchor: final_rc, offset_days: -2}
-    check: {type: manual_link, what_to_check: "The milestone verification script shows no PR missing from the release branch", link: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#preparing-and-creating-final-release-candidate"}
+    check: {type: milestone_prs_on_branch, repo: pytorch/pytorch, milestone: "{milestone}"}
   - id: "3.3"
     phase: 3
     name: No outstanding cherry-picks in the tracker
@@ -381,14 +390,6 @@ steps:
     owner: release-notes-team
     due: {anchor: ga, offset_days: -3}
     check: {type: manual_link, what_to_check: "Release notes are drafted and reviewed", link: "https://github.com/pytorch/pytorch/releases"}
-  - id: "3.9"
-    phase: 3
-    name: Go/no-go decision recorded
-    tier: M
-    owner: release-manager
-    due: {anchor: ga, offset_days: -2}
-    depends_on: ["3.4", "3.5", "3.7"]
-    check: {type: manual_link, what_to_check: "The decision is recorded on the tracker issue", link: "{tracker_issue_url}"}
   - id: "3.10"
     phase: 3
     name: Final RC announced on dev-discuss
@@ -406,7 +407,7 @@ steps:
     tier: S
     owner: release-manager
     due: {anchor: ga, offset_days: 0}
-    depends_on: ["3.9"]
+    depends_on: ["3.4", "3.5", "3.7"]
     runbook: {script: release/promote.sh}
     check: {type: index_listing, index: download.pytorch.org, channel: release, package_types: [wheel, libtorch]}
   - id: "4.2"
@@ -415,7 +416,7 @@ steps:
     tier: S
     owner: release-manager
     due: {anchor: ga, offset_days: 0}
-    depends_on: ["3.9"]
+    depends_on: ["3.4", "3.5", "3.7"]
     runbook: {script: release/pypi/promote_pypi_to_production.sh}
     check: {type: index_listing, index: pypi, channel: release, package_types: [wheel]}
   - id: "4.3"
@@ -432,7 +433,7 @@ steps:
     tier: A
     owner: release-manager
     due: {anchor: ga, offset_days: 0}
-    depends_on: ["3.9"]
+    depends_on: ["3.4", "3.5", "3.7"]
     check: {type: index_listing, index: dockerhub, channel: release, package_types: [docker]}
   - id: "4.5"
     phase: 4
@@ -440,7 +441,7 @@ steps:
     tier: M
     owner: release-manager
     due: {anchor: ga, offset_days: 0}
-    depends_on: ["3.9"]
+    depends_on: ["3.4", "3.5", "3.7"]
     check: {type: github_ref_exists, repos: [pytorch/pytorch], ref: "v{version}", kind: tag}
   - id: "4.6"
     phase: 4
@@ -462,6 +463,7 @@ steps:
     types: [minor]
     tier: M
     owner: release-manager
+    informational: true
     due: {anchor: ga, offset_days: 1}
     check: {type: manual_link, what_to_check: "The issue asking Colab to update PyTorch is open", link: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#open-google-colab-issue"}
   - id: "4.9"
@@ -480,17 +482,11 @@ steps:
     owner: release-manager
     due: {anchor: ga, offset_days: 3}
     check: {type: github_issue_state, repo: pytorch/pytorch, issue: "{tracker_issue}", expect: closed}
-  - id: "5.2"
-    phase: 5
-    name: Patch release tracker opened
-    tier: M
-    owner: release-manager
-    due: {anchor: ga, offset_days: 7}
-    check: {type: manual_link, what_to_check: "The tracker issue for the first patch release exists", link: "https://github.com/pytorch/pytorch/issues?q=is%3Aissue+label%3A%22release+tracker%22"}
   - id: "5.3"
     phase: 5
     name: Release retrospective notes written
     tier: M
     owner: release-manager
+    informational: true
     due: {anchor: ga, offset_days: 14}
     check: {type: manual_link, what_to_check: "Retrospective notes are written and the config changes for the next release are listed", link: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md"}

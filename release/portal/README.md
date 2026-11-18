@@ -47,6 +47,7 @@ steps:
     tier: A                      # how the work is done today: A, S, K or M (below)
     owner: release-manager       # a role
     rc_scoped: true              # optional. A separate state for each RC. Default false
+    informational: true          # optional. Shown as information, not as work to do. Default false
     depends_on: ["2.1"]          # optional. Step ids
     due: {anchor: ga, offset_days: -3}   # optional. branch_cut, final_rc or ga
     runbook: {script: release/promote.sh}   # optional. One of script, skill, url
@@ -65,6 +66,11 @@ release, the portal sees the tag), and a step the portal cannot observe uses
 | K | skill-assisted: an agent skill does most of it |
 | M | manual |
 
+An **informational** step is on the board for the reader, not for the portal's counts: it is
+shown as "info" instead of a state, it is not counted in the steps done or the total, it never
+blocks, and it does not keep a phase or the release in progress. Use it for what release
+engineering validates by itself, outside the portal.
+
 ### Check types
 
 | Type | Parameters | The step is done when |
@@ -73,11 +79,14 @@ release, the portal sees the tag), and a step the portal cannot observe uses
 | `url_exists` | `url` | the URL answers 200 |
 | `github_issue_state` | `repo`, `issue`, `expect` (`open` or `closed`) | the issue is in that state |
 | `milestone_outstanding_items` | `repo`, `milestone`, `max_outstanding` | the milestone has at most `max_outstanding` outstanding items (below) |
+| `milestone_prs_on_branch` | `repo`, `milestone` | every closed PR of the milestone that landed on main after the branch cut is on the release branch (below) |
 | `reverts_missing_from_branch` | `repo`, `branch` | no revert on main is missing from the release branch (below) |
+| `release_only_changes` | `repo`, `title_regex` | a pull request into the release branch whose title matches `title_regex` is merged (below) |
 | `github_ref_exists` | `repos`, `ref`, `kind` (`branch` or `tag`) | the ref exists in every repo |
 | `github_workflow_run` | `repo`, `workflow`, `ref` | the latest run on the ref succeeded |
 | `index_listing` | `index` (`download.pytorch.org`, `pypi`, `dockerhub`), `channel` (`test`, `release`), `package_types` | every expected artifact is present; the detail is in the artifact matrix |
 | `crcr_summary` | none | downstream CI results for the RC (phase 2 of the portal) |
+| `nightly_binaries` | `repo`, `branch` | the wheel, libtorch and docker builds of the latest finished nightly of `repo` are green (below) |
 | `triton_release_branch` | none | `triton-lang/triton` has the release branch `release/X.Y.x` of `versions.triton`, and the triton pin of pytorch is on it (below) |
 | `pypi_release` | `package`, `version` | `version` of the package is on PyPI |
 | `dev_discuss_post` | `title_regex` (one pattern, or one per release type), `carries_dates` (optional) | a post whose title matches exists in the Release Announcements category of dev-discuss (below) |
@@ -89,8 +98,9 @@ validator, and a row here.
 outstanding item is an open issue or PR in the milestone. After the cut, it is also a closed
 issue whose fix landed on main after the cut but is not on the release branch (an
 unpicked cherry-pick), as `--missing-in-branch` in `tools/analytics/github_analyze.py`
-computes it. Issues labelled `release-feature-request` and the release's own tracker and
-validation issues are not counted. It works for a patch release too: 2.15.1 and 2.16.0 each
+computes it. Issues labelled `release-feature-request`, and the issues that stay open until the release
+is out (an `[RFC]`, the release tracker and the validation issue, found by their titles), are
+not counted. It works for a patch release too: 2.15.1 and 2.16.0 each
 have their own milestone, so both are checked at the same time.
 
 Once the release is out (its `v<version>` tag exists) these steps are done whatever is left in
@@ -98,6 +108,14 @@ the milestone, and the evidence still lists the leftover items. The milestone of
 release is often left open, so the daily job scans a shipped release of the latest release
 lines until its milestone is closed, and the step does not stay at what the last scan before
 the release found.
+
+`milestone_prs_on_branch` reads the same scan of the milestone as `milestone_outstanding_items`,
+and only looks at its pull requests: the step is done when none of the closed PRs landed on
+main after the branch cut without being on the release branch (`not_on_release_branch`, which
+lists them). The open issues of the milestone, such as an `[RFC]`, the release tracker and the
+validation issue, are not looked at (they are listed in `details`); open PRs are left to
+`milestone_outstanding_items`. Before the cut there is nothing to pick, so the step is to do,
+and once the release is out it is done whatever is left, like the milestone step.
 
 `dev_discuss_post` is checked by `tools/analytics/dev_discuss_scan.py`, the `dev-discuss-scan`
 job of GitHub Analytics Daily, for every release in flight (an open milestone of the latest
@@ -109,12 +127,37 @@ dates post (`carries_dates: true`) also holds the planned dates, read from its m
 printing the `dates` block to put in the file. A release in flight without a release file
 fails the job too.
 
+`release_only_changes` is checked by `tools/analytics/github_analyze.py --in-flight`, the `github-analyze` job
+of GitHub Analytics Daily, once the release branch is cut (a release that has shipped is scanned
+too, until its milestone is closed). The release-only changes PR is the one that changes the
+workflows from `main` to the release branch, like pytorch/pytorch#199819 for 2.15; it is found by
+its base (the release's branch) and its title (`title_regex`), and the step is done once it is
+merged, and in progress until then (the evidence says whether the PR is open, closed unmerged, or
+not there yet). `--release X.Y.Z --release-only-changes` runs the scan for one release, with
+`--write-to-clickhouse` to record it.
+
 `reverts_missing_from_branch` is only meaningful between the branch cut and the release, so
 its step has a `window` (below). It finds the reverts on main that are not on the release
 branch, as `--analyze-missing-reverts-from-branch` does, and the step is done unless one of
 them is of a commit that was in a release candidate. Only those reverts, the ones to
 cherry-pick, are listed in the recorded `details`; the others (already cherry-picked, or of a
 commit the branch never had) are only counted by status.
+
+`nightly_binaries` is checked by `tools/analytics/nightly_scan.py`, the `nightly-scan` job of GitHub
+Analytics Daily, for every release in flight that is before its branch cut (`release/X.Y` does not
+exist yet; after it the step is not written any more and its last result stands). It reads the
+newest commit of the `nightly` branch, like the
+[nightly HUD page](https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1?per_page=50) shows it:
+when its workflow runs have all finished, as they are; while some are still running (or being
+re-run), a job of it that has already failed makes the step not green at once, and if nothing
+has failed yet the result of the latest finished commit stands. A job that is re-run counts by
+its latest attempt. A job
+counts for its category: the jobs of the Build Official Docker Images workflow are docker, the jobs
+named `libtorch-*` are libtorch, and the other jobs are wheel builds. The step is done when every
+category has jobs and none of them failed, and in progress otherwise (the evidence says which
+category failed, and `details` lists the failed jobs). The newest row of the step is what the board
+shows, so each day's result replaces the earlier ones. Only pytorch is read, not the domain
+libraries.
 
 `triton_release_branch` and `pypi_release` are checked by `tools/analytics/triton_scan.py`, the
 `triton-scan` job of GitHub Analytics Daily, for every release in flight, from `versions.triton`
