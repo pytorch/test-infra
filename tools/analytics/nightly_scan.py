@@ -517,7 +517,7 @@ def scan_release(
         return results[(repo, branch)]
 
     def viable_strict_for(
-        check: Dict[str, Any]
+        check: Dict[str, Any],
     ) -> Tuple[str, str, str, Dict[str, Any]]:
         key = (check["repo"], check["branch"], check["base"], check["max_hours"])
         if key not in lag_results:
