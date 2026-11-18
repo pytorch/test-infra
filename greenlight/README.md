@@ -552,7 +552,7 @@ both before the model runs and neither ever `continue-on-error`, close this off:
 
 - **Sanitize, restore skills only** — `sanitize-untrusted-checkout.sh` strips every such
   instruction file from `./pytorch`, then restores only `.claude/skills/` from a separate
-  sparse checkout of the reviewed repo's trusted `main`. The model then runs with none of the PR's
+  sparse checkout of the reviewed repo's trusted `main`, minus the `greenlight-review` skill, so the checkout holds no copy of GreenLight's policy. The model then runs with none of the PR's
   steering loadable, so it judges pytorch PRs code-only and does not auto-load pytorch's own
   `CLAUDE.md` conventions as context. A PR's edits to these files still appear in the reviewed
   diff (`/tmp/greenlight-pr.diff`, produced by `gh api` compare) and are reviewed as data. The
