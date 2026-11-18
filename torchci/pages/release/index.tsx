@@ -1,4 +1,19 @@
-import { Link, Paper, Stack, Typography } from "@mui/material";
+import {
+  Link,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
+import {
+  ReleaseStatCard,
+  ReleaseStatusChip,
+} from "components/release/ReleaseComponents";
 import {
   ReleaseLoadError,
   ReleaseLoading,
@@ -9,15 +24,16 @@ import { ReleaseResource, useReleaseResource } from "lib/releasePortal/api";
 import Head from "next/head";
 import NextLink from "next/link";
 
-// the phase of a release that will not ship (a patch release the dev-discuss post
-// cancelled)
-const CANCELLED = "Cancelled";
+function releaseBoardUrl(version: string) {
+  return `/release/${version}`;
+}
 
-function statusLabel(status: string, phase: string) {
-  if (phase === CANCELLED) return "cancelled";
-  // a release is done once its tag exists: it is out, not just a board of finished steps
-  if (status === "done") return "release completed";
-  return status.replaceAll("_", " ");
+function nextMilestoneLabel(
+  milestone: ReleaseIndex["active"][number]["next_milestone"]
+) {
+  return milestone === null
+    ? "Not scheduled"
+    : `${milestone.name} · ${milestone.date}`;
 }
 
 export function ReleaseIndexPageContent({
@@ -39,6 +55,9 @@ export function ReleaseIndexPageContent({
   }
 
   const { active, releases } = resource.data;
+  const releasesByVersion = new Map(
+    releases.map((release) => [release.version, release])
+  );
   return (
     <ReleasePage>
       <Stack spacing={1}>
@@ -51,15 +70,63 @@ export function ReleaseIndexPageContent({
       </Stack>
 
       {active.length > 0 && (
-        <Stack spacing={0.5}>
+        <Stack spacing={1.5}>
           <Typography variant="subtitle1" fontWeight={600}>
-            Releases in flight
+            Active releases
           </Typography>
-          <Typography color="text.secondary" variant="body2">
-            {active
-              .map((release) => `${release.version} — ${release.phase}`)
-              .join(" · ")}
-          </Typography>
+          {active.map((activeRelease) => {
+            const release = releasesByVersion.get(activeRelease.version);
+            return (
+              <Paper
+                key={activeRelease.version}
+                variant="outlined"
+                sx={{ p: 2 }}
+              >
+                <Stack spacing={1.5}>
+                  <Stack
+                    alignItems={{ sm: "center" }}
+                    direction={{ xs: "column", sm: "row" }}
+                    justifyContent="space-between"
+                    spacing={0.5}
+                  >
+                    <Typography variant="h6" fontWeight={600}>
+                      <Link
+                        component={NextLink}
+                        href={releaseBoardUrl(activeRelease.version)}
+                        underline="hover"
+                      >
+                        PyTorch {activeRelease.version}
+                      </Link>
+                    </Typography>
+                    <Typography color="text.secondary" variant="body2">
+                      {activeRelease.phase}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" flexWrap="wrap" gap={1.5}>
+                    <ReleaseStatCard
+                      accent={
+                        activeRelease.blocking > 0 ? "blocked" : "default"
+                      }
+                      label="Blocking"
+                      value={activeRelease.blocking}
+                    />
+                    <ReleaseStatCard
+                      label="Steps complete"
+                      value={
+                        release === undefined
+                          ? "Not recorded"
+                          : `${release.progress.done}/${release.progress.total}`
+                      }
+                    />
+                    <ReleaseStatCard
+                      label="Next milestone"
+                      value={nextMilestoneLabel(activeRelease.next_milestone)}
+                    />
+                  </Stack>
+                </Stack>
+              </Paper>
+            );
+          })}
         </Stack>
       )}
 
@@ -68,48 +135,65 @@ export function ReleaseIndexPageContent({
           No release data has been recorded yet.
         </Typography>
       ) : (
-        <Stack
-          component="ul"
-          spacing={2}
-          sx={{ p: 0, m: 0, listStyle: "none" }}
-        >
-          {releases.map((release) => (
-            <Paper
-              component="li"
-              key={release.version}
-              variant="outlined"
-              sx={{ p: 2.5 }}
-            >
-              <Stack spacing={1}>
-                <Stack direction="row" justifyContent="space-between" gap={2}>
-                  <Typography variant="h6" fontWeight={600}>
-                    {release.version}
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    {release.type} ·{" "}
-                    {statusLabel(release.status, release.phase)}
-                  </Typography>
-                </Stack>
-                <Typography color="text.secondary" variant="body2">
-                  {release.phase} · {release.progress.done}/
-                  {release.progress.total} steps done
-                  {release.phase === CANCELLED
-                    ? ""
-                    : release.ga_date === null
-                    ? " · GA date to be confirmed"
-                    : ` · GA ${release.ga_date}`}
-                </Typography>
-                <Link
-                  component={NextLink}
-                  href={`/release/${release.version}`}
-                  underline="hover"
+        <TableContainer component={Paper} variant="outlined">
+          <Table aria-label="PyTorch releases" size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Release</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Branch</TableCell>
+                <TableCell>GA date</TableCell>
+                <TableCell>Progress</TableCell>
+                <TableCell>Phase</TableCell>
+                <TableCell>Status</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {releases.map((release) => (
+                <TableRow
+                  aria-label={`Open release ${release.version} board`}
+                  hover
+                  key={release.version}
+                  onClick={() => {
+                    window.location.assign(releaseBoardUrl(release.version));
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.target === event.currentTarget &&
+                      (event.key === "Enter" || event.key === " ")
+                    ) {
+                      event.preventDefault();
+                      window.location.assign(releaseBoardUrl(release.version));
+                    }
+                  }}
+                  sx={{ cursor: "pointer" }}
+                  tabIndex={0}
                 >
-                  Open release board
-                </Link>
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
+                  <TableCell component="th" scope="row">
+                    <Link
+                      component={NextLink}
+                      href={releaseBoardUrl(release.version)}
+                      onClick={(event) => event.stopPropagation()}
+                      underline="hover"
+                    >
+                      {release.version}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{release.type}</TableCell>
+                  <TableCell>{release.branch}</TableCell>
+                  <TableCell>{release.ga_date ?? "To be confirmed"}</TableCell>
+                  <TableCell>
+                    {release.progress.done}/{release.progress.total}
+                  </TableCell>
+                  <TableCell>{release.phase}</TableCell>
+                  <TableCell>
+                    <ReleaseStatusChip status={release.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
     </ReleasePage>
   );
