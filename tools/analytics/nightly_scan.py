@@ -46,6 +46,10 @@ CATEGORIES = ("wheel", "libtorch", "docker")
 # A job that ended in one of these is not a failure.
 GREEN = ("success", "skipped", "neutral")
 RUNS_PER_PAGE = 100
+# GitHub answers 502 after ~10s for a page of 100 jobs of a run with many attempts (the
+# linux-binary-manywheel nightly: 112 jobs, 228 with the earlier attempts), every time;
+# pages of 30 take 5-7s each and always work.
+JOBS_PER_PAGE = 30
 MAX_FAILED_LISTED = 20
 
 
@@ -251,10 +255,10 @@ def run_jobs(repo: str, run: Dict[str, Any]) -> List[Dict[str, Any]]:
     while True:
         found = github_get(
             f"repos/{repo}/actions/runs/{run['id']}/jobs"
-            f"?filter=latest&per_page=100&page={page}"
+            f"?filter=latest&per_page={JOBS_PER_PAGE}&page={page}"
         )["jobs"]
         jobs.extend(found)
-        if len(found) < 100:
+        if len(found) < JOBS_PER_PAGE:
             return jobs
         page += 1
 
