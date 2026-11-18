@@ -595,6 +595,62 @@ describe("buildIndex", () => {
     });
   });
 
+  describe("a patch release that is cancelled", () => {
+    const cancel = step({
+      id: "1.9",
+      informational: true,
+      cancels_release: true,
+      types: ["patch"],
+    });
+    const shared = { ...SHARED, steps: [...SHARED.steps, cancel] };
+    const config = resolveRelease(shared, { release: "2.15.1" }, "2.15.1");
+    const indexFor = (status: "done" | "todo") =>
+      buildIndex(
+        [
+          {
+            config,
+            rows: [
+              row({ release: "2.15.1", step_id: "1.2", status: "in_progress" }),
+              row({ release: "2.15.1", step_id: "1.9", status }),
+            ],
+          },
+        ],
+        NOW
+      );
+
+    test("is over, though its steps are not done, and is not in flight", () => {
+      const index = indexFor("done");
+      expect(ReleaseIndexSchema.parse(index)).toEqual(index);
+      expect(index.releases[0]).toMatchObject({
+        status: "done",
+        phase: "Cancelled",
+        ga_planned: false,
+      });
+      expect(index.active).toEqual([]);
+    });
+
+    test("is in progress until the post is there", () => {
+      const index = indexFor("todo");
+      expect(index.releases[0]).toMatchObject({ status: "in_progress" });
+      expect(index.releases[0].phase).not.toBe("Cancelled");
+      expect(index.active.map((a) => a.version)).toEqual(["2.15.1"]);
+    });
+
+    test("does not show the links of a release that is out", () => {
+      const board = buildBoard(
+        config,
+        [row({ release: "2.15.1", step_id: "1.9", status: "done" })],
+        NOW
+      );
+      expect(board.links.wheels).toBe(buildBoard(config, [], NOW).links.wheels);
+    });
+
+    test("a minor release does not have the step", () => {
+      const minor = resolveRelease(shared, { release: "2.16.0" }, "2.16.0");
+      expect(minor.steps.map((s) => s.id)).not.toContain("1.9");
+    });
+  });
+
   test("a release with no state yet is to do, in its first phase", () => {
     const fresh = buildIndex([{ config: MINOR, rows: [] }], NOW).releases[0];
     expect(fresh).toMatchObject({

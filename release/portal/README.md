@@ -48,6 +48,7 @@ steps:
     owner: release-manager       # a role
     rc_scoped: true              # optional. A separate state for each RC. Default false
     informational: true          # optional. Shown as information, not as work to do. Default false
+    cancels_release: true        # optional, patch releases only (types: [patch]). Once done, the release is cancelled. Default false
     depends_on: ["2.1"]          # optional. Step ids
     due: {anchor: ga, offset_days: -3}   # optional. branch_cut, final_rc or ga
     runbook: {script: release/promote.sh}   # optional. One of script, skill, url
@@ -70,6 +71,13 @@ An **informational** step is on the board for the reader, not for the portal's c
 shown as "info" instead of a state, it is not counted in the steps done or the total, it never
 blocks, and it does not keep a phase or the release in progress. Use it for what release
 engineering validates by itself, outside the portal.
+
+A step with **cancels_release** ends a patch release that will not ship (step 1.15, the
+dev-discuss post "No PyTorch X.Y.Z release"): once it is done, the index shows the release as
+cancelled and not in flight, and its other steps no longer count. It needs `types: [patch]`; a
+minor release is never cancelled this way. The post is found by the daily dev-discuss scan,
+which only scans releases whose milestone is open, so close the milestone after that scan has
+run (or run the "GitHub Analytics Daily" workflow by hand once the post is up).
 
 ### Check types
 

@@ -121,6 +121,7 @@ STEP_FIELDS = {
     "check",
     "rc_scoped",
     "informational",
+    "cancels_release",
     "depends_on",
     "due",
     "runbook",
@@ -334,6 +335,14 @@ def _step_errors(where: str, step: Any) -> List[str]:
         errors.append(f"{where}: rc_scoped must be true or false")
     if "informational" in step and not isinstance(step["informational"], bool):
         errors.append(f"{where}: informational must be true or false")
+    if "cancels_release" in step:
+        if not isinstance(step["cancels_release"], bool):
+            errors.append(f"{where}: cancels_release must be true or false")
+        elif step["cancels_release"] and step.get("types") != ["patch"]:
+            errors.append(
+                f"{where}: cancels_release is only for patch releases, so it needs "
+                "types: [patch]"
+            )
     if "depends_on" in step and not (
         isinstance(step["depends_on"], list)
         and all(isinstance(d, str) for d in step["depends_on"])

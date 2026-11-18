@@ -9,7 +9,12 @@ import { ReleaseResource, useReleaseResource } from "lib/releasePortal/api";
 import Head from "next/head";
 import NextLink from "next/link";
 
-function statusLabel(status: string) {
+// the phase of a release that will not ship (a patch release the dev-discuss post
+// cancelled)
+const CANCELLED = "Cancelled";
+
+function statusLabel(status: string, phase: string) {
+  if (phase === CANCELLED) return "cancelled";
   // a release is done once its tag exists: it is out, not just a board of finished steps
   if (status === "done") return "release completed";
   return status.replaceAll("_", " ");
@@ -81,13 +86,16 @@ export function ReleaseIndexPageContent({
                     {release.version}
                   </Typography>
                   <Typography color="text.secondary" variant="body2">
-                    {release.type} · {statusLabel(release.status)}
+                    {release.type} ·{" "}
+                    {statusLabel(release.status, release.phase)}
                   </Typography>
                 </Stack>
                 <Typography color="text.secondary" variant="body2">
                   {release.phase} · {release.progress.done}/
                   {release.progress.total} steps done
-                  {release.ga_date === null
+                  {release.phase === CANCELLED
+                    ? ""
+                    : release.ga_date === null
                     ? " · GA date to be confirmed"
                     : ` · GA ${release.ga_date}`}
                 </Typography>

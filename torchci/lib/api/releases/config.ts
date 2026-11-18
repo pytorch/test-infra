@@ -55,6 +55,7 @@ const StepSchema = z.object({
   owner: z.string(),
   rc_scoped: z.boolean().optional(),
   informational: z.boolean().optional(),
+  cancels_release: z.boolean().optional(),
   depends_on: z.array(z.string()).optional(),
   due: z
     .object({ anchor: z.string(), offset_days: z.number().int() })
