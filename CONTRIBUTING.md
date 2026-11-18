@@ -25,13 +25,13 @@ whose author has push access to this repository. What it does depends on this
 repository's `mode` in [`greenlight/repos.yaml`](greenlight/repos.yaml):
 
 - `shadow`: it records a verdict and shows nothing on the pull request.
-- `active`: on a LAND it approves the pull request on the commit it reviewed,
-  which satisfies the one required approval (files listed in `CODEOWNERS` still
-  need a code owner's approval); otherwise it leaves the pull request to a
-  human. It posts its own status comment and sets a `GL/*` label
-  ([STATUS_LABELS.md](greenlight/STATUS_LABELS.md)).
+- `active`: on a LAND it approves the pull request on the commit it reviewed;
+  otherwise it leaves the pull request to a human. It posts its own status
+  comment and sets a `GL/*` label ([STATUS_LABELS.md](greenlight/STATUS_LABELS.md)).
+  Its approval alone merges nothing: every path has code owners in `CODEOWNERS`,
+  and a code owner's approval is still required.
 
-A human approval satisfies the review requirement as well. The GreenLight gate
+A code owner's approval satisfies the review requirement as well. The GreenLight gate
 check applies to every pull request: it holds while a GreenLight approval sits
 on an older commit than the pull request's head, until GreenLight withdraws or
 renews it (a push makes GreenLight review again). Re-run a gate run that timed

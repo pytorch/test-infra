@@ -1,12 +1,17 @@
 # GitHub uses the LAST matching pattern for a path, and an unanchored pattern matches at
 # any depth. Several unrelated directories in this repo are also named `greenlight` (under
-# `.claude/hooks/` and under `torchci/`), so every pattern here is root-anchored to keep
+# `.claude/hooks/` and under `torchci/`), so every pattern but the default `*` is root-anchored to keep
 # one area's owners off the others; greenlight/tests/test_codeowners.py fails on one that
 # is not.
 #
 # GitHub reads the first CODEOWNERS file it finds in `.github/`, the root and `docs/`, so
 # all three locations are owned here and only the root one exists.
+#
+# `main` requires a code owner's review, and GreenLight is never a code owner: the default
+# line below makes every path need a human writer's approval, so GreenLight's approval alone
+# merges nothing. A later line with no owners would free a path for it.
 
+*                                               @pytorch/team-test-infra
 /.claude/                                       @jeanschmidt @ezyang @drisspg @albanD
 /.claude/hooks/greenlight/                      @jeanschmidt @ezyang @drisspg @albanD
 /.claude/skills/greenlight-review/              @jeanschmidt @ezyang @drisspg @albanD

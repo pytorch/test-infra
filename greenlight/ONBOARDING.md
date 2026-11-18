@@ -28,7 +28,10 @@ read its logs), and **the repo's maintainers**.
    - tag and release-branch rules that GreenLight's App cannot bypass;
    - for a repo that hosts GreenLight's control plane (test-infra itself), the `main` ruleset
      requires review from code owners: GreenLight's approval cannot satisfy it, which is what keeps
-     its approval from merging changes to GreenLight's own paths.
+     its approval from merging changes to GreenLight's own paths;
+   - for a repo that hosts GreenLight's control plane, the `main` ruleset dismisses stale approvals on
+     push: otherwise a code owner's approval of an older commit keeps counting after a push, and
+     GreenLight then approves the new head.
 3. **The labels.** A repo admin creates `GL/approved`, `GL/human` and `GL/superseded`
    ([STATUS_LABELS.md](STATUS_LABELS.md), "Deployment"). Check: the repo's label list names all three.
 4. **The gate, or Dr. CI.** For `safety: gate`, [GATE.md](GATE.md)'s "Onboarding a gate repo" steps
@@ -36,7 +39,13 @@ read its logs), and **the repo's maintainers**.
    ruleset. For `status_comment: drci`, REPOS.md's "Making a repo `drci`".
 5. **The control plane, where the repo hosts it.** A PR to test-infra: code owners on every
    GreenLight path in `CODEOWNERS`, and the repo's policy file naming them as merge authorization.
-   Check: `tests/test_codeowners.py`.
+   Every other path gets a default owner, a team of the repo's writers, so GreenLight's approval
+   alone merges nothing there: an `active` entry gives the repo GreenLight's reviews, labels and
+   comment, and every merge still takes a human writer's approval. GitHub accepts a team as a code
+   owner only when it is visible and has write access, and otherwise leaves its paths unowned. A
+   path is freed for GreenLight's approval alone only by a `CODEOWNERS` line with no owners, for a
+   path outside every hard stop of the repo's policy. Check: `tests/test_codeowners.py`, whose live
+   check reads GitHub's `codeowners/errors` for the commit and must find none.
 6. **Size.** GreenLight's owners. A `github` repo's full tick lists every open PR and must fit the
    per-repo budgets of Phase B: `OTHER_REPO_REQUEST_BUDGET` (400 requests) and
    `OTHER_REPO_TIME_BUDGET` (20 s) in `constants.py` (REPOS.md, "The tick"). A gate repo's backing
