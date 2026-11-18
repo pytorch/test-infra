@@ -630,9 +630,9 @@
       "slow"
     ]
   ],
-  "test_event_multiprocess_xpu_event_xpu_event_xpu (__main__.TestXPUMultiprocessingXPU)": [
-    "205058",
-    "https://github.com/pytorch/pytorch/issues/205058",
+  "test_event_handle_exporter_generic_event_generic_event_xpu (__main__.TestXPUMultiprocessingXPU)": [
+    "205412",
+    "https://github.com/pytorch/pytorch/issues/205412",
     [
       "xpu"
     ]
@@ -1500,6 +1500,13 @@
       "xpu"
     ]
   ],
+  "test_sparse_add_aliased_out_xpu_float32 (__main__.TestSparseCSRDeviceXPU)": [
+    "205413",
+    "https://github.com/pytorch/pytorch/issues/205413",
+    [
+      "xpu"
+    ]
+  ],
   "test_sparse_add_xpu_complex128 (__main__.TestSparseCSRDeviceXPU)": [
     "205267",
     "https://github.com/pytorch/pytorch/issues/205267",
@@ -1552,6 +1559,13 @@
   "test_sparse_sparse_mul_xpu_float64 (__main__.TestSparseXPU)": [
     "205321",
     "https://github.com/pytorch/pytorch/issues/205321",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_sparse_mul_xpu_int16 (__main__.TestSparseXPU)": [
+    "205414",
+    "https://github.com/pytorch/pytorch/issues/205414",
     [
       "xpu"
     ]
