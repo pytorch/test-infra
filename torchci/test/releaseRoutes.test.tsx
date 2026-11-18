@@ -8,7 +8,11 @@ import {
   type ReleaseResource,
 } from "lib/releasePortal/api";
 import { ReleaseIndexPageContent } from "pages/release";
-import { ReleaseArtifactsPageContent } from "pages/release/[version]/artifacts";
+import {
+  artifactEndpoint,
+  nextArtifactViewQuery,
+  ReleaseArtifactsPageContent,
+} from "pages/release/[version]/artifacts";
 import { ReleaseBoardPageContent } from "pages/release/[version]/index";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -257,6 +261,8 @@ describe("release routes", () => {
     expect(html).toContain("1 unexpected artifact in this selection.");
     expect(html).toContain("910 MB");
     expect(html).toContain("+41%");
+    expect(html).toContain("Page size");
+    expect(html).toContain("Showing 4 of 4 matching artifacts");
     expect(html.indexOf("missing-project")).toBeLessThan(
       html.indexOf("size-anomaly-project")
     );
@@ -295,6 +301,66 @@ describe("release routes", () => {
     );
     expect(missing).toContain("Release 9.9.9 not found");
     expect(missing).toContain("Known: 2.16.0");
+  });
+
+  test("artifact filters and page size are shareable and reset the cursor", () => {
+    const current = {
+      channel: "test",
+      os: "linux",
+      package: "wheel",
+      verdict: "missing",
+      limit: "50",
+      cursor: "opaque token",
+    };
+    expect(artifactEndpoint("2.16.0", current)).toBe(
+      "/api/releases/2.16.0/artifacts?channel=test&os=linux&package=wheel&verdict=missing&limit=50&cursor=opaque+token"
+    );
+    expect(nextArtifactViewQuery(current, { os: "windows" })).toEqual({
+      channel: "test",
+      os: "windows",
+      package: "wheel",
+      verdict: "missing",
+      limit: "50",
+    });
+    expect(nextArtifactViewQuery(current, { limit: "100" })).toEqual({
+      channel: "test",
+      os: "linux",
+      package: "wheel",
+      verdict: "missing",
+      limit: "100",
+    });
+    expect(nextArtifactViewQuery(current, { verdict: "" })).toEqual({
+      channel: "test",
+      os: "linux",
+      package: "wheel",
+      limit: "50",
+    });
+    expect(nextArtifactViewQuery(current, { cursor: "next" }, true)).toEqual({
+      ...current,
+      cursor: "next",
+    });
+    expect(
+      artifactEndpoint(
+        "2.16.0",
+        nextArtifactViewQuery(current, { cursor: "next" }, true)
+      )
+    ).toBe(
+      "/api/releases/2.16.0/artifacts?channel=test&os=linux&package=wheel&verdict=missing&limit=50&cursor=next"
+    );
+  });
+
+  test("artifact count follows the selected verdict", () => {
+    const html = renderToStaticMarkup(
+      <ReleaseArtifactsPageContent
+        version="2.16.0"
+        artifacts={resource({ ...artifacts, rows: [artifacts.rows[0]] })}
+        index={resource(index)}
+        query={{ verdict: "missing", limit: "100" }}
+        onPrevious={undefined}
+        onNext={undefined}
+      />
+    );
+    expect(html).toContain("Showing 1 of 1 matching artifacts");
   });
 
   test("fetches the release index only for an unknown release", () => {

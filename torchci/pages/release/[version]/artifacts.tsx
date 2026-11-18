@@ -4,6 +4,7 @@ import {
   Chip,
   Grid,
   Link,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -12,6 +13,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from "@mui/material";
 import { ReleaseStatCard } from "components/release/ReleaseComponents";
@@ -21,6 +23,7 @@ import {
   ReleaseNotFound,
   ReleasePage,
 } from "components/release/ReleasePage";
+import { DEFAULT_ARTIFACT_LIMIT } from "lib/api/releases/parameters";
 import type {
   ArtifactPage,
   ArtifactRow,
@@ -41,11 +44,44 @@ function routeValue(value: string | string[] | undefined): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function artifactEndpoint(version: string, cursor: string | undefined): string {
+export interface ArtifactViewQuery {
+  channel?: string;
+  os?: string;
+  package?: string;
+  verdict?: string;
+  limit?: string;
+  cursor?: string;
+}
+
+const filterKeys = ["channel", "os", "package", "verdict"] as const;
+
+export function artifactEndpoint(
+  version: string,
+  query: ArtifactViewQuery
+): string {
   const path = `/api/releases/${encodeURIComponent(version)}/artifacts`;
-  return cursor === undefined
-    ? path
-    : `${path}?cursor=${encodeURIComponent(cursor)}`;
+  const params = new URLSearchParams();
+  for (const key of [...filterKeys, "limit", "cursor"] as const) {
+    if (query[key]) params.set(key, query[key]);
+  }
+  const suffix = params.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
+
+export function nextArtifactViewQuery(
+  query: ArtifactViewQuery,
+  change: Partial<ArtifactViewQuery>,
+  paging = false
+): ArtifactViewQuery {
+  const next = { ...query, ...change };
+  if (!paging) {
+    delete next.cursor;
+  }
+  return Object.fromEntries(
+    Object.entries(next).filter(
+      ([, value]) => value !== undefined && value !== ""
+    )
+  );
 }
 
 function sizeLabel(size: number | null): string {
@@ -87,16 +123,37 @@ const verdictColor: Record<
   unexpected: "warning",
 };
 
+function matchingArtifactCount(page: ArtifactPage, verdict?: string): number {
+  switch (verdict) {
+    case "present":
+    case "missing":
+    case "size_anomalous":
+    case "unexpected":
+      return page.summary[verdict];
+    default:
+      return (
+        page.summary.present +
+        page.summary.missing +
+        page.summary.size_anomalous +
+        page.summary.unexpected
+      );
+  }
+}
+
 export function ReleaseArtifactsPageContent({
   version,
   artifacts,
   index,
+  query,
+  onQueryChange,
   onPrevious,
   onNext,
 }: {
   version: string | undefined;
   artifacts: ReleaseResource<ArtifactPage>;
   index: ReleaseResource<ReleaseIndex>;
+  query?: ArtifactViewQuery;
+  onQueryChange?: (_query: ArtifactViewQuery) => void;
   onPrevious: (() => void) | undefined;
   onNext: (() => void) | undefined;
 }) {
@@ -128,6 +185,9 @@ export function ReleaseArtifactsPageContent({
   }
 
   const page = artifacts.data;
+  const selected = query ?? {};
+  const limit = Number(selected.limit) || DEFAULT_ARTIFACT_LIMIT;
+  const pageSizes = [25, 50, 100, 250, 500];
   return (
     <ReleasePage>
       <Stack spacing={1}>
@@ -183,6 +243,63 @@ export function ReleaseArtifactsPageContent({
             {page.summary.unexpected === 1 ? "" : "s"} in this selection.
           </Typography>
         )}
+      </Stack>
+
+      <Stack direction="row" flexWrap="wrap" gap={2} alignItems="center">
+        {(
+          [
+            ["channel", "Channel", ["test", "release"]],
+            ["os", "OS", ["linux", "windows", "macos"]],
+            ["package", "Package", ["wheel", "libtorch", "docker"]],
+            [
+              "verdict",
+              "Verdict",
+              ["missing", "size_anomalous", "unexpected", "present"],
+            ],
+          ] as const
+        ).map(([key, label, values]) => (
+          <TextField
+            key={key}
+            select
+            size="small"
+            label={label}
+            value={selected[key] ?? ""}
+            onChange={(event) =>
+              onQueryChange?.(
+                nextArtifactViewQuery(selected, { [key]: event.target.value })
+              )
+            }
+            sx={{ minWidth: 145 }}
+          >
+            <MenuItem value="">All</MenuItem>
+            {values.map((value) => (
+              <MenuItem key={value} value={value}>
+                {value.replaceAll("_", " ")}
+              </MenuItem>
+            ))}
+          </TextField>
+        ))}
+        <TextField
+          select
+          size="small"
+          label="Page size"
+          value={String(limit)}
+          onChange={(event) =>
+            onQueryChange?.(
+              nextArtifactViewQuery(selected, { limit: event.target.value })
+            )
+          }
+          sx={{ minWidth: 115 }}
+        >
+          {!pageSizes.includes(limit) && limit > 0 && limit <= 500 && (
+            <MenuItem value={limit}>{limit}</MenuItem>
+          )}
+          {pageSizes.map((size) => (
+            <MenuItem key={size} value={size}>
+              {size}
+            </MenuItem>
+          ))}
+        </TextField>
       </Stack>
 
       <TableContainer component={Paper} variant="outlined">
@@ -271,10 +388,14 @@ export function ReleaseArtifactsPageContent({
         </Table>
       </TableContainer>
 
-      <Stack direction="row" justifyContent="space-between">
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Button disabled={onPrevious === undefined} onClick={onPrevious}>
           Previous
         </Button>
+        <Typography variant="body2" color="text.secondary">
+          Showing {page.rows.length} of{" "}
+          {matchingArtifactCount(page, selected.verdict)} matching artifacts
+        </Typography>
         <Button disabled={onNext === undefined} onClick={onNext}>
           Next
         </Button>
@@ -286,20 +407,31 @@ export function ReleaseArtifactsPageContent({
 export default function ReleaseArtifactsPage() {
   const router = useRouter();
   const version = routeValue(router.query.version);
-  const cursor = routeValue(router.query.cursor);
+  const query: ArtifactViewQuery = {
+    channel: routeValue(router.query.channel),
+    os: routeValue(router.query.os),
+    package: routeValue(router.query.package),
+    verdict: routeValue(router.query.verdict),
+    limit: routeValue(router.query.limit),
+    cursor: routeValue(router.query.cursor),
+  };
   const artifacts = useReleaseResource<ArtifactPage>(
-    version === undefined ? null : artifactEndpoint(version, cursor)
+    version === undefined ? null : artifactEndpoint(version, query)
   );
   const index = useReleaseResource<ReleaseIndex>(
     releaseIndexUrlForNotFound(version, artifacts)
   );
-  const setCursor = (nextCursor: string | null) => {
+  const setQuery = (next: ArtifactViewQuery) => {
     if (version === undefined) return;
     void router.push({
       pathname: router.pathname,
-      query:
-        nextCursor === null ? { version } : { version, cursor: nextCursor },
+      query: { version, ...next },
     });
+  };
+  const setCursor = (nextCursor: string | null) => {
+    setQuery(
+      nextArtifactViewQuery(query, { cursor: nextCursor ?? undefined }, true)
+    );
   };
 
   return (
@@ -315,6 +447,8 @@ export default function ReleaseArtifactsPage() {
         version={version}
         artifacts={artifacts}
         index={index}
+        query={query}
+        onQueryChange={setQuery}
         onPrevious={
           artifacts.data?.pagination.previous === null ||
           artifacts.data === undefined
