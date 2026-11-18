@@ -236,7 +236,7 @@ describe("release routes", () => {
     expect(html).toContain("minor release · release/2.16 · RC3");
     expect(html).toContain("release-stat-blocked");
     expect(html).toContain("Build RC binaries");
-    expect(html).toContain("View release artifacts");
+    expect(html).toContain("Artifacts");
     // a step for information says "info", not a state, and what to look at
     expect(html).toContain("2.10 · No performance regressions");
     expect(html).toContain(">info<");
@@ -289,7 +289,7 @@ describe("release routes", () => {
 
     expect(html).toContain("PyTorch 2.15.0 : Released");
     expect(html).toContain("Post-release documentation");
-    expect(html).toContain(">to do<");
+    expect(html).toContain(">todo<");
   });
 
   test("renders artifact data and a retryable load failure", () => {
