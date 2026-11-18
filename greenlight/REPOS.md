@@ -284,8 +284,10 @@ served or safety-only entry (a non-empty spelling of `pytorch/pytorch` is refuse
 number, a 40-hex head SHA, the checkout directory (`pytorch` for `pytorch/pytorch`, `target`
 otherwise), the policy file and whether it exists, and whether Dr. CI renders the status (a served,
 active `drci` entry). The App tokens cover the reviewed repo alone. The review job deletes every
-other repo's policy file before the model runs; a repo without its file gets a canned `NO_LAND`
-(`review_error`) with no model, which the record job records, dismissing as any `NO_LAND` does.
+other repo's policy file before the model runs, and the sanitize step drops the checkout's restored
+copy of the `greenlight-review` skill, so the reviewed checkout of `pytorch/test-infra` holds no
+other repo's policy; a repo without its file gets a canned `NO_LAND` (`review_error`) with no model,
+which the record job records, dismissing as any `NO_LAND` does.
 The record job reads mode, safety and eligibility from its own checkout (`verdict`), never from
 the dispatch.
 
