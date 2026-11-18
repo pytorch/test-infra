@@ -242,6 +242,13 @@
       "slow"
     ]
   ],
+  "test_conv3d_xpu (__main__.AOTInductorTestDualWrapper)": [
+    "205591",
+    "https://github.com/pytorch/pytorch/issues/205591",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv_bias_rounds_before_log_softmax_bfloat16_emulate_precision_casts_False_conv_offset_-100 (__main__.CudaReproTests)": [
     "202393",
     "https://github.com/pytorch/pytorch/issues/202393",
@@ -1609,6 +1616,13 @@
   "test_sparse_sparse_mul_xpu_int32 (__main__.TestSparseXPU)": [
     "205480",
     "https://github.com/pytorch/pytorch/issues/205480",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_sparse_mul_xpu_int64 (__main__.TestSparseXPU)": [
+    "205590",
+    "https://github.com/pytorch/pytorch/issues/205590",
     [
       "xpu"
     ]
