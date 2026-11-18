@@ -748,15 +748,33 @@ class S3Index:
     def gen_file_list(
         self, subdir: Optional[str] = None, package_name: Optional[str] = None
     ) -> Iterable[S3Object]:
-        objects = self.objects
-        subdir = self._resolve_subdir(subdir) + "/"
-        for obj in objects:
+        resolved = self._resolve_subdir(subdir)
+        subdir_prefix = resolved + "/"
+        # Nested indexes repeat a prefix-root wheel only when that package
+        # has nothing in the nested directory. Triton lives at whl/ and is
+        # shared; torch under whl/rocm10.0 must not also list legacy whl/ files.
+        hide_root_for: Set[str] = set()
+        if resolved != self.prefix:
+            hide_root_for = {
+                self.obj_to_package_name(obj)
+                for obj in self.objects
+                if obj.key.startswith(subdir_prefix)
+            }
+        for obj in self.objects:
             if (
                 package_name is not None
                 and self.obj_to_package_name(obj) != package_name
             ):
                 continue
-            if self.is_obj_at_root(obj) or obj.key.startswith(subdir):
+            in_subdir = obj.key.startswith(subdir_prefix)
+            at_root = self.is_obj_at_root(obj)
+            if resolved == self.prefix:
+                if at_root or in_subdir:
+                    yield obj
+                continue
+            if in_subdir or (
+                at_root and self.obj_to_package_name(obj) not in hide_root_for
+            ):
                 yield obj
 
     def get_package_names(self, subdir: Optional[str] = None) -> List[str]:
