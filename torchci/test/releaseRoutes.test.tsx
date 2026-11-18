@@ -54,8 +54,15 @@ const board: ReleaseBoard = {
   version: "2.16.0",
   type: "minor",
   branch: "release/2.16",
+  phase: "RC build",
   current_rc: "rc3",
-  links: {},
+  links: {
+    artifacts: "https://hud.pytorch.org/release/2.16.0/artifacts",
+    docs: null,
+    milestone: "https://github.com/pytorch/pytorch/milestone/1",
+    tracker_issue: "https://github.com/pytorch/pytorch/issues/1",
+    validation_issue: null,
+  },
   stats: {
     done: 3,
     total: 5,
@@ -218,9 +225,18 @@ describe("release routes", () => {
         index={resource(index)}
       />
     );
-    expect(html).toContain("Release 2.16.0");
+    expect(html).toContain("PyTorch 2.16.0 : RC build");
+    expect(html).toContain("Tracker");
+    expect(html).toContain("Validation unavailable");
+    expect(html).toMatch(
+      /data-testid="release-stat-blocked"[^]*?<span[^>]*>Blocking<\/span>[^]*?<div[^>]*>1<\/div>/
+    );
+    expect(html).toContain("3 / 5");
+    expect(html).toContain("Final RC · 2026-12-07");
+    expect(html).toContain("minor release · release/2.16 · RC3");
+    expect(html).toContain("release-stat-blocked");
     expect(html).toContain("Build RC binaries");
-    expect(html).toContain("View release artifacts");
+    expect(html).toContain("Artifacts");
     // a step for information says "info", not a state, and what to look at
     expect(html).toContain("2.10 · No performance regressions");
     expect(html).toContain(">info<");
@@ -239,6 +255,41 @@ describe("release routes", () => {
     );
     expect(missing).toContain("Release 9.9.9 not found");
     expect(missing).toContain("Known: 2.16.0");
+  });
+
+  test("uses the board's released phase when unfinished steps remain", () => {
+    const releasedBoard: ReleaseBoard = {
+      ...board,
+      version: "2.15.0",
+      phase: "Released",
+      current_rc: null,
+      phases: [
+        {
+          ...board.phases[0],
+          name: "Preparation and branch cut",
+          steps: [
+            {
+              ...board.phases[0].steps[0],
+              id: "1.1",
+              name: "Post-release documentation",
+              status: "todo",
+            },
+          ],
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      <ReleaseBoardPageContent
+        version="2.15.0"
+        board={resource(releasedBoard)}
+        index={resource(index)}
+      />
+    );
+
+    expect(html).toContain("PyTorch 2.15.0 : Released");
+    expect(html).toContain("Post-release documentation");
+    expect(html).toContain(">todo<");
   });
 
   test("renders artifact data and a retryable load failure", () => {
@@ -316,6 +367,10 @@ describe("release routes", () => {
   test("renders unsafe evidence as text instead of a link", () => {
     const unsafeBoard = {
       ...board,
+      links: {
+        ...board.links,
+        tracker_issue: "javascript:alert(1)",
+      },
       phases: [
         {
           ...board.phases[0],
@@ -349,6 +404,7 @@ describe("release routes", () => {
       />
     );
     expect(boardHtml).toContain("Unsafe evidence");
+    expect(boardHtml).toContain("Tracker unavailable");
     expect(boardHtml).not.toContain("javascript:");
 
     const artifactsHtml = renderToStaticMarkup(

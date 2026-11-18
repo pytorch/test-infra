@@ -71,7 +71,7 @@ describe("release components", () => {
     expect(unsafe).not.toContain("javascript:");
   });
 
-  test("labels known links and filters unavailable ones", () => {
+  test("labels known links and marks unavailable links", () => {
     const html = renderToStaticMarkup(
       <ReleaseLinksRow
         links={{
@@ -79,20 +79,26 @@ describe("release components", () => {
           release_notes: "https://example.com/notes",
           wheels: null,
           docs: "data:text/html,unsafe",
+          docker_image: "https://hub.docker.com/r/pytorch/pytorch",
         }}
       />
     );
 
     expect(html).toContain("Tracker");
     expect(html).toContain("Release notes");
-    expect(html).not.toContain("Wheels");
-    expect(html).not.toContain("Docs");
+    expect(html).toContain("Docker Image");
+    expect(html).toContain('href="https://hub.docker.com/r/pytorch/pytorch"');
+    expect(html).toContain("Wheels unavailable");
+    expect(html).toContain("Docs unavailable");
     expect(html).not.toContain("data:text/html");
   });
 
-  test("renders nothing when no release links are available", () => {
-    expect(
-      renderToStaticMarkup(<ReleaseLinksRow links={{ wheels: null }} />)
-    ).toBe("");
+  test("renders unavailable labels when no release links are available", () => {
+    const html = renderToStaticMarkup(
+      <ReleaseLinksRow links={{ wheels: null }} />
+    );
+
+    expect(html).toContain("Tracker unavailable");
+    expect(html).toContain("Wheels unavailable");
   });
 });

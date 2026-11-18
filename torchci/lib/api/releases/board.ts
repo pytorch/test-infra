@@ -342,6 +342,7 @@ export function buildBoard(
     version: config.release,
     type: config.type,
     branch: config.branch,
+    phase: currentPhase(config, views),
     current_rc: rc,
     links: {
       tracker_issue: found.tracker_issue?.url ?? null,

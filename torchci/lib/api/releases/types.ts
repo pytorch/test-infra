@@ -200,6 +200,11 @@ export const ReleaseBoardSchema = z
     version: VersionSchema,
     type: z.enum(RELEASE_TYPES).describe("minor or patch."),
     branch: z.string().describe("The release branch, release/X.Y."),
+    phase: z
+      .string()
+      .describe(
+        "The release's canonical current phase, or Released once the final version tag exists."
+      ),
     current_rc: z
       .string()
       .nullable()

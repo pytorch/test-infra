@@ -9,6 +9,18 @@ export type ReleaseTier = (typeof TIERS)[number];
 type Evidence = ReleaseStep["evidence"];
 type ReleaseLinks = ReleaseBoard["links"];
 
+const RELEASE_LINK_ORDER = [
+  "tracker_issue",
+  "validation_issue",
+  "milestone",
+  "wheels",
+  "libtorch",
+  "docs",
+  "release_notes",
+  "build_matrix",
+  "artifacts",
+] as const;
+
 const STATUS_LABEL: Record<ReleaseStatus, string> = {
   done: "Done",
   blocked: "Blocked",
@@ -39,7 +51,13 @@ const LINK_LABELS: Record<string, string> = {
 };
 
 function humanizeLinkLabel(key: string): string {
-  return LINK_LABELS[key] ?? key.replace(/_/g, " ");
+  return (
+    LINK_LABELS[key] ??
+    key
+      .split("_")
+      .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+      .join(" ")
+  );
 }
 
 export function ReleaseStatCard({
@@ -130,21 +148,38 @@ export function ReleaseEvidenceCell({ evidence }: { evidence: Evidence }) {
 }
 
 export function ReleaseLinksRow({ links }: { links: ReleaseLinks }) {
-  const availableLinks = Object.entries(links).filter(
-    (entry): entry is [string, string] => isSafeReleaseUrl(entry[1])
-  );
-
-  if (availableLinks.length === 0) {
-    return null;
-  }
+  const linkKeys = [
+    ...RELEASE_LINK_ORDER,
+    ...Object.keys(links)
+      .filter(
+        (key) =>
+          !RELEASE_LINK_ORDER.includes(
+            key as (typeof RELEASE_LINK_ORDER)[number]
+          )
+      )
+      .sort(),
+  ];
 
   return (
     <Stack aria-label="Release links" direction="row" flexWrap="wrap" gap={1}>
-      {availableLinks.map(([key, url]) => (
-        <Link href={url} key={key} rel="noreferrer" target="_blank">
-          {humanizeLinkLabel(key)}
-        </Link>
-      ))}
+      {linkKeys.map((key) => {
+        const url = links[key];
+        const label = humanizeLinkLabel(key);
+        return isSafeReleaseUrl(url) ? (
+          <Link href={url} key={key} rel="noreferrer" target="_blank">
+            {label}
+          </Link>
+        ) : (
+          <Typography
+            aria-label={`${label} unavailable`}
+            color="text.secondary"
+            key={key}
+            variant="body2"
+          >
+            {label} unavailable
+          </Typography>
+        );
+      })}
     </Stack>
   );
 }

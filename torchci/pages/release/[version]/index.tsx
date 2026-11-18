@@ -1,5 +1,6 @@
 import {
   Breadcrumbs,
+  Grid,
   Link,
   Paper,
   Stack,
@@ -11,6 +12,10 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import {
+  ReleaseLinksRow,
+  ReleaseStatCard,
+} from "components/release/ReleaseComponents";
 import {
   ReleaseLoadError,
   ReleaseLoading,
@@ -37,6 +42,23 @@ function routeVersion(
 
 function statusLabel(status: string) {
   return status.replaceAll("_", " ");
+}
+
+function lastCheckedLabel(lastChecked: string | null): string {
+  if (lastChecked === null) {
+    return "Not checked";
+  }
+
+  const date = new Date(lastChecked);
+  if (Number.isNaN(date.getTime())) {
+    return "Not checked";
+  }
+
+  return `${new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(date)} UTC`;
 }
 
 export function ReleaseBoardPageContent({
@@ -86,34 +108,48 @@ export function ReleaseBoardPageContent({
           <Typography color="text.primary">{release.version}</Typography>
         </Breadcrumbs>
         <Typography component="h1" variant="h4" fontWeight={600}>
-          Release {release.version}
+          PyTorch {release.version} : {release.phase}
         </Typography>
         <Typography color="text.secondary">
           {release.type} release · {release.branch}
-          {release.current_rc === null ? "" : ` · ${release.current_rc}`}
+          {release.current_rc === null
+            ? ""
+            : ` · ${release.current_rc.toUpperCase()}`}
         </Typography>
+        <ReleaseLinksRow links={release.links} />
       </Stack>
 
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Stack spacing={0.75}>
-          <Typography fontWeight={600}>
-            {release.stats.done}/{release.stats.total} steps done ·{" "}
-            {release.stats.blocking} blocking
-          </Typography>
-          <Typography color="text.secondary" variant="body2">
-            {release.stats.next_milestone === null
-              ? "No upcoming milestone is recorded."
-              : `Next milestone: ${release.stats.next_milestone.name} on ${release.stats.next_milestone.date}.`}
-          </Typography>
-          <Link
-            component={NextLink}
-            href={`/release/${release.version}/artifacts`}
-            underline="hover"
-          >
-            View release artifacts
-          </Link>
-        </Stack>
-      </Paper>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <ReleaseStatCard
+            accent={release.stats.blocking > 0 ? "blocked" : "default"}
+            label="Blocking"
+            value={release.stats.blocking}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <ReleaseStatCard
+            label="Steps done"
+            value={`${release.stats.done} / ${release.stats.total}`}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <ReleaseStatCard
+            label="Next milestone"
+            value={
+              release.stats.next_milestone === null
+                ? "Not scheduled"
+                : `${release.stats.next_milestone.name} · ${release.stats.next_milestone.date}`
+            }
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <ReleaseStatCard
+            label="Last checked"
+            value={lastCheckedLabel(release.stats.last_checked)}
+          />
+        </Grid>
+      </Grid>
 
       {release.phases.map((phase) => (
         <Paper
