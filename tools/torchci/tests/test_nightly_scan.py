@@ -2,7 +2,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest import main, TestCase
+from unittest import main, mock, TestCase
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -11,9 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "analytics"))
 from analytics.nightly_scan import (  # noqa: E402
     failed_job_lines,
     job_category,
+    JOBS_PER_PAGE,
     latest_finished_commit,
     nightly_result,
     nightly_step_rows,
+    run_jobs,
 )
 
 from torchci import release_portal_config as cfg  # noqa: E402
@@ -321,6 +323,41 @@ class TestSummary(TestCase):
     def test_a_green_nightly_lists_nothing(self):
         self.assertEqual(failed_job_lines(self.rows(GREEN_JOBS)), [])
         self.assertEqual(failed_job_lines([]), [])
+
+
+class TestRunJobs(TestCase):
+    def fetch(self, total):
+        """run_jobs of a run with `total` jobs, and the URLs it asked for."""
+        urls = []
+
+        def github_get(path):
+            urls.append(path)
+            query = dict(p.split("=") for p in path.split("?")[1].split("&"))
+            per_page, page = int(query["per_page"]), int(query["page"])
+            first = (page - 1) * per_page
+            return {
+                "jobs": [{"id": i} for i in range(first, min(first + per_page, total))]
+            }
+
+        with mock.patch("analytics.nightly_scan.github_get", github_get):
+            return run_jobs("pytorch/pytorch", {"id": 7}), urls
+
+    def test_pages_are_small_enough_for_github_to_answer(self):
+        # a page of 100 jobs of the manywheel nightly (112 jobs, 228 with the earlier
+        # attempts) is a 502 from GitHub every time; 30 is not
+        self.assertLessEqual(JOBS_PER_PAGE, 30)
+
+    def test_every_page_is_read_and_the_latest_attempts_are_asked_for(self):
+        jobs, urls = self.fetch(112)
+        self.assertEqual([j["id"] for j in jobs], list(range(112)))
+        self.assertEqual(len(urls), -(-112 // JOBS_PER_PAGE))
+        for url in urls:
+            self.assertIn("filter=latest", url)
+
+    def test_a_run_with_a_whole_number_of_pages_ends_on_an_empty_one(self):
+        jobs, urls = self.fetch(2 * JOBS_PER_PAGE)
+        self.assertEqual(len(jobs), 2 * JOBS_PER_PAGE)
+        self.assertEqual(len(urls), 3)
 
 
 class TestConfig(TestCase):
