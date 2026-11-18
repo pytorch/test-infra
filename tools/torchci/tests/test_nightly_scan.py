@@ -17,6 +17,7 @@ from analytics.nightly_scan import (  # noqa: E402
     nightly_step_rows,
     run_jobs,
 )
+
 from torchci import release_portal_config as cfg  # noqa: E402
 
 
