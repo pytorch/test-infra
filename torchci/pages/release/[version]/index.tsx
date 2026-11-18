@@ -44,14 +44,6 @@ function statusLabel(status: string) {
   return status.replaceAll("_", " ");
 }
 
-function currentPhase(release: ReleaseBoard): string {
-  return (
-    release.phases.find((phase) =>
-      phase.steps.some((step) => step.status !== "done")
-    )?.name ?? "Released"
-  );
-}
-
 function lastCheckedLabel(lastChecked: string | null): string {
   if (lastChecked === null) {
     return "Not checked";
@@ -116,10 +108,13 @@ export function ReleaseBoardPageContent({
           <Typography color="text.primary">{release.version}</Typography>
         </Breadcrumbs>
         <Typography component="h1" variant="h4" fontWeight={600}>
-          PyTorch {release.version} : {currentPhase(release)}
+          PyTorch {release.version} : {release.phase}
         </Typography>
         <Typography color="text.secondary">
           {release.type} release · {release.branch}
+          {release.current_rc === null
+            ? ""
+            : ` · ${release.current_rc.toUpperCase()}`}
         </Typography>
         <ReleaseLinksRow links={release.links} />
       </Stack>
@@ -151,11 +146,7 @@ export function ReleaseBoardPageContent({
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <ReleaseStatCard
             label="Last checked"
-            value={`${lastCheckedLabel(release.stats.last_checked)}${
-              release.current_rc === null
-                ? ""
-                : ` · ${release.current_rc.toUpperCase()}`
-            }`}
+            value={lastCheckedLabel(release.stats.last_checked)}
           />
         </Grid>
       </Grid>

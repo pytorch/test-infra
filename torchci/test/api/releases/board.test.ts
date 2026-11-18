@@ -563,6 +563,20 @@ describe("buildIndex", () => {
     test("the release is completed whatever steps are left", () => {
       const index = released("done");
       expect(ReleaseIndexSchema.parse(index)).toEqual(index);
+      expect(
+        buildBoard(
+          config,
+          [
+            row({
+              release: "2.15.0",
+              step_id: "1.2",
+              status: "in_progress",
+            }),
+            row({ release: "2.15.0", step_id: "2.3", status: "done" }),
+          ],
+          NOW
+        ).phase
+      ).toBe("Released");
       expect(index.releases[0]).toMatchObject({
         status: "done",
         phase: "Released",
