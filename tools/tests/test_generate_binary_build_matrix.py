@@ -419,11 +419,11 @@ class GenerateBuildMatrixTest(TestCase):
                     f"{operating_system}/{channel}",
                 )
 
-    def test_cuda_13_5_nightly_linux_only_and_not_advertised(self):
-        # 13.5 is built on nightly (pytorch/pytorch#204391) but not yet on test or
-        # release, has no Windows nightly wheels yet, and is kept out of the
-        # pytorch.org install selector.
-        for operating_system in ("linux", "linux-aarch64"):
+    def test_cuda_13_5_nightly_only_and_not_advertised(self):
+        # 13.5 is built on nightly (pytorch/pytorch#204391) for Linux and Windows
+        # but not yet on test or release, and is kept out of the pytorch.org
+        # install selector.
+        for operating_system in ("linux", "linux-aarch64", "windows"):
             self.assertIn(
                 "cu135",
                 self._cuda_versions("wheel", operating_system, "nightly", "false"),
@@ -434,19 +434,21 @@ class GenerateBuildMatrixTest(TestCase):
                 self._cuda_versions("wheel", operating_system, "nightly", "true"),
                 operating_system,
             )
-        for package_type in ("wheel", "libtorch"):
-            for getting_started in ("true", "false"):
-                self.assertNotIn(
-                    "cu135",
-                    self._cuda_versions(
-                        package_type, "windows", "nightly", getting_started
-                    ),
-                    f"{package_type}/windows",
-                )
+        self.assertIn(
+            "cu135", self._cuda_versions("libtorch", "windows", "nightly", "false")
+        )
+        self.assertNotIn(
+            "cu135", self._cuda_versions("libtorch", "windows", "nightly", "true")
+        )
         for channel in ("test", "release"):
             self.assertNotIn(
                 "cu135",
                 self._cuda_versions("wheel", "linux", channel, "false"),
+                channel,
+            )
+            self.assertNotIn(
+                "cu135",
+                self._cuda_versions("wheel", "windows", channel, "false"),
                 channel,
             )
 
