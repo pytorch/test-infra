@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "analytics"))
 
 from analytics.nightly_scan import (  # noqa: E402
+    failed_job_lines,
     job_category,
     latest_finished_commit,
     nightly_result,
@@ -280,6 +281,46 @@ class TestRows(TestCase):
         )
         self.assertEqual(json.loads(rows[0]["details"]), {"sha": "a"})
         self.assertEqual(rows[0]["observed_at"], "2026-11-17 14:00:00.000")
+
+
+class TestSummary(TestCase):
+    def rows(self, jobs):
+        status, text, url, details = result(finished(), jobs)
+        return nightly_step_rows(
+            "2.16.0",
+            {
+                "steps": [
+                    {
+                        "id": "1.5",
+                        "check": {
+                            "type": "nightly_binaries",
+                            "repo": "pytorch/pytorch",
+                            "branch": "nightly",
+                        },
+                    }
+                ]
+            },
+            lambda repo, branch: (status, text, url, details),
+            "0" * 40,
+            "1-1",
+            "",
+            NOW,
+        )
+
+    def test_the_failed_jobs_are_listed_with_their_links(self):
+        failing = job("build (13.4, runtime)", "failure")
+        failing["html_url"] = "https://github.com/pytorch/pytorch/actions/runs/1/job/2"
+        lines = failed_job_lines(self.rows({**GREEN_JOBS, 2: [failing]}))
+        self.assertEqual(lines[0], "Failed jobs on nightly 2026-11-16:")
+        self.assertEqual(
+            lines[2],
+            "- [Build Official Docker Images / build (13.4, runtime): failure]"
+            "(https://github.com/pytorch/pytorch/actions/runs/1/job/2)",
+        )
+
+    def test_a_green_nightly_lists_nothing(self):
+        self.assertEqual(failed_job_lines(self.rows(GREEN_JOBS)), [])
+        self.assertEqual(failed_job_lines([]), [])
 
 
 class TestConfig(TestCase):

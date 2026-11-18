@@ -32,13 +32,19 @@ from urllib.request import Request, urlopen
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from github_analyze import insert_clickhouse_rows, workflow_run_info  # noqa: E402
+from github_analyze import (  # noqa: E402
+    insert_clickhouse_rows,
+    workflow_run_info,
+    write_step_summary,
+)
 
 
 DEV_DISCUSS = "https://dev-discuss.pytorch.org"
 CATEGORY = "release-announcements/27"
 CATEGORY_URL = f"{DEV_DISCUSS}/c/{CATEGORY}"
 CATEGORY_PAGES = 4  # 30 topics a page, newest first: a release cycle is ~7 posts
+# the rows of the scans of this run, for the job summary
+SCANNED_ROWS: List[Dict[str, Any]] = []
 GITHUB_API = "https://api.github.com"
 VERSION_TITLE = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -408,6 +414,7 @@ def scan_release(
         run_url,
         datetime.now(timezone.utc),
     )
+    SCANNED_ROWS.extend(rows)
     for row in rows:
         print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
     if write:
@@ -458,6 +465,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Releases in flight: {', '.join(releases) if releases else 'none'}")
     topics = list_topics()
     print(f"{len(topics)} topics in Release Announcements")
+    SCANNED_ROWS.clear()
     ok = True
     summary: List[str] = []
     for release in releases:
@@ -469,6 +477,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             ok = False
         finally:
             print("::endgroup::")
+    write_step_summary(
+        "Release announcement steps", SCANNED_ROWS, args.write_to_clickhouse
+    )
     if summary and os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("## Release dates to update\n\n" + "\n".join(summary) + "\n")

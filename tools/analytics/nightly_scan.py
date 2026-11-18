@@ -33,7 +33,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dev_discuss_scan import github_get, releases_in_flight  # noqa: E402
-from github_analyze import insert_clickhouse_rows, workflow_run_info  # noqa: E402
+from github_analyze import (  # noqa: E402
+    insert_clickhouse_rows,
+    workflow_run_info,
+    write_step_summary,
+)
 
 
 CHECK_TYPE = "nightly_binaries"
@@ -264,10 +268,26 @@ def branch_exists(repo: str, branch: str) -> bool:
     )
 
 
+def failed_job_lines(rows: List[Dict[str, Any]]) -> List[str]:
+    """The failed jobs of the nightly for the job summary (the same for every release)."""
+    if not rows:
+        return []
+    details = json.loads(rows[0]["details"])
+    failed = details.get("failed", [])
+    if not failed:
+        return []
+    lines = [f"Failed jobs on nightly {details.get('date', '')}:", ""]
+    for job in failed[:MAX_FAILED_LISTED]:
+        name = f"{job['workflow']} / {job['job']}: {job['conclusion']}"
+        lines.append(f"- [{name}]({job['url']})" if job["url"] else f"- {name}")
+    return lines
+
+
 def scan_release(
     release: str,
     write: bool,
     results: Dict[Tuple[str, str], Tuple[str, str, str, Dict[str, Any]]],
+    summary_rows: List[Dict[str, Any]],
 ) -> bool:
     """Scan and print one release; returns False when it has no release file."""
     from torchci.release_portal_config import load_resolved, RELEASES_DIR
@@ -307,6 +327,7 @@ def scan_release(
         run_url,
         datetime.now(timezone.utc),
     )
+    summary_rows.extend(rows)
     for row in rows:
         print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
     if write and rows:
@@ -334,15 +355,25 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Releases in flight: {', '.join(releases) if releases else 'none'}")
     ok = True
     results: Dict[Tuple[str, str], Tuple[str, str, str, Dict[str, Any]]] = {}
+    summary_rows: List[Dict[str, Any]] = []
     for release in releases:
         print(f"::group::{release}")
         try:
-            ok = scan_release(release, args.write_to_clickhouse, results) and ok
+            ok = (
+                scan_release(release, args.write_to_clickhouse, results, summary_rows)
+                and ok
+            )
         except Exception as err:
             print(f"::error::{release}: {err}")
             ok = False
         finally:
             print("::endgroup::")
+    write_step_summary(
+        "Nightly binary builds",
+        summary_rows,
+        args.write_to_clickhouse,
+        failed_job_lines(summary_rows),
+    )
     return 0 if ok else 1
 
 

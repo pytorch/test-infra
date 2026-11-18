@@ -28,13 +28,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dev_discuss_scan import get, github_get, releases_in_flight  # noqa: E402
-from github_analyze import insert_clickhouse_rows, workflow_run_info  # noqa: E402
+from github_analyze import (  # noqa: E402
+    insert_clickhouse_rows,
+    workflow_run_info,
+    write_step_summary,
+)
 
 
 TRITON_REPO = "triton-lang/triton"
 PIN_FILE = ".ci/docker/ci_commit_pins/triton.txt"
 PYPI = "https://pypi.org/pypi"
 CHECK_TYPES = ("triton_release_branch", "pypi_release")
+# the rows of the scans of this run, for the job summary
+SCANNED_ROWS: List[Dict[str, Any]] = []
 
 
 def triton_branch(version: str) -> str:
@@ -234,6 +240,7 @@ def scan_release(release: str, write: bool, summary: List[str]) -> bool:
         run_url,
         datetime.now(timezone.utc),
     )
+    SCANNED_ROWS.extend(rows)
     for row in rows:
         print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
     if write and rows:
@@ -262,6 +269,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     releases = args.release or releases_in_flight()
     print(f"Releases in flight: {', '.join(releases) if releases else 'none'}")
+    SCANNED_ROWS.clear()
     ok = True
     summary: List[str] = []
     for release in releases:
@@ -273,6 +281,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             ok = False
         finally:
             print("::endgroup::")
+    write_step_summary("Triton steps", SCANNED_ROWS, args.write_to_clickhouse)
     if summary and os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("## Triton versions to set\n\n" + "\n".join(summary) + "\n")

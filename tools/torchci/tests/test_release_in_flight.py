@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -22,6 +23,7 @@ from analytics.github_analyze import (  # noqa: E402
     releases_in_flight,
     releases_just_shipped,
     revert_step_rows,
+    write_step_summary,
 )
 
 
@@ -392,6 +394,55 @@ class MilestoneIgnoredIssues(TestCase):
         self.assertEqual(reasons[1], ("open", True))
         self.assertEqual(reasons[2], ("open", True))
         self.assertEqual(reasons[3], ("open", True))
+
+
+class StepSummary(TestCase):
+    def write(self, rows, written=True, extra=None, env=True):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "summary.md"
+            old = os.environ.pop("GITHUB_STEP_SUMMARY", None)
+            if env:
+                os.environ["GITHUB_STEP_SUMMARY"] = str(path)
+            try:
+                write_step_summary("Title", rows, written, extra)
+            finally:
+                os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                if old is not None:
+                    os.environ["GITHUB_STEP_SUMMARY"] = old
+            return path.read_text() if path.exists() else None
+
+    ROW = {
+        "release": "2.15.0",
+        "step_id": "1.11",
+        "status": "done",
+        "evidence_text": "#1 [release 2.15] Apply | changes\nmerged",
+        "evidence_url": "https://github.com/pytorch/pytorch/pull/1",
+    }
+
+    def test_a_table_of_the_steps_with_linked_evidence(self):
+        text = self.write([self.ROW], True, ["- extra"])
+        self.assertIn("## Title", text)
+        self.assertIn("| Release | Step | Status | Evidence |", text)
+        # one line, the pipe and the brackets escaped, linked to the evidence
+        self.assertIn(
+            "| 2.15.0 | 1.11 | ✅ done | "
+            "[#1 \\[release 2.15\\] Apply \\| changes merged]"
+            "(https://github.com/pytorch/pytorch/pull/1) |",
+            text,
+        )
+        self.assertIn("Recorded in `misc.release_event`.", text)
+        self.assertTrue(text.rstrip().endswith("- extra"))
+
+    def test_a_run_that_does_not_write_says_so(self):
+        text = self.write(
+            [dict(self.ROW, status="in_progress", evidence_url="")], False
+        )
+        self.assertIn("🟡 in progress", text)
+        self.assertIn("Not recorded", text)
+
+    def test_nothing_is_written_without_rows_or_a_summary_file(self):
+        self.assertIsNone(self.write([]))
+        self.assertIsNone(self.write([self.ROW], env=False))
 
 
 class MilestonePrStepRows(TestCase):

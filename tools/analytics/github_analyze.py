@@ -784,6 +784,56 @@ def workflow_run_info() -> Tuple[str, str]:
     return run_id, run_url
 
 
+STATUS_LABELS = {"done": "✅ done", "in_progress": "🟡 in progress", "todo": "⚪ todo"}
+
+
+def _markdown_cell(text: str) -> str:
+    """Text for a table cell: one line, the pipes escaped."""
+    return " ".join(text.split()).replace("|", "\\|")
+
+
+def write_step_summary(
+    title: str,
+    rows: List[Dict[str, Any]],
+    written: bool,
+    extra: Optional[List[str]] = None,
+) -> None:
+    """
+    Append the state of the portal steps of one scan to the job summary of the GitHub Actions
+    run ($GITHUB_STEP_SUMMARY; nothing outside of one): a table with the release, the step,
+    its status and its evidence (linked), then `extra` lines. `written` says whether the rows
+    went to misc.release_event or the run only showed them (a pull request).
+    """
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path or not rows:
+        return
+    lines = [
+        f"## {title}",
+        "",
+        "| Release | Step | Status | Evidence |",
+        "| --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        text = (
+            _markdown_cell(row["evidence_text"]).replace("[", "\\[").replace("]", "\\]")
+        )
+        evidence = f"[{text}]({row['evidence_url']})" if row["evidence_url"] else text
+        status = STATUS_LABELS.get(row["status"], row["status"])
+        lines.append(f"| {row['release']} | {row['step_id']} | {status} | {evidence} |")
+    lines += [
+        "",
+        (
+            "Recorded in `misc.release_event`."
+            if written
+            else "Not recorded in `misc.release_event` (this run does not write)."
+        ),
+    ]
+    if extra:
+        lines += ["", *extra]
+    with open(path, "a") as f:
+        f.write("\n".join(lines) + "\n\n")
+
+
 def record_milestone_steps(
     repo: GitRepo,
     release: str,
@@ -846,6 +896,16 @@ def record_milestone_steps(
     if write:
         insert_clickhouse_rows("misc.release_event", rows)
         print(f"Inserted {len(rows)} rows into misc.release_event")
+    write_step_summary(
+        f"{release}: milestone steps",
+        rows,
+        write,
+        [
+            f"- [#{status['issue']['number']}]({status['issue']['html_url']}) "
+            f"{_markdown_cell(status['issue']['title'])} ({status['reason']})"
+            for status in outstanding
+        ],
+    )
 
 
 def release_in_preparation(repo: GitRepo, ref: str) -> Optional[str]:
@@ -1308,6 +1368,9 @@ def record_revert_steps(
     if write and rows:
         insert_clickhouse_rows("misc.release_event", rows)
         print(f"Inserted {len(rows)} rows into misc.release_event")
+    write_step_summary(
+        f"{release}: reverts missing from {branch}", rows, write and bool(rows)
+    )
 
 
 def find_release_only_changes_prs(
@@ -1459,6 +1522,7 @@ def record_release_only_changes_steps(
     if write and rows:
         insert_clickhouse_rows("misc.release_event", rows)
         print(f"Inserted {len(rows)} rows into misc.release_event")
+    write_step_summary(f"{release}: release-only changes", rows, write and bool(rows))
 
 
 def parse_arguments():
