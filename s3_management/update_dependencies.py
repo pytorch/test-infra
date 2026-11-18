@@ -539,407 +539,407 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "rocm": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-core": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-devel": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-libraries": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1010": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1011": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1012": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1030": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1031": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1032": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1033": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1034": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1035": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1036": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1100": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1101": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1102": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1103": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1150": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1151": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1152": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1153": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1200": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1201": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1250": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx908": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx90a": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx942": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx950": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "arpeggio": [{"project": "triton"}],
@@ -1336,11 +1336,7 @@ def get_package_source_url(pkg_name: str, prefix: str) -> str:
     if is_amd_package(pkg_name):
         if "rocm-preview" in prefix:
             return f"https://nightly.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
-        # ROCm7.14 had older index url
-        if "rocm7.14" in prefix:
-            return f"https://repo.amd.com/rocm/whl-multi-arch/{pkg_name}/"
-        else:
-            return f"https://stable.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
+        return f"https://stable.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
     return f"https://pypi.org/simple/{pkg_name}/"
 
 
