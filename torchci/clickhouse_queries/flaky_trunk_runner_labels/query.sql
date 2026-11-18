@@ -68,10 +68,9 @@ advisor_agg AS (
                 verdict,
                 (toUInt8(NOT startsWith(signal_key, 'coverage_')), timestamp)
             ) AS verdict,
-            argMax(
-                toUInt8(startsWith(signal_key, 'coverage_')),
-                (toUInt8(NOT startsWith(signal_key, 'coverage_')), timestamp)
-            ) AS is_coverage
+            -- 1 only when every verdict for this (commit, job) is a coverage_ one,
+            -- i.e. exactly when the verdict picked above is a coverage_ verdict.
+            min(toUInt8(startsWith(signal_key, 'coverage_'))) AS is_coverage
         FROM misc.autorevert_advisor_verdicts
         WHERE
             repo = {repo: String}

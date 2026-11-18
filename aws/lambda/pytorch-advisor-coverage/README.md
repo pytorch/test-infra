@@ -181,7 +181,7 @@ landed (dedup skips what landed).
 | `REPO_FULL_NAME` | `pytorch/pytorch` | pinned to an allowlist |
 | `WORKFLOWS` | empty = all | JSON array / CSV filter. Deploy an explicit list of push/schedule CI workflows: empty also enumerates workflows started by issues, comments or `workflow_run` (e.g. "Claude Code"), whose logs hold user-written text the advisor would read. /flaky_trunk counts every workflow by default, so a CI workflow left off the list stays unclassified there |
 | `HOURS` | `24` | ongoing enumeration window |
-| `MIN_RUNS` | `20` | min total runs of a job INSIDE the enumeration window (`HOURS` + margin); the page's tables apply 20 over their whole window and its graph none, so low-frequency jobs need a low value (deployed: 1) |
+| `MIN_RUNS` | `20` | min total runs of a job INSIDE the enumeration window (`HOURS` + margin); the page's tables apply 20 over their whole window and its graph none, so low-frequency jobs need a low value (e.g. 1) |
 | `MODE` | `ongoing` | `ongoing` \| `backfill` |
 | `AS_OF_START` / `AS_OF_END` | — | backfill range (UTC) |
 | `AS_OF_STEP_HOURS` | `24` | backfill chunk size |
