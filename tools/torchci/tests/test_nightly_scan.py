@@ -155,13 +155,72 @@ class TestResult(TestCase):
         runs = finished("a") + [
             run(3, "b", "2026-11-17T07:00:00Z", status="in_progress")
         ]
-        status, _, _, details = result(runs, GREEN_JOBS)
+        status, _, _, details = result(runs, {**GREEN_JOBS, 3: []})
         self.assertEqual(status, "done")
         self.assertEqual(details["newer_commit_running"], "b" * 40)
 
+    def test_a_failure_on_the_running_newest_commit_is_reported_at_once(self):
+        # a run that is re-run stays open, but the job that failed is what the nightly is
+        runs = finished("a") + [
+            run(3, "b", "2026-11-17T07:00:00Z", status="completed"),
+            run(
+                4,
+                "b",
+                "2026-11-17T07:01:00Z",
+                "windows-binary-wheel",
+                status="in_progress",
+            ),
+        ]
+        jobs = {
+            **GREEN_JOBS,
+            3: [job("manywheel-py3_11-xpu-test / test", "failure")],
+            4: [
+                job("wheel-py3_11-cpu-build"),
+                {
+                    "name": "wheel-py3_11-cuda13_5-test",
+                    "conclusion": None,
+                    "status": "in_progress",
+                },
+            ],
+        }
+        status, text, _, details = result(runs, jobs)
+        self.assertEqual(status, "in_progress")
+        self.assertIn("nightly 2026-11-17", text)
+        self.assertIn("wheel 1 failed", text)
+        self.assertIn("still going", text)
+        self.assertEqual(details["sha"], "b" * 40)
+        self.assertTrue(details["still_running"])
+        # the job that is running is not counted, neither as run nor as failed
+        self.assertEqual(details["jobs"]["wheel"], 2)
+
+    def test_a_running_commit_with_nothing_failed_yet_leaves_the_finished_result(self):
+        runs = finished("a") + [
+            run(3, "b", "2026-11-17T07:00:00Z", status="in_progress")
+        ]
+        jobs = {
+            **GREEN_JOBS,
+            3: [
+                {
+                    "name": "wheel-py3_11-cpu-build",
+                    "conclusion": None,
+                    "status": "in_progress",
+                }
+            ],
+        }
+        status, _, _, details = result(runs, jobs)
+        self.assertEqual((status, details["sha"]), ("done", "a" * 40))
+        self.assertFalse(details["still_running"])
+
+    def test_a_failure_on_a_commit_with_nothing_finished_is_reported(self):
+        runs = [run(3, "b", "2026-11-17T07:00:00Z", status="in_progress")]
+        jobs = {3: [job("wheel-py3_11-cpu-build", "failure")]}
+        status, text, _, _ = result(runs, jobs)
+        self.assertEqual(status, "in_progress")
+        self.assertIn("not green", text)
+
     def test_nothing_finished_yet_and_no_runs(self):
         status, text, _, _ = result(
-            [run(3, "b", "2026-11-17T07:00:00Z", status="in_progress")], {}
+            [run(3, "b", "2026-11-17T07:00:00Z", status="in_progress")], {3: []}
         )
         self.assertEqual(status, "in_progress")
         self.assertIn("still running", text)

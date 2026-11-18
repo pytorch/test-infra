@@ -146,8 +146,12 @@ commit the branch never had) are only counted by status.
 `nightly_binaries` is checked by `tools/analytics/nightly_scan.py`, the `nightly-scan` job of GitHub
 Analytics Daily, for every release in flight that is before its branch cut (`release/X.Y` does not
 exist yet; after it the step is not written any more and its last result stands). It reads the
-newest commit of the `nightly` branch whose workflow runs have all finished, like the
-[nightly HUD page](https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1?per_page=50) shows it. A job
+newest commit of the `nightly` branch, like the
+[nightly HUD page](https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1?per_page=50) shows it:
+when its workflow runs have all finished, as they are; while some are still running (or being
+re-run), a job of it that has already failed makes the step not green at once, and if nothing
+has failed yet the result of the latest finished commit stands. A job that is re-run counts by
+its latest attempt. A job
 counts for its category: the jobs of the Build Official Docker Images workflow are docker, the jobs
 named `libtorch-*` are libtorch, and the other jobs are wheel builds. The step is done when every
 category has jobs and none of them failed, and in progress otherwise (the evidence says which

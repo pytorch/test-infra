@@ -82,14 +82,19 @@ def summarize(
     runs: List[Dict[str, Any]],
     jobs_of: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
 ) -> Dict[str, Dict[str, Any]]:
-    """Per category: the jobs that ran, and the ones that did not end green."""
+    """
+    Per category: the jobs that ran, and the ones that did not end green. A job that has not
+    finished (the runs of a commit that is still going) is neither.
+    """
     summary: Dict[str, Dict[str, Any]] = {
         c: {"jobs": 0, "failed": []} for c in CATEGORIES
     }
     for run in runs:
         for job in jobs_of(run):
             conclusion = job.get("conclusion")
-            if conclusion == "skipped":
+            if conclusion == "skipped" or (
+                conclusion is None and job.get("status") != "completed"
+            ):
                 continue
             entry = summary[job_category(run.get("path", ""), job["name"])]
             entry["jobs"] += 1
@@ -111,50 +116,78 @@ def nightly_result(
     runs: List[Dict[str, Any]],
     jobs_of: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
 ) -> Tuple[str, str, str, Dict[str, Any]]:
-    """The status, evidence text, evidence URL and details of the nightly_binaries step."""
+    """
+    The status, evidence text, evidence URL and details of the nightly_binaries step.
+
+    The newest commit is what counts. When all its runs have finished it is read as it is.
+    While some are still running, a job of it that has failed already makes the step not
+    green (waiting for the rest would hide the failure, and a run that is re-run stays open
+    for hours); if nothing has failed yet, the result of the latest finished commit stands.
+    """
     url = hud_url(repo, branch)
     details: Dict[str, Any] = {"repo": repo, "branch": branch}
     sha, finished, newest = latest_finished_commit(runs)
+
+    def report(
+        commit: str,
+        commit_runs: List[Dict[str, Any]],
+        summary: Dict[str, Dict[str, Any]],
+        running: bool,
+    ) -> Tuple[str, str, str, Dict[str, Any]]:
+        date = max(r["created_at"] for r in commit_runs)[:10]
+        details.update(
+            sha=commit,
+            date=date,
+            runs=len(commit_runs),
+            run_ids=sorted(r["id"] for r in commit_runs),
+            jobs={c: s["jobs"] for c, s in summary.items()},
+            failed=[f for c in CATEGORIES for f in summary[c]["failed"]][
+                :MAX_FAILED_LISTED
+            ],
+            still_running=running,
+        )
+        where = f"{branch} {date} ({commit[:10]})"
+        failed = [
+            f"{c} {len(summary[c]['failed'])} failed"
+            for c in CATEGORIES
+            if summary[c]["failed"]
+        ]
+        missing = [c for c in CATEGORIES if summary[c]["jobs"] == 0]
+        if failed:
+            text = f"not green on {where}: {', '.join(failed)}"
+            if running:
+                text += " (other runs are still going)"
+            elif missing:
+                text += f"; no {', '.join(missing)} jobs"
+            return "in_progress", text, url, details
+        if missing:
+            return (
+                "in_progress",
+                f"no {', '.join(missing)} jobs on {where}",
+                url,
+                details,
+            )
+        jobs = sum(s["jobs"] for s in summary.values())
+        text = (
+            f"wheel, libtorch and docker builds are green on {where}: "
+            f"{len(commit_runs)} workflows, {jobs} jobs"
+        )
+        return "done", text, url, details
+
+    if newest is not None:
+        going = [r for r in runs if r["head_sha"] == newest]
+        summary = summarize(going, jobs_of)
+        if any(s["failed"] for s in summary.values()):
+            return report(newest, going, summary, True)
     if sha is None:
         if newest is None:
             return "todo", f"no workflow runs on {repo} {branch}", url, details
         details["sha"] = newest
         text = f"the runs of the newest {branch} commit {newest[:10]} are still running"
         return "in_progress", text, url, details
-    date = max(r["created_at"] for r in finished)[:10]
-    summary = summarize(finished, jobs_of)
-    details.update(
-        sha=sha,
-        date=date,
-        runs=len(finished),
-        run_ids=sorted(r["id"] for r in finished),
-        jobs={c: s["jobs"] for c, s in summary.items()},
-        failed=[f for c in CATEGORIES for f in summary[c]["failed"]][
-            :MAX_FAILED_LISTED
-        ],
-    )
     if newest is not None:
         details["newer_commit_running"] = newest
-    where = f"{branch} {date} ({sha[:10]})"
-    failed = [
-        f"{c} {len(summary[c]['failed'])} failed"
-        for c in CATEGORIES
-        if summary[c]["failed"]
-    ]
-    missing = [c for c in CATEGORIES if summary[c]["jobs"] == 0]
-    if failed:
-        text = f"not green on {where}: {', '.join(failed)}"
-        if missing:
-            text += f"; no {', '.join(missing)} jobs"
-        return "in_progress", text, url, details
-    if missing:
-        return "in_progress", f"no {', '.join(missing)} jobs on {where}", url, details
-    jobs = sum(s["jobs"] for s in summary.values())
-    text = (
-        f"wheel, libtorch and docker builds are green on {where}: "
-        f"{len(finished)} workflows, {jobs} jobs"
-    )
-    return "done", text, url, details
+    return report(sha, finished, summarize(finished, jobs_of), False)
 
 
 def nightly_step_rows(
