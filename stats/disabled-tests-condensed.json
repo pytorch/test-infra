@@ -149,16 +149,17 @@
       "rocm"
     ]
   ],
+  "test_col2im_uint32_overflow (__main__.TestMPS)": [
+    "187289",
+    "https://github.com/pytorch/pytorch/issues/187289",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_collective_hang (__main__.ProcessGroupGlooWrapperTest)": [
     "195960",
     "https://github.com/pytorch/pytorch/issues/195960",
-    [
-      "linux"
-    ]
-  ],
-  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
-    "187202",
-    "https://github.com/pytorch/pytorch/issues/187202",
     [
       "linux"
     ]
@@ -628,6 +629,21 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_event_record_after_input_mutation_non_escaping_generator_finally_cuda (__main__.TestStreamsCUDA)": [
+    "205474",
+    "https://github.com/pytorch/pytorch/issues/205474",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
+  "test_event_record_after_input_mutation_non_escaping_generator_local_holder_cuda (__main__.TestStreamsCUDA)": [
+    "205475",
+    "https://github.com/pytorch/pytorch/issues/205475",
+    [
+      "linux"
     ]
   ],
   "test_event_record_after_input_mutation_non_escaping_no_error_via_stream_record_event_False_cuda (__main__.TestStreamsCUDA)": [
@@ -1357,14 +1373,6 @@
     "https://github.com/pytorch/pytorch/issues/203500",
     [
       "xpu"
-    ]
-  ],
-  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_inference_precision_amp (__main__.DeterministicTest)": [
-    "203331",
-    "https://github.com/pytorch/pytorch/issues/203331",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_scaled_mm (__main__.DistMatrixOpsTest)": [
