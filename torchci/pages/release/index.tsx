@@ -24,12 +24,6 @@ import { ReleaseResource, useReleaseResource } from "lib/releasePortal/api";
 import Head from "next/head";
 import NextLink from "next/link";
 
-function statusLabel(status: string) {
-  // a release is done once its tag exists: it is out, not just a board of finished steps
-  if (status === "done") return "release completed";
-  return status.replaceAll("_", " ");
-}
-
 function releaseBoardUrl(version: string) {
   return `/release/${version}`;
 }
