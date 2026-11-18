@@ -26,6 +26,12 @@
 #                  not counted in the steps done, never blocks, and does not hold back the
 #                  release phase or status. For what release engineering validates itself.
 #
+# One optional step field says the step ends the release:
+#   cancels_release  (patch releases only: it needs `types: [patch]`) once the step is done
+#                    the release is over without a tag: it is shown as Cancelled, not in
+#                    flight, and its other steps no longer count. For the dev-discuss post
+#                    that says there will be no patch release.
+#
 # Template variables usable in check parameters, links and runbooks:
 #   {version} 2.16.0   {minor} 2.16   {branch} release/2.16   {rc} rc1
 #   {tracker_issue} {validation_issue} {milestone}   (from the release file)
@@ -205,6 +211,15 @@ steps:
     due: {anchor: branch_cut, offset_days: 0}
     depends_on: ["1.8"]
     check: {type: dev_discuss_post, title_regex: '^PyTorch Release {minor} Branch Cut is Complete'}
+  - id: "1.15"
+    phase: 1
+    name: Patch release cancelled on dev-discuss
+    types: [patch]
+    tier: M
+    owner: release-manager
+    informational: true
+    cancels_release: true
+    check: {type: dev_discuss_post, title_regex: '^No PyTorch {version} release'}
 
   # ---------------------------------------------------------------- 2. RC build and validation
   - id: "2.1"

@@ -227,8 +227,20 @@ export function isReleased(config: ReleaseConfig, views: StepView[]): boolean {
   });
 }
 
+// A patch release is cancelled once the step that says so is done (the dev-discuss post
+// that there will be no release): it is over, though its tag will never exist and its
+// other steps will never be done.
+export function isCancelled(config: ReleaseConfig, views: StepView[]): boolean {
+  return config.steps.some(
+    (step) =>
+      step.cancels_release === true &&
+      views.some((v) => v.id === step.id && v.status === "done")
+  );
+}
+
 function releaseStatus(config: ReleaseConfig, all: StepView[]): Status {
   const views = counted(all);
+  if (isCancelled(config, all)) return "done";
   if (isReleased(config, views)) return "done";
   if (views.length > 0 && views.every((v) => v.status === "done"))
     return "done";
@@ -241,6 +253,7 @@ function releaseStatus(config: ReleaseConfig, all: StepView[]): Status {
 
 function currentPhase(config: ReleaseConfig, all: StepView[]): string {
   const views = counted(all);
+  if (isCancelled(config, all)) return "Cancelled";
   if (isReleased(config, views)) return "Released";
   const open = config.phases.find((phase) =>
     views.some((v) => v.phase === phase.id && v.status !== "done")
@@ -323,7 +336,8 @@ export function buildBoard(
     v.last_checked ? [v.last_checked] : []
   );
   const done = counted(views).filter((v) => v.status === "done").length;
-  const out = releaseStatus(config, views) === "done";
+  const out =
+    releaseStatus(config, views) === "done" && !isCancelled(config, views);
   return {
     version: config.release,
     type: config.type,

@@ -142,7 +142,7 @@ describe("the committed config", () => {
     expect(ReleaseConfigSchema.parse(minor)).toEqual(minor);
     expect(ReleaseConfigSchema.parse(patch)).toEqual(patch);
     expect(minor.steps).toHaveLength(49);
-    expect(patch.steps).toHaveLength(34);
+    expect(patch.steps).toHaveLength(35);
     expect(minor.dates).toEqual({
       branch_cut: "2026-11-30",
       final_rc: "2026-12-07",

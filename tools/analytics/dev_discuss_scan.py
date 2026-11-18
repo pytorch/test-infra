@@ -2,8 +2,9 @@
 """
 Scan the Release Announcements category of dev-discuss.pytorch.org for the posts of the
 releases in flight, and record them in misc.release_event: for every release portal step
-whose check is `dev_discuss_post` (key dates, branch cut, RC1, final RC, GA), whether the
-release's post exists.
+whose check is `dev_discuss_post` (key dates, branch cut, RC1, final RC, GA, and for a
+patch release the post that says there will be no release), whether the release's post
+exists.
 
 The key dates post also carries the release's planned dates. They are compared with
 `dates` in release/portal/config/releases/<version>.yml, which the portal's due dates are
@@ -323,6 +324,8 @@ def post_step_rows(
         if topic is None:
             status = "todo"
             evidence = f"No post in Release Announcements matches {pattern.pattern}"
+            if step.get("cancels_release"):
+                evidence = "No post says this release is cancelled"
             url = CATEGORY_URL
         else:
             status = "done"

@@ -105,6 +105,29 @@ class TestValidateShared(TestCase):
             any("informational must be true or false" in e for e in errors), errors
         )
 
+    def test_cancels_release_is_a_boolean_for_patch_releases_only(self):
+        ok = _step("1.1", cancels_release=True, types=["patch"])
+        self.assertEqual(self.errors(_shared(ok)), [])
+        errors = self.errors(_shared(_step("1.1", cancels_release="yes")))
+        self.assertTrue(
+            any("cancels_release must be true or false" in e for e in errors), errors
+        )
+        for types in ({}, {"types": ["minor"]}, {"types": ["minor", "patch"]}):
+            errors = self.errors(_shared(_step("1.1", cancels_release=True, **types)))
+            self.assertTrue(
+                any("cancels_release is only for patch releases" in e for e in errors),
+                (types, errors),
+            )
+
+    def test_the_cancelled_post_step_is_for_patch_releases_only(self):
+        patch = {s["id"]: s for s in cfg.load_resolved("2.15.1")["steps"]}
+        minor = {s["id"]: s for s in cfg.load_resolved("2.16.0")["steps"]}
+        self.assertNotIn("1.15", minor)
+        step = patch["1.15"]
+        self.assertIs(step["cancels_release"], True)
+        self.assertIs(step["informational"], True)
+        self.assertEqual(step["check"]["type"], "dev_discuss_post")
+
     def test_the_steps_for_information_are_flagged_and_the_removed_steps_are_gone(self):
         steps = {s["id"]: s for s in cfg.load_resolved("2.16.0")["steps"]}
         for step_id in ("1.3", "1.7", "2.10", "2.11", "4.8", "5.3"):

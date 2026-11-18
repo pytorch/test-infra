@@ -39,7 +39,7 @@ const NextMilestoneSchema = z
 const ReleaseStatusSchema = z
   .enum(STEP_STATUSES)
   .describe(
-    "done when every step is done or the release tag v<version> exists (the release is completed); blocked when a step is blocking; in_progress when some step has started; otherwise todo."
+    "done when every step is done, the release tag v<version> exists (the release is completed) or the patch release is cancelled; blocked when a step is blocking; in_progress when some step has started; otherwise todo."
   );
 
 const ReleaseIndexEntrySchema = z
@@ -56,7 +56,7 @@ const ReleaseIndexEntrySchema = z
     ga_planned: z
       .boolean()
       .describe(
-        "True while the release is not out; false once it is completed (every step is done or the release tag exists)."
+        "True while the release is not out; false once it is completed (every step is done or the release tag exists) or cancelled."
       ),
     progress: z
       .object({
@@ -70,7 +70,7 @@ const ReleaseIndexEntrySchema = z
     phase: z
       .string()
       .describe(
-        "The phase of the first step that is not done, or Released when every step is done or the release tag exists."
+        "The phase of the first step that is not done, Released when every step is done or the release tag exists, or Cancelled when the dev-discuss post that there will be no patch release exists."
       ),
     status: ReleaseStatusSchema,
   })
@@ -323,6 +323,12 @@ const ConfigStepSchema = z
       .optional()
       .describe(
         "Whether the step is for information only: not counted in the steps done, never blocking."
+      ),
+    cancels_release: z
+      .boolean()
+      .optional()
+      .describe(
+        "Whether the step, once done, ends the release without a tag: it is shown as Cancelled. Only for steps of patch releases."
       ),
     depends_on: z
       .array(z.string())

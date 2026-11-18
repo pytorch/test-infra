@@ -153,6 +153,10 @@ class PostPatterns(TestCase):
             ("4.7", "2.16.0", "PyTorch 2.16.0 General Availability", True),
             ("4.7", "2.15.1", "PyTorch 2.15.1 General Availability", True),
             ("4.7", "2.15.1", "PyTorch 2.15.0 General Availability", False),
+            ("1.15", "2.15.1", "No PyTorch 2.15.1 release", True),
+            ("1.15", "2.15.1", "No PyTorch 2.15.0 release", False),
+            ("1.15", "2.15.1", "No PyTorch 2.15.10 release", False),
+            ("1.15", "2.15.1", "PyTorch Release 2.15.1", False),
         ]
         for step_id, version, title, expected in cases:
             self.assertEqual(
@@ -221,6 +225,25 @@ class StepRows(TestCase):
         )
         self.assertEqual(rows["1.14"]["check_type"], "dev_discuss_post")
         self.assertEqual(rows["1.14"]["observed_at"], "2026-11-13 14:00:00.000")
+
+    def test_a_patch_release_is_cancelled_by_its_post_and_a_minor_release_cannot_be(
+        self,
+    ):
+        rows, _, _ = self.rows("2.15.1", [], post=PATCH_POST)
+        self.assertEqual(rows["1.15"]["status"], "todo")
+        self.assertEqual(
+            rows["1.15"]["evidence_text"], "No post says this release is cancelled"
+        )
+        rows, _, _ = self.rows(
+            "2.15.1", [topic(3536, "No PyTorch 2.15.1 release")], post=PATCH_POST
+        )
+        self.assertEqual(rows["1.15"]["status"], "done")
+        self.assertEqual(rows["1.15"]["evidence_text"], "No PyTorch 2.15.1 release")
+        self.assertEqual(
+            rows["1.15"]["evidence_url"], "https://dev-discuss.pytorch.org/t/slug/3536"
+        )
+        rows, _, _ = self.rows("2.16.0", [])
+        self.assertNotIn("1.15", rows)
 
     def test_key_dates_that_differ_from_the_release_file_are_in_progress_with_the_block(
         self,
