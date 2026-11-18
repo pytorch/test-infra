@@ -1336,11 +1336,7 @@ def get_package_source_url(pkg_name: str, prefix: str) -> str:
     if is_amd_package(pkg_name):
         if "rocm-preview" in prefix:
             return f"https://nightly.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
-        # ROCm7.14 had older index url
-        if "rocm7.14" in prefix:
-            return f"https://repo.amd.com/rocm/whl-multi-arch/{pkg_name}/"
-        else:
-            return f"https://stable.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
+        return f"https://stable.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
     return f"https://pypi.org/simple/{pkg_name}/"
 
 
