@@ -173,6 +173,9 @@ def validate_actions_dry_run(
         raise ValueError("Conflicting options: --dry-run with explicit actions")
 
 
+AWS_SDK_LOGGERS = ("boto3", "botocore", "s3transfer")
+
+
 def setup_logging(log_level: str) -> None:
     """Configure the root logger with the specified log level.
 
@@ -204,6 +207,10 @@ def setup_logging(log_level: str) -> None:
         for handler in root_logger.handlers:
             if handler.level == logging.NOTSET:
                 handler.setLevel(numeric_level)
+
+    # botocore's DEBUG output dumps full request and response bodies.
+    for name in AWS_SDK_LOGGERS:
+        logging.getLogger(name).setLevel(max(numeric_level, logging.INFO))
 
 
 def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
@@ -686,6 +693,9 @@ def main_run(
         or default_config.revert_action is not None
     )
 
+    # Before the secret fetch, so the AWS SDK loggers are capped for it.
+    setup_logging(config.log_level)
+
     gh_app_secret = ""
     if config.github_app_secret:
         gh_app_secret = base64.b64decode(config.github_app_secret).decode("utf-8")
@@ -697,7 +707,6 @@ def main_run(
         gh_app_secret = secrets.github_app_secret
         ch_password = secrets.clickhouse_password
 
-    setup_logging(config.log_level)
     CHCliFactory.setup_client(
         config.clickhouse_host,
         config.clickhouse_port,
