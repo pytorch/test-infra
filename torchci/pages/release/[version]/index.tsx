@@ -1,18 +1,4 @@
-import {
-  alpha,
-  Breadcrumbs,
-  Grid,
-  Link,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
+import { Breadcrumbs, Grid, Link, Stack, Typography } from "@mui/material";
 import {
   ReleaseLinksRow,
   ReleaseStatCard,
@@ -23,6 +9,7 @@ import {
   ReleaseNotFound,
   ReleasePage,
 } from "components/release/ReleasePage";
+import { ReleaseStepTable } from "components/release/ReleaseStepTable";
 import type { ReleaseBoard, ReleaseIndex } from "lib/api/releases/types";
 import {
   isReleaseNotFound,
@@ -30,7 +17,6 @@ import {
   ReleaseResource,
   useReleaseResource,
 } from "lib/releasePortal/api";
-import { isSafeReleaseUrl } from "lib/releasePortal/url";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
@@ -39,10 +25,6 @@ function routeVersion(
   value: string | string[] | undefined
 ): string | undefined {
   return typeof value === "string" ? value : undefined;
-}
-
-function statusLabel(status: string) {
-  return status.replaceAll("_", " ");
 }
 
 function lastCheckedLabel(lastChecked: string | null): string {
@@ -152,104 +134,7 @@ export function ReleaseBoardPageContent({
         </Grid>
       </Grid>
 
-      {release.phases.map((phase) => (
-        <Paper
-          component="section"
-          key={phase.id}
-          variant="outlined"
-          sx={{ overflow: "hidden" }}
-        >
-          <Stack spacing={0.5} sx={{ p: 2.5, pb: 1.5 }}>
-            <Typography component="h2" variant="h6" fontWeight={600}>
-              Phase {phase.id}: {phase.name}
-            </Typography>
-            {phase.collapsed && (
-              <Typography color="text.secondary" variant="body2">
-                Every step in this phase is complete.
-              </Typography>
-            )}
-          </Stack>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Step</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Owner</TableCell>
-                  <TableCell>Due</TableCell>
-                  <TableCell>Evidence</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {phase.steps.map((step) => {
-                  const evidenceUrl = step.evidence?.url;
-                  // a step for information has no check to show, so say what to look at
-                  const manualLink = step.informational
-                    ? step.manual?.link
-                    : null;
-                  return (
-                    <TableRow
-                      key={step.id}
-                      // a red flag: the step is blocking (a nightly that is not green, a
-                      // viable/strict that is far behind main)
-                      sx={
-                        step.blocking
-                          ? {
-                              bgcolor: (theme) =>
-                                alpha(theme.palette.error.main, 0.14),
-                            }
-                          : undefined
-                      }
-                    >
-                      <TableCell>
-                        {step.id} · {step.name}
-                      </TableCell>
-                      <TableCell
-                        sx={
-                          step.blocking
-                            ? { color: "error.main", fontWeight: 600 }
-                            : undefined
-                        }
-                      >
-                        {step.informational ? "info" : statusLabel(step.status)}
-                      </TableCell>
-                      <TableCell>{step.owner}</TableCell>
-                      <TableCell>{step.due ?? "—"}</TableCell>
-                      <TableCell>
-                        {isSafeReleaseUrl(evidenceUrl) ? (
-                          <Link
-                            href={evidenceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            underline="hover"
-                          >
-                            {step.evidence?.text || "Open evidence"}
-                          </Link>
-                        ) : isSafeReleaseUrl(manualLink) ? (
-                          <Link
-                            href={manualLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            underline="hover"
-                          >
-                            {step.manual?.what_to_check}
-                          </Link>
-                        ) : (
-                          step.evidence?.text ||
-                          (step.informational
-                            ? step.manual?.what_to_check
-                            : null) ||
-                          "—"
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      ))}
+      <ReleaseStepTable key={release.version} phases={release.phases} />
     </ReleasePage>
   );
 }

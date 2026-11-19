@@ -169,6 +169,7 @@ function stepViews(
     milestone: links.milestone?.number ?? null,
     tracker_issue_url: links.tracker_issue?.url ?? null,
     validation_issue_url: links.validation_issue?.url ?? null,
+    triton_version: config.versions.triton,
   };
   const branchCut = branchIsCut(config, byKey);
   const views = config.steps.map((step): StepView => {
@@ -176,6 +177,12 @@ function stepViews(
     const row = byKey.get(`${step.id}\u0000${scopedRc ?? ""}`);
     const status = STATUSES.find((s) => s === row?.status) ?? "todo";
     const check = step.check as Record<string, unknown>;
+    const manualTemplateValues = { ...linkValues, rc: scopedRc };
+    // Runbooks can target the release's current RC even on an unscoped step.
+    const runbookEntry = step.runbook && Object.entries(step.runbook)[0];
+    const runbookValue = runbookEntry
+      ? fillTemplate(runbookEntry[1], linkValues)
+      : null;
     return {
       phase: step.phase,
       id: step.id,
@@ -194,7 +201,10 @@ function stepViews(
         Number(row?.blocking ?? 0) === 1,
       depends_on: step.depends_on ?? [],
       due: dueDate(config, step),
-      runbook: step.runbook ?? null,
+      runbook:
+        runbookEntry && runbookValue !== null
+          ? { [runbookEntry[0]]: runbookValue }
+          : null,
       evidence: row
         ? { text: row.evidence_text, url: row.evidence_url || null }
         : null,
@@ -202,10 +212,10 @@ function stepViews(
         check.type === "manual_link"
           ? {
               what_to_check: String(check.what_to_check ?? ""),
-              link: fillTemplate(String(check.link ?? ""), {
-                ...linkValues,
-                rc: scopedRc,
-              }),
+              link: fillTemplate(
+                String(check.link ?? ""),
+                manualTemplateValues
+              ),
             }
           : null,
       last_checked: row ? isoFromClickhouse(row.last_checked) : null,

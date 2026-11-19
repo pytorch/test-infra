@@ -69,6 +69,18 @@ describe("release components", () => {
     );
     expect(unsafe).toContain("Unsafe evidence");
     expect(unsafe).not.toContain("javascript:");
+    const emptyLabel = renderToStaticMarkup(
+      <ReleaseEvidenceCell
+        evidence={{ text: "  ", url: "https://example.com/evidence" }}
+      />
+    );
+    expect(emptyLabel).toContain("Open evidence");
+    expect(emptyLabel).toContain('href="https://example.com/evidence"');
+    expect(
+      renderToStaticMarkup(
+        <ReleaseEvidenceCell evidence={{ text: "", url: null }} />
+      )
+    ).toContain("—");
   });
 
   test("labels known links and marks unavailable links", () => {
