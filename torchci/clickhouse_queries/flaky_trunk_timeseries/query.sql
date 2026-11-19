@@ -6,11 +6,17 @@
 -- never failed, red if it ever failed (green + red = total_runs). Every red is assigned to exactly
 -- ONE of four mutually-exclusive categories, so
 -- infra_flake + test_flake + unclassified + real_regression = red:
---   real_regression  advisor said related/revert; or, with no advisor verdict, a persistent hard-red run.
---   test_flake       advisor said not_related/garbage (advisor-only; no structural fallback).
---   infra_flake      advisor said infra_issue (persistent or not).
+--   real_regression  native advisor said related/revert; or a persistent hard-red run with no native
+--                    not_related/garbage and no infra_issue; or a coverage_ related/revert on a
+--                    non-persistent red.
+--   test_flake       advisor said not_related/garbage (advisor-only; no structural fallback); a coverage_
+--                    one counts only on a non-persistent red.
+--   infra_flake      advisor said infra_issue, native or coverage_ (persistent or not).
 --   unclassified     no advisor verdict and not persistent (isolated single-commit hard-red, retry-green,
 --                    or green->red->green -- any non-persistent red with no advisor verdict).
+-- coverage_ verdicts come from the pytorch-advisor-coverage Lambda, which dispatches the advisor keyed to
+-- the OBSERVED commit rather than the culprit, so their related/not_related attribution yields to
+-- persistence; native verdicts and infra_issue keep advisor-verdict-primary precedence.
 -- Classification is advisor-verdict-PRIMARY (misc.autorevert_advisor_verdicts) with a structural fallback;
 -- test_flake and infra_flake are assigned ONLY from an advisor verdict (not_related/garbage
 -- for test_flake, infra_issue for infra_flake), so the structural fallback yields only real_regression
@@ -49,9 +55,18 @@ advisor_agg AS (
     SELECT
         head_sha,
         adv_norm,
-        maxIf(1, verdict IN ('related', 'revert')) AS advisor_real,
+        maxIf(1, NOT is_coverage AND verdict IN ('related', 'revert'))
+            AS advisor_real,
         maxIf(1, verdict = 'infra_issue') AS advisor_infra,
-        maxIf(1, verdict IN ('not_related', 'garbage')) AS advisor_testflake
+        maxIf(1, NOT is_coverage AND verdict IN ('not_related', 'garbage'))
+            AS advisor_testflake,
+        -- A coverage dispatch is keyed to the OBSERVED commit, not the culprit, so its
+        -- commit-attribution verdicts rank below persistence in final_jobs; its infra_issue
+        -- describes the failure itself and keeps the native rank (advisor_infra above).
+        maxIf(1, is_coverage AND verdict IN ('related', 'revert'))
+            AS coverage_real,
+        maxIf(1, is_coverage AND verdict IN ('not_related', 'garbage'))
+            AS coverage_testflake
     FROM (
         SELECT
             toString(suspect_commit) AS head_sha,
@@ -72,7 +87,10 @@ advisor_agg AS (
             argMax(
                 verdict,
                 (toUInt8(NOT startsWith(signal_key, 'coverage_')), timestamp)
-            ) AS verdict
+            ) AS verdict,
+            -- 1 only when every verdict for this (commit, job) is a coverage_ one,
+            -- i.e. exactly when the verdict picked above is a coverage_ verdict.
+            min(toUInt8(startsWith(signal_key, 'coverage_'))) AS is_coverage
         FROM misc.autorevert_advisor_verdicts
         WHERE
             repo = {repo: String}
@@ -143,7 +161,9 @@ job_signals AS (
         toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
         COALESCE(aa.advisor_real, 0) AS adv_real,
         COALESCE(aa.advisor_infra, 0) AS adv_infra,
-        COALESCE(aa.advisor_testflake, 0) AS adv_testflake
+        COALESCE(aa.advisor_testflake, 0) AS adv_testflake,
+        COALESCE(aa.coverage_real, 0) AS cov_real,
+        COALESCE(aa.coverage_testflake, 0) AS cov_testflake
     FROM consolidated c
     LEFT JOIN
         advisor_agg aa
@@ -158,7 +178,8 @@ final_jobs AS (
         commit_time,
         is_green,
         is_red,
-        -- Exactly one category per logical red, advisor-verdict-primary with a structural fallback:
+        -- Exactly one category per logical red, advisor-verdict-primary with a structural fallback;
+        -- coverage_ attribution verdicts only classify reds that are not persistent:
         --   1 real_regression, 3 test_flake, 4 infra_flake, 5 unclassified.
         multiIf(
             is_red = 0, 0,
@@ -166,6 +187,8 @@ final_jobs AS (
             adv_infra = 1, 4,
             adv_testflake = 1, 3,
             persistent = 1, 1,
+            cov_real = 1, 1,
+            cov_testflake = 1, 3,
             5
         ) AS category
     FROM (
@@ -179,6 +202,8 @@ final_jobs AS (
             adv_real,
             adv_infra,
             adv_testflake,
+            cov_real,
+            cov_testflake,
             -- persistent: this job's adjacent observed run is also hard-red (>= 2 of its runs in a row).
             toUInt8(
                 hard_red = 1
