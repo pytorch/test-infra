@@ -818,6 +818,13 @@
       "xpu"
     ]
   ],
+  "test_graph_rng_distributions (__main__.TestXpu)": [
+    "205617",
+    "https://github.com/pytorch/pytorch/issues/205617",
+    [
+      "xpu"
+    ]
+  ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
     "186866",
     "https://github.com/pytorch/pytorch/issues/186866",
@@ -1018,6 +1025,13 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_map_pytree_in_out_device_xpu_dynamic_True_autograd_True (__main__.MapTestsCppWrapper)": [
+    "201775",
+    "https://github.com/pytorch/pytorch/issues/201775",
+    [
+      "xpu"
     ]
   ],
   "test_matmul_output_precision (__main__.TestNativeMatmulRowReduction)": [
