@@ -8,6 +8,7 @@ import {
 import { listArtifacts } from "lib/api/releases/artifacts";
 import { buildBoard, buildIndex } from "lib/api/releases/board";
 import { loadReleaseConfig, loadSharedConfig } from "lib/api/releases/config";
+import { getCrcrResults } from "lib/api/releases/crcr";
 import {
   artifactCursorMatchesQuery,
   decodeArtifactCursor,
@@ -147,6 +148,31 @@ export async function releaseMilestoneItemsHandler(
     return failQuery(
       "GET /api/releases/{version}/milestone",
       "Failed to read the release's milestone items",
+      error
+    );
+  }
+}
+
+export async function releaseCrcrHandler(
+  request: Request,
+  { params }: { params: Promise<{ version: string }> }
+): Promise<Response> {
+  const parsed = parseReleaseParams(await requestQuery(request, params));
+  if (!parsed.success) return rejectParameters(parsed.error);
+  const { version } = parsed.data;
+  try {
+    if ((await readRelease(version)) === null) {
+      return jsonError(
+        404,
+        "not_found",
+        `The portal has no release ${version}`
+      );
+    }
+    return ok(await getCrcrResults(version));
+  } catch (error) {
+    return failQuery(
+      "GET /api/releases/{version}/crcr",
+      "Failed to read the release's downstream CRCR results",
       error
     );
   }

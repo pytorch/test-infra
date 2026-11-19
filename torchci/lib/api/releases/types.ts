@@ -485,6 +485,119 @@ export const ArtifactPageSchema = z
   })
   .describe("A release's artifacts: the counts and one page of rows.");
 
+export const CRCR_RESULTS = ["passed", "failed", "no_result"] as const;
+export const CRCR_LEVELS = ["L2", "L3", "L4"] as const;
+
+const CrcrFailingJobSchema = z
+  .object({
+    name: z.string().describe("The downstream job's name."),
+    url: z
+      .string()
+      .nullable()
+      .describe(
+        "A link to the job's log; null when the downstream repo reported none."
+      ),
+  })
+  .describe("A downstream job that failed.");
+
+// One downstream repo's result for a release candidate, as the collector records it
+// for the crcr_summary step. hud_url is not recorded: the API derives it from repo.
+const CollectedCrcrRepoSchema = z.object({
+  repo: z
+    .string()
+    .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, {
+      error: "repo must look like org/name",
+    })
+    .describe("The downstream repo, org/name, for example vllm-project/vllm."),
+  level: z
+    .enum(CRCR_LEVELS)
+    .describe(
+      "The repo's CRCR level. Only L2 and above are on the allowlist, so only these appear."
+    ),
+  rc: z
+    .string()
+    .regex(/^rc\d+$/, { error: "rc must look like rc1" })
+    .describe(
+      "The release candidate the run was triggered for, for example rc9."
+    ),
+  result: z
+    .enum(CRCR_RESULTS)
+    .describe(
+      "passed or failed once the repo's run has finished; no_result when the repo is opted in and has reported nothing for the release candidate, so a silent repo shows. There is no running state."
+    ),
+  summary: z
+    .string()
+    .describe(
+      "One line: how many of the run's jobs failed, or passed; for no_result, that nothing was reported."
+    ),
+  failing_jobs: z
+    .array(CrcrFailingJobSchema)
+    .describe("The jobs that failed; empty for a passed result."),
+  owner: z
+    .string()
+    .nullable()
+    .describe(
+      "Who owns the repo's failures (RFC-0050), for example its CI on-call; null when unknown."
+    ),
+  run_url: z
+    .string()
+    .nullable()
+    .describe(
+      "A link to the downstream workflow run; null when there is none."
+    ),
+  finished_at: z
+    .string()
+    .nullable()
+    .describe(
+      "When the run finished, ISO 8601 UTC: the repo's last run; null for no_result."
+    ),
+});
+
+export const CrcrRepoSchema = CollectedCrcrRepoSchema.extend({
+  hud_url: z
+    .string()
+    .describe(
+      "The repo's release view on HUD for this release, with its CRCR results in more detail."
+    ),
+}).describe("One downstream repo's result for the release candidate.");
+
+// The collector persists this object in release_event.details of the crcr_summary
+// step, one row per release candidate. The counts are not stored: the API computes
+// them from the repos, so they cannot disagree.
+export const CollectedCrcrResultsSchema = z.object({
+  repos: z.array(CollectedCrcrRepoSchema),
+});
+
+export const ReleaseCrcrSchema = z
+  .object({
+    rc: z
+      .string()
+      .regex(/^rc\d+$/, { error: "rc must look like rc1" })
+      .nullable()
+      .describe(
+        "The current release candidate: the newest one the collector has recorded a CRCR observation for, even when no repo has a result for it yet. null when it has recorded none."
+      ),
+    summary: z
+      .object({
+        repos: z.number().int().describe("Downstream repos in the list."),
+        passing: z.number().int().describe("Of them, passed."),
+        failing: z.number().int().describe("Of them, failed."),
+        no_result: z
+          .number()
+          .int()
+          .describe("Of them, with no result for the release candidate."),
+      })
+      .describe("Counts over repos."),
+    repos: z
+      .array(CrcrRepoSchema)
+      .describe(
+        "One entry per downstream repo the collector recorded for the release candidate: the opted-in repos that have a result and those that have none. Failed first, then no_result, then passed, each by repo name. A repo with several runs for the same release candidate shows its newest workflow run, with each job's final attempt."
+      ),
+  })
+  .describe(
+    "The CI results of the downstream repos in the CRCR allowlist (L2 and above) against the current release candidate. Informational: a downstream failure does not block the release, and the release manager makes the go or no-go call."
+  );
+
 export type ReleaseIndex = z.infer<typeof ReleaseIndexSchema>;
 export type ReleaseBoard = z.infer<typeof ReleaseBoardSchema>;
 export type ReleaseStep = z.infer<typeof ReleaseStepSchema>;
@@ -492,3 +605,5 @@ export type ReleaseConfig = z.infer<typeof ReleaseConfigSchema>;
 export type ArtifactRow = z.infer<typeof ArtifactRowSchema>;
 export type ArtifactPage = z.infer<typeof ArtifactPageSchema>;
 export type ReleaseMilestoneItems = z.infer<typeof ReleaseMilestoneItemsSchema>;
+export type CrcrRepo = z.infer<typeof CrcrRepoSchema>;
+export type ReleaseCrcr = z.infer<typeof ReleaseCrcrSchema>;
