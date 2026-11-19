@@ -20,6 +20,7 @@ recent_prs AS (
   SELECT
     argMax(pull_request.head.'sha', pull_request.updated_at) AS sha,
     pull_request.number AS number,
+    argMax(pull_request.draft, pull_request.updated_at) AS draft,
     argMax(push.timestamp, pull_request.updated_at) AS timestamp
   FROM
     relevant_shas r
@@ -39,6 +40,9 @@ recent_prs AS (
 SELECT
   w.id AS workflowId,
   w.workflow_id as workflowUniqueId,
+  w.path AS workflowPath,
+  w.event AS workflowEvent,
+  recent_prs.draft AS prDraft,
   j.id as id,
   j.runner_name AS runnerName,
   w.head_commit.'author'.'email' as authorEmail,
@@ -71,6 +75,9 @@ UNION all
 SELECT
   0 AS workflowId,
   w.workflow_id as workflowUniqueId,
+  w.path AS workflowPath,
+  w.event AS workflowEvent,
+  recent_prs.draft AS prDraft,
   w.id as id,
   '' AS runnerName,
   w.head_commit.'author'.'email' as authorEmail,

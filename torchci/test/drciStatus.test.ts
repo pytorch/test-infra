@@ -7,6 +7,7 @@ import * as fetchPR from "lib/fetchPR";
 import * as workflows from "lib/fetchRecentWorkflows";
 import * as github from "lib/github";
 import * as greenlight from "lib/greenlight/greenlightComment";
+import { PR_REVIEW_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
 import * as prReview from "lib/prReview/prReviewComment";
 import * as promotion from "lib/prReview/readyForReviewPromotion";
 import { PR_STATUS_END, PR_STATUS_START } from "lib/prStatus";
@@ -195,4 +196,121 @@ test("CI can create a missing comment even when the status reader is unavailable
   // This is the normal missing-comment lookup, not a retry of status reads.
   expect(writer.paginate).toHaveBeenCalledTimes(1);
   expect(writer.rest.pulls.get).not.toHaveBeenCalled();
+});
+
+test("a captured review with no telemetry stays in the sweep, then reports a timeout", async () => {
+  jest.useFakeTimers().setSystemTime(new Date("2026-11-10T19:00:00Z"));
+  try {
+    jest.mocked(github.getPrStatusOctokit).mockResolvedValue(null);
+    jest.mocked(prReview.buildPrReviewSections).mockRestore();
+    jest.spyOn(workflows, "fetchCrcrActivityPRs").mockResolvedValue([]);
+    jest.mocked(drciUtils.fetchPRLabels).mockResolvedValue(["in progress"]);
+    const capture = job();
+    Object.assign(capture, {
+      workflowId: 42875235669,
+      workflowUniqueId: 10,
+      id: 130036655409,
+      workflowPath: ".github/workflows/hardened-pr-review.yml",
+      workflowEvent: "pull_request_target",
+      name: "Hardened PR Review / capture",
+      jobName: "capture",
+      completed_at: "2026-11-10 18:26:48.000000000",
+      html_url:
+        "https://github.com/pytorch/pytorch/actions/runs/42875235669/job/130036655409",
+    });
+    // A later unrelated label produces a skipped workflow. Dr.CI's CI-job
+    // cleanup discards the successful older capture; recovery must use raw jobs.
+    const skipped = {
+      ...capture,
+      workflowId: 0,
+      id: capture.workflowId + 1,
+      conclusion: "skipped",
+    };
+    jest
+      .mocked(workflows.fetchRecentWorkflows)
+      .mockResolvedValue([capture, skipped]);
+    jest
+      .mocked(clickhouse.queryClickhouseSaved)
+      .mockImplementation(async (name) =>
+        name === "pr_review_verdicts_for_prs"
+          ? []
+          : [
+              {
+                head_sha: SHA,
+                merge_base: "base",
+                merge_base_commit_date: "2026-10-29T00:00:00Z",
+              },
+            ]
+      );
+    // A past passing verdict on this head must not promote past the new request.
+    jest.mocked(promotion.fetchPrReviewHeadVerdicts).mockResolvedValue(
+      new Map([
+        [
+          1,
+          {
+            pr_number: 1,
+            head_sha: SHA,
+            status: "succeeded",
+            verdict: "ready_for_human_review",
+            started_at_ms: Date.parse("2026-11-10T17:00:00Z"),
+          },
+        ],
+      ])
+    );
+    const promote = jest.spyOn(promotion, "maybePromoteToReadyForReview");
+
+    await updateDrciComments(writer, "pytorch", "pytorch", []);
+    let body = jest.mocked(writer.rest.issues.updateComment).mock.calls[0][0]!
+      .body!;
+    expect(body).toContain("Review pending");
+    expect(body).toContain(PR_REVIEW_PENDING_ALT_ATTR);
+    expect(clickhouse.queryClickhouse).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "position(body, {prReviewPendingAltAttr: String}) > 0"
+      ),
+      expect.objectContaining({
+        prReviewPendingAltAttr: PR_REVIEW_PENDING_ALT_ATTR,
+      })
+    );
+    expect(promote).not.toHaveBeenCalled();
+
+    jest.setSystemTime(new Date("2026-11-10T21:00:00Z"));
+    jest.mocked(writer.rest.issues.updateComment).mockClear();
+    await updateDrciComments(writer, "pytorch", "pytorch", []);
+    body = jest.mocked(writer.rest.issues.updateComment).mock.calls[0][0]!
+      .body!;
+    expect(body).toContain("Review did not complete");
+    expect(body).toContain("`@pytorchbot review`");
+    expect(body).not.toContain(PR_REVIEW_PENDING_ALT_ATTR);
+    expect(promote).not.toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("a failed review-status read neither invents a failure nor promotes an old verdict", async () => {
+  jest.mocked(github.getPrStatusOctokit).mockResolvedValue(null);
+  jest
+    .mocked(prReview.buildPrReviewSections)
+    .mockRejectedValue(new Error("database unavailable"));
+  jest.mocked(promotion.fetchPrReviewHeadVerdicts).mockResolvedValue(
+    new Map([
+      [
+        1,
+        {
+          pr_number: 1,
+          head_sha: SHA,
+          status: "succeeded",
+          verdict: "ready_for_human_review",
+          started_at_ms: Date.parse("2026-11-10T17:00:00Z"),
+        },
+      ],
+    ])
+  );
+  const promote = jest.spyOn(promotion, "maybePromoteToReadyForReview");
+  await updateDrciComments(writer, "pytorch", "pytorch", [1]);
+  const body = jest.mocked(writer.rest.issues.updateComment).mock.calls[0][0]!
+    .body!;
+  expect(body).not.toContain("AUTOMATED REVIEW");
+  expect(promote).not.toHaveBeenCalled();
 });
