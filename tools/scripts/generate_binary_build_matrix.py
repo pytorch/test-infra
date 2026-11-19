@@ -97,10 +97,10 @@ STABLE_CUDA_VERSIONS = {
 CUDA_ARCHES_NO_WINDOWS_DICT = {
     # 13.0 is no longer built on nightly, so nothing is excluded there. On the
     # test channel it is Linux-only. 13.4 has Windows wheels on nightly and in
-    # the 2.15 candidates; 2.14 releases have none. 13.5 is Linux-only until the
-    # first Windows cu135 nightly is published (pytorch/pytorch#205032 only just
-    # landed), so validation does not look for wheels that do not exist yet.
-    "nightly": ["13.5"],
+    # the 2.15 candidates; 2.14 releases have none. 13.5 has Windows wheels on
+    # nightly (CUDA_WINDOWS_ARCHES in pytorch/pytorch); test and release do not
+    # build it at all.
+    "nightly": [],
     "test": ["13.0"],
     "release": ["13.0"],
 }
