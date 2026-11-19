@@ -1,4 +1,5 @@
 import {
+  AUTO_PR_TRIAGE_RETRIGGER_LABEL,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -6,10 +7,8 @@ import {
 } from "lib/prStatus";
 import pLimit from "p-limit";
 import { Context, Probot } from "probot";
-import { PYTORCH_BOT_USER_ID } from "./Constants";
 import { isPyTorchPyTorch } from "./utils";
 
-const OPEN_SOURCE = "open source";
 const TRIAGE_OUTCOMES = [
   PR_STATUS_LABEL_TRIAGED,
   "bot-triaged",
@@ -29,7 +28,7 @@ type Claims = {
   closing: number[];
   supporters: string[];
 };
-type Trigger = { eventAt: string } & ({ issue: number } | { added?: Claims });
+type Trigger = { issue: number } | { added?: Claims };
 type Reference = { number: number; repository: { nameWithOwner: string } };
 type Page<T> = {
   nodes: (T | null)[];
@@ -324,50 +323,6 @@ async function hasAdmissionSignal(
   return false;
 }
 
-async function isInterruptedReset(
-  context: WakeupContext,
-  number: number,
-  eventAt: string
-) {
-  const events = await context.octokit.paginate(
-    context.octokit.issues.listEvents,
-    context.repo({ issue_number: number, per_page: 100 })
-  );
-  const labelEvents = events
-    .filter(
-      (event) =>
-        (event.event === "labeled" || event.event === "unlabeled") &&
-        event.label?.name === OPEN_SOURCE
-    )
-    .map(({ event, actor, created_at, id }) => ({
-      event,
-      actor,
-      timestamp: Date.parse(created_at ?? ""),
-      id: id ?? NaN,
-    }));
-  const triggeredAt = Date.parse(eventAt);
-  if (
-    !Number.isFinite(triggeredAt) ||
-    labelEvents.some(
-      (event) =>
-        !Number.isFinite(event.timestamp) || !Number.isSafeInteger(event.id)
-    )
-  ) {
-    return false;
-  }
-  const latest = labelEvents.sort(
-    (a, b) => b.timestamp - a.timestamp || b.id - a.id
-  )[0];
-  // A failed POST (or process exit) after removing open source must be
-  // recoverable. Only resume a bot removal after the original webhook event; a
-  // maintainer's later removal, or an unrelated older reset, is not consent.
-  return (
-    latest?.event === "unlabeled" &&
-    latest.actor?.id === PYTORCH_BOT_USER_ID &&
-    latest.timestamp >= triggeredAt
-  );
-}
-
 async function retriage(
   context: WakeupContext,
   number: number,
@@ -396,12 +351,6 @@ async function retriage(
         PR_STATUS_LABEL_READY_FOR_REVIEW,
       ].includes(label)
     )
-  ) {
-    return;
-  }
-  if (
-    !labels.includes(OPEN_SOURCE) &&
-    !(await isInterruptedReset(context, number, trigger.eventAt))
   ) {
     return;
   }
@@ -437,11 +386,14 @@ async function retriage(
       await removeLabel(name);
     }
   }
-  if (labels.includes(OPEN_SOURCE)) {
-    await removeLabel(OPEN_SOURCE);
+  if (labels.includes(AUTO_PR_TRIAGE_RETRIGGER_LABEL)) {
+    await removeLabel(AUTO_PR_TRIAGE_RETRIGGER_LABEL);
   }
   await context.octokit.issues.addLabels(
-    context.repo({ issue_number: number, labels: [OPEN_SOURCE] })
+    context.repo({
+      issue_number: number,
+      labels: [AUTO_PR_TRIAGE_RETRIGGER_LABEL],
+    })
   );
   await removeLabel(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE);
   context.log(
@@ -476,12 +428,7 @@ export default function actionableIssueBot(app: Probot) {
       (
         await connectedPullRequests(context)
       ).map((number) =>
-        limit(() =>
-          retriage(context, number, {
-            issue: issue.number,
-            eventAt: issue.updated_at,
-          })
-        )
+        limit(() => retriage(context, number, { issue: issue.number }))
       )
     );
     for (const result of results) {
@@ -503,10 +450,7 @@ export default function actionableIssueBot(app: Probot) {
     async (context) => {
       const { repository, pull_request: pr } = context.payload;
       if (!isPyTorchPyTorch(repository.owner.login, repository.name)) return;
-      // Use the immutable delivery timestamp, never the later live PR update.
-      const trigger: { eventAt: string; added?: Claims } = {
-        eventAt: pr.updated_at,
-      };
+      const trigger: { added?: Claims } = {};
       if (
         context.payload.action === "unlabeled" &&
         context.payload.label?.name.toLowerCase() !== "no automated triage"

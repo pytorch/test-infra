@@ -521,7 +521,6 @@ describe("withStaleReviewNote", () => {
       "",
       "",
       "",
-      [],
       withStaleReviewNote(SECTION, outcome)
     );
 

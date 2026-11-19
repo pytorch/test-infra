@@ -8,7 +8,6 @@ nock.disableNetConnect();
 
 const AUTHOR = "author";
 const MISSING_ISSUE_LABELS = [
-  "open source",
   "triaged",
   "bot-triaged",
   "missing actionable issue",
@@ -89,9 +88,9 @@ describe("triage command", () => {
     const add = nock("https://api.github.com")
       .post("/repos/pytorch/pytorch/issues/1/labels", (body) => {
         // The outcome labels must be gone before the run starts, and
-        // `open source` removed first so this is a fresh `labeled` event
+        // `bot-retriage` removed first so this is a fresh `labeled` event
         expect(removes.every((remove) => remove.isDone())).toBe(true);
-        expect(body).toMatchObject({ labels: ["open source"] });
+        expect(body).toMatchObject({ labels: ["bot-retriage"] });
         return true;
       })
       .reply(200, {});
@@ -102,12 +101,7 @@ describe("triage command", () => {
     const event = triageEvent(AUTHOR);
     const scope = [
       mockLiveLabels(MISSING_ISSUE_LABELS),
-      ...mockTriage([
-        "triaged",
-        "bot-triaged",
-        "missing actionable issue",
-        "open source",
-      ]),
+      ...mockTriage(["triaged", "bot-triaged", "missing actionable issue"]),
       mockReact(event, "+1"),
     ];
 
@@ -119,12 +113,7 @@ describe("triage command", () => {
     const event = triageEvent("stranger");
     const scope = [
       mockLiveLabels(MISSING_ISSUE_LABELS),
-      ...mockTriage([
-        "triaged",
-        "bot-triaged",
-        "missing actionable issue",
-        "open source",
-      ]),
+      ...mockTriage(["triaged", "bot-triaged", "missing actionable issue"]),
       mockReact(event, "+1"),
     ];
 
@@ -137,14 +126,14 @@ describe("triage command", () => {
     const event = triageEvent(AUTHOR);
     const scope = [
       mockLiveLabels([
-        "open source",
         "missing actionable issue",
         "bot-triage-error",
+        "bot-retriage",
       ]),
       ...mockTriage([
         "missing actionable issue",
         "bot-triage-error",
-        "open source",
+        "bot-retriage",
       ]),
       mockReact(event, "+1"),
     ];
@@ -157,10 +146,9 @@ describe("triage command", () => {
     const event = triageEvent(AUTHOR);
     const scope = [
       mockLiveLabels(MISSING_ISSUE_LABELS),
-      ...mockTriage(
-        ["triaged", "bot-triaged", "missing actionable issue", "open source"],
-        { alreadyRemoved: ["bot-triaged"] }
-      ),
+      ...mockTriage(["triaged", "bot-triaged", "missing actionable issue"], {
+        alreadyRemoved: ["bot-triaged"],
+      }),
       mockReact(event, "+1"),
     ];
 
@@ -170,14 +158,12 @@ describe("triage command", () => {
 
   test.each([
     [
-      ["open source", "triaged", "bot-triaged"],
-      ["triaged", "bot-triaged", "open source"],
+      ["triaged", "bot-triaged"],
+      ["triaged", "bot-triaged"],
     ],
-    [
-      ["open source", "bot-triage-error"],
-      ["bot-triage-error", "open source"],
-    ],
-    [["open source"], ["open source"]],
+    [["bot-triage-error"], ["bot-triage-error"]],
+    [["bot-retriage"], ["bot-retriage"]],
+    [["open source", "bot-triage-error"], ["bot-triage-error"]],
   ])("re-runs triage on a PR labeled %j", async (labels, labelsToRemove) => {
     const event = triageEvent(AUTHOR, labels);
     const scope = [
@@ -190,20 +176,17 @@ describe("triage command", () => {
     handleScope(scope);
   });
 
-  test.each([[[]], [["triaged", "bot-triaged", "missing actionable issue"]]])(
-    "rejects a PR without open source, labeled %j",
-    async (labels) => {
-      const event = triageEvent(AUTHOR, labels);
-      const scope = [
-        mockLiveLabels(labels),
-        mockReact(event, "-1"),
-        mockReply(event, "only re-runs on PRs labeled `open source`"),
-      ];
+  test("re-triages a PR without any triage labels", async () => {
+    const event = triageEvent(AUTHOR, []);
+    const scope = [
+      mockLiveLabels([]),
+      ...mockTriage([]),
+      mockReact(event, "+1"),
+    ];
 
-      await bot.receive(event);
-      handleScope(scope);
-    }
-  );
+    await bot.receive(event);
+    handleScope(scope);
+  });
 
   test("rejects an opted-out PR without changing labels", async () => {
     const labels = [...MISSING_ISSUE_LABELS, "no automated triage"];

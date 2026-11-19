@@ -832,7 +832,6 @@ export async function updateDrciComments(
         // Status read failures must not suppress CI comments or check runs.
         status?.section ?? extractPrStatusSection(body),
         pr_info.headRef,
-        labels,
         withStaleReviewNote(
           prReviewSectionForLabels(
             prReviewSections?.get(pr_info.pr_number),

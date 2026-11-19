@@ -12,7 +12,7 @@ handled webhooks.
 
 | Phase                            | Status                                                                                                                                                                                      |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Before triage                    | No PR Status section without a workflow label. Helpful Links includes Auto PR Triage runs for PRs labeled `open source`.                                                                    |
+| Before triage                    | No PR Status section without a workflow label. Helpful Links includes Auto PR Triage runs, which start for every PR targeting `main` once it is ready for review.                           |
 | Draft within the workflow        | Explicitly waiting for the author to mark it ready; triage advancement is paused while draft.                                                                                               |
 | Missing actionable issue         | Explains the actionable-issue / supporting-maintainer requirement, automatic re-triage when eligibility changes, and the manual fallback.                                                   |
 | Triaged                          | Queued for the bot to start automated review, not waiting on reviewers. Eligible PRs get `in progress` on handled webhooks.                                                                 |
@@ -67,7 +67,7 @@ refresh active PRs sooner.
 Recovery updates only the PR Status section. It preserves existing CI results
 and skips unchanged comment bodies. A missing comment is recreated with current
 status and standard HUD/helpful links, including the branch-specific Auto PR
-Triage link for `open source` PRs. PRs outside the workflow do not get new
+Triage link. PRs outside the workflow do not get new
 comments. For PRs created before the rollout date, recovery removes any stale
 PR Status section while preserving the rest of the comment. CI classification
 is populated by the normal CI update. Closed PRs and failed state reads are left
@@ -110,21 +110,16 @@ references from PR descriptions. It verifies each current closing link or
 re-triage. Old links, comment-only mentions, code, and HTML comments do not count.
 
 Only open, non-draft PRs against `main`, against a `gh/.../base` branch, or in a
-GitHub-native stack on `main`, carrying both `open source` and
-`missing actionable issue`, are re-triaged. PRs with
+GitHub-native stack on `main`, carrying `missing actionable issue`, are
+re-triaged. PRs with
 `no automated triage`, `in progress`, or `ready for review` are left alone. The
-bot removes the old triage outcome labels and re-adds `open source` to start the
-existing Auto PR Triage workflow. The missing-issue hold stays in place until
+bot removes the old triage outcome labels and adds (or re-adds) `bot-retriage`
+to start the existing Auto PR Triage workflow. The missing-issue hold stays in place until
 that entry event has been sent. Normal triage then rechecks the issue and routes
 reviewers; the issue label does not itself advance the PR or grant merge approval.
 
-If a trigger write fails after removing `open source`, a redelivered webhook
-can resume the reset. With that label absent, the bot checks the PR's label
-history and proceeds only if its own removal is the latest `open source` event
-and happened at or after the triggering event. PR events use the original
-webhook's update timestamp, so retrying after a failed write does not move the
-recovery boundary. A maintainer's later removal prevents recovery. This uses
-existing label history and leaves the missing-issue hold in place on failures.
+If a label write fails, the missing-issue hold stays in place, so a redelivered
+webhook passes the same eligibility checks and resumes the reset.
 
 For example, if PR #10 already says `Fixes #5` and was marked
 `missing actionable issue`, labeling issue #5 `actionable` automatically requests
@@ -136,10 +131,10 @@ issue labels, GitHub closing links, and the named maintainer's current permissio
 before resetting triage. Unrelated edits do not retrigger it. Marking a draft
 ready, reopening a PR, or removing `no automated triage` rechecks existing links
 and support, including manual development links. These events use the same live
-eligibility checks and retry protection as the issue-label event. A manual link
+eligibility checks as the issue-label event. A manual link
 added through GitHub's sidebar alone has no handled webhook; for that case, or
-whenever re-triage is still needed, anyone can comment `@pytorchbot triage` on a
-PR labeled `open source` to re-run Auto PR Triage.
+whenever re-triage is still needed, anyone can comment `@pytorchbot triage` to
+re-run Auto PR Triage.
 
 ## Returning to maintainer review
 

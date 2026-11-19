@@ -165,8 +165,8 @@ review.add_argument("-h", "--help", {
 const triage = commands.add_parser("triage", {
   help: "Re-run Auto PR Triage",
   description:
-    "Re-run Auto PR Triage on a PR labeled 'open source', e.g. after linking an\n" +
-    "actionable issue in the PR description. Only for pytorch/pytorch.",
+    "Re-run Auto PR Triage, e.g. after linking an actionable issue in the PR\n" +
+    "description. Only for pytorch/pytorch.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });

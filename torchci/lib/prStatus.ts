@@ -38,8 +38,9 @@ export const PR_STATUS_LABEL_REVIEW_OPT_OUT = "no automated review";
 // actionable issue nor a supporting maintainer.
 export const PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE =
   "missing actionable issue";
-// Adding this label starts an Auto PR Triage run.
-export const AUTO_PR_TRIAGE_LABEL = "open source";
+// Auto PR Triage runs on every PR when it is opened, reopened, or marked ready;
+// adding this label starts another run.
+export const AUTO_PR_TRIAGE_RETRIGGER_LABEL = "bot-retriage";
 export const BOT_TRIAGED_LABEL = "bot-triaged";
 export const BOT_TRIAGE_ERROR_LABEL = "bot-triage-error";
 // Auto PR Triage leaves a PR with this label as is.
@@ -286,8 +287,8 @@ function getPrStatusStageMessage(state: PrStatusState): string {
         "yet, you can open one (or comment on an existing one) and wait for " +
         "a maintainer to label it `actionable`. Adding `actionable` to an " +
         "already-linked issue automatically requests re-triage of open, " +
-        "non-draft PRs with `open source` and " +
-        "`missing actionable issue`, unless automated triage is disabled. " +
+        "non-draft PRs with `missing actionable issue`, unless automated " +
+        "triage is disabled. " +
         "Adding a valid actionable-issue link or `Supported by` line to " +
         "the description also requests re-triage automatically. Marking " +
         "the PR ready, reopening it, or re-enabling automated triage " +
