@@ -2,6 +2,7 @@ import type {
   ArtifactPage,
   ReleaseBoard,
   ReleaseIndex,
+  ReleaseMilestoneItems,
 } from "lib/api/releases/types";
 import {
   releaseIndexUrlForNotFound,
@@ -137,6 +138,26 @@ const board: ReleaseBoard = {
       ],
     },
   ],
+};
+
+const milestone: ReleaseMilestoneItems = {
+  version: "2.16.0",
+  milestone: 71,
+  branch: "release/2.16",
+  branch_cut: true,
+  issues: 3,
+  by_reason: { open: 1, not_on_release_branch: 2 },
+  outstanding: [
+    {
+      number: 123,
+      kind: "issue",
+      title: "Release blocker",
+      url: "https://github.com/pytorch/pytorch/issues/123",
+      state: "open",
+      reason: "open",
+    },
+  ],
+  last_checked: "2026-11-13T00:00:00Z",
 };
 
 const artifacts: ArtifactPage = {
@@ -277,6 +298,7 @@ describe("release routes", () => {
         version="2.16.0"
         board={resource(board)}
         index={resource(index)}
+        milestone={resource(milestone)}
       />
     );
     expect(html).toContain("PyTorch 2.16.0 : RC build");
@@ -305,6 +327,7 @@ describe("release routes", () => {
           code: "not_found",
         })}
         index={resource(index)}
+        milestone={resource(milestone)}
       />
     );
     expect(missing).toContain("Release 9.9.9 not found");
@@ -338,6 +361,7 @@ describe("release routes", () => {
         version="2.15.0"
         board={resource(releasedBoard)}
         index={resource(index)}
+        milestone={resource(milestone)}
       />
     );
 
@@ -544,6 +568,7 @@ describe("release routes", () => {
         version="2.16.0"
         board={resource(unsafeBoard)}
         index={resource(index)}
+        milestone={resource(milestone)}
       />
     );
     expect(boardHtml).toContain("Unsafe evidence");

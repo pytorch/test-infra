@@ -1,6 +1,27 @@
 import { ReleaseStepTable } from "components/release/ReleaseStepTable";
-import type { ReleaseBoard, ReleaseStep } from "lib/api/releases/types";
+import type {
+  ReleaseBoard,
+  ReleaseMilestoneItems,
+  ReleaseStep,
+} from "lib/api/releases/types";
+import type { ReleaseResource } from "lib/releasePortal/api";
 import { renderToStaticMarkup } from "react-dom/server";
+
+const milestone: ReleaseResource<ReleaseMilestoneItems> = {
+  data: {
+    version: "2.16.0",
+    milestone: 71,
+    branch: "release/2.16",
+    branch_cut: true,
+    issues: 0,
+    by_reason: {},
+    outstanding: [],
+    last_checked: "2026-12-01T10:00:00.000Z",
+  },
+  error: undefined,
+  isLoading: false,
+  retry: async () => {},
+};
 
 const complete: ReleaseStep = {
   id: "1.1",
@@ -67,7 +88,9 @@ const phases: ReleaseBoard["phases"] = [
 
 describe("release step table", () => {
   test("shows one table with phase headings and unfinished-step guidance", () => {
-    const html = renderToStaticMarkup(<ReleaseStepTable phases={phases} />);
+    const html = renderToStaticMarkup(
+      <ReleaseStepTable milestone={milestone} phases={phases} />
+    );
 
     expect(html.match(/<table/g)).toHaveLength(1);
     expect(html).toContain("Phase 1: Branch cut");

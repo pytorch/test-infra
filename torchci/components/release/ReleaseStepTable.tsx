@@ -1,6 +1,7 @@
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
+  Alert,
   alpha,
   Button,
   Link,
@@ -14,9 +15,17 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import type { ReleaseBoard, ReleaseStep } from "lib/api/releases/types";
+import type {
+  ReleaseBoard,
+  ReleaseMilestoneItems,
+  ReleaseStep,
+} from "lib/api/releases/types";
+import {
+  releaseErrorMessage,
+  type ReleaseResource,
+} from "lib/releasePortal/api";
 import { isSafeReleaseUrl } from "lib/releasePortal/url";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   ReleaseEvidenceCell,
   ReleaseRcChip,
@@ -25,6 +34,12 @@ import {
 } from "./ReleaseComponents";
 
 type ReleasePhase = ReleaseBoard["phases"][number];
+
+const MILESTONE_STEP_IDS = new Set(["1.2", "2.9", "3.1"]);
+
+function label(value: string): string {
+  return value.replaceAll("_", " ");
+}
 
 function StepGuidance({
   step,
@@ -78,9 +93,104 @@ function StepGuidance({
   );
 }
 
-export function ReleaseStepTable({ phases }: { phases: ReleasePhase[] }) {
+function MilestoneItems({
+  milestone,
+}: {
+  milestone: ReleaseResource<ReleaseMilestoneItems>;
+}) {
+  if (milestone.data === undefined) {
+    if (milestone.error !== undefined) {
+      return (
+        <Alert
+          severity="error"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => void milestone.retry()}
+            >
+              Retry
+            </Button>
+          }
+        >
+          Could not load outstanding milestone items:{" "}
+          {releaseErrorMessage(milestone.error)}
+        </Alert>
+      );
+    }
+    return (
+      <Typography color="text.secondary" variant="body2">
+        Loading outstanding milestone items…
+      </Typography>
+    );
+  }
+
+  if (milestone.data.milestone === null) {
+    return (
+      <Typography color="text.secondary" variant="body2">
+        Outstanding milestone items have not been scanned yet.
+      </Typography>
+    );
+  }
+
+  if (milestone.data.outstanding.length === 0) {
+    return (
+      <Typography color="text.secondary" variant="body2">
+        No outstanding milestone items.
+      </Typography>
+    );
+  }
+
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table aria-label="Outstanding milestone items" size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Item</TableCell>
+            <TableCell>Kind</TableCell>
+            <TableCell>Title</TableCell>
+            <TableCell>State</TableCell>
+            <TableCell>Reason</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {milestone.data.outstanding.map((item) => (
+            <TableRow key={`${item.kind}-${item.number}`}>
+              <TableCell>
+                {isSafeReleaseUrl(item.url) ? (
+                  <Link href={item.url} rel="noreferrer" target="_blank">
+                    #{item.number}
+                  </Link>
+                ) : (
+                  `#${item.number}`
+                )}
+              </TableCell>
+              <TableCell>{label(item.kind)}</TableCell>
+              <TableCell sx={{ maxWidth: 480, overflowWrap: "anywhere" }}>
+                {item.title}
+              </TableCell>
+              <TableCell>{label(item.state)}</TableCell>
+              <TableCell>{label(item.reason)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+export function ReleaseStepTable({
+  phases,
+  milestone,
+}: {
+  phases: ReleasePhase[];
+  milestone: ReleaseResource<ReleaseMilestoneItems>;
+}) {
   const [expandedByPhase, setExpandedByPhase] = useState<
     Record<number, boolean>
+  >({});
+  const [expandedStepIds, setExpandedStepIds] = useState<
+    Record<string, boolean>
   >({});
   const statuses = new Map(
     phases.flatMap((phase) =>
@@ -146,47 +256,85 @@ export function ReleaseStepTable({ phases }: { phases: ReleasePhase[] }) {
                 </TableCell>
               </TableRow>
               {expanded &&
-                phase.steps.map((step) => (
-                  <TableRow
-                    key={step.id}
-                    sx={
-                      step.blocking
-                        ? {
-                            bgcolor: (theme) =>
-                              alpha(theme.palette.error.main, 0.14),
+                phase.steps.map((step) => {
+                  const hasMilestoneItems = MILESTONE_STEP_IDS.has(step.id);
+                  const detailsExpanded = expandedStepIds[step.id] ?? false;
+                  const detailsId = `milestone-items-${step.id}`;
+                  return (
+                    <Fragment key={step.id}>
+                      <TableRow
+                        sx={
+                          step.blocking
+                            ? {
+                                bgcolor: (theme) =>
+                                  alpha(theme.palette.error.main, 0.14),
+                              }
+                            : undefined
+                        }
+                      >
+                        <TableCell>{step.id}</TableCell>
+                        <TableCell sx={{ minWidth: 220 }}>
+                          <Typography fontWeight={500}>{step.name}</Typography>
+                          <StepGuidance step={step} statuses={statuses} />
+                          {hasMilestoneItems && (
+                            <Button
+                              aria-expanded={detailsExpanded}
+                              aria-label={`Outstanding milestone items for step ${step.id}`}
+                              onClick={() =>
+                                setExpandedStepIds((current) => ({
+                                  ...current,
+                                  [step.id]: !detailsExpanded,
+                                }))
+                              }
+                              size="small"
+                              startIcon={
+                                detailsExpanded ? (
+                                  <ExpandMoreIcon />
+                                ) : (
+                                  <ChevronRightIcon />
+                                )
+                              }
+                              sx={{ mt: 0.5 }}
+                            >
+                              Outstanding items
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <ReleaseRcChip rc={step.rc} />
+                        </TableCell>
+                        <TableCell
+                          sx={{ maxWidth: 360, overflowWrap: "anywhere" }}
+                        >
+                          <ReleaseEvidenceCell evidence={step.evidence} />
+                        </TableCell>
+                        <TableCell>
+                          <ReleaseTier tier={step.tier} />
+                        </TableCell>
+                        <TableCell
+                          sx={
+                            step.blocking
+                              ? { color: "error.main", fontWeight: 600 }
+                              : undefined
                           }
-                        : undefined
-                    }
-                  >
-                    <TableCell>{step.id}</TableCell>
-                    <TableCell sx={{ minWidth: 220 }}>
-                      <Typography fontWeight={500}>{step.name}</Typography>
-                      <StepGuidance step={step} statuses={statuses} />
-                    </TableCell>
-                    <TableCell>
-                      <ReleaseRcChip rc={step.rc} />
-                    </TableCell>
-                    <TableCell sx={{ maxWidth: 360, overflowWrap: "anywhere" }}>
-                      <ReleaseEvidenceCell evidence={step.evidence} />
-                    </TableCell>
-                    <TableCell>
-                      <ReleaseTier tier={step.tier} />
-                    </TableCell>
-                    <TableCell
-                      sx={
-                        step.blocking
-                          ? { color: "error.main", fontWeight: 600 }
-                          : undefined
-                      }
-                    >
-                      {step.informational ? (
-                        "info"
-                      ) : (
-                        <ReleaseStatusChip status={step.status} />
+                        >
+                          {step.informational ? (
+                            "info"
+                          ) : (
+                            <ReleaseStatusChip status={step.status} />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {hasMilestoneItems && detailsExpanded && (
+                        <TableRow>
+                          <TableCell colSpan={6} id={detailsId}>
+                            <MilestoneItems milestone={milestone} />
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                    </Fragment>
+                  );
+                })}
             </TableBody>
           );
         })}

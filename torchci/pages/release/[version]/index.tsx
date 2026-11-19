@@ -10,7 +10,11 @@ import {
   ReleasePage,
 } from "components/release/ReleasePage";
 import { ReleaseStepTable } from "components/release/ReleaseStepTable";
-import type { ReleaseBoard, ReleaseIndex } from "lib/api/releases/types";
+import type {
+  ReleaseBoard,
+  ReleaseIndex,
+  ReleaseMilestoneItems,
+} from "lib/api/releases/types";
 import {
   isReleaseNotFound,
   releaseIndexUrlForNotFound,
@@ -48,10 +52,12 @@ export function ReleaseBoardPageContent({
   version,
   board,
   index,
+  milestone,
 }: {
   version: string | undefined;
   board: ReleaseResource<ReleaseBoard>;
   index: ReleaseResource<ReleaseIndex>;
+  milestone: ReleaseResource<ReleaseMilestoneItems>;
 }) {
   if (version === undefined) {
     return <ReleaseLoading title="Release portal" rows={2} />;
@@ -134,7 +140,11 @@ export function ReleaseBoardPageContent({
         </Grid>
       </Grid>
 
-      <ReleaseStepTable key={release.version} phases={release.phases} />
+      <ReleaseStepTable
+        key={release.version}
+        milestone={milestone}
+        phases={release.phases}
+      />
     </ReleasePage>
   );
 }
@@ -150,6 +160,11 @@ export default function ReleaseBoardPage() {
   const index = useReleaseResource<ReleaseIndex>(
     releaseIndexUrlForNotFound(version, board)
   );
+  const milestone = useReleaseResource<ReleaseMilestoneItems>(
+    version === undefined || board.data === undefined
+      ? null
+      : `/api/releases/${encodeURIComponent(version)}/milestone`
+  );
 
   return (
     <>
@@ -160,7 +175,12 @@ export default function ReleaseBoardPage() {
             : `Release ${version} | PyTorch CI HUD`}
         </title>
       </Head>
-      <ReleaseBoardPageContent version={version} board={board} index={index} />
+      <ReleaseBoardPageContent
+        version={version}
+        board={board}
+        index={index}
+        milestone={milestone}
+      />
     </>
   );
 }
