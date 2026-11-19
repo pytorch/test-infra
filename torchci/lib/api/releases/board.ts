@@ -177,10 +177,11 @@ function stepViews(
     const row = byKey.get(`${step.id}\u0000${scopedRc ?? ""}`);
     const status = STATUSES.find((s) => s === row?.status) ?? "todo";
     const check = step.check as Record<string, unknown>;
-    const templateValues = { ...linkValues, rc: scopedRc };
+    const manualTemplateValues = { ...linkValues, rc: scopedRc };
+    // Runbooks can target the release's current RC even on an unscoped step.
     const runbookEntry = step.runbook && Object.entries(step.runbook)[0];
     const runbookValue = runbookEntry
-      ? fillTemplate(runbookEntry[1], templateValues)
+      ? fillTemplate(runbookEntry[1], linkValues)
       : null;
     return {
       phase: step.phase,
@@ -211,7 +212,10 @@ function stepViews(
         check.type === "manual_link"
           ? {
               what_to_check: String(check.what_to_check ?? ""),
-              link: fillTemplate(String(check.link ?? ""), templateValues),
+              link: fillTemplate(
+                String(check.link ?? ""),
+                manualTemplateValues
+              ),
             }
           : null,
       last_checked: row ? isoFromClickhouse(row.last_checked) : null,

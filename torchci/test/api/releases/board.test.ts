@@ -222,11 +222,11 @@ describe("buildBoard", () => {
     expect(steps["2.2"].manual?.link).toBeNull();
   });
 
-  test("resolves runbook URL templates for the release and scoped RC", () => {
+  test("resolves runbook URL templates using the release's current RC", () => {
     const config = {
       ...MINOR,
       steps: MINOR.steps.map((step) =>
-        step.id === "2.1"
+        step.id === "2.1" || step.id === "1.1"
           ? {
               ...step,
               runbook: { url: "https://example.com/{version}/{rc}" },
@@ -240,7 +240,13 @@ describe("buildBoard", () => {
     expect(withRc["2.1"].runbook).toEqual({
       url: "https://example.com/2.16.0/rc3",
     });
-    expect(stepsOf(buildBoard(config, [], NOW))["2.1"].runbook).toBeNull();
+    expect(withRc["1.1"].rc).toBeNull();
+    expect(withRc["1.1"].runbook).toEqual({
+      url: "https://example.com/2.16.0/rc3",
+    });
+    const withoutRc = stepsOf(buildBoard(config, [], NOW));
+    expect(withoutRc["2.1"].runbook).toBeNull();
+    expect(withoutRc["1.1"].runbook).toBeNull();
   });
 
   test("the links are what the rows evidence, then the configured resources, then the artifacts page", () => {
