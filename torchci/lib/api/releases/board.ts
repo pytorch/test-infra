@@ -170,6 +170,7 @@ function stepViews(
     tracker_issue_url: links.tracker_issue?.url ?? null,
     validation_issue_url: links.validation_issue?.url ?? null,
   };
+  const branchCut = branchIsCut(config, byKey);
   const views = config.steps.map((step): StepView => {
     const scopedRc = step.rc_scoped ? rc : null;
     const row = byKey.get(`${step.id}\u0000${scopedRc ?? ""}`);
@@ -185,10 +186,11 @@ function stepViews(
       status,
       informational: step.informational === true,
       // a step that is done blocks nothing, whatever an old row said; nor does one that
-      // is only for information
+      // is only for information, nor one that only matters until the branch is cut
       blocking:
         status !== "done" &&
         step.informational !== true &&
+        !(step.blocks_until_branch_cut === true && branchCut) &&
         Number(row?.blocking ?? 0) === 1,
       depends_on: step.depends_on ?? [],
       due: dueDate(config, step),
@@ -210,6 +212,24 @@ function stepViews(
     };
   });
   return { views, rc };
+}
+
+// The release branch is cut once the step that checks the pytorch branch {branch} is done.
+function branchIsCut(
+  config: ReleaseConfig,
+  byKey: Map<string, StepStateRow>
+): boolean {
+  return config.steps.some((step) => {
+    const check = step.check as Record<string, unknown>;
+    return (
+      check.type === "github_ref_exists" &&
+      check.kind === "branch" &&
+      check.ref === "{branch}" &&
+      Array.isArray(check.repos) &&
+      check.repos.includes("pytorch/pytorch") &&
+      byKey.get(`${step.id}\u0000`)?.status === "done"
+    );
+  });
 }
 
 // The release is out once its final tag exists: the step that checks the pytorch tag

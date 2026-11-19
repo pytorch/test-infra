@@ -1,4 +1,5 @@
 import {
+  alpha,
   Breadcrumbs,
   Grid,
   Link,
@@ -187,11 +188,29 @@ export function ReleaseBoardPageContent({
                     ? step.manual?.link
                     : null;
                   return (
-                    <TableRow key={step.id}>
+                    <TableRow
+                      key={step.id}
+                      // a red flag: the step is blocking (a nightly that is not green, a
+                      // viable/strict that is far behind main)
+                      sx={
+                        step.blocking
+                          ? {
+                              bgcolor: (theme) =>
+                                alpha(theme.palette.error.main, 0.14),
+                            }
+                          : undefined
+                      }
+                    >
                       <TableCell>
                         {step.id} · {step.name}
                       </TableCell>
-                      <TableCell>
+                      <TableCell
+                        sx={
+                          step.blocking
+                            ? { color: "error.main", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
                         {step.informational ? "info" : statusLabel(step.status)}
                       </TableCell>
                       <TableCell>{step.owner}</TableCell>

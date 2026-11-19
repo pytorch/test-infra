@@ -32,6 +32,13 @@
 #                    flight, and its other steps no longer count. For the dev-discuss post
 #                    that says there will be no patch release.
 #
+# One optional step field says a red flag is only for the time before the branch cut:
+#   blocks_until_branch_cut  (minor releases only: it needs `types: [minor]`) the step is
+#                            flagged in red while its collector says it is blocking (nightly
+#                            builds not green, viable/strict far behind main), and the flag
+#                            goes away once the pytorch release branch exists. For the CI
+#                            signals that only matter before the cut.
+#
 # Template variables usable in check parameters, links and runbooks:
 #   {version} 2.16.0   {minor} 2.16   {branch} release/2.16   {rc} rc1
 #   {tracker_issue} {validation_issue} {milestone}   (from the release file)
@@ -120,12 +127,13 @@ steps:
     check: {type: manual_link, what_to_check: "Workflows for every OS, Python, CPU architecture and accelerator exist in pytorch and the domain libraries", link: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#cutting-a-release-branch-preparations"}
   - id: "1.4"
     phase: 1
-    name: viable/strict is green
+    name: viable/strict is less than 12 hours behind main
     types: [minor]
     tier: A
     owner: release-manager
     due: {anchor: branch_cut, offset_days: -1}
-    check: {type: github_workflow_run, repo: pytorch/pytorch, workflow: update-viablestrict.yml, ref: main}
+    blocks_until_branch_cut: true
+    check: {type: viable_strict_lag, repo: pytorch/pytorch, branch: viable/strict, base: main, max_hours: 12}
   - id: "1.5"
     phase: 1
     name: Nightly jobs of pytorch and the domain libraries are green
@@ -133,6 +141,7 @@ steps:
     tier: M
     owner: release-manager
     due: {anchor: branch_cut, offset_days: -1}
+    blocks_until_branch_cut: true
     check: {type: nightly_binaries, repo: pytorch/pytorch, branch: nightly}
   - id: "1.6"
     phase: 1
@@ -246,7 +255,7 @@ steps:
     owner: release-manager
     rc_scoped: true
     depends_on: ["2.1"]
-    check: {type: github_workflow_run, repo: pytorch/pytorch, workflow: generated-linux-binary-manywheel-nightly.yml, ref: "v{version}-{rc}"}
+    check: {type: rc_binaries, repo: pytorch/pytorch}
   - id: "2.4"
     phase: 2
     name: RC artifacts are on download.pytorch.org

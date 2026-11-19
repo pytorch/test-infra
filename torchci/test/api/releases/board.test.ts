@@ -454,6 +454,62 @@ describe("informational steps", () => {
   });
 });
 
+describe("steps that only block until the branch cut", () => {
+  const cut = step({
+    id: "1.8",
+    types: ["minor"],
+    check: {
+      type: "github_ref_exists",
+      repos: ["pytorch/pytorch"],
+      ref: "{branch}",
+      kind: "branch",
+    },
+  });
+  const signal = step({
+    id: "1.4",
+    types: ["minor"],
+    blocks_until_branch_cut: true,
+  });
+  const other = step({ id: "1.5", types: ["minor"] });
+  const config = resolveRelease(
+    { ...SHARED, steps: [...SHARED.steps, cut, signal, other] },
+    null,
+    "2.16.0"
+  );
+  const red = { status: "blocked", blocking: 1 };
+
+  test("are blocking while the branch is not cut", () => {
+    const board = buildBoard(
+      config,
+      [
+        row({ step_id: "1.4", ...red }),
+        row({ step_id: "1.8", status: "todo" }),
+      ],
+      NOW
+    );
+    expect(stepsOf(board)["1.4"]).toMatchObject({ blocking: true });
+    expect(board.stats.blocking).toBe(1);
+  });
+
+  test("stop blocking once the branch is cut, and nothing else changes", () => {
+    const board = buildBoard(
+      config,
+      [
+        row({ step_id: "1.4", ...red }),
+        row({ step_id: "1.5", ...red }),
+        row({ step_id: "1.8", status: "done" }),
+      ],
+      NOW
+    );
+    expect(stepsOf(board)["1.4"]).toMatchObject({
+      status: "blocked",
+      blocking: false,
+    });
+    expect(stepsOf(board)["1.5"]).toMatchObject({ blocking: true });
+    expect(board.stats.blocking).toBe(1);
+  });
+});
+
 describe("buildIndex", () => {
   const patch = resolveRelease(SHARED, { release: "2.15.1" }, "2.15.1");
   const older = resolveRelease(SHARED, null, "2.15.0");

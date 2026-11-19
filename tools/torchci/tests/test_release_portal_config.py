@@ -119,6 +119,23 @@ class TestValidateShared(TestCase):
                 (types, errors),
             )
 
+    def test_blocks_until_branch_cut_is_a_boolean_for_minor_releases_only(self):
+        ok = _step("1.1", blocks_until_branch_cut=True, types=["minor"])
+        self.assertEqual(self.errors(_shared(ok)), [])
+        errors = self.errors(_shared(_step("1.1", blocks_until_branch_cut="yes")))
+        self.assertTrue(
+            any("blocks_until_branch_cut must be true or false" in e for e in errors),
+            errors,
+        )
+        for types in ({}, {"types": ["patch"]}, {"types": ["minor", "patch"]}):
+            errors = self.errors(
+                _shared(_step("1.1", blocks_until_branch_cut=True, **types))
+            )
+            self.assertTrue(
+                any("blocks_until_branch_cut is only for minor" in e for e in errors),
+                (types, errors),
+            )
+
     def test_the_cancelled_post_step_is_for_patch_releases_only(self):
         patch = {s["id"]: s for s in cfg.load_resolved("2.15.1")["steps"]}
         minor = {s["id"]: s for s in cfg.load_resolved("2.16.0")["steps"]}
@@ -341,6 +358,41 @@ class TestChecks(TestCase):
             {"type": "nightly_binaries", "repo": "pytorch/pytorch"},
             {"type": "nightly_binaries", "repo": "pytorch", "branch": "nightly"},
             {"type": "nightly_binaries", "repo": "pytorch/pytorch", "branch": ""},
+            {**good, "workflow": "x"},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
+
+    def test_the_rc_binaries_check(self):
+        good = {"type": "rc_binaries", "repo": "pytorch/pytorch"}
+        self.assertEqual(self.errors(good), [])
+        for bad in (
+            {"type": "rc_binaries"},
+            {"type": "rc_binaries", "repo": "pytorch"},
+            {**good, "branch": "x"},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
+
+    def test_the_viable_strict_lag_check(self):
+        good = {
+            "type": "viable_strict_lag",
+            "repo": "pytorch/pytorch",
+            "branch": "viable/strict",
+            "base": "main",
+            "max_hours": 12,
+        }
+        self.assertEqual(self.errors(good), [])
+        self.assertEqual(self.errors({**good, "max_hours": 0.5}), [])
+        for bad in (
+            {k: v for k, v in good.items() if k != "max_hours"},
+            {k: v for k, v in good.items() if k != "base"},
+            {**good, "repo": "pytorch"},
+            {**good, "branch": ""},
+            {**good, "max_hours": 0},
+            {**good, "max_hours": -3},
+            {**good, "max_hours": "12"},
+            {**good, "max_hours": True},
             {**good, "workflow": "x"},
         ):
             with self.subTest(check=bad):
