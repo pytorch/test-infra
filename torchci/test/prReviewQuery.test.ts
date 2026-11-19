@@ -28,6 +28,12 @@ describe("pr_review_verdicts_for_prs", () => {
     );
   });
 
+  it("enables the analyzer needed for windows with latest-row selection", () => {
+    expect(SQL).toMatch(
+      /LIMIT 1 BY pr_number SETTINGS allow_experimental_analyzer = 1\s*$/
+    );
+  });
+
   it("relates a review to its capture and preserves the attempt start time", () => {
     expect(SQL).toContain("trigger_run_id");
     expect(SQL).toContain(

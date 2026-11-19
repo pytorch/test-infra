@@ -36,3 +36,5 @@ ORDER BY
     phase = 'terminal' DESC,
     timestamp DESC
 LIMIT 1 BY pr_number
+-- HUD's legacy analyzer cannot combine these windows with ORDER BY / LIMIT BY.
+SETTINGS allow_experimental_analyzer = 1
