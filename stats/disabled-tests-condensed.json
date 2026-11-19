@@ -75,13 +75,6 @@
       "xpu"
     ]
   ],
-  "test_benchmark_request_uses_automatic_cudagraph_policy (__main__.TestAlgorithmSelectorChoiceTypes)": [
-    "199701",
-    "https://github.com/pytorch/pytorch/issues/199701",
-    [
-      "xpu"
-    ]
-  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
