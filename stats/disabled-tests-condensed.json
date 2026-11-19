@@ -1280,18 +1280,6 @@
       "macos"
     ]
   ],
-  "test_parameter_subclass_with_torch_dispatch_gets_subclass_dispatch_FakeTensorMode (__main__.TestFakeTensor)": [
-    "205075",
-    "https://github.com/pytorch/pytorch/issues/205075",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "win",
-      "windows"
-    ]
-  ],
   "test_partitioner_activation_memory_budget_with_unbacked_symints_xpu (__main__.ReproTestsDeviceXPU)": [
     "203837",
     "https://github.com/pytorch/pytorch/issues/203837",
