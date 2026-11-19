@@ -166,7 +166,7 @@ export function ReleaseStepTable({ phases }: { phases: ReleasePhase[] }) {
                     <TableCell>
                       <ReleaseRcChip rc={step.rc} />
                     </TableCell>
-                    <TableCell sx={{ minWidth: 180, whiteSpace: "nowrap" }}>
+                    <TableCell sx={{ maxWidth: 360, overflowWrap: "anywhere" }}>
                       <ReleaseEvidenceCell evidence={step.evidence} />
                     </TableCell>
                     <TableCell>

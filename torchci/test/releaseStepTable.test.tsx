@@ -79,6 +79,8 @@ describe("release step table", () => {
     expect(html).toContain("RC3");
     expect(html).toContain("One artifact missing");
     expect(html).toContain('href="https://example.com/evidence"');
+    expect(html).toContain("max-width:360px");
+    expect(html).toContain("overflow-wrap:anywhere");
     expect(html).toContain("Automation tier A");
     expect(html).toContain("Blocked");
     expect(html).toContain("script release/validate.sh");

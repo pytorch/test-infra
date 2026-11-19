@@ -137,12 +137,14 @@ export function ReleaseEvidenceCell({ evidence }: { evidence: Evidence }) {
   }
 
   if (!isSafeReleaseUrl(evidence.url)) {
-    return <Typography>{evidence.text}</Typography>;
+    return (
+      <Typography>{evidence.text.trim() ? evidence.text : "—"}</Typography>
+    );
   }
 
   return (
     <Link href={evidence.url} rel="noreferrer" target="_blank">
-      {evidence.text}
+      {evidence.text.trim() ? evidence.text : "Open evidence"}
     </Link>
   );
 }

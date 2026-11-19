@@ -222,6 +222,27 @@ describe("buildBoard", () => {
     expect(steps["2.2"].manual?.link).toBeNull();
   });
 
+  test("resolves runbook URL templates for the release and scoped RC", () => {
+    const config = {
+      ...MINOR,
+      steps: MINOR.steps.map((step) =>
+        step.id === "2.1"
+          ? {
+              ...step,
+              runbook: { url: "https://example.com/{version}/{rc}" },
+            }
+          : step
+      ),
+    };
+    const withRc = stepsOf(
+      buildBoard(config, [row({ step_id: "2.1", rc: "rc3" })], NOW)
+    );
+    expect(withRc["2.1"].runbook).toEqual({
+      url: "https://example.com/2.16.0/rc3",
+    });
+    expect(stepsOf(buildBoard(config, [], NOW))["2.1"].runbook).toBeNull();
+  });
+
   test("the links are what the rows evidence, then the configured resources, then the artifacts page", () => {
     const board = buildBoard(
       MINOR,
