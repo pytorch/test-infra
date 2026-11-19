@@ -208,6 +208,20 @@
       "linux"
     ]
   ],
+  "test_comprehensive_special_bessel_j0_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "205762",
+    "https://github.com/pytorch/pytorch/issues/205762",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_special_bessel_j1_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "205763",
+    "https://github.com/pytorch/pytorch/issues/205763",
+    [
+      "xpu"
+    ]
+  ],
   "test_cond_in_NN (__main__.TestControlFlowNNCUDA)": [
     "196982",
     "https://github.com/pytorch/pytorch/issues/196982",
@@ -1672,6 +1686,13 @@
   "test_sparse_sparse_mul_xpu_int8 (__main__.TestSparseXPU)": [
     "205673",
     "https://github.com/pytorch/pytorch/issues/205673",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_sparse_mul_xpu_uint8 (__main__.TestSparseXPU)": [
+    "205761",
+    "https://github.com/pytorch/pytorch/issues/205761",
     [
       "xpu"
     ]
