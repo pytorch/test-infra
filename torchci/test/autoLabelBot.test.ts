@@ -1734,6 +1734,23 @@ describe("auto-label-bot: labeler.yml config", () => {
       );
     });
 
+    test("a placeholder listing older than the window holds the label back on a push", async () => {
+      const filesScope = mockDynamoPr();
+      const event = ghstackEvent(["* (to be filled)"]);
+      event.payload.action = "synchronize";
+      event.payload.pull_request.created_at = new Date(
+        Date.now() - 31 * 60 * 1000
+      ).toISOString();
+      const addScope = utils.mockAddLabels(
+        ["module: dynamo"],
+        repoFullName,
+        prNumber
+      );
+      await probot.receive(event);
+      filesScope.done();
+      addScope.done();
+    });
+
     test("closed and other-user PRs above are ignored", async () => {
       const scopes = [
         mockDynamoPr(),

@@ -505,8 +505,9 @@ export async function wasLabelRecentlyRemoved(
   );
 }
 
-// ghstack fills a new PR's listing in seconds after opening it; a listing
-// still pending after this long is treated as no stack.
+// ghstack fills a new PR's listing in seconds after opening it; on events
+// other than a push, a listing still pending after this long is treated as no
+// stack.
 const PENDING_GHSTACK_LISTING_WINDOW_MS = 10 * 60 * 1000;
 
 // A ciflow label's run on a PR tests every PR below it in its stack, so a PR
@@ -766,8 +767,11 @@ function myBot(app: Probot): void {
           if (!pending) {
             heldBack = covered;
           } else if (
-            Date.now() - createdAt <=
-            PENDING_GHSTACK_LISTING_WINDOW_MS
+            // ghstack pushes first and fills in the stack list a few seconds
+            // later. So on a push, wait for the list however old the PR is,
+            // e.g. when the author reruns ghstack after a crash.
+            context.payload.action === "synchronize" ||
+            Date.now() - createdAt <= PENDING_GHSTACK_LISTING_WINDOW_MS
           ) {
             heldBack = stackManagedCiflowLabels;
           } else {
