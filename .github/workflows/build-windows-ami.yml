@@ -44,7 +44,82 @@ jobs:
           version: ${{ env.PACKER_VERSION }}
 
       - name: Packer Build
+        # Just under the 5h AWS session (role-duration-seconds above), so a
+        # stuck build fails with a clear timeout before its credentials expire,
+        # and well before the 6h job limit, which would kill the job before the
+        # cleanup steps below get to run. Successful builds take about 2h.
+        timeout-minutes: 290
+        env:
+          # Tags the builder with this run (windows.pkr.hcl). Set through the
+          # environment rather than -var so that building an older branch
+          # without the variable still works.
+          PKR_VAR_run_id: ${{ github.run_id }}
         run: |
           cd aws/ami/windows
           packer init .
           PACKER_LOG=1 packer build -var 'skip_create_ami=${{ inputs.skip_create_ami }}' .
+
+      # Packer only removes its builder instance, temporary security group and
+      # key pair when it exits cleanly. If the job is cancelled or fails, they
+      # are left behind (a running or stopped g5.4xlarge with WinRM open), so
+      # remove whatever this run launched. Packer applies run_tags to all three,
+      # so they are found by the packer-run-id tag even if packer had already
+      # started terminating the instance.
+      - name: Refresh AWS credentials for cleanup
+        if: cancelled() || failure()
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::391835788720:role/gha-packer-role
+
+      - name: Clean up builder resources
+        if: cancelled() || failure()
+        timeout-minutes: 20
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # Only touch resources tagged by this run's packer build. EC2 filters
+          # treat * and ? as wildcards, so refuse anything but a numeric ID.
+          if [[ ! "${RUN_ID}" =~ ^[0-9]+$ ]]; then
+            echo "Refusing to clean up: unexpected run ID '${RUN_ID}'." >&2
+            exit 1
+          fi
+          tags=("Name=tag:packer-build,Values=windows-gha-ci"
+                "Name=tag:packer-run-id,Values=${RUN_ID}")
+
+          # Assign before splitting so a failed AWS call stops the step
+          # instead of looking like "nothing to clean up".
+          out=$(aws ec2 describe-instances --filters "${tags[@]}" \
+            "Name=instance-state-name,Values=pending,running,stopping,stopped,shutting-down" \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+          read -r -a ids <<< "${out}"
+          if [ "${#ids[@]}" -gt 0 ]; then
+            echo "Terminating ${ids[*]}"
+            aws ec2 terminate-instances --instance-ids "${ids[@]}" --output text
+            aws ec2 wait instance-terminated --instance-ids "${ids[@]}"
+          else
+            echo "No builder instances left for run ${RUN_ID}."
+          fi
+
+          # The security group can only be deleted once the instance is gone.
+          out=$(aws ec2 describe-security-groups --filters "${tags[@]}" \
+            --query 'SecurityGroups[].GroupId' --output text)
+          read -r -a sgs <<< "${out}"
+          # Its network interface can linger briefly after termination, so retry.
+          for sg in "${sgs[@]}"; do
+            echo "Deleting security group ${sg}"
+            for attempt in 1 2 3 4 5 6; do
+              aws ec2 delete-security-group --group-id "${sg}" && break
+              [ "${attempt}" -eq 6 ] && exit 1
+              sleep 20
+            done
+          done
+
+          out=$(aws ec2 describe-key-pairs --filters "${tags[@]}" \
+            --query 'KeyPairs[].KeyName' --output text)
+          read -r -a keys <<< "${out}"
+          for key in "${keys[@]}"; do
+            echo "Deleting key pair ${key}"
+            aws ec2 delete-key-pair --key-name "${key}"
+          done
