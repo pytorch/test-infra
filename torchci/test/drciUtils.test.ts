@@ -671,7 +671,6 @@ describe("splice and full render agree", () => {
       "sevs",
       section,
       "",
-      [],
       review
     );
 

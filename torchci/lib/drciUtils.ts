@@ -10,7 +10,6 @@ import {
   isSameFailure,
 } from "lib/jobUtils";
 import {
-  AUTO_PR_TRIAGE_LABEL,
   extractPrStatusSection,
   fetchLiveLabels,
   fetchPrStatusState,
@@ -101,8 +100,8 @@ export const CANCELLED_STEP_ERROR = "##[error]The operation was canceled.";
 
 // Auto PR Triage runs on pull_request_target, so GitHub does not link a fork
 // PR's runs to the PR; the run list filtered by head branch finds them, even
-// after later pushes. The link is only shown for PRs with the label that starts
-// triage, and the list leaves out the runs every other label starts and skips.
+// after later pushes. The list leaves out the runs that unrelated label events
+// start and skip.
 // Only plain branch names are linked, so a branch name cannot break or inject
 // Markdown into the comment.
 const AUTO_PR_TRIAGE_RUNS_URL =
@@ -113,18 +112,16 @@ export function formDrciHeader(
   owner: string,
   repo: string,
   prNum: number,
-  headRef: string = "",
-  labels: string[] = []
+  headRef: string = ""
 ): string {
   // For PyTorch only
   if (isPyTorchPyTorch(owner, repo)) {
     const triageQuery = encodeURIComponent(
       `branch:${headRef} -is:skipped -is:cancelled`
     );
-    const triageLink =
-      labels.includes(AUTO_PR_TRIAGE_LABEL) && SAFE_BRANCH_RE.test(headRef)
-        ? `* :robot: See [Auto PR Triage runs for this PR](${AUTO_PR_TRIAGE_RUNS_URL}?query=${triageQuery})\n`
-        : "";
+    const triageLink = SAFE_BRANCH_RE.test(headRef)
+      ? `* :robot: See [Auto PR Triage runs for this PR](${AUTO_PR_TRIAGE_RUNS_URL}?query=${triageQuery})\n`
+      : "";
     return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${prNum}](${HUD_URL}/pr/${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${PYTHON_DOCS_PATH})
@@ -154,13 +151,12 @@ export function formDrciComment(
   // the comment rather than sitting below the CI results.
   prStatusSection: string = "",
   headRef: string = "",
-  labels: string[] = [],
   // Pre-rendered automated PR review section, carrying its own leading newline
   // (empty when the PR has no review). It sits right below the PR Status so a
   // finished verdict is visible next to the stage it explains.
   prReviewSection: string = ""
 ): string {
-  const header = formDrciHeader(owner, repo, pr_num, headRef, labels);
+  const header = formDrciHeader(owner, repo, pr_num, headRef);
   // The section ends in an HTML block, which a blank line must close before the
   // header's markdown heading.
   const review = prReviewSection ? `${prReviewSection}\n` : "";
@@ -281,9 +277,6 @@ export async function upsertDrCiComment(
   const sev = getActiveSEVs(
     await fetchIssuesByLabel("ci: sev", /*cache*/ true)
   );
-  const prLabels: string[] = (context.payload.pull_request?.labels ?? []).map(
-    (label: { name: string }) => label.name
-  );
   // Open and synchronize events do not recalculate status, so preserve it while
   // rebuilding the rest of the comment. The CRCR results are rebuilt by the next
   // sweep and the push may have invalidated them, so only the pin ledger is kept:
@@ -297,8 +290,7 @@ export async function upsertDrCiComment(
     pinLedger(existingDrciComment) + greenlightLine,
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment),
-    context.payload.pull_request?.head?.ref ?? "",
-    prLabels
+    context.payload.pull_request?.head?.ref ?? ""
   );
 
   if (existingDrciComment === drciComment) {
@@ -395,8 +387,7 @@ export async function upsertPrStatusSection(
           "",
           "",
           section,
-          state.pullRequest?.headRef,
-          state.labels
+          state.pullRequest?.headRef
         ),
       });
     }

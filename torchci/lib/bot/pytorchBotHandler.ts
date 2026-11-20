@@ -6,8 +6,8 @@ import { queryClickhouseSaved } from "../clickhouse";
 import { downstreamRepoFromCheckRunName } from "../crcr/crcrUtils";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
-  AUTO_PR_TRIAGE_LABEL,
   AUTO_PR_TRIAGE_OPT_OUT_LABEL,
+  AUTO_PR_TRIAGE_RETRIGGER_LABEL,
   BOT_TRIAGE_ERROR_LABEL,
   BOT_TRIAGED_LABEL,
   fetchLiveLabels,
@@ -639,10 +639,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   }
 
   // Follows the rerun steps of Auto PR Triage: a run is a no-op while its
-  // outcome labels or opt-out are present, and only an `open source` labeled
-  // event starts one. Requiring `open source` up front keeps the command from
-  // labeling PRs that are not open source. Anyone may run it, so abuse is
-  // visible in the PR's timeline.
+  // outcome labels or opt-out are present, and a `bot-retriage` labeled event
+  // starts one. Anyone may run it, so abuse is visible in the PR's timeline.
   async handleTriage() {
     await this.logger.log("triage");
     const { ctx, owner, repo, prNum } = this;
@@ -655,11 +653,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     const labels = await fetchLiveLabels(ctx.octokit, owner, repo, prNum);
-    if (!labels.includes(AUTO_PR_TRIAGE_LABEL)) {
-      return await reject(
-        `Auto PR Triage only re-runs on PRs labeled \`${AUTO_PR_TRIAGE_LABEL}\`.`
-      );
-    }
     if (labels.includes(AUTO_PR_TRIAGE_OPT_OUT_LABEL)) {
       return await reject(
         `Auto PR Triage skips PRs labeled \`${AUTO_PR_TRIAGE_OPT_OUT_LABEL}\`.`
@@ -671,7 +664,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       BOT_TRIAGED_LABEL,
       PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
       BOT_TRIAGE_ERROR_LABEL,
-      AUTO_PR_TRIAGE_LABEL,
+      AUTO_PR_TRIAGE_RETRIGGER_LABEL,
     ].filter((label) => labels.includes(label));
     for (const name of labelsToRemove) {
       try {
@@ -692,7 +685,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       owner,
       repo,
       issue_number: prNum,
-      labels: [AUTO_PR_TRIAGE_LABEL],
+      labels: [AUTO_PR_TRIAGE_RETRIGGER_LABEL],
     });
     await this.ackComment();
   }
