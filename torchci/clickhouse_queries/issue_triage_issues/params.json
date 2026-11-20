@@ -1,0 +1,33 @@
+{
+  "params": {
+    "includeLabels": "Array(String)",
+    "ownExcludes": "Array(Array(String))",
+    "ownLabels": "Array(String)",
+    "startDate": "String"
+  },
+  "tests": [
+    {
+      "includeLabels": [
+        "module: nn"
+      ],
+      "ownExcludes": [],
+      "ownLabels": [],
+      "startDate": "2026-10-02"
+    },
+    {
+      "includeLabels": [
+        "module: autograd"
+      ],
+      "ownExcludes": [
+        [
+          "module: aotdispatch",
+          "module: dynamo"
+        ]
+      ],
+      "ownLabels": [
+        "oncall: pt2"
+      ],
+      "startDate": "1970-01-01"
+    }
+  ]
+}
