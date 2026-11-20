@@ -30,12 +30,20 @@ for current package and AWS Neuron SDK compatibility.
 ### pip
 
 ```bash
-pip3 install torch-neuronx "neuronx-cc==2.*" "nki>=0.6" --extra-index-url https://pip.repos.neuron.amazonaws.com --extra-index-url https://download.pytorch.org/whl/cpu
+NEURON_WHEEL_DIR=$(mktemp -d)
+pip3 download --no-deps --dest "$NEURON_WHEEL_DIR" \
+  "torch-neuronx==2.14.*" "neuronx-cc==2.*" "nki>=0.6" \
+  --index-url https://pip.repos.neuron.amazonaws.com
+pip3 install "torch==2.14.0" \
+  --index-url https://download.pytorch.org/whl/cpu
+pip3 install "$NEURON_WHEEL_DIR"/*.whl
+rm -r "$NEURON_WHEEL_DIR"
 ```
 
-Run this command after you install the AWS Neuron driver and runtime.
-The command installs the latest stable package set.
-The `torch-neuronx` package installs its compatible PyTorch version automatically.
+Run these commands after you install the AWS Neuron driver and runtime.
+Each network operation uses one package index.
+This prevents a public package from replacing a Neuron package.
+The commands install the stable TorchNeuron package for PyTorch 2.14.
 Use the installation guide when you need release-pinned instructions.
 The Neuron Deep Learning AMI and Deep Learning Container include a preinstalled environment.
 
