@@ -505,8 +505,9 @@ export async function wasLabelRecentlyRemoved(
   );
 }
 
-// ghstack fills a new PR's listing in seconds after opening it; a listing
-// still pending after this long is treated as no stack.
+// ghstack fills a new PR's listing in seconds after opening it; on events
+// other than a push, a listing still pending after this long is treated as no
+// stack.
 const PENDING_GHSTACK_LISTING_WINDOW_MS = 10 * 60 * 1000;
 
 // A ciflow label's run on a PR tests every PR below it in its stack, so a PR
