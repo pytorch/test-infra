@@ -368,15 +368,6 @@
       "xpu"
     ]
   ],
-  "test_conv_unary_fusion_nnc (__main__.TestMkldnnFusion)": [
-    "123905",
-    "https://github.com/pytorch/pytorch/issues/123905",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_coo_to_csr_convert_noncontiguous_indices_xpu_float64 (__main__.TestSparseCSRDeviceXPU)": [
     "205266",
     "https://github.com/pytorch/pytorch/issues/205266",
@@ -666,20 +657,6 @@
       "slow"
     ]
   ],
-  "test_event_handle_exporter_generic_event_generic_event_xpu (__main__.TestXPUMultiprocessingXPU)": [
-    "205412",
-    "https://github.com/pytorch/pytorch/issues/205412",
-    [
-      "xpu"
-    ]
-  ],
-  "test_event_handle_exporter_generic_event_xpu_event_xpu (__main__.TestXPUMultiprocessingXPU)": [
-    "205484",
-    "https://github.com/pytorch/pytorch/issues/205484",
-    [
-      "xpu"
-    ]
-  ],
   "test_event_record_after_input_mutation_non_escaping_cross_stream_wait_cuda (__main__.TestStreamsCUDA)": [
     "205509",
     "https://github.com/pytorch/pytorch/issues/205509",
@@ -881,13 +858,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_index_propagation_to_dtype_inf_cpu (__main__.CpuTritonTests)": [
-    "191159",
-    "https://github.com/pytorch/pytorch/issues/191159",
-    [
-      "inductor"
     ]
   ],
   "test_index_propagation_to_dtype_inf_cpu_halide (__main__.HalideCpuTests)": [
@@ -1098,13 +1068,6 @@
   "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsXPU)": [
     "200421",
     "https://github.com/pytorch/pytorch/issues/200421",
-    [
-      "xpu"
-    ]
-  ],
-  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes (__main__._cls)": [
-    "200422",
-    "https://github.com/pytorch/pytorch/issues/200422",
     [
       "xpu"
     ]
@@ -1361,13 +1324,6 @@
     "https://github.com/pytorch/pytorch/issues/205674",
     [
       "xpu"
-    ]
-  ],
-  "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
-    "69178",
-    "https://github.com/pytorch/pytorch/issues/69178",
-    [
-      "mac"
     ]
   ],
   "test_remove_inductor_deps_templates (__main__.TestKernelBenchmark)": [
@@ -1692,13 +1648,6 @@
       "xpu"
     ]
   ],
-  "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
-    "158664",
-    "https://github.com/pytorch/pytorch/issues/158664",
-    [
-      "dynamo"
-    ]
-  ],
   "test_svd_lowrank_cuda_complex128 (__main__.TestLinalgCUDA)": [
     "168302",
     "https://github.com/pytorch/pytorch/issues/168302",
@@ -1806,14 +1755,6 @@
     "https://github.com/pytorch/pytorch/issues/187000",
     [
       "inductor"
-    ]
-  ],
-  "test_variant_consistency_jit_nn_functional_grid_sample_cuda_float32 (__main__.TestJitCUDA)": [
-    "197511",
-    "https://github.com/pytorch/pytorch/issues/197511",
-    [
-      "linux",
-      "rocm"
     ]
   ]
 }
