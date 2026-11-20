@@ -14,8 +14,14 @@
 -- is counted out of SLA.
 -- See issue_triage_labels for the definition of fully triaged.
 WITH
-    ['needs reproduction', 'needs research', 'needs design', 'actionable', 'won''t fix'] AS state_labels,
-    toDateTime('2100-01-01 00:00:00') AS never
+[
+    'needs reproduction',
+    'needs research',
+    'needs design',
+    'actionable',
+    'won''t fix'
+] AS state_labels,
+toDateTime('2100-01-01 00:00:00') AS never
 SELECT
     toStartOfWeek(created, 1) AS week,
     count() AS issues_created,
@@ -37,7 +43,11 @@ FROM (
             if(e.first_state_at = 0, never, e.first_state_at)
         ) AS full_at
     FROM (
-        SELECT number, created_at, closed_at, state
+        SELECT
+            number,
+            created_at,
+            closed_at,
+            state
         FROM default.issues FINAL
         WHERE
             repository_url = 'https://api.github.com/repos/pytorch/pytorch'
@@ -58,12 +68,14 @@ FROM (
             )
     ) AS i
     LEFT JOIN (
-        SELECT issue_number, min(event_time) AS first_state_at
+        SELECT
+            issue_number,
+            min(event_time) AS first_state_at
         FROM default.issues_label_event
         WHERE
             repo_name = 'pytorch/pytorch'
             AND action = 'labeled'
-            AND label_name IN state_labels
+            AND has(state_labels, label_name)
         GROUP BY issue_number
     ) AS e ON e.issue_number = i.number
 )

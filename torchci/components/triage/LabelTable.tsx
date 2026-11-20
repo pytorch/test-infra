@@ -210,7 +210,7 @@ export default function LabelTable({
             href={{
               pathname: "/triage/modules",
               query: {
-                start,
+                ...(start ? { start } : {}),
                 label: params.row.label,
                 ...(includeChildren ? {} : { children: "exclude" }),
               },

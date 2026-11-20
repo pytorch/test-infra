@@ -1,4 +1,5 @@
 import { fetcher } from "lib/GeneralUtils";
+import { useMemo } from "react";
 import useSWRImmutable from "swr/immutable";
 import {
   buildLabelTree,
@@ -14,8 +15,10 @@ export function useLabelTree(): { tree: LabelTree; ready: boolean } {
     "/api/triage/label_parents",
     fetcher
   );
-  if (data !== undefined) {
-    return { tree: buildLabelTree(data), ready: true };
-  }
-  return { tree: EMPTY_LABEL_TREE, ready: error !== undefined };
+  // Built once per load: the tree and its closure feed every query's params.
+  const tree = useMemo(
+    () => (data !== undefined ? buildLabelTree(data) : EMPTY_LABEL_TREE),
+    [data]
+  );
+  return { tree, ready: data !== undefined || error !== undefined };
 }

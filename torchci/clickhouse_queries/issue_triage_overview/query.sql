@@ -6,35 +6,46 @@
 -- selects every issue.
 -- See issue_triage_labels for the definition of fully triaged.
 WITH
-    ['needs reproduction', 'needs research', 'needs design', 'actionable', 'won''t fix'] AS state_labels,
-    toDateTime('2100-01-01 00:00:00') AS never
+[
+    'needs reproduction',
+    'needs research',
+    'needs design',
+    'actionable',
+    'won''t fix'
+] AS state_labels,
+toDateTime('2100-01-01 00:00:00') AS never
 SELECT
     count() AS issues_created,
     countIf(created < now() - INTERVAL 7 DAY) AS sla_eligible,
     countIf(
         created < now() - INTERVAL 7 DAY AND full_at <= created + INTERVAL 7 DAY
     ) AS met_sla,
-    quantileExactIf(0.5)(
-        dateDiff('hour', created, full_at), full_at < never
-    ) / 24 AS median_days_to_triage,
+    -- medianExactIf returns 0, not NULL, when no issue is triaged yet.
+    if(
+        countIf(full_at < never) = 0,
+        NULL,
+        medianExactIf(dateDiff('hour', created, full_at), full_at < never) / 24
+    ) AS median_days_to_triage,
     countIf(in_queue AND has_tracked) AS queue_size,
     countIf(
         in_queue AND has_tracked AND created < now() - INTERVAL 7 DAY
     ) AS overdue,
     countIf(in_queue AND NOT has_tracked) AS no_queue,
     countIf(in_queue AND has(names, 'triage review')) AS triage_review,
-    countIf(has(names, 'actionable')) AS actionable,
-    countIf(has(names, 'needs reproduction')) AS needs_reproduction,
-    countIf(has(names, 'needs research')) AS needs_research,
-    countIf(has(names, 'needs design')) AS needs_design,
-    countIf(has(names, 'won''t fix')) AS wont_fix,
-    countIf(NOT is_open AND NOT has_state) AS closed
+    countIf(outcome = 'actionable') AS actionable,
+    countIf(outcome = 'needs reproduction') AS needs_reproduction,
+    countIf(outcome = 'needs research') AS needs_research,
+    countIf(outcome = 'needs design') AS needs_design,
+    countIf(outcome = 'won''t fix') AS wont_fix,
+    countIf(NOT is_open AND outcome = '') AS closed
 FROM (
     SELECT
         i.names AS names,
         parseDateTimeBestEffort(i.created_at) AS created,
         i.state = 'open' AS is_open,
         hasAny(i.names, state_labels) AS has_state,
+        -- The most decided state label, so an issue with several counts once.
+        arrayFirst(s -> has(i.names, s), arrayReverse(state_labels)) AS outcome,
         is_open AND NOT has_state AS in_queue,
         arrayExists(
             l -> startsWith(l, 'module: ') OR startsWith(l, 'oncall: '), i.names
@@ -44,7 +55,12 @@ FROM (
             if(e.first_state_at = 0, never, e.first_state_at)
         ) AS full_at
     FROM (
-        SELECT number, created_at, closed_at, state, labels.name AS names
+        SELECT
+            number,
+            created_at,
+            closed_at,
+            state,
+            labels.name AS names
         FROM default.issues FINAL
         WHERE
             repository_url = 'https://api.github.com/repos/pytorch/pytorch'
@@ -65,12 +81,14 @@ FROM (
             )
     ) AS i
     LEFT JOIN (
-        SELECT issue_number, min(event_time) AS first_state_at
+        SELECT
+            issue_number,
+            min(event_time) AS first_state_at
         FROM default.issues_label_event
         WHERE
             repo_name = 'pytorch/pytorch'
             AND action = 'labeled'
-            AND label_name IN state_labels
+            AND has(state_labels, label_name)
         GROUP BY issue_number
     ) AS e ON e.issue_number = i.number
 )

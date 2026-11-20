@@ -157,7 +157,13 @@ export default function IssueTriagePage() {
             <>
               <Link
                 component={NextLink}
-                href={{ pathname: "/triage/modules", query: { start } }}
+                href={{
+                  pathname: "/triage/modules",
+                  query: {
+                    ...(start ? { start } : {}),
+                    ...(includeChildren ? {} : { children: "exclude" }),
+                  },
+                }}
               >
                 Module triage
               </Link>

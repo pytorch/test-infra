@@ -105,7 +105,9 @@ export function githubQueueUrl(
 // GitHub queue of a selection of labels. Automation adds parent labels to
 // issues, so a parent's queue only needs the parent label. Without children,
 // every label below a selected parent is excluded, except labels that are
-// themselves selected.
+// themselves selected. GitHub search cannot express "this parent alone, or
+// this child", so with a parent and one of its own children both selected the
+// link can miss issues carrying the child and a sibling of it.
 export function githubSelectionUrl(
   selected: string[],
   includeChildren: boolean,

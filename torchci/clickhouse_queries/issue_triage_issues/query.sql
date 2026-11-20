@@ -8,8 +8,14 @@
 -- selects every issue.
 -- See issue_triage_labels for the definition of fully triaged.
 WITH
-    ['needs reproduction', 'needs research', 'needs design', 'actionable', 'won''t fix'] AS state_labels,
-    toDateTime('2100-01-01 00:00:00') AS never
+[
+    'needs reproduction',
+    'needs research',
+    'needs design',
+    'actionable',
+    'won''t fix'
+] AS state_labels,
+toDateTime('2100-01-01 00:00:00') AS never
 SELECT
     number,
     title,
@@ -27,7 +33,11 @@ SELECT
     if(
         in_queue,
         '',
-        if(has_state, arrayFirst(l -> has(state_labels, l), names), 'closed')
+        if(
+            has_state,
+            arrayFirst(s -> has(names, s), arrayReverse(state_labels)),
+            'closed'
+        )
     ) AS outcome,
     if(full_at < never, full_at, NULL) AS triaged_at,
     if(
@@ -80,14 +90,18 @@ FROM (
             )
     ) AS i
     LEFT JOIN (
-        SELECT issue_number, min(event_time) AS first_state_at
+        SELECT
+            issue_number,
+            min(event_time) AS first_state_at
         FROM default.issues_label_event
         WHERE
             repo_name = 'pytorch/pytorch'
             AND action = 'labeled'
-            AND label_name IN state_labels
+            AND has(state_labels, label_name)
         GROUP BY issue_number
     ) AS e ON e.issue_number = i.number
 )
-WHERE in_queue OR full_at >= now() - INTERVAL 30 DAY
+-- full_at < never: an issue with a state label but no recorded labelling
+-- (before label history, or a missed webhook) has no triage date to show.
+WHERE in_queue OR (full_at < never AND full_at >= now() - INTERVAL 30 DAY)
 ORDER BY in_queue DESC, if(in_queue, created, full_at) ASC
