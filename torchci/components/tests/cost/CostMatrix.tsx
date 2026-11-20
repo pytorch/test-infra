@@ -104,6 +104,8 @@ export interface CostMatrixProps {
   onToggleOwners: (_owners: string[]) => void;
   onToggleMachines: (_machines: string[]) => void;
   onCellChange: (_cell: MatrixCell | null) => void;
+  // Whether the card starts open; it does unless the page folds it.
+  defaultOpen?: boolean;
 }
 
 // Every owner on every machine in the scope, for the reader who audits:
@@ -112,7 +114,8 @@ export interface CostMatrixProps {
 // in hours. Cells are shaded by their share of the machine (default), of
 // the owner, or by hours. Highlights underline headers and dim the rest;
 // "Only selected" hides what is not highlighted, every number unchanged. A
-// cell opens its detail in the drawer. The card starts open.
+// cell opens its detail in the drawer. The card starts open unless
+// defaultOpen says otherwise.
 export default function CostMatrix({
   prepared,
   view,
@@ -129,11 +132,12 @@ export default function CostMatrix({
   onToggleOwners,
   onToggleMachines,
   onCellChange,
+  defaultOpen = true,
 }: CostMatrixProps) {
   const theme = useTheme();
-  // Open from the start: it names every machine, which the chart's seven
-  // hues cannot.
-  const [open, setOpen] = useState(true);
+  // Open from the start by default: it names every machine, which the
+  // chart's seven hues cannot.
+  const [open, setOpen] = useState(defaultOpen);
   const [toast, setToast] = useState("");
   const rows = ownerRows(view, expanded, "each");
   const groups = matrixGroups(prepared, view);

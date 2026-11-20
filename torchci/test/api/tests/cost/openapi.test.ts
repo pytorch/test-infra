@@ -69,3 +69,76 @@ describe("cost OpenAPI", () => {
     }
   });
 });
+
+describe("cost V2 OpenAPI", () => {
+  const document = buildOpenApiDocument();
+  const schemas = document.components.schemas as Record<string, any>;
+  const op = (path: string) => (document.paths[path] as any).get;
+
+  test.each([
+    [
+      "/api/tests/cost/scope",
+      "getTestsCostScope",
+      ["repo", "a", "b", "trail", "by", "workflow"],
+      "CostScope",
+      false,
+    ],
+    [
+      "/api/tests/cost/series",
+      "getTestsCostSeries",
+      ["repo", "trail", "by", "from", "to", "workflow"],
+      "CostSeries",
+      false,
+    ],
+    [
+      "/api/tests/cost/cases",
+      "getTestsCostCases",
+      ["repo", "file", "machine", "a", "b", "environment"],
+      "CostCases",
+      true,
+    ],
+    [
+      "/api/tests/cost/coverage",
+      "getTestsCostCoverage",
+      ["repo", "from", "to", "workflow"],
+      "CostCoverage",
+      false,
+    ],
+    [
+      "/api/tests/cost/coverage/jobs",
+      "getTestsCostCoverageJobs",
+      ["repo", "from", "to"],
+      "CostCoverageJobs",
+      true,
+    ],
+  ])(
+    "%s: %s, its parameters, its answer, a 429 only when heavy",
+    (path, id, names, schema, heavy) => {
+      const operation = op(path);
+      expect(operation.operationId).toBe(id);
+      expect(operation.tags).toEqual(["tests"]);
+      expect(operation.parameters.map((p: any) => p.name)).toEqual(names);
+      for (const p of operation.parameters) expect(p.description).toBeTruthy();
+      expect(
+        operation.responses["200"].content["application/json"].schema
+      ).toEqual({
+        $ref: `#/components/schemas/${schema}`,
+      });
+      expect(Object.hasOwn(operation.responses, "429")).toBe(heavy);
+      // Runner-hours only: no field of the answer is a price.
+      expect(Object.keys(schemas[schema].properties)).not.toEqual(
+        expect.arrayContaining([expect.stringMatching(/cost|rate|price|\$/i)])
+      );
+    }
+  );
+
+  test("trail and by are documented as the page writes them; by is required, trail is not", () => {
+    const params = op("/api/tests/cost/scope").parameters;
+    const trail = params.find((p: any) => p.name === "trail");
+    const by = params.find((p: any) => p.name === "by");
+    expect(trail.required).toBeFalsy();
+    expect(trail.description).toMatch(/o:inductor;m:Linux%20x86_64%20avx512/);
+    expect(by.required).toBe(true);
+    expect(by.schema.enum).toEqual(["o", "m", "f", "lane", "label"]);
+  });
+});

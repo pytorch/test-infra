@@ -74,6 +74,23 @@ describe("the trend's periods", () => {
     expect(month.dailyStart).toBe("2025-11-01");
   });
 
+  test("periods asks for that many, capped per rollup; absent keeps the defaults", () => {
+    const year = trendWindow("day", NOW, 366);
+    expect(year.periods).toHaveLength(366);
+    expect([year.start, year.periods[365], year.end]).toEqual([
+      "2025-11-04",
+      "2026-11-04",
+      "2026-11-05",
+    ]);
+    // The daily totals start with the first period when it is before January 1.
+    expect(year.dailyStart).toBe("2025-11-04");
+    expect(trendWindow("day", NOW, 400).periods).toHaveLength(400);
+    expect(trendWindow("week", NOW, 400).periods).toHaveLength(60);
+    expect(trendWindow("month", NOW, 400).periods).toHaveLength(14);
+    expect(trendWindow("day", NOW, undefined)).toEqual(trendWindow("day", NOW));
+    expect(trendWindow("day", NOW, 42)).toEqual(trendWindow("day", NOW));
+  });
+
   test("on January 1, the periods end on December 31 and the year to date is the year just ended", () => {
     const w = trendWindow("day", new Date("2027-01-01T05:00:00Z"));
     expect([w.periods[41], w.end, w.dailyStart]).toEqual([
@@ -316,6 +333,10 @@ describe("app/api/tests/cost/trend", () => {
     { repo: "pytorch/pytorch", owner: "inductor" },
     // Rates stay in the browser.
     { repo: "pytorch/pytorch", rates: "{}" },
+    { repo: "pytorch/pytorch", periods: "401" },
+    { repo: "pytorch/pytorch", periods: "0" },
+    { repo: "pytorch/pytorch", periods: "1.5" },
+    { repo: "pytorch/pytorch", periods: "many" },
   ])(
     "rejects invalid or unsupported parameters before querying %j",
     async (query) => {
@@ -353,6 +374,23 @@ describe("app/api/tests/cost/trend", () => {
     });
   });
 
+  test("takes periods up to 400 as a number", async () => {
+    const res = await get({ repo: "pytorch/pytorch", periods: "366" });
+    expect(res.status).toBe(200);
+    expect(getTrend).toHaveBeenCalledWith({
+      repo: "pytorch/pytorch",
+      rollup: "day",
+      periods: 366,
+    });
+    const over = await get({ repo: "pytorch/pytorch", periods: "401" });
+    expect(over.body.issues).toEqual([
+      {
+        path: ["periods"],
+        message: "periods must be a whole number from 1 to 400",
+      },
+    ]);
+  });
+
   test("logs query failures and answers 500 without exposing details", async () => {
     getTrend.mockRejectedValue(new Error("private database connection failed"));
     const consoleError = jest
@@ -381,6 +419,7 @@ describe("trend OpenAPI", () => {
       "repo",
       "rollup",
       "workflow",
+      "periods",
     ]);
     const rollup = operation.parameters.find((p: any) => p.name === "rollup");
     expect(rollup.schema).toMatchObject({

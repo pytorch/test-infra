@@ -12,7 +12,7 @@ export const TEST_COST = `${CI_DATABASE}.test_cost`;
 // the device the test process probed, or for a CPU-only environment, which
 // probes none, its OS, architecture and CPU capability ("Linux x86_64
 // avx512").
-const MACHINE = `if(device_name != '', device_name,
+export const MACHINE = `if(device_name != '', device_name,
       concat(${catalogLabelSql(
         "os",
         "os"
@@ -95,6 +95,35 @@ GROUP BY owner, workflow, machine, machine_source, label, file
 SETTINGS join_use_nulls = 0`;
 }
 
+// Each environment's machine, as MACHINE names it.
+export const ENV_MACHINES = `env_machines AS (
+    SELECT id, ${MACHINE} AS machine FROM ${CI_DATABASE}.environments FINAL
+  )`;
+
+// Each runner label's machine in each ISO week (from Monday): the machine its
+// jobs' test reports recorded for most of their hours that week, summed by
+// machine as label_machines sums them, over the whole weeks that touch days
+// (each day as last computed). It names the machine of test jobs without
+// reports, an estimate, and does not depend on the days a query asks for,
+// only on their weeks, so two windows over one week agree. Needs
+// env_machines (ENV_MACHINES); ties go to the greater machine name.
+export function weekLabelMachines(days: string): string {
+  return `week_label_machines AS (
+    SELECT week, label, argMax(machine, (ms, machine)) AS machine
+    FROM (
+      SELECT toMonday(t.day) AS week, arrayStringConcat(t.runner_labels, ',') AS label,
+        m.machine AS machine, sum(t.occupancy_runner_milliseconds) AS ms
+      FROM ${TEST_COST} AS t
+      INNER JOIN env_machines AS m ON m.id = t.environments_id
+      WHERE t.repo = {repo: String}
+        AND ${days}
+        AND ${latestDayRows(days)}
+      GROUP BY week, label, machine
+    )
+    GROUP BY week, label
+  )`;
+}
+
 // Each machine's family, from the columns of the environments that name it,
 // so a new device, accelerator or OS needs no change here: a machine with a
 // device belongs to its accelerator (CUDA, ROCm, XPU, MPS, or a new
@@ -160,7 +189,7 @@ GROUP BY workflow`;
 // by (day, computed_at) rather than a window over every row: over a year of
 // days the window function costs ten times the whole trend query
 // (query-validation.md).
-function latestDayRows(days: string): string {
+export function latestDayRows(days: string): string {
   return `(day, computed_at) IN (
     SELECT day, max(computed_at) FROM ${TEST_COST}
     WHERE repo = {repo: String}
@@ -181,26 +210,31 @@ export const FILLING_HOURS = 27;
 
 // The runner time of pushes to main among a group's rows: what cost per
 // commit divides by the pushes.
-const MAIN_MS = `sumIf(occupancy_runner_milliseconds, trigger = 'push:main') AS main_ms`;
+export const MAIN_MS = `sumIf(occupancy_runner_milliseconds, trigger = 'push:main') AS main_ms`;
 
 // A workflow by its file, as the runner-hours name it: pull for
 // .github/workflows/pull.yml.
-const WORKFLOW = `replaceRegexpAll(workflow_path, '^.*/|[.]ya?ml$', '')`;
+export const WORKFLOW = `replaceRegexpAll(workflow_path, '^.*/|[.]ya?ml$', '')`;
 
 // Rows of the scope: every workflow when none is asked for, workflows named
 // by their file, lowercase, as the runner-hours name them.
-const IN_SCOPE = `(empty({workflows: Array(String)})
+export const IN_SCOPE = `(empty({workflows: Array(String)})
       OR lower(${WORKFLOW}) IN {workflows: Array(String)})`;
 
-// Each cell's owners, joined on its test file (ci.owners, read now), or the
-// bucket of hours no owner is given, as owner_list.
-const WITH_OWNERS = `SELECT c.*,
+// Each row of source's owners, joined on its test file (ci.owners, read
+// now), or the bucket of hours no owner is given, as owner_list.
+export function withOwners(source: string): string {
+  return `SELECT c.*,
       multiIf(c.test_file = '', ['unattributed:no_test_reports'],
         empty(o.owners), ['unattributed:no_owner'], o.owners) AS owner_list
-    FROM cells AS c
+    FROM ${source} AS c
     LEFT JOIN (
       SELECT file, owners FROM ${CI_DATABASE}.owners FINAL WHERE repo = {repo: String}
     ) AS o ON o.file = c.test_file`;
+}
+
+// The cells CTE's rows with their owners, as withOwners gives them.
+export const WITH_OWNERS = withOwners("cells");
 
 const PERIOD_START: Record<TrendRollup, string> = {
   day: "day",
@@ -265,12 +299,12 @@ GROUP BY day_utc, label`;
 }
 
 // The days of two periods compared, A and B, both ends included.
-const IN_SIDES = `(day BETWEEN {a_from: Date} AND {a_to: Date}
+export const IN_SIDES = `(day BETWEEN {a_from: Date} AND {a_to: Date}
       OR day BETWEEN {b_from: Date} AND {b_to: Date})`;
 
 // The period or periods a day counts in, as side: 0 for A, 1 for B, both
 // for a day in both.
-const SIDES = `arrayJoin(arrayFilter(s -> s >= 0, [
+export const SIDES = `arrayJoin(arrayFilter(s -> s >= 0, [
     if(day BETWEEN {a_from: Date} AND {a_to: Date}, 0, -1),
     if(day BETWEEN {b_from: Date} AND {b_to: Date}, 1, -1)])) AS side`;
 
@@ -330,7 +364,7 @@ SETTINGS join_use_nulls = 0`;
 // subcolumns: the quoted form (head_commit.'timestamp') prunes by the sort
 // key but reads every row's whole tuples, 2.8 GB for a year against 138 MB
 // for the three subcolumns of every row (query-validation.md).
-const MAIN_PUSHES = `repository.full_name = {repo: String}
+export const MAIN_PUSHES = `repository.full_name = {repo: String}
     AND ref IN ('refs/heads/main', 'refs/heads/master')
     AND NOT deleted`;
 
