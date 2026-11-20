@@ -766,8 +766,9 @@ function myBot(app: Probot): void {
           if (!pending) {
             heldBack = covered;
           } else if (
-            // A ghstack rerun pushes before it fills the listing in, so the
-            // listing a crashed run left pending is still to be filled in.
+            // ghstack pushes first and fills in the stack list a few seconds
+            // later. So on a push, wait for the list however old the PR is,
+            // e.g. when the author reruns ghstack after a crash.
             context.payload.action === "synchronize" ||
             Date.now() - createdAt <= PENDING_GHSTACK_LISTING_WINDOW_MS
           ) {
