@@ -605,17 +605,14 @@ describe("splice and full render agree", () => {
     renderPrStatusSection({
       labels: ["triaged"],
       isApproved: false,
-      assignedReviewers: ["alice"],
     }),
     renderPrStatusSection({
       labels: ["in progress"],
       isApproved: false,
-      assignedReviewers: [],
     }),
     renderPrStatusSection({
       labels: [],
       isApproved: true,
-      assignedReviewers: [],
     }),
     "", // no stage
   ];
@@ -674,7 +671,6 @@ describe("splice and full render agree", () => {
       "sevs",
       section,
       "",
-      [],
       review
     );
 
@@ -740,7 +736,6 @@ describe("upsertPrStatusSection", () => {
       renderPrStatusSection({
         labels: [],
         isApproved: true,
-        assignedReviewers: [],
       })
     );
     const octokit = {

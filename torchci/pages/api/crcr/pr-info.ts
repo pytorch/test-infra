@@ -7,6 +7,7 @@ interface PrInfo {
   prNumber: number;
   title: string;
   author: string;
+  headSha: string;
 }
 
 export default async function handler(
@@ -47,6 +48,7 @@ export default async function handler(
         number
         title
         author { login }
+        headRefOid
       }`
     );
     const query = `query {
@@ -64,6 +66,7 @@ export default async function handler(
         prNumber,
         title: pr?.title ?? "",
         author: pr?.author?.login ?? "",
+        headSha: pr?.headRefOid ?? "",
       };
     });
 

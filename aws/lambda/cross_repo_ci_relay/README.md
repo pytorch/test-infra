@@ -184,7 +184,20 @@ In the action the reports go in the `triage-verdict-list` input: a JSON array wi
     triage-verdict-list: "@verdicts.json"
 ```
 
-Each report names its row by the values that keyed the original callback: `delivery_id`, `workflow_name`, `job_name` and, for a GitHub row, its job's `check_run_id`, which is part of its key (a Buildkite nightly row has none). Every row belongs to the OIDC-verified repo, so a repo can only add verdicts to its own rows. Only these fields are forwarded to HUD. Each verdict is validated and normalized as in any callback. A verdict is advisory, so a report that is invalid (a missing field or a bad verdict) does not fail the request: it gets `"result": "invalid"` with a `detail` in `results`, and the other reports are applied. Only a request that is not a non-empty list of at most 100 reports is rejected, with a `400`.
+Each report names its row by the values that keyed the original callback: `delivery_id`, `workflow_name`, `job_name` and, for a GitHub row, its job's `check_run_id`, which is part of its key (a Buildkite nightly row has none). Every row belongs to the OIDC-verified repo (or, for a configured delegate, the repo it reports for; see below), so a repo can only add verdicts to its own rows. Only these fields are forwarded to HUD. Each verdict is validated and normalized as in any callback. A verdict is advisory, so a report that is invalid (a missing field or a bad verdict) does not fail the request: it gets `"result": "invalid"` with a `detail` in `results`, and the other reports are applied. Only a request that is not a non-empty list of at most 100 reports is rejected, with a `400`.
+
+**Sending from another repo (delegates).** The triage of a repo's failures may run outside that repo, for example vLLM's runs in pytorch/test-infra. The relay only lets a repo touch its own rows, so such a workflow is listed in `config/ci_providers.yml` under `providers.github.late_report_delegates`:
+
+```yaml
+providers:
+  github:
+    late_report_delegates:
+      - repository: pytorch/test-infra
+        job_workflow_ref: pytorch/test-infra/.github/workflows/vllm-torch-nightly-triage.yml@refs/heads/main
+        on_behalf_of: vllm-project/vllm
+```
+
+A **late report** whose OIDC token has this `repository` and this exact `job_workflow_ref` (the workflow file at a ref, so only reviewed code on that branch matches; GitHub sets this claim for a plain workflow as well as for a called reusable one) is handled as if `on_behalf_of` had sent it: the allowlist level and rate limit are that repo's, and its rows are the ones that get verdicts. The repo comes from the verified token and this file, never from the request body. A delegate can send late reports and nothing else; its other events count as its own repo's. An entry that lacks a field or a ref is skipped with a warning. The file is read at runtime (see `CI_PROVIDERS_URL`), so adding an entry needs no deploy; the Lambda code that reads it does.
 
 ### Error propagation back to the downstream workflow
 

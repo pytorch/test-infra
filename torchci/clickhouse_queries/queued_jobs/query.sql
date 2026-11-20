@@ -12,6 +12,11 @@
 --- that query, since the metrics page uses one to summarise the other. This
 --- query neither filters nor reorders on it, and the metrics page does not
 --- either by default; it only annotates the row.
+---
+--- Scope: the org param plus an optional repo param (repository name, '' = every repo in org except pytorch-canary).
+--- The defaults (pytorch / pytorch) keep the original pytorch/pytorch-only
+--- behaviour for callers that pass no parameters, e.g. tools/torchci/queue_alert.py; the
+--- metrics page passes repo = '' to cover the whole pytorch org.
 WITH possible_queued_jobs AS (
     SELECT
         id,
@@ -25,11 +30,14 @@ WITH possible_queued_jobs AS (
             status = 'queued'
             OR
             --- ARC: jobs in_progress but possibly still initializing containers
-            (status = 'in_progress'
-             AND conclusion = ''
-             AND arrayExists(x -> x LIKE '%l-%', labels))
+            (
+                status = 'in_progress'
+                AND conclusion = ''
+                AND arrayExists(x -> x LIKE '%l-%', labels)
+            )
         )
 ),
+
 --- Runner pools demonstrably serving work — see queued_jobs_by_label/query.sql
 --- for why the abandoned label is withheld from a pool that is not, and why the
 --- key is the whole label array. Keep this CTE identical to the one there;
@@ -41,6 +49,34 @@ live_runner_pools AS (
         created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 HOUR)
         AND runner_name != ''
 ),
+
+--- Runner pools hosted by GitHub (ubuntu-latest, macos-15-xlarge, and larger
+--- runners with org-chosen names like 16-core-ubuntu or linux.24_04.4x).
+--- Their queues are GitHub's, not ours, so they are hidden for repos other
+--- than pytorch/pytorch (whose rows are left exactly as before). A label
+--- counts as GitHub-hosted if a job asking for only that label ran on a
+--- GitHub runner in the last week: either in the 'GitHub Actions' runner
+--- group, or on a larger runner, which GitHub names <label>-<runner id>.
+--- A queued job's runner group is empty until it starts, so the label is the
+--- only thing to match on.
+github_hosted_runner_pools AS (
+    SELECT groupUniqArray(labels) AS pools
+    FROM default.workflow_job
+    WHERE
+        created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 WEEK)
+        AND runner_name != ''
+        AND LENGTH(labels) = 1
+        AND (
+            runner_group_name = 'GitHub Actions'
+            OR (
+                startsWith(runner_name, concat(labels[1], '-'))
+                AND match(
+                    substring(runner_name, LENGTH(labels[1]) + 2), '^\\d+$'
+                )
+            )
+        )
+),
+
 --- EC2/LF runners: existing logic, only jobs in queued status
 ec2_queued_jobs AS (
     SELECT
@@ -69,6 +105,7 @@ ec2_queued_jobs AS (
             AND LENGTH(job.labels) > 0
             AND job.labels IN (SELECT labels FROM live_runner_pools)
         ) AS is_stale,
+        workflow.repository.'full_name' AS repo,
         workflow.head_sha AS head_sha,
         workflow.head_branch AS head_branch,
         workflow.event AS event,
@@ -96,13 +133,27 @@ ec2_queued_jobs AS (
     WHERE
         job.id IN (SELECT id FROM possible_queued_jobs)
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
-        AND workflow.repository.'full_name' = 'pytorch/pytorch'
+        AND workflow.repository.'owner'.'login' = {org: String}
+        AND (
+            --- pytorch-canary is for testing CI changes, so it is left out of
+            --- the org-wide view
+            (
+                {repo: String} = ''
+                AND workflow.repository.'name' != 'pytorch-canary'
+            )
+            OR workflow.repository.'name' = {repo: String}
+        )
+        AND NOT (
+            workflow.repository.'full_name' != 'pytorch/pytorch'
+            AND has((SELECT pools FROM github_hosted_runner_pools), job.labels)
+        )
         AND job.status = 'queued'
         AND LENGTH(job.steps) = 0
         AND workflow.status != 'completed'
         --- Exclude ARC runners from this path
         AND NOT arrayExists(x -> x LIKE '%l-%', job.labels)
 ),
+
 --- ARC runners: queued OR in_progress but still initializing containers
 arc_queued_jobs AS (
     SELECT
@@ -127,6 +178,7 @@ arc_queued_jobs AS (
             AND LENGTH(job.labels) > 0
             AND job.labels IN (SELECT labels FROM live_runner_pools)
         ) AS is_stale,
+        workflow.repository.'full_name' AS repo,
         workflow.head_sha AS head_sha,
         workflow.head_branch AS head_branch,
         workflow.event AS event,
@@ -152,9 +204,22 @@ arc_queued_jobs AS (
         default.workflow_job job FINAL
     JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
     WHERE
-        job.id in (select id from possible_queued_jobs)
-        and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
+        job.id IN (SELECT id FROM possible_queued_jobs)
+        AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
+        AND workflow.repository.'owner'.'login' = {org: String}
+        AND (
+            --- pytorch-canary is for testing CI changes, so it is left out of
+            --- the org-wide view
+            (
+                {repo: String} = ''
+                AND workflow.repository.'name' != 'pytorch-canary'
+            )
+            OR workflow.repository.'name' = {repo: String}
+        )
+        AND NOT (
+            workflow.repository.'full_name' != 'pytorch/pytorch'
+            AND has((SELECT pools FROM github_hosted_runner_pools), job.labels)
+        )
         --- ARC runner detection: labels contain l- pattern
         AND arrayExists(x -> x LIKE '%l-%', job.labels)
         AND workflow.status != 'completed'
@@ -169,12 +234,15 @@ arc_queued_jobs AS (
             --- work hasn't started yet. The 10 min cap guards against stale
             --- step data in ClickHouse — the job is either running ok or fails
             --- already if it has less than 2 steps after 10 minutes
-            (job.status = 'in_progress'
-             AND LENGTH(job.steps) > 0
-             AND LENGTH(job.steps) <= 2
-             AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE))
+            (
+                job.status = 'in_progress'
+                AND LENGTH(job.steps) > 0
+                AND LENGTH(job.steps) <= 2
+                AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE)
+            )
         )
 )
+
 SELECT * FROM (
     SELECT * FROM ec2_queued_jobs
     UNION ALL

@@ -34,7 +34,11 @@ if TYPE_CHECKING:
 
     class _PullRequest(_ListedPR, Protocol):
         @property
-        def head(self) -> _PRBase: ...
+        def head(self) -> _PRHead: ...
+        @property
+        def base(self) -> _PRRef: ...
+        @property
+        def _rawData(self) -> Mapping[str, object]: ...
 
     class _ListedIssue(_ListedPR, Protocol):
         @property
@@ -116,13 +120,15 @@ if TYPE_CHECKING:
         @property
         def filename(self) -> str: ...
 
-    class _FilesPR(Protocol):
+    class _BasedPR(Protocol):
         @property
         def head(self) -> _PRHead: ...
         @property
         def base(self) -> _PRRef: ...
         @property
         def raw_data(self) -> Mapping[str, object]: ...
+
+    class _FilesPR(_BasedPR, Protocol):
         def get_files(self) -> Iterable[_PRFile]: ...
 
     class _LabelledPR(Protocol):

@@ -10,12 +10,15 @@ import { v4 as uuidv4 } from "uuid";
 // https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
 import * as thisModule from "./clickhouse";
 
-export function getClickhouseClient() {
+export function getClickhouseClient(
+  options?: Parameters<typeof createClient>[0]
+) {
   return createClient({
     url: process.env.CLICKHOUSE_HUD_USER_URL ?? "http://localhost:8123",
     username: process.env.CLICKHOUSE_HUD_USER_USERNAME ?? "default",
     password: process.env.CLICKHOUSE_HUD_USER_PASSWORD ?? "",
     request_timeout: 180_000, // 3 mins
+    ...options,
   });
 }
 //
@@ -33,7 +36,8 @@ export async function queryClickhouse(
   params: Record<string, unknown>,
   query_id?: string,
   useQueryCache?: boolean,
-  settings?: ClickHouseSettings
+  settings?: ClickHouseSettings,
+  clickhouseClient = getClickhouseClient()
 ): Promise<any[]> {
   if (query_id === undefined) {
     query_id = "adhoc";
@@ -48,9 +52,9 @@ export async function queryClickhouse(
    * @param settings: ClickHouseSettings, server settings for this one query on
    * top of the defaults below, such as the profile a heavy query sends (see
    * the Heavy queries section of app/api/README.md)
+   * @param clickhouseClient: the client to send the query on, for a caller
+   * that keeps one (lib/api/tests/clickhouse.ts); a new client by default
    */
-  const clickhouseClient = getClickhouseClient();
-
   const res = await clickhouseClient.query({
     query,
     format: "JSONEachRow",

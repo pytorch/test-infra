@@ -52,17 +52,16 @@ one-shot `verdict` and `drci-poke` subcommands:
   changes requested by any non-bot reviewer — is also skipped without fingerprinting or dispatch,
   and no state is written, so the scan resumes if that changes. Needs
   `PYTORCH_GREENLIGHT_GITHUB_TOKEN`; any scan with at least one PR also reads ClickHouse
-  (`CLICKHOUSE_*`). Only a PR whose author is named by a `merge_rules.yaml` rule that covers every
-  file the PR changes — for a path-scoped rule, only on a PR based on `main`, on a ghstack PR or on a
-  PR in a GitHub-native stack whose trunk is `main` — is
-  fingerprinted and dispatched. Every other listed PR is still state-read and revert-guarded but
-  never dispatched, and when it is inside the review window and not labelled `Stale`, and its
+  (`CLICKHOUSE_*`). Only a PR whose author a valid `merge_rules.yaml` rule names, whatever files it
+  changes, on a base trymerge accepts by branch name — `main`, a ghstack PR's, or a GitHub-native
+  stack's whose trunk is `main` — is fingerprinted and dispatched. Every other listed PR is still
+  state-read and revert-guarded but not dispatched, and when it is inside the review window and not labelled `Stale`, and its
   latest recorded row is a `LAND`, the scan dismisses greenlight's approval. A shadow review — the
   verdict's record-time downgrade, `verdict --shadow`, or a local `--allow-untrusted-author` run —
   is never approved, always dismisses any prior greenlight approval, is filtered out of both
   Dr. CI's render and the land-time merge gate, and is not poked to Dr. CI; a `REVERTED` row on a
   PR with a recorded row is never shadow. `--requester` needs a login in the evaluation cohort, and
-  `--pr` needs a target whose author is eligible for that PR (see below). Onboarding or offboarding
+  `--pr` needs an eligible target (see below). Onboarding or offboarding
   an author is a `merge_rules.yaml` change in `pytorch/pytorch`, live on the scheduled scan's next
   pass (a `--loop` daemon caches the rules for `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`); an
   author no rule names drops out of the listing and keeps any approval until it is dismissed by
@@ -76,9 +75,9 @@ one-shot `verdict` and `drci-poke` subcommands:
   dismiss greenlight's prior approval, then set the `GL/approved` or `GL/human` label unless
   shadow). It also upserts the status comment, except on
   `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. `--shadow`
-  records the verdict with no authority; for `LAND`/`NO_LAND` the flag is OR-ed with a merge-rule
-  check at record time (one rule naming the author and covering every file the reviewed commit
-  changes), so a disagreement withholds the approval, and a check that cannot complete fails the
+  records the verdict with no authority; for `LAND`/`NO_LAND` the flag is OR-ed with an eligibility
+  check at record time (a valid rule naming the author, and the PR still at the reviewed head on a
+  base trymerge accepts), so a disagreement withholds the approval, and a check that cannot complete fails the
   command with no row emitted. Runs once, never as a daemon.
 - `drci-poke` — ask Dr. CI to rebuild one PR's comment now rather than at its next
   15-minute sweep. Waits `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` first so the
@@ -111,8 +110,8 @@ pytest, yamllint) into `.venv`.
 ```bash
 just review                          # one scan + dispatch iteration, then exit
 just run <args>                      # pass arbitrary args to the greenlight CLI (review is a shortcut)
-just review --pr 123                 # scan only PR #123 (its author must be eligible for it)
-just review --pr 123 --requester alice  # recheck PR #123 for alice (author eligible for it, alice in the evaluation cohort)
+just review --pr 123                 # scan only PR #123 (it must be eligible)
+just review --pr 123 --requester alice  # recheck PR #123 for alice (PR eligible, alice in the evaluation cohort)
 just review --max 5                  # cap this iteration at 5 dispatches
 just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
@@ -139,7 +138,7 @@ re-dispatches, rather than cancelling and restarting one that is still running; 
 
 A recheck dispatches `greenlight-review.yml` as `--pr N --requester <login>`, by hand: no
 `pytorch/pytorch` workflow turns an `@greenlight recheck` comment into that dispatch. The scan
-is the sole authorizer: `--pr` refuses unless PR N's author is eligible for it, and `--requester`
+is the sole authorizer: `--pr` refuses unless PR N is eligible, and `--requester`
 refuses unless the commenter is in the evaluation cohort, matched case-insensitively. A refusal is
 a clean exit 0, but a refused target with an author login still goes through the revert guard,
 which can revoke and record, and a failure there fails the run. The
@@ -149,11 +148,8 @@ approved) while an eligible one behaves exactly as in production. It is never a 
 recheck skips a PR already reviewed at its current fingerprint. Eligibility is not part of the
 fingerprint, so a PR already reviewed in shadow, or one whose approval the scan dismissed while it
 was ineligible, is not re-reviewed when it becomes eligible, whatever the cause: a rule naming its
-author or covering its files, a retarget to `main`, or a change to the eligibility check. A push, a
-comment the fingerprint covers, or a local `just review --pr N --force` re-reviews it.
-A path-scoped author's PR pushed between the gate's
-files read and its fingerprint is deferred: the run exits 0 without dispatching, and can be run
-again. Unlike the listing scan, `--pr` ignores an existing approval and reviews anyway; if the PR
+author, a retarget to `main`, or a change to the eligibility check. A push, a comment the
+fingerprint covers, or a local `just review --pr N --force` re-reviews it. Unlike the listing scan, `--pr` ignores an existing approval and reviews anyway; if the PR
 has a changes-requested review it does not review but posts a single comment that it will not
 re-review while a reviewer's requested changes stand, reconsidering once the reviewer dismisses or
 resolves that review. That refusal comment carries its own marker and is posted by greenlight on
@@ -225,8 +221,8 @@ The end-to-end flow, per cohort PR:
    carries the `Stale` label, and it has no in-flight or retry-eligible (cancelled/failed) review,
    or a human has already decided it (approved by a `merge_rules.yaml` approver with bots excluded,
    or changes requested by any non-bot reviewer), in which case it is skipped without fingerprinting
-   (an explicit `@greenlight recheck` via `--pr` reviews it regardless). A PR whose author is not
-   eligible for it is held out before that human-decision check — after the revert guard, so the
+   (an explicit `@greenlight recheck` via `--pr` reviews it regardless). A PR that is not
+   eligible is held out before that human-decision check — after the revert guard, so the
    exclusion above still applies to it, and never on the `--pr` path, where the target-author gate
    has already decided — and when it is inside the review window and not labelled `Stale`, and its
    latest recorded row is a `LAND`, the scan dismisses greenlight's approval instead of dispatching

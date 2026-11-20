@@ -1,4 +1,4 @@
-"""Revoke greenlight's approval on a listed PR whose author is no longer eligible for it."""
+"""Revoke greenlight's approval on a listed PR that is no longer eligible for a greenlight review."""
 
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _NO_LONGER_ELIGIBLE_MESSAGE = (
-    "This pull request is no longer eligible for a greenlight review under merge_rules.yaml; "
-    "greenlight's approval no longer applies."
+    "This pull request is no longer eligible for a greenlight review: merge_rules.yaml does not name "
+    "its author, or trymerge does not accept its base branch; greenlight's approval no longer applies."
 )
 
 
@@ -39,8 +39,10 @@ def revoke_ineligible_approvals(
 ) -> None:
     """Dismiss greenlight's approval on each PR in ``ineligible`` whose latest recorded row is a LAND.
 
-    Under merge_rules.yaml's wildcard Greenlight Review Bot rule, an approval greenlight gave while the
-    PR was eligible still authorizes a merge, and the scan dispatches no review that would revoke it.
+    A PR is ineligible when no valid merge rule names its author or it was listed on a base trymerge
+    refuses. Under merge_rules.yaml's wildcard Greenlight Review Bot rule, an approval greenlight gave
+    while the PR was eligible still authorizes a merge, and the scan dispatches no review that would
+    revoke it.
     Nothing is recorded, dispatched or poked. A failure is accounted as the revert guard accounts its
     own: a rate limit trips ``cancel_event``, and the PR fails the pass.
     """

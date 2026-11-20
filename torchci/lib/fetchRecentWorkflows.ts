@@ -45,6 +45,7 @@ export async function fetchCrcrWorkflows(
       check_run_id AS id,
       conclusion,
       completed_at,
+      started_at,
       workflow_run_url AS html_url,
       pytorch_head_sha AS head_sha,
       downstream_repo,
@@ -99,9 +100,9 @@ export async function fetchCrcrWorkflows(
     triageVerdictJson: row.triage_verdict_json || "",
     runAttempt: Number(row.run_attempt ?? 1) || 1,
     // The run a row's attempt belongs to: run_attempt starts over at 1 for each
-    // new run, so the two together place the row. 0 is "no run named", which
-    // latestAttemptPerJob sorts with the oldest.
+    // new run, so the two together place the row. 0 is "no run named".
     runId: Number(row.run_id) || 0,
+    startedAt: row.started_at || "",
   }));
 }
 

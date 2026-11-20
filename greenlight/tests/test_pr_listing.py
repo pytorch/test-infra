@@ -3,8 +3,10 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, cast
+from unittest.mock import Mock
 
 import pytest
+from github.PullRequest import PullRequest
 
 from greenlight import pr_listing
 from greenlight.constants import TARGET_REPO
@@ -29,9 +31,15 @@ class _FakeLabel:
         self.name = name
 
 
-class _FakeBase:
-    def __init__(self, sha: str) -> None:
+class _FakeHead:
+    def __init__(self, sha: str, ref: str) -> None:
         self.sha = sha
+        self.ref = ref
+
+
+class _FakeRef:
+    def __init__(self, ref: str) -> None:
+        self.ref = ref
 
 
 class _FakePull:
@@ -45,15 +53,24 @@ class _FakePull:
         updated_at: datetime | None = None,
         labels: list[str] | None = None,
         draft: bool = False,
+        base_ref: str = "main",
+        head_ref: str = "feature",
+        stack_trunk: str | None = None,
     ) -> None:
         self.number = number
         self.user = _FakeUser(login) if login is not None else None
         self.title = title
         self.html_url = html_url or f"https://example.test/{number}"
-        self.head = _FakeBase(head_sha)
+        self.head = _FakeHead(head_sha, head_ref)
+        self.base = _FakeRef(base_ref)
+        self._rawData: dict[str, object] = {} if stack_trunk is None else {"stack": {"base": {"ref": stack_trunk}}}
         self.updated_at = updated_at
         self.labels = [_FakeLabel(name) for name in (labels or [])]
         self.draft = draft
+
+    @property
+    def raw_data(self) -> dict[str, object]:
+        raise AssertionError("raw_data completes a listed PR with one GET per PR")
 
 
 class _FakeIssue:
@@ -163,9 +180,56 @@ def test_full_listing_maps_pull_fields():
             url="https://github.com/pytorch/pytorch/pull/42",
             head_sha="abc123",
             updated_at=datetime(2026, 7, 30, 9, 0, 0),
+            base_accepted=True,
             labels=(),
         )
     ]
+
+
+@pytest.mark.parametrize(
+    ("pull", "accepted"),
+    [
+        pytest.param({}, True, id="main"),
+        pytest.param({"base_ref": "release/2.9"}, False, id="release-base"),
+        pytest.param({"base_ref": "gh/alice/1/base", "head_ref": "gh/alice/1/head"}, True, id="ghstack-off-main"),
+        pytest.param({"base_ref": "alice/part-1", "stack_trunk": "main"}, True, id="native-stack-on-main"),
+        pytest.param(
+            {"base_ref": "alice/part-1", "stack_trunk": "release/2.9"}, False, id="native-stack-on-another-trunk"
+        ),
+    ],
+)
+def test_every_pulls_listing_records_whether_trymerge_accepts_each_prs_base(pull, accepted):
+    client = _client(_FakePull(1, "alice", updated_at=_NOW, **pull))
+
+    full = pr_listing.list_open_prs_by_authors(client, TARGET_REPO, ["alice"])
+    fast = pr_listing.list_recently_updated_prs(client, TARGET_REPO, ["alice"], cutoff=_CUTOFF)
+
+    assert [pr.base_accepted for pr in full] == [accepted]
+    assert [pr.base_accepted for pr in fast] == [accepted]
+
+
+@pytest.mark.parametrize(
+    ("refs", "accepted"),
+    [
+        pytest.param({"base": {"ref": "main"}}, True, id="no-stack-on-main"),
+        pytest.param({"base": {"ref": "release/2.9"}}, False, id="no-stack-off-main"),
+        pytest.param({"base": {"ref": "alice/part-1"}, "stack": {"base": {"ref": "main"}}}, True, id="stack-on-main"),
+    ],
+)
+def test_judging_a_listed_pygithub_pulls_base_sends_no_request(refs, accepted):
+    requester = Mock()
+    requester.requestJsonAndCheck.side_effect = AssertionError("a listed PR was fetched")
+    payload = {
+        "url": "https://api.github.com/repos/pytorch/pytorch/pulls/1",
+        "number": 1,
+        "head": {"sha": "abc", "ref": "alice/part-2"},
+        **refs,
+    }
+    # A get_pulls page builds each item this way: from the list payload, not yet completed.
+    pull = PullRequest(requester, {}, payload, completed=False)
+
+    assert pr_listing._listed_base_accepted(pull) is accepted
+    assert requester.mock_calls == []
 
 
 def test_full_listing_maps_labels():
@@ -362,7 +426,7 @@ def test_reverted_listing_asks_the_issues_endpoint_once_for_open_reverted_prs():
 
     assert repo.get_issues_calls == [{"state": "open", "labels": ["Reverted"]}]
     # A plain issue, an author outside the cohort, a draft and a ghost author are all dropped; the
-    # payload carries no head, so head_sha stays None.
+    # payload carries no head or base, so head_sha and base_accepted stay None.
     assert _numbers(prs) == [10, 30]
     assert prs[1] == OpenPR(
         repo=TARGET_REPO,
@@ -372,6 +436,7 @@ def test_reverted_listing_asks_the_issues_endpoint_once_for_open_reverted_prs():
         url="https://example.test/30",
         head_sha=None,
         updated_at=old,
+        base_accepted=None,
         labels=("Merged", "Reverted"),
     )
 
@@ -396,7 +461,7 @@ def test_reverted_listing_asks_once_per_label_the_revert_guard_matches_and_lists
 
 def test_default_fetch_lists_the_target_repo_for_the_cohort(monkeypatch):
     captured: dict[str, object] = {}
-    expected = [OpenPR(TARGET_REPO, 1, "alice", "fix", "url", "sha", None)]
+    expected = [OpenPR(TARGET_REPO, 1, "alice", "fix", "url", "sha", None, True)]
 
     def fake_list(client, repo, authors):
         captured["client"] = client
@@ -458,8 +523,10 @@ def test_default_fetch_updated_with_nothing_to_add_reports_zero_supplements(capl
     assert "fast tick: 1 PR(s) updated since the cutoff, plus 0 labelled Reverted" in caplog.text
 
 
-def _open_pr(number: int, head_sha: str | None = None) -> OpenPR:
-    return OpenPR(TARGET_REPO, number, "alice", f"fix {number}", f"https://example.test/{number}", head_sha, None)
+def _open_pr(number: int, head_sha: str | None = None, *, base_accepted: bool | None = True) -> OpenPR:
+    return OpenPR(
+        TARGET_REPO, number, "alice", f"fix {number}", f"https://example.test/{number}", head_sha, None, base_accepted
+    )
 
 
 def _candidates(
@@ -501,6 +568,34 @@ def test_candidate_numbers_without_a_cutoff_runs_the_full_listing(caplog):
     assert authors == {1: "alice", 2: "alice"}
     assert heads == {1: None, 2: "sha2"}
     assert "found 2 open PR(s) from 1 author(s) in pytorch/pytorch (full tick)" in caplog.text
+
+
+def test_candidate_numbers_hands_no_author_for_a_pr_on_a_base_trymerge_refuses(caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        (numbers, updated, labels, authors, heads), _calls = _candidates(
+            full=[_open_pr(1), _open_pr(2, "sha2", base_accepted=False), _open_pr(3, base_accepted=None)]
+        )
+
+    # The refused-base PR stays a candidate, so the revert guard and the approval revoke still see it;
+    # an issues-endpoint PR, whose base is unknown, keeps its author.
+    assert numbers == [1, 2, 3]
+    assert updated == {1: None, 2: None, 3: None}
+    assert labels == {1: (), 2: (), 3: ()}
+    assert heads == {1: None, 2: "sha2", 3: None}
+    assert authors == {1: "alice", 3: "alice"}
+    assert "PR #2 by alice: base not accepted" in caplog.text
+    assert "PR #3" not in caplog.text
+
+
+def test_a_listed_pull_on_a_refused_base_never_reaches_the_authors_the_scan_judges():
+    repo = _FakeRepo([[_FakePull(1, "alice"), _FakePull(2, "alice", base_ref="release/2.9")]])
+
+    (numbers, _updated, _labels, authors, _heads), _calls = _candidates(
+        full=pr_listing.list_open_prs_by_authors(_FakeClient(repo), TARGET_REPO, ["alice"])
+    )
+
+    assert numbers == [1, 2]
+    assert authors == {1: "alice"}
 
 
 def test_candidate_numbers_with_a_cutoff_runs_the_fast_listing(caplog):

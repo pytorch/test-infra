@@ -5,6 +5,45 @@ import { useApiResource } from "lib/tests/useApiResource";
 import type { PageTiming } from "lib/tests/useTestsListing";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+// A first page that arrived, with how long it took, as the grid keeps its
+// own (useTestGrid).
+interface Fetched {
+  page: CommitRunListPage;
+  timing: PageTiming;
+}
+
+async function fetchFirstPage(url: string): Promise<Fetched> {
+  const askedAt = performance.now();
+  const page = await requestJson<CommitRunListPage>(url);
+  return {
+    page,
+    timing: {
+      elapsedMs: Math.round(performance.now() - askedAt),
+      queryDurationMs: page.query_duration_ms,
+    },
+  };
+}
+
+// A first page asked for ahead of the hook that reads it, one at a time:
+// the page asks at the click that changes what is listed, and the hook,
+// which follows the URL a render later, takes the answer.
+let early: { url: string; fetched: Promise<Fetched> } | null = null;
+
+export function startRunsListing(url: string): void {
+  if (early?.url === url) return;
+  const fetched = fetchFirstPage(url);
+  // A failure is the hook's to show.
+  fetched.catch(() => undefined);
+  early = { url, fetched };
+}
+
+function firstPage(url: string): Promise<Fetched> {
+  if (early?.url !== url) return fetchFirstPage(url);
+  const { fetched } = early;
+  early = null;
+  return fetched;
+}
+
 // A list of run bundles grown a page at a time: the first page from the
 // given URL, read as the hooks read the API (useApiResource), and each
 // "Show more" the page the API's next link names, appended. Another first
@@ -40,21 +79,13 @@ interface More {
 const NO_RUNS: RunRecord[] = [];
 
 export function useRunsListing(url: string | null): RunsListing {
-  const [timing, setTiming] = useState<PageTiming | null>(null);
-  const fetcher = useCallback(async (pageUrl: string) => {
-    const started = performance.now();
-    const page = await requestJson<CommitRunListPage>(pageUrl);
-    setTiming({
-      elapsedMs: Math.round(performance.now() - started),
-      queryDurationMs: page.query_duration_ms,
-    });
-    return page;
-  }, []);
-  const { data, error, isLoading, retry } = useApiResource<CommitRunListPage>(
-    url,
-    {},
-    fetcher
-  );
+  const {
+    data: fetched,
+    error,
+    isLoading,
+    retry,
+  } = useApiResource<Fetched>(url, {}, firstPage);
+  const data = fetched?.page;
   const [more, setMore] = useState<More | null>(null);
   const [moreError, setMoreError] = useState<unknown>(undefined);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -66,7 +97,6 @@ export function useRunsListing(url: string | null): RunsListing {
     setMore(null);
     setMoreError(undefined);
     setLoadingMore(false);
-    setTiming(null);
   }, [url]);
   const extra = more !== null && more.url === url ? more : null;
   const next = extra !== null ? extra.next : data?.pagination.next?.url ?? null;
@@ -110,7 +140,7 @@ export function useRunsListing(url: string | null): RunsListing {
     loadingMore,
     hasMore: next !== null,
     error: error ?? moreError,
-    timing,
+    timing: fetched?.timing ?? null,
     loadMore: loadMoreNow,
     // A further page's failure is asked again where it may pass, and
     // forgotten either way; any other failure starts the listing over.

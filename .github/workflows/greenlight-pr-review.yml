@@ -263,9 +263,9 @@ jobs:
           # Line count is the primary gate: the model reads only ~2000 lines of the diff, so a
           # longer change could be landed on an unread remainder. Bytes is a backstop for a diff
           # that is short on lines but huge (e.g. minified / very long lines). File count is capped
-          # because the merge-rule check refuses a path-scoped author past the cap, and for an
-          # author a catch-all rule names, this gate is the only file cap. On any breach, decline
-          # deterministically: drop the canned NO_LAND verdict in place and skip the model.
+          # here because eligibility never lists a PR's files: for every author this gate is the
+          # only file cap. On any breach, decline deterministically: drop the canned NO_LAND
+          # verdict in place and skip the model.
           # Validate the thresholds first: a non-integer makes `[ -gt ]` error inside the `if`,
           # which under `set -e` does NOT abort but falls through to else -> gate silently disabled.
           for cap in MAX_DIFF_LINES MAX_DIFF_BYTES MAX_DIFF_FILES; do

@@ -2,7 +2,6 @@ import { decodeCommitRunsCursor } from "lib/api/tests/commit/cursor";
 import { listCommitRuns } from "lib/api/tests/commit/list";
 import { CommitRunsListQuery } from "lib/api/tests/commit/parameters";
 import { CommitRunListPageSchema } from "lib/api/tests/commit/types";
-import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import { EntityRow, toEntry } from "lib/api/tests/mapping";
 import { listRuns } from "lib/api/tests/test/runs/list";
 import { RunListPageSchema } from "lib/api/tests/test/runs/types";
@@ -287,7 +286,7 @@ describe("commit run bundles", () => {
       "Database unavailable"
     );
   });
-  test("sums all query durations while the catalog and workflow reads overlap", async () => {
+  test("sums all query durations while the attempts, catalog and workflow reads overlap", async () => {
     jest.useFakeTimers();
     const durations: Record<string, number> = {
       api_commit_runs_page: 37,
@@ -306,7 +305,7 @@ describe("commit run bundles", () => {
     await jest.runAllTimersAsync();
     const page = await response;
     expect(page.query_duration_ms).toBe(68);
-    expect(performance.now() - startedAt).toBe(61);
+    expect(performance.now() - startedAt).toBe(50);
     expect(queryClickhouse).toHaveBeenCalledTimes(4);
   });
 
@@ -330,7 +329,7 @@ describe("commit run bundles", () => {
     ]);
   });
 
-  test("runs only the attempts read in the heavy workload", async () => {
+  test("runs no query in the heavy workload", async () => {
     answerRunQueries(queryClickhouse, {
       page: [commitRow(), commitRow()],
       attempts: [runRow()],
@@ -349,10 +348,7 @@ describe("commit run bundles", () => {
         .map((call) => call[4]);
     expect(settingsOf("api_commit_runs_page")).toEqual([undefined, undefined]);
     expect(settingsOf("api_commit_runs_page_boundary")).toEqual([undefined]);
-    expect(settingsOf("api_run_attempts")).toEqual([
-      CI_WORKLOAD_HEAVY,
-      CI_WORKLOAD_HEAVY,
-    ]);
+    expect(settingsOf("api_run_attempts")).toEqual([undefined, undefined]);
     expect(settingsOf("api_run_catalog")).toEqual([undefined, undefined]);
     expect(settingsOf("api_run_workflow")).toEqual([undefined, undefined]);
   });

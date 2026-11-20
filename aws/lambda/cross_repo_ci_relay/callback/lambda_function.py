@@ -56,7 +56,11 @@ def lambda_handler(event, context):
         jwt_helper.load_ci_providers(config)
 
         oidc_claims = jwt_helper.verify_oidc_token(headers.get("authorization", ""))
-        verified_repo = oidc_claims["repository"]
+        # The repo whose rows this callback may touch: the OIDC repository,
+        # or for a late report from a configured delegate, the repo it reports for.
+        verified_repo = jwt_helper.resolve_reporting_repo(
+            oidc_claims, body.get("event_type", "")
+        )
 
         result = callback_handler.handle(config, body, verified_repo)
         return {"statusCode": 200, "headers": JSON_HEADERS, "body": json.dumps(result)}

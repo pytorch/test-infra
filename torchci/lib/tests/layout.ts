@@ -38,6 +38,9 @@ export const COMMIT_COLUMN_WIDTHS = {
     DURATION_WIDTH,
   owners: COLUMN_WIDTHS.owners,
 };
+// The Job filter's menu, wide enough for a job's name on one line, "build ·
+// config · shard 4 of 5"; a longer name wraps.
+export const JOB_MENU_WIDTH = 540;
 export const TABLE_BORDER = 1;
 // The table's width with every column at its width and the Name column at
 // its minimum. The page column is this wide, so at full width the table is

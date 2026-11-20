@@ -83,11 +83,10 @@ class LabelPass:
     """What the label pass reads from one listing tick.
 
     ``reverted`` holds the PRs the revert guard excluded, ``recent`` those the recency filter kept,
-    and ``eligible`` and ``ineligible`` the ``recent`` PRs whose author is determined eligible or
-    not; an undetermined PR is in neither. ``skips`` holds the PRs a human decided, and ``labels``
-    and ``heads`` each listed PR's labels and head. An in-flight gate row counts as a review in
-    progress for ``timeout``, and a PR is started only while ``clock()`` reads less than
-    ``LABEL_PASS_DEADLINE`` after ``listed_at``.
+    and ``eligible`` and ``ineligible`` split the ``recent`` PRs by whether they are eligible.
+    ``skips`` holds the PRs a human decided, and ``labels`` and ``heads`` each listed PR's labels and
+    head. An in-flight gate row counts as a review in progress for ``timeout``, and a PR is started
+    only while ``clock()`` reads less than ``LABEL_PASS_DEADLINE`` after ``listed_at``.
     """
 
     fetch_pr: Callable[[int], _RelabelPR]
@@ -120,7 +119,7 @@ def desired_labels(
     ``gate`` is the PR's latest non-shadow row and ``verdict`` its latest non-shadow LAND or
     NO_LAND; ``head`` is its listed head. The verdict is current when it is the gate row and was
     recorded on that head, compared case-insensitively. ``final`` marks a PR greenlight will not
-    review again: human-decided, author determined ineligible, or skipped for its ``Stale`` label. A
+    review again: human-decided, ineligible, or skipped for its ``Stale`` label. A
     reverted PR waits until its gate row is the ``REVERTED`` row, whose head is the PR's head when
     the scan recorded it.
     """

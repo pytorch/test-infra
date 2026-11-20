@@ -55,7 +55,9 @@ CUDA_ARCHES_DICT = {
     # (pytorch/pytorch#190385), and 13.2 covers the same GPU architectures.
     # release/2.15 was cut with 13.0, so the 2.15 candidates on the test
     # channel still build it.
-    "nightly": ["13.2", "13.4"],
+    # 13.5 is nightly only so far (pytorch/pytorch#204391); the 2.15 branch was
+    # cut without it.
+    "nightly": ["13.2", "13.4", "13.5"],
     "test": ["13.0", "13.2", "13.4"],
     "release": ["13.2", "13.4"],
 }
@@ -80,6 +82,7 @@ CUDA_CUDNN_VERSIONS = {
     "13.0": {"cuda": "13.0.0", "cudnn": "9"},
     "13.2": {"cuda": "13.2.0", "cudnn": "9"},
     "13.4": {"cuda": "13.4.0", "cudnn": "9"},
+    "13.5": {"cuda": "13.5.0", "cudnn": "9"},
 }
 
 STABLE_CUDA_VERSIONS = {
@@ -94,7 +97,9 @@ STABLE_CUDA_VERSIONS = {
 CUDA_ARCHES_NO_WINDOWS_DICT = {
     # 13.0 is no longer built on nightly, so nothing is excluded there. On the
     # test channel it is Linux-only. 13.4 has Windows wheels on nightly and in
-    # the 2.15 candidates; 2.14 releases have none.
+    # the 2.15 candidates; 2.14 releases have none. 13.5 has Windows wheels on
+    # nightly (CUDA_WINDOWS_ARCHES in pytorch/pytorch); test and release do not
+    # build it at all.
     "nightly": [],
     "test": ["13.0"],
     "release": ["13.0"],
@@ -106,8 +111,9 @@ CUDA_ARCHES_NO_WINDOWS_DICT = {
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
 # 13.0 is only still built for the 2.15 candidates on the test channel; it must
-# not appear in the pytorch.org install selector.
-CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0"]
+# not appear in the pytorch.org install selector. 13.5 is new on nightly and is
+# not advertised until it has been validated.
+CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0", "13.5"]
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
 # a pre-release, so it must not be offered on the getting-started page yet.
@@ -164,8 +170,9 @@ WIN_ARM64_RUNNER = "windows-11-arm64-preview"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 # OSDC (ARC) equivalents, selected by the runner-fleet input. Release-isolated
-# rel- runners on the refs a wheel is published from, regular ones otherwise, so
-# a pull request build does not sit in the release fleet. Only Linux has OSDC
+# rel- runners on the refs a wheel is published from (pytorch org only, see
+# RELEASE_RUNNER_ORGS), regular ones otherwise, so a pull request build does not
+# sit in the release fleet. Only Linux has OSDC
 # runners; Windows and macOS keep the labels above either way.
 EC2 = "ec2"
 OSDC = "osdc"
@@ -191,6 +198,12 @@ OSDC_RUNNERS = {
     (LINUX_AARCH64, CPU): (OSDC_LINUX_AARCH64_RUNNER, OSDC_REL_LINUX_AARCH64_RUNNER),
 }
 
+# Orgs whose release-ref builds use the release runners. Those runners only take
+# workflows on their group's allow-list, which must name pytorch/test-infra's
+# reusables; another org (meta-pytorch) can only allow-list them with a personal
+# access token, so its builds stay on the regular runners on every ref.
+RELEASE_RUNNER_ORGS = ("pytorch",)
+
 # The refs a wheel is published from, matching pytorch/pytorch's
 # _select-release-runner.yml.
 RELEASE_REF_PREFIXES = (
@@ -202,6 +215,8 @@ RELEASE_REF_PREFIXES = (
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_GETTING_STARTED_WHL = "torch torchvision"
+# The nightly instructions on the Get Started page install torch only.
+PACKAGES_TO_INSTALL_GETTING_STARTED_NIGHTLY_WHL = "torch"
 PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
@@ -239,22 +254,33 @@ def github_ref() -> str:
     return os.getenv("GITHUB_REF", "")
 
 
+def github_repository_owner() -> str:
+    """The calling repository's org; a reusable workflow sees its caller's.
+    Unset outside Actions, where pytorch keeps today's behaviour."""
+    return os.getenv("GITHUB_REPOSITORY_OWNER") or "pytorch"
+
+
 def is_release_ref(ref: str) -> bool:
     return any(ref.startswith(prefix) for prefix in RELEASE_REF_PREFIXES)
 
 
-def osdc_validation_runner(arch_type: str, os: str, ref: str) -> Optional[str]:
+def osdc_validation_runner(
+    arch_type: str, os: str, ref: str, owner: str
+) -> Optional[str]:
     """The OSDC label for a row, or None where OSDC has no equivalent."""
     key = (os, arch_type if arch_type in (CUDA, CUDA_AARCH64) else CPU)
     labels = OSDC_RUNNERS.get(key)
     if labels is None:
         return None
-    return labels[1] if is_release_ref(ref) else labels[0]
+    release = owner in RELEASE_RUNNER_ORGS and is_release_ref(ref)
+    return labels[1] if release else labels[0]
 
 
 def validation_runner(arch_type: str, os: str) -> str:
     if runner_fleet() == OSDC:
-        osdc = osdc_validation_runner(arch_type, os, github_ref())
+        osdc = osdc_validation_runner(
+            arch_type, os, github_ref(), github_repository_owner()
+        )
         if osdc is not None:
             return osdc
     if os == LINUX:
@@ -424,11 +450,12 @@ def get_wheel_install_command(
     use_only_dl_pytorch_org: bool,
     getting_started: bool = False,
 ) -> str:
-    PACKAGES_TO_INSTALL = (
-        PACKAGES_TO_INSTALL_GETTING_STARTED_WHL
-        if getting_started
-        else PACKAGES_TO_INSTALL_WHL
-    )
+    if getting_started and channel == NIGHTLY:
+        PACKAGES_TO_INSTALL = PACKAGES_TO_INSTALL_GETTING_STARTED_NIGHTLY_WHL
+    elif getting_started:
+        PACKAGES_TO_INSTALL = PACKAGES_TO_INSTALL_GETTING_STARTED_WHL
+    else:
+        PACKAGES_TO_INSTALL = PACKAGES_TO_INSTALL_WHL
 
     # Validate torch only (no torchvision) for versions without published
     # torchvision wheels, e.g. 3.15 / 3.15t.

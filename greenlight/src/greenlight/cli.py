@@ -55,7 +55,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Scan the open PRs from the evaluation cohort in pytorch/pytorch (every merge_rules.yaml "
             "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
             "dispatch the review workflow for new or changed PRs whose author is eligible under the "
-            "merge rules: named by a rule that covers every changed file. Requires "
+            "merge rules: named by a valid rule, whatever files the PR changes, on a base trymerge "
+            "accepts. Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials."
         ),
     )
@@ -98,8 +99,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-untrusted-author",
         action="store_true",
         help=(
-            "LOCAL USE ONLY: waive the covering-rule requirement on the --pr target, reviewing it even "
-            "when no merge rule naming its author covers every changed file. Eligibility is still "
+            "LOCAL USE ONLY: waive the eligibility requirement on the --pr target, reviewing it even "
+            "when no valid merge rule names its author or trymerge refuses its base. Eligibility is still "
             "resolved and still decides shadow, so such a PR is reviewed in shadow and never approved "
             "(never exposed as a workflow input)"
         ),
@@ -112,7 +113,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Record a single PR-review verdict: emit the row for S3 -> ClickHouse ingestion and, "
             "for LAND/NO_LAND, post the GitHub review. Runs once outside the daemon loop and lock. "
             "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN for LAND/NO_LAND, which, unless --shadow, also use "
-            "it to check the merge rules (with their team members) and, when needed, the PR's files; "
+            "it to check the merge rules (with their team members) and, when one names the author, the "
+            "PR's head and base; "
             "if that check fails, the command fails without writing the row."
         ),
     )

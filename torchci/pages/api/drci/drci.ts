@@ -71,7 +71,7 @@ import {
 import {
   getOctokit,
   getOctokitWithUserToken,
-  getPreReviewOctokit,
+  getPrStatusOctokit,
 } from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import {
@@ -90,7 +90,10 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
-import { buildPrReviewSections } from "lib/prReview/prReviewComment";
+import {
+  buildPrReviewSections,
+  prReviewSectionForLabels,
+} from "lib/prReview/prReviewComment";
 import {
   fetchPrReviewHeadVerdicts,
   maybePromoteToReadyForReview,
@@ -303,10 +306,13 @@ export async function updateDrciComments(
   const prReviewSectionsPromise = buildPrReviewSections(
     owner,
     repo,
-    headShaByPr
+    headShaByPr,
+    recentWorkflows.concat(workflowsFromPendingComments)
   ).catch((e) => {
     console.error("pr review section build threw for", owner, repo, e);
-    return new Map<number, string>();
+    // Unknown is not evidence that a new request has no status, nor that an
+    // old passing verdict can promote the PR past that request.
+    return null;
   });
   // Read only for pytorch/pytorch. Empty otherwise or on error, which
   // promotes nothing.
@@ -331,7 +337,7 @@ export async function updateDrciComments(
   // app lookup must not move status reads back onto PyTorchBot's rate limit.
   const prStatusReaderPromise = (
     isPyTorchPyTorch(owner, repo) && workflowsByPR.size > 0
-      ? getPreReviewOctokit(owner, repo)
+      ? getPrStatusOctokit(owner, repo)
       : Promise.resolve(null)
   ).catch((e) => {
     console.error("PR status reader unavailable for", owner, repo, e);
@@ -776,7 +782,11 @@ export async function updateDrciComments(
       // Runs before the PR status section below so it renders the new stage.
       const review = prReviewHeadVerdicts.get(pr_info.pr_number);
       let promotion: PromotionOutcome = "not_eligible";
-      if (review !== undefined) {
+      if (
+        review !== undefined &&
+        prReviewSections !== null &&
+        !prReviewSections.get(pr_info.pr_number)?.missingRequest
+      ) {
         try {
           promotion = await maybePromoteToReadyForReview(
             octokit,
@@ -810,7 +820,6 @@ export async function updateDrciComments(
       // The live read is memoized and shared with the section's pin read, so a
       // PR costs at most one GitHub comment read per sweep.
       const { id, body } =
-        status?.comment ??
         existingDrCiComments.get(pr_info.pr_number) ??
         (await readLiveComment());
 
@@ -823,9 +832,11 @@ export async function updateDrciComments(
         // Status read failures must not suppress CI comments or check runs.
         status?.section ?? extractPrStatusSection(body),
         pr_info.headRef,
-        labels,
         withStaleReviewNote(
-          prReviewSections.get(pr_info.pr_number) ?? "",
+          prReviewSectionForLabels(
+            prReviewSections?.get(pr_info.pr_number),
+            labels || []
+          ),
           promotion
         )
       );

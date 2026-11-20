@@ -19,18 +19,6 @@ function NavBar() {
       href: "/queue_time_analysis",
     },
     {
-      name: "Nightly Branch",
-      href: "/hud/pytorch/pytorch/nightly",
-    },
-    {
-      name: "Nightly Dashboard",
-      href: "/nightlies",
-    },
-    {
-      name: "Cancelled Jobs",
-      href: "/job_cancellation_dashboard",
-    },
-    {
       name: "Reliability Metrics",
       href: "/reliability",
     },

@@ -210,6 +210,8 @@ def test_resolve_merge_rules_keeps_exact_case_approvers_beside_the_lowercased_fl
     docs, ci = snapshot.rules
     assert (docs.name, docs.approvers, docs.covers_all) == ("Docs", frozenset({"AlbanD"}), False)
     assert (ci.name, ci.approvers, ci.covers_all) == ("CI", frozenset({"Dan", "erin"}), True)
+    assert docs.valid
+    assert ci.valid
 
 
 @pytest.mark.parametrize(
@@ -231,6 +233,7 @@ def test_resolve_merge_rules_turns_an_invalid_pattern_into_a_rule_that_covers_no
     (rule,) = snapshot.rules
     assert rule.covers(["torch/x.py"]) is False
     assert rule.covers_all is False
+    assert rule.valid is False
     assert any(record.levelno == logging.ERROR for record in caplog.records)
 
 
@@ -239,6 +242,7 @@ def test_resolve_merge_rules_never_reads_a_missing_pattern_list_as_a_catch_all()
 
     (rule,) = snapshot.rules
     assert rule.covers([]) is False
+    assert rule.valid is False
 
 
 @pytest.mark.parametrize(

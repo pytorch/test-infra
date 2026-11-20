@@ -137,7 +137,7 @@ ciflow_push_tags:
 - **CIFlow integration**: Assigns ciflow/\* labels based on changed files (e.g., MPS, H100 symmetry memory tests)
 - **Stack-aware ciflow labels** (pytorch/pytorch only, whose merge command adds each label back to the topmost PR that needs it at merge): in a stack (a ghstack, or a GitHub stack of pull requests), a path-based ciflow/\* label from the labeler config goes only on the top-most open PR that needs it, since one run there tests every PR below it.
   - A PR is held back from a label when an open same-repo PR above it in the stack needs that label. For a ghstack, a PR is above when ghstack's listing in the PR body puts it above, taken as is, and only PRs of the same ghstack user count. For a GitHub stack, the PR above must also contain the PR's current changes (compared by head branches). Fork PRs are never treated as stacked.
-  - While a ghstack PR younger than 10 minutes still has ghstack's `(to be filled)` placeholder listing, its ciflow/\* labels wait for the edit that fills the listing in; after that the PR is labeled as usual.
+  - While a ghstack PR still has ghstack's `(to be filled)` placeholder listing, its ciflow/\* labels wait for the edit that fills the listing in. This applies on every push, and on other events for 10 minutes after the PR opens; after that, a non-push event labels the PR as usual.
   - `ciflow/docker` keeps per-PR labeling: the merge bot requires its run on the topmost landing PR that changes `.ci/docker`.
   - A label another rule in the handler also adds (such as the title-based `ciflow/rocm`) is left alone.
   - If the stack cannot be read, the PR is labeled as usual.
@@ -272,6 +272,7 @@ ciflow_push_tags:
 **GitHub Webhooks:**
 
 - `pull_request.opened`, `pull_request.synchronize`
+- `prStatusBot.ts` additionally handles workflow-label, review, reviewer-request, draft-state, base-edit, and reopen events to refresh status and reconcile workflow transitions.
 
 **Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
 

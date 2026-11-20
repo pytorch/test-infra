@@ -336,6 +336,41 @@ describe("commit runs query", () => {
     );
   });
 
+  test("the pruned read's passes hold the page's jobs, and no other filter of it", () => {
+    const JOBS =
+      "run.github_workflow_job_id IN CAST({filter_job_id: Array(String)}, 'Array(Int64)')";
+    const passes = (selected: Partial<CommitRunsListQuery>) => {
+      const { sql } = buildCommitRunsQuery(
+        { ...query, status: ["failed"], ...selected },
+        null
+      );
+      // The two passes' filters, each up to the condition that follows them.
+      return [
+        ...sql.matchAll(
+          /FROM ci\.runs AS run\n\s+WHERE ([^]*?)\n\s+AND (?:identity\(run\.tests_id\) IN|run\.outcome IN \{candidate_outcomes)/g
+        ),
+      ].map((pass) => pass[1].split(/\n\s+AND /));
+    };
+    expect(passes({})).toEqual([[COMMIT_JOBS], [COMMIT_JOBS]]);
+    // A picked job's rows are all the passes read.
+    expect(passes({ job_id: ["101"] })).toEqual([
+      [COMMIT_JOBS, JOBS],
+      [COMMIT_JOBS, JOBS],
+    ]);
+    // An environment filter in them had each pass take several times as
+    // long, and a worst status is over the test's bundles in every job.
+    expect(
+      passes({ job_id: ["101"], environments_id: [ENVIRONMENT_ID] })
+    ).toEqual([
+      [COMMIT_JOBS, JOBS],
+      [COMMIT_JOBS, JOBS],
+    ]);
+    expect(passes({ job_id: ["101"], worst_status: ["failed"] })).toEqual([
+      [COMMIT_JOBS],
+      [COMMIT_JOBS],
+    ]);
+  });
+
   test("applies the identity and attempt filters after the ranking, so the worst status is over every bundle of the test", () => {
     const { sql, params } = buildCommitRunsQuery(
       {
@@ -459,7 +494,27 @@ describe("commit runs query", () => {
     );
     expect(filtered.params.filter_test_config).toEqual(["default", "slow"]);
     expect(filtered.sql).toContain(
-      "run.env_vars_id IN (\n        SELECT id FROM ci.env_vars AS env_var_set FINAL\n        WHERE env_var_set.env_vars['TEST_CONFIG'] IN {filter_test_config: Array(String)}\n    )"
+      "identity(run.env_vars_id) IN (\n        SELECT id FROM ci.env_vars AS env_var_set FINAL\n        WHERE env_var_set.env_vars['TEST_CONFIG'] IN {filter_test_config: Array(String)}\n    )"
+    );
+  });
+
+  test("selects a workflow's jobs before the grouping, and joins the paths only for a sort", () => {
+    const filter = { ...query, workflow_path: [".github/workflows/pull.yml"] };
+    const filtered = buildCommitRunsQuery(filter, null).sql;
+    expect(filtered).toContain(
+      "WHERE run.github_workflow_job_id IN (\n    SELECT run_workflow.id"
+    );
+    expect(filtered).not.toContain("LEFT JOIN (\nWITH jobs AS");
+    // The commit's own jobs bound the metadata, without a read of its runs.
+    expect(filtered).toContain(
+      "WHERE id IN (SELECT arrayJoin(matched_job_ids))"
+    );
+    const sorted = buildCommitRunsQuery(
+      { ...filter, sort: ["workflow_path"] },
+      null
+    ).sql;
+    expect(sorted).toContain(
+      ") AS run_workflow ON run_workflow.id = run.github_workflow_job_id\nWHERE run_workflow.workflow_path IN {workflow_path: Array(String)}"
     );
   });
 

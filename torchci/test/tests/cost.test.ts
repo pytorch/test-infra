@@ -3,6 +3,7 @@ import {
   amountLabel,
   costApiUrl,
   costUrlParams,
+  datesLabel,
   fineAmountLabel,
   rateLabel,
   resolveCostQuery,
@@ -627,6 +628,7 @@ describe("cost from a rates file", () => {
       file: "f.json",
       validFrom: null,
       basis: null,
+      window: null,
       rates: { a: 1.5, b: 0 },
       original: { a: 1.5, b: 0 },
     });
@@ -651,6 +653,62 @@ describe("cost from a rates file", () => {
       /valid_from is "2026-10-01"/
     );
     expect(error("{}")).toBe("f.json has no rates.");
+  });
+
+  test("a wrapped file's usage window: its first and last days, in order; anything else is ignored and the file still prices", () => {
+    const read = (window: unknown) =>
+      parseRates(JSON.stringify({ window, rates: { a: 1 } }), "f.json");
+    const windowOf = (window: unknown) => read(window).window;
+    // Other keys, such as the generator's day count, are ignored.
+    expect(
+      windowOf({ start: "2026-10-08", end: "2026-11-06", days: 30 })
+    ).toEqual({ start: "2026-10-08", end: "2026-11-06" });
+    // Both days are included, so one day is a window.
+    expect(windowOf({ start: "2026-11-06", end: "2026-11-06" })).toEqual({
+      start: "2026-11-06",
+      end: "2026-11-06",
+    });
+    expect(windowOf({ start: "2028-02-29", end: "2028-03-01" })).toEqual({
+      start: "2028-02-29",
+      end: "2028-03-01",
+    });
+    for (const bad of [
+      { start: "2026-11-06", end: "2026-10-08" },
+      { start: "2026-02-30", end: "2026-03-01" },
+      { start: "2026-12-01", end: "2026-13-01" },
+      { start: "2027-02-29", end: "2027-03-01" },
+      { start: "0000-01-01", end: "2026-01-01" },
+      { start: "2026-1-01", end: "2026-01-02" },
+      { start: "2026-10-08T00:00:00Z", end: "2026-11-06" },
+      { start: "2026-10-08\n", end: "2026-11-06" },
+      { start: 20261008, end: 20261106 },
+      { start: "2026-10-08" },
+      ["2026-10-08", "2026-11-06"],
+      "2026-10-08 to 2026-11-06",
+      null,
+    ]) {
+      expect(windowOf(bad)).toBeNull();
+      expect(read(bad).rates).toEqual({ a: 1 });
+    }
+    expect(read(undefined).window).toBeNull();
+    // A flat file has no notes: a window there is a bad rate, as valid_from is.
+    expect(() =>
+      parseRates(
+        JSON.stringify({ window: { start: "2026-10-08", end: "2026-11-06" } }),
+        "f.json"
+      )
+    ).toThrow(/window is \{"start":"2026-10-08","end":"2026-11-06"\}/);
+    // An edit keeps the file's window.
+    const file = read({ start: "2026-10-08", end: "2026-11-06" });
+    expect(withRate(file, "a", 2).window).toEqual(file.window);
+  });
+
+  test("days read as the page's dates: the year again only when it changes", () => {
+    expect(datesLabel("2026-10-08", "2026-11-06")).toBe("2026-10-08 to 11-06");
+    expect(datesLabel("2025-12-30", "2026-01-05")).toBe(
+      "2025-12-30 to 2026-01-05"
+    );
+    expect(datesLabel("2026-11-06", "2026-11-06")).toBe("2026-11-06");
   });
 
   test("edits set, add and remove rates, and are listed against the file's", () => {

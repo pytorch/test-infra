@@ -19,9 +19,9 @@ re-submit, or a newer in-flight, `FAILED` or `CANCELLED` row at the same head en
 | Situation | Labels |
 | --- | --- |
 | greenlight records a non-shadow `LAND` / `NO_LAND` on the PR's current head | `GL/approved` / `GL/human` |
-| Verdict current, PR inside the review window and not labelled `Stale`, author eligible | that verdict's label |
-| Verdict current, PR inside the review window and not labelled `Stale`, author determined ineligible | `GL/superseded` only |
-| Verdict current, PR labelled `Stale` or author undetermined | unchanged |
+| Verdict current, PR inside the review window and not labelled `Stale`, PR eligible | that verdict's label |
+| Verdict current, PR inside the review window and not labelled `Stale`, PR ineligible | `GL/superseded` only |
+| Verdict current, PR labelled `Stale` | unchanged |
 | Verdict no longer current, greenlight will not review again, no review in progress | `GL/superseded` only |
 | Verdict no longer current, and greenlight will review again or a review is in progress | unchanged |
 | Reverted, with the verdict on the reverted head | the verdict's label and `GL/superseded`, kept even if the PR is reworked and re-landed |
@@ -32,8 +32,8 @@ re-submit, or a newer in-flight, `FAILED` or `CANCELLED` row at the same head en
 rather than waiting: a human has decided the PR (a merge-authorized approval, or changes requested
 by a non-bot reviewer), or the scan skipped it as `Stale`. Two departures from the gate are
 deliberate: idleness alone supersedes nothing, since the write would reopen an idle PR's review
-window and reset pytorch's stale clock, and an author determined ineligible counts, though the gate
-does not check eligibility, because greenlight dismisses its approval there. A review is *in
+window and reset pytorch's stale clock, and an ineligible PR counts, though the gate does not check
+eligibility, because greenlight dismisses its approval there. A review is *in
 progress* while its in-flight row is younger than the scan's `--timeout-minutes` window (45 minutes
 by default). The reverted head is the PR's head when the scan recorded its `REVERTED` row; a verdict
 that lands after the revert makes the scan record that row again.
@@ -120,15 +120,15 @@ too. No flag turns the labels off.
 - A verdict recorded after a human has merged the PR writes no label, and the scan never touches a
   closed PR, so a merged PR keeps the label it merged with. If the PR is reverted, though, the scan
   pairs its `REVERTED` row with the PR's latest verdict, which can be that late one.
-- A verdict the `record` job downgrades to shadow, on a PR whose author the scan still judges
-  eligible, writes no label, and greenlight does not review the PR again until it changes, so the
-  label of the verdict before it stays.
-- An author made ineligible and then eligible again, with no push, shows `GL/approved` although
+- A verdict the `record` job downgrades to shadow, on a PR the scan still judges eligible, writes no
+  label, and greenlight does not review the PR again until it changes, so the label of the verdict
+  before it stays.
+- A PR made ineligible and then eligible again, with no push, shows `GL/approved` although
   greenlight never re-posts the approval it dismissed.
 - A reverted PR whose reopen failed stays closed, so the scan never lists it and it never gets
   `GL/superseded`.
 - Two revert edges are accepted as rare. A PR superseded before it merged at the verdict's commit
-  (its author ineligible, or a newer failed run plus a human decision) shows the verdict's label
+  (ineligible, or a newer failed run plus a human decision) shows the verdict's label
   again after the revert. A push in the minutes before the scan records the `REVERTED` row drops the
   verdict's label, since the reverted head is then the new one.
 - The first listing ticks after deploy label the open PRs the pass judges, time-boxed and with the

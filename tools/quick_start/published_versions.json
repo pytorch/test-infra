@@ -7,19 +7,19 @@
         "pip": {
           "accnone": {
             "note": null,
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu"
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu"
           },
           "cuda.x": {
             "note": null,
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132"
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132"
           },
           "cuda.y": {
             "note": null,
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134"
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134"
           },
           "rocm5.x": {
             "note": null,
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1"
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1"
           }
         },
         "libtorch": {
@@ -53,22 +53,22 @@
         "pip": {
           "cuda.x": {
             "note": "# CUDA is not available on MacOS, please use default package",
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
             "default": true
           },
           "cuda.y": {
             "note": "# CUDA is not available on MacOS, please use default package",
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
             "default": true
           },
           "rocm5.x": {
             "note": "# ROCm is not available on MacOS, please use default package",
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
             "default": true
           },
           "accnone": {
             "note": null,
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu"
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu"
           }
         },
         "libtorch": {
@@ -105,15 +105,15 @@
         "pip": {
           "accnone": {
             "note": null,
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu"
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu"
           },
           "cuda.x": {
             "note": null,
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132"
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132"
           },
           "cuda.y": {
             "note": null,
-            "command": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134"
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134"
           },
           "rocm5.x": {
             "note": "<b>NOTE:</b> ROCm is not available on Windows",

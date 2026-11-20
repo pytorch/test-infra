@@ -288,7 +288,10 @@ include_patterns = [
     # '.github/actions/**/*.yml',
     # '.github/actions/**/*.yaml',
 ]
-exclude_patterns = ['.github/workflows/linux_job_v3.yml']
+exclude_patterns = [
+    '.github/workflows/linux_job_v3.yml',
+    '.github/workflows/td-scorer.yml',
+]
 command = [
     'python3',
     'tools/linter/adapters/actionlint_linter.py',
@@ -306,10 +309,14 @@ init_command = [
     '--output-name=actionlint',
 ]
 
-# job.check_run_id needs actionlint >= 1.7.8; retain legacy checks elsewhere.
+# job.check_run_id (linux_job_v3.yml) and the vars context (td-scorer.yml) need
+# actionlint >= 1.7.8; retain legacy checks elsewhere.
 [[linter]]
 code = 'ACTIONLINT_REPORTS'
-include_patterns = ['.github/workflows/linux_job_v3.yml']
+include_patterns = [
+    '.github/workflows/linux_job_v3.yml',
+    '.github/workflows/td-scorer.yml',
+]
 command = [
     'python3',
     'tools/linter/adapters/actionlint_linter.py',

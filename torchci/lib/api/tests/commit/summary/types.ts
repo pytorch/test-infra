@@ -72,7 +72,7 @@ export const CommitTestCountsSchema = z
     ),
   })
   .describe(
-    "The commit's test counts after replacement deduplication, by the bundle status rule: a bundle's status follows its last executed attempt's outcome, a skip never overriding an executed attempt, flaky being a final pass after a failing attempt. The commit page's summary shows the runs of each status and total.runs, with total.tests as the distinct tests."
+    "The commit's test counts after replacement deduplication, by the bundle status rule: a bundle's status follows its last executed attempt's outcome, a skip never overriding an executed attempt, flaky being a final pass after a failing attempt. The commit page's summary shows the runs of each status and total.runs."
   );
 
 // The pull request as the runs' workflow metadata spells it, with its title.
@@ -154,38 +154,42 @@ export const CommitRecordSchema = z
     "The commit as its workflow runs and pushes describe it, with its neighbours on its branch."
   );
 
-export const CommitSummarySchema = z
-  .object({
-    commit: CommitRecordSchema,
-    counts: CommitTestCountsSchema,
-    first_started_at: z.iso
-      .datetime()
-      .nullable()
-      .describe(
-        "When the earliest retained attempt on the commit started, in ISO 8601 UTC with millisecond precision; null without runs."
-      ),
-    last_ended_at: z.iso
-      .datetime()
-      .nullable()
-      .describe(
-        "When the latest retained attempt on the commit ended, in ISO 8601 UTC with millisecond precision; null without runs."
-      ),
-    retention_starts_at: z.iso
-      .datetime()
-      .describe(
-        "The start of the runs table's retention when this was answered, in ISO 8601 UTC: runs that started before it are no longer kept, so a commit committed before it with no runs is one whose runs expired, not one that had none."
-      ),
+// The fields a request can name with the `fields` parameter.
+export const CommitSummaryFieldsSchema = z.object({
+  commit: CommitRecordSchema,
+  counts: CommitTestCountsSchema,
+  first_started_at: z.iso
+    .datetime()
+    .nullable()
+    .describe(
+      "When the earliest retained attempt on the commit started, in ISO 8601 UTC with millisecond precision; null without runs."
+    ),
+  last_ended_at: z.iso
+    .datetime()
+    .nullable()
+    .describe(
+      "When the latest retained attempt on the commit ended, in ISO 8601 UTC with millisecond precision; null without runs."
+    ),
+  retention_starts_at: z.iso
+    .datetime()
+    .describe(
+      "The start of the runs table's retention when this was answered, in ISO 8601 UTC: runs that started before it are no longer kept, so a commit committed before it with no runs is one whose runs expired, not one that had none."
+    ),
+});
+
+export const CommitSummarySchema = CommitSummaryFieldsSchema.partial()
+  .extend({
     hud_url: TestListPageSchema.shape.hud_url
       .unwrap()
       .describe(
         "The HUD page for the commit's tests, the commitPage operation, with no parameters."
       ),
     query_duration_ms: TestListPageSchema.shape.query_duration_ms.describe(
-      "Sum of the individually rounded elapsed milliseconds of the commit lookup, the test counts, and the pull request and neighbour lookups when made. The counts run concurrently with the rest, so this sum can exceed wall-clock time. Includes client and network overhead and decoding; excludes SQL construction, mapping and API transport."
+      "Sum of the individually rounded elapsed milliseconds of the queries made: the commit lookup, and for the fields asked for the test counts and the pull request and neighbour lookups. The counts run concurrently with the rest, so this sum can exceed wall-clock time. Includes client and network overhead and decoding; excludes SQL construction, mapping and API transport."
     ),
   })
   .describe(
-    "What happened to the tests on one commit: the commit, its test counts by status, when its runs ran, and its page."
+    "What happened to the tests on one commit: the commit, its test counts by status, when its runs ran, and its page. Every field unless the fields parameter names some, then those; hud_url and query_duration_ms always."
   );
 
 export type CommitSummary = z.infer<typeof CommitSummarySchema>;

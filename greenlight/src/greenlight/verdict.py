@@ -4,33 +4,32 @@ Unlike the ``review`` phase this is a single action, not a daemon iteration: it 
 outside the loop, lock, and watchdog machinery and raises on any failure so the CLI
 maps it straight to an exit code.
 
-Statuses split into two modes. FULL verdicts (LAND / NO_LAND) carry a ``--verdict-file``
-holding ``{status, reason, message}``; ``reason`` must be one of ``ALLOWED_REASONS`` -- and
-exactly ``constants.LAND_REASON`` when the status is LAND -- while ``message`` must be
-non-empty. The command emits a gzipped single-line JSONEachRow row to
-a fixed local path (the record workflow uploads it to ``s3://gha-artifacts/``, where the
-clickhouse-replicator-s3 path ingests it into ``misc.greenlight_pr_state``) and then
-updates GitHub with a defanged copy of the message. Both LAND and NO_LAND upsert one
-canonical verdict comment -- edited in place across runs, found by a hidden marker and
-restricted to greenlight's own account (``bot_login``); LAND additionally posts an approving
-review unless the verdict is shadow or greenlight already holds a live approval on the PR, and
-NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
-A LAND or NO_LAND is shadow when ``--shadow`` is passed or ``has_covering_rule`` finds no merge rule
-that names its author and covers every changed file; a failed check fails the command before the
-row is written, after a NO_LAND has already dismissed. A shadow verdict carries no authority, and
-that is absolute rather than forward-looking: no approving review is ever posted for one, any prior
-greenlight approval is dismissed on the LAND path as well as the NO_LAND one, and the row is
-stamped ``shadow`` so neither Dr. CI nor the merge gate reads it. Withholding a new approval would
-not take back one collected while the PR was eligible, and a live approval is authority whatever
-the row says. The row is
-authoritative, so the comment upsert is best-effort on every path (a
-failed write is logged and swallowed); the LAND approving review and the NO_LAND dismissal are the
-merge gate and stay load-bearing -- they raise on failure. An authoritative LAND or NO_LAND also
-makes that verdict's ``GL/*`` label the PR's only one (``verdict_labels``), best-effort too, unless
-the PR is closed, has moved off the reviewed head or carries ``Reverted``. MARKER statuses (CANCELLED /
-FAILED / AI_REVIEW_STARTED) always emit the row and, when a ``bot_login`` and token are both present,
-best-effort upsert that same canonical comment to show the run as in-progress (AI_REVIEW_STARTED)
-or not-completed (CANCELLED / FAILED). The command never writes to ClickHouse directly.
+Statuses split into two modes. FULL verdicts (LAND / NO_LAND) carry a ``--verdict-file`` holding
+``{status, reason, message}``; ``reason`` must be one of ``ALLOWED_REASONS`` -- and exactly
+``constants.LAND_REASON`` when the status is LAND -- while ``message`` must be non-empty. The
+command emits a gzipped single-line JSONEachRow row to a fixed local path (the record workflow
+uploads it to ``s3://gha-artifacts/``, where the clickhouse-replicator-s3 path ingests it into
+``misc.greenlight_pr_state``) and then updates GitHub with a defanged copy of the message. Both LAND
+and NO_LAND upsert one canonical verdict comment -- edited in place across runs, found by a hidden
+marker and restricted to greenlight's own account (``bot_login``); LAND additionally posts an
+approving review unless the verdict is shadow or greenlight already holds a live approval on the PR,
+and NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
+A LAND or NO_LAND is shadow when ``--shadow`` is passed or ``has_eligible_author`` finds no valid
+merge rule naming its author, or finds the PR off the reviewed head or on a base trymerge refuses;
+a failed check fails the command before the row is written, after a NO_LAND has already dismissed. A
+shadow verdict carries no authority, and that is absolute rather than forward-looking: no approving
+review is ever posted for one, any prior greenlight approval is dismissed on the LAND path as well
+as the NO_LAND one, and the row is stamped ``shadow`` so neither Dr. CI nor the merge gate reads it.
+Withholding a new approval would not take back one collected while the PR was eligible, and a live
+approval is authority whatever the row says. The row is authoritative, so the comment upsert is
+best-effort on every path (a failed write is logged and swallowed); the LAND approving review and
+the NO_LAND dismissal are the merge gate and stay load-bearing -- they raise on failure. An
+authoritative LAND or NO_LAND also makes that verdict's ``GL/*`` label the PR's only one
+(``verdict_labels``), best-effort too, unless the PR is closed, has moved off the reviewed head or
+carries ``Reverted``. MARKER statuses (CANCELLED / FAILED / AI_REVIEW_STARTED) always emit the row
+and, when a ``bot_login`` and token are both present, best-effort upsert that same canonical comment
+to show the run as in-progress (AI_REVIEW_STARTED) or not-completed (CANCELLED / FAILED). The
+command never writes to ClickHouse directly.
 
 Every comment upsert above is suppressed on the repos in ``constants.DRCI_STATUS_COMMENT_REPOS``,
 where Dr. CI renders the same state from the emitted row and the ``drci-poke`` command refreshes
@@ -218,38 +217,22 @@ def _dismiss_prior_approvals(request: VerdictRequest, pr: VerdictPR) -> None:
         logger.info("no prior greenlight approval to dismiss on %s#%d", request.repo, request.pr_number)
 
 
-def has_covering_rule(token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> bool:
-    """True when one merge rule names ``author`` and covers every changed file. Every failure raises.
+def has_eligible_author(token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> bool:
+    """True when a valid merge rule names ``author`` and the PR is still as reviewed. Every failure raises.
 
-    ``cohort.assess_rules`` decides. A path-scoped rule's files count only while the PR's head is still
-    ``head_sha``, the reviewed commit, and a fresh read after the listing finds the same head commit and
-    base branch name on a base ``merge_authz.accepts_base`` still accepts, so a PR listed for its native
-    stack on main must still be in one; ``merge_authz.changed_files`` leaves the files unknown on any other
-    base, or for more than ``constants.MAX_DIFF_FILES`` files.
+    ``cohort.assess_rules`` decides on the author. One fresh read of the PR must then find its head still
+    at ``head_sha``, the reviewed commit, on a base ``merge_authz.accepts_base`` accepts, so a PR reviewed
+    for its native stack on main must still be in one. A push to the base branch is not caught.
     """
     client = github_client.build_authz_client(token)
-    moved: str | None = None
-
-    def files() -> tuple[str, ...] | None:
-        nonlocal moved
-        pull = client.get_repo(repo).get_pull(pr_number)
-        if pull.head.sha != head_sha:
-            moved = "head moved"
-            return None
-        # The head, base and stack come from this one response; the fresh read after the listing catches a push
-        # to the head, a retarget, or the loss of the native stack on main a PR was listed for while the files
-        # page, but not a push to the base branch.
-        listing = merge_authz.changed_files(pull)
-        if listing is None:
-            return None
-        fresh = client.get_repo(repo).get_pull(pr_number)
-        if fresh.head.sha != pull.head.sha or fresh.base.ref != pull.base.ref or not merge_authz.accepts_base(fresh):
-            moved = "head or base moved"
-            return None
-        return listing
-
     try:
-        rule, reason = cohort.assess_rules(author, merge_authz.resolve_merge_rules(client).rules, files)
+        rule, reason = cohort.assess_rules(author, merge_authz.resolve_merge_rules(client).rules)
+        if rule is not None:
+            pull = client.get_repo(repo).get_pull(pr_number)
+            if pull.head.sha != head_sha:
+                rule, reason = None, "head moved"
+            elif not merge_authz.accepts_base(pull):
+                rule, reason = None, "base not accepted"
     finally:
         github_client.close_client(client)
     # The record job's log is public: the reason names no rule, team or file, and none may be added.
@@ -258,7 +241,7 @@ def has_covering_rule(token: str, repo: str, pr_number: int, head_sha: str, auth
         repo,
         pr_number,
         author,
-        "eligible" if rule is not None else f"not eligible: {moved or reason}",
+        "eligible" if rule is not None else f"not eligible: {reason}",
     )
     return rule is not None
 
@@ -299,10 +282,8 @@ def _run_full(
     # means the approval was withheld. Stamping the row non-shadow anyway would render a LAND in
     # Dr. CI and offer the merge gate an authorization that no review backs. The short circuit also
     # keeps a shadow request from resolving eligibility at all. The lookup is handed the reviewed
-    # head, not the live one, but its file listing is not pinned to a SHA: a push and a push-back
-    # (A->B->A) inside the listing window, seconds for a large PR, pass both head checks while the
-    # listing may reflect B.
-    shadow = request.shadow or not has_covering_rule(token, request.repo, request.pr_number, request.head_sha, author)
+    # head, not the live one.
+    shadow = request.shadow or not has_eligible_author(token, request.repo, request.pr_number, request.head_sha, author)
     key = _emit_payload(request, status, reason, message, shadow=shadow, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     job_url = request.agent_job_url or request.eval_job_url

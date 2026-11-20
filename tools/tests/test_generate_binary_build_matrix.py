@@ -197,6 +197,48 @@ class GenerateBuildMatrixTest(TestCase):
                 self.assertIn("3.15", versions)
                 self.assertIn("3.15t", versions)
 
+    def _install_commands(self, channel: str, getting_started: bool) -> set:
+        commands = set()
+        for operating_system in ("linux", "linux-aarch64", "windows", "macos-arm64"):
+            out = generate_build_matrix(
+                "wheel",
+                operating_system,
+                channel,
+                "enable",
+                "enable" if operating_system in ("linux",) else "disable",
+                "enable",
+                "enable" if operating_system in ("linux", "windows") else "disable",
+                "false",
+                "false",
+                "disable",
+                "true" if getting_started else "false",
+                None,
+                "disable",
+            )
+            # 3.15 / 3.15t are torch-only on every channel (TORCH_ONLY_PYTHON_ARCHES)
+            commands |= {
+                entry["installation"]
+                for entry in out["include"]
+                if entry["python_version"] not in ("3.15", "3.15t")
+            }
+        return commands
+
+    def test_getting_started_nightly_installs_torch_only(self):
+        commands = self._install_commands("nightly", getting_started=True)
+        self.assertTrue(commands)
+        for command in commands:
+            self.assertIn("pip3 install --pre torch --index-url", command)
+            self.assertNotIn("torchvision", command)
+
+    def test_getting_started_test_and_release_still_install_torchvision(self):
+        for channel in ("test", "release"):
+            for command in self._install_commands(channel, getting_started=True):
+                self.assertIn("torch torchvision", command)
+
+    def test_nightly_validation_matrix_still_installs_torchvision(self):
+        for command in self._install_commands("nightly", getting_started=False):
+            self.assertIn("torch torchvision", command)
+
     def test_python_3_15_excluded_on_windows_arm64(self):
         # windows-arm64 pins its own short version list.
         versions = self._test_channel_python_versions("windows-arm64")
@@ -377,6 +419,39 @@ class GenerateBuildMatrixTest(TestCase):
                     f"{operating_system}/{channel}",
                 )
 
+    def test_cuda_13_5_nightly_only_and_not_advertised(self):
+        # 13.5 is built on nightly (pytorch/pytorch#204391) for Linux and Windows
+        # but not yet on test or release, and is kept out of the pytorch.org
+        # install selector.
+        for operating_system in ("linux", "linux-aarch64", "windows"):
+            self.assertIn(
+                "cu135",
+                self._cuda_versions("wheel", operating_system, "nightly", "false"),
+                operating_system,
+            )
+            self.assertNotIn(
+                "cu135",
+                self._cuda_versions("wheel", operating_system, "nightly", "true"),
+                operating_system,
+            )
+        self.assertIn(
+            "cu135", self._cuda_versions("libtorch", "windows", "nightly", "false")
+        )
+        self.assertNotIn(
+            "cu135", self._cuda_versions("libtorch", "windows", "nightly", "true")
+        )
+        for channel in ("test", "release"):
+            self.assertNotIn(
+                "cu135",
+                self._cuda_versions("wheel", "linux", channel, "false"),
+                channel,
+            )
+            self.assertNotIn(
+                "cu135",
+                self._cuda_versions("wheel", "windows", channel, "false"),
+                channel,
+            )
+
     def test_release_channel_cuda_arches(self):
         # 2.15 ships cu132 and cu134 on download.pytorch.org prod, and neither
         # cu126 nor cu130.
@@ -430,6 +505,7 @@ class TestRunnerFleet(TestCase):
     def tearDown(self) -> None:
         os.environ.pop("RUNNER_FLEET", None)
         os.environ.pop("GITHUB_REF", None)
+        os.environ.pop("GITHUB_REPOSITORY_OWNER", None)
 
     def test_ec2_is_the_default(self) -> None:
         self.assertEqual(validation_runner("cpu", "linux"), "linux.2xlarge")
@@ -460,6 +536,26 @@ class TestRunnerFleet(TestCase):
         self.assertEqual(
             validation_runner("cuda", "linux"),
             "mt-rel-l-x86aavx2-11-41-a10g",
+        )
+
+    def test_other_orgs_stay_on_regular_runners_on_a_release_ref(self) -> None:
+        # meta-pytorch cannot allow-list pytorch/test-infra's reusables on its
+        # release runner groups, so its release-ref builds use regular runners.
+        os.environ["RUNNER_FLEET"] = "osdc"
+        os.environ["GITHUB_REF"] = "refs/heads/main"
+        os.environ["GITHUB_REPOSITORY_OWNER"] = "meta-pytorch"
+        self.assertEqual(validation_runner("cpu", "linux"), "mt-l-x86iavx512-8-64")
+        self.assertEqual(validation_runner("cuda", "linux"), "mt-l-x86aavx2-11-41-a10g")
+        self.assertEqual(
+            validation_runner("cpu", "linux-aarch64"), "mt-l-arm64g3-16-62"
+        )
+
+    def test_pytorch_keeps_release_runners(self) -> None:
+        os.environ["RUNNER_FLEET"] = "osdc"
+        os.environ["GITHUB_REF"] = "refs/heads/main"
+        os.environ["GITHUB_REPOSITORY_OWNER"] = "pytorch"
+        self.assertEqual(
+            validation_runner("cpu", "linux"), "mt-rel-l-x86iavx512-44-340"
         )
 
     def test_aarch64_has_no_gpu_runner(self) -> None:

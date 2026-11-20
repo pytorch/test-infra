@@ -1,6 +1,26 @@
 import { getParser } from "../lib/bot/cliParser";
 
 describe("CLI Parser", () => {
+  test("advertises only the supported command surface", () => {
+    const usage = getParser().format_usage();
+    expect(usage.match(/\{([^}]+)\}/)![1].split(",")).toEqual([
+      "merge",
+      "revert",
+      "rebase",
+      "label",
+      "drci",
+      "review",
+      "triage",
+      "lint",
+      "fix-lint",
+      "apply-lint",
+      "cherry-pick",
+    ]);
+  });
+
+  test("unknown commands are rejected", () => {
+    expect(() => getParser().parse_args(["not-a-bot-command"])).toThrow();
+  });
   describe("cherry-pick command", () => {
     it("should accept --onto parameter", () => {
       const parser = getParser();

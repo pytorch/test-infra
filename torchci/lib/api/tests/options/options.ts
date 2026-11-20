@@ -1,3 +1,4 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import { CI_DATABASE } from "lib/api/tests/database";
 import type { TestOptions } from "lib/api/tests/options/types";
 import { TEST_VIEWS } from "lib/api/tests/options/views";
@@ -13,7 +14,6 @@ import {
   TestLanguage,
   WINDOWS,
 } from "lib/api/tests/parameters";
-import { queryClickhouse } from "lib/clickhouse";
 import { workflowName } from "lib/workflowName";
 
 // How each value reads in running text, after "within the last", "on" and
@@ -201,12 +201,16 @@ FROM ${CI_DATABASE}.env_vars
 // Every calling workflow path the health table has seen in its longest
 // window, on either code source: what the list's workflow_path filter can
 // match. The two 14d partitions hold some 30 million short arrays; reading
-// them takes about 0.2 s.
+// them takes 0.2 s on a quiet server and 2 s on a busy one, beside the
+// queries of the page that asked. The server keeps the answer for as long
+// as a browser may keep the options (WORKFLOW_PATHS_KEPT_SECONDS), so the
+// arrays are read once in that time, whoever asks.
 export const WORKFLOW_PATH_VALUES_SQL = `
 SELECT groupUniqArrayArray(workflow_paths) AS workflow_path
 FROM ${CI_DATABASE}.health
 WHERE window = '14d'
 `;
+const WORKFLOW_PATHS_KEPT_SECONDS = 300;
 // Every owner label of the owners catalog, read with FINAL because a file's
 // row is replaced whole when its owners change and the old labels must not
 // be offered. Some two thousand rows.
@@ -227,7 +231,9 @@ export async function readCatalogValues(): Promise<CatalogValues> {
       queryClickhouse(
         WORKFLOW_PATH_VALUES_SQL,
         {},
-        "api_tests_options_workflow_paths"
+        "api_tests_options_workflow_paths",
+        true,
+        { query_cache_ttl: WORKFLOW_PATHS_KEPT_SECONDS }
       ),
       queryClickhouse(OWNER_VALUES_SQL, {}, "api_tests_options_owners"),
     ]);

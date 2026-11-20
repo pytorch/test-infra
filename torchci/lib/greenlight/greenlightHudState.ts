@@ -12,10 +12,24 @@ import {
   parseOutline,
 } from "lib/greenlight/greenlightOutline";
 import {
+  GREENLIGHT_INCOMPLETE_HEADLINE,
+  GREENLIGHT_LAND_HEADLINE,
   GREENLIGHT_MESSAGE_CAP,
+  GREENLIGHT_NO_LAND_HEADLINE,
+  GREENLIGHT_REVERTED_BODY,
+  GREENLIGHT_REVERTED_HEADLINE,
+  GREENLIGHT_REVIEWING_BODY,
+  GREENLIGHT_REVIEWING_HEADLINE,
+  GREENLIGHT_STALLED_REASON,
+  GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED,
+  GREENLIGHT_STATUS_AI_REVIEW_STARTED,
+  GREENLIGHT_STATUS_CANCELLED,
+  GREENLIGHT_STATUS_FAILED,
   GREENLIGHT_STATUS_LAND,
   GREENLIGHT_STATUS_NO_LAND,
+  GREENLIGHT_STATUS_REVERTED,
 } from "lib/greenlight/greenlightRender";
+import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
 import { CommitData } from "lib/types";
 
 /** One `misc.greenlight_pr_state` row. Saved queries are untyped, so this is the cast target. */
@@ -189,6 +203,94 @@ export function selectStateForSha(
       normalizeSha(row.head_sha) === wanted ||
       normalizeSha(row.merge_commit_sha) === wanted
   );
+}
+
+// The one reason code meaning "nothing to report". A literal because the enum
+// lives in Python; this is a display rule keyed off one member, not a copy of
+// the set.
+const LAND_REDUNDANT_REASON = "clean";
+
+export interface GreenlightDescription {
+  /**
+   * The status the mark should show, which is not always the row's own: a
+   * stale in-flight row is presented as a run that did not complete, and the
+   * lamp has to say the same thing as the headline beside it.
+   */
+  iconStatus: string;
+  headline: string;
+  /** Fixed prose for states that carry no model message. */
+  body: string;
+  /** The row's own reason for a verdict; the markers name themselves instead. */
+  reason: string;
+}
+
+/**
+ * What the HUD says for a status, on the verdict panel of the commit and PR
+ * pages and on the test hub's commit page alike, so no two surfaces describe a
+ * row differently. Mirrors renderGreenlightSection: a status with no case here
+ * has nothing to show.
+ */
+export function describeGreenlightStatus(
+  status: string,
+  rowReason: string,
+  version: string,
+  now: Date
+): GreenlightDescription | undefined {
+  switch (status) {
+    case GREENLIGHT_STATUS_LAND:
+      return {
+        iconStatus: status,
+        headline: GREENLIGHT_LAND_HEADLINE,
+        body: "",
+        // "clean" is the only reason a LAND may carry, so printing it just
+        // restates the headline. Keyed on the pair, not the status: a LAND
+        // carrying anything else is anomalous and worth showing.
+        reason: rowReason === LAND_REDUNDANT_REASON ? "" : rowReason,
+      };
+    case GREENLIGHT_STATUS_NO_LAND:
+      return {
+        iconStatus: status,
+        headline: GREENLIGHT_NO_LAND_HEADLINE,
+        body: "",
+        reason: rowReason,
+      };
+    case GREENLIGHT_STATUS_REVERTED:
+      return {
+        iconStatus: status,
+        headline: GREENLIGHT_REVERTED_HEADLINE,
+        body: GREENLIGHT_REVERTED_BODY,
+        reason: "",
+      };
+    case GREENLIGHT_STATUS_AI_REVIEW_STARTED:
+    case GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED:
+      // An in-flight row past the window means the terminal emit was lost.
+      return isInProgressStale(version, now)
+        ? {
+            // FAILED, not the row's in-flight status: it is the status whose
+            // lamp and label already mean "did not complete", which is what
+            // the headline here says.
+            iconStatus: GREENLIGHT_STATUS_FAILED,
+            headline: GREENLIGHT_INCOMPLETE_HEADLINE,
+            body: "",
+            reason: GREENLIGHT_STALLED_REASON,
+          }
+        : {
+            iconStatus: status,
+            headline: GREENLIGHT_REVIEWING_HEADLINE,
+            body: GREENLIGHT_REVIEWING_BODY,
+            reason: "",
+          };
+    case GREENLIGHT_STATUS_CANCELLED:
+    case GREENLIGHT_STATUS_FAILED:
+      return {
+        iconStatus: status,
+        headline: GREENLIGHT_INCOMPLETE_HEADLINE,
+        body: "",
+        reason: status.toLowerCase(),
+      };
+    default:
+      return undefined;
+  }
 }
 
 /** How the panel shows a verdict `message`: as a bullet list, or as raw text. */

@@ -1,4 +1,3 @@
-import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import { decodeRunsCursor } from "lib/api/tests/test/runs/cursor";
 import { listRuns } from "lib/api/tests/test/runs/list";
 import {
@@ -347,7 +346,7 @@ describe("test runs list", () => {
     );
   });
 
-  test("sums query durations while catalog and workflow lookups overlap", async () => {
+  test("sums query durations while the attempts, catalog and workflow reads overlap", async () => {
     jest.useFakeTimers();
     const durations: Record<string, number> = {
       api_test_runs_page: 37,
@@ -365,7 +364,7 @@ describe("test runs list", () => {
     await jest.runAllTimersAsync();
     const page = await response;
     expect(page.query_duration_ms).toBe(68);
-    expect(performance.now() - startedAt).toBe(61);
+    expect(performance.now() - startedAt).toBe(50);
     expect(queryClickhouse.mock.calls.map((call) => call[2])).toEqual([
       "api_test_runs_page",
       "api_run_attempts",
@@ -389,7 +388,7 @@ describe("test runs list", () => {
     expect(queryClickhouse).toHaveBeenCalledTimes(1);
   });
 
-  test("runs only the attempts read in the heavy workload", async () => {
+  test("runs no query in the heavy workload", async () => {
     answerRunQueries(queryClickhouse, {
       page: [groupRow()],
       attempts: [runRow()],
@@ -401,7 +400,7 @@ describe("test runs list", () => {
       )
     ).toEqual({
       api_test_runs_page: undefined,
-      api_run_attempts: CI_WORKLOAD_HEAVY,
+      api_run_attempts: undefined,
       api_run_catalog: undefined,
       api_run_workflow: undefined,
     });

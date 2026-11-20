@@ -1,3 +1,4 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import { buildRunDetailQuery } from "lib/api/tests/run/query";
 import { RunDetail } from "lib/api/tests/run/types";
 import { queryRunAttempts } from "lib/api/tests/test/runs/attempts";
@@ -6,7 +7,6 @@ import {
   runGroup,
   RunRow,
 } from "lib/api/tests/test/runs/mapping";
-import { queryClickhouse } from "lib/clickhouse";
 
 export async function getRun(id: string): Promise<RunDetail | null> {
   const { sql, params } = buildRunDetailQuery(id);

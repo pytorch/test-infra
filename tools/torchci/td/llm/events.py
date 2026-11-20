@@ -8,7 +8,7 @@ import traceback
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from torchci.td.llm.bundle import atomic_file
 from torchci.td.llm.cache import ensure_dir
@@ -24,6 +24,9 @@ E1_RANKING_LAG_DAYS = 7
 BASE_SOURCES = ("pr_base_sha", "head_pr_base_sha", "merge_base")
 E1_FILE, E2_FILE = "e1_events.jsonl", "e2_events.jsonl"
 TEST_TIMES_FILE, META_FILE = "test_times.json", "meta.json"
+# Appended after the saved query's own SETTINGS: a later setting wins, so these replace
+# the HUD page's time limit.
+OFFLINE_SETTINGS = "readonly = 2, max_execution_time = 600"
 
 
 @dataclass(frozen=True)
@@ -70,13 +73,13 @@ def test_file_of(key: str) -> str:
     return key.split("::", 1)[0].split(", ", 1)[0]
 
 
-def with_readonly(sql: str) -> str:
-    """Appends `readonly = 2` to the saved query's one SETTINGS line, its last line."""
+def with_offline_settings(sql: str) -> str:
+    """Appends OFFLINE_SETTINGS to the saved query's one SETTINGS line, its last line."""
     lines = sql.rstrip().split("\n")
     idx = [i for i, ln in enumerate(lines) if ln.lstrip().startswith("SETTINGS ")]
     if len(idx) != 1 or idx[0] != len(lines) - 1:
         raise ValueError(f"expected one SETTINGS line, last: found {len(idx)}")
-    lines[-1] = lines[-1].rstrip() + ", readonly = 2"
+    lines[-1] = lines[-1].rstrip() + ", " + OFFLINE_SETTINGS
     return "\n".join(lines) + "\n"
 
 
@@ -198,7 +201,7 @@ def _query(name: str, sql: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         ):
             trace = trace.replace(secret, label) if secret else trace
         logger.error("%s query failed:\n%s", name, trace)
-        code = re.search(r"Code: (\d+)", str(e))
+        code = re.search(r"(?:Code:|error code) (\d+)", str(e))
         short = type(e).__name__ + (f" (code {code.group(1)})" if code else "")
         raise RuntimeError(f"{name} query failed: {short}") from None
 
@@ -212,10 +215,14 @@ def saved_breakages_query() -> tuple[str, dict[str, Any]]:
 
     path = REPO_ROOT / "torchci" / "clickhouse_queries" / SAVED_QUERY
     params = json.loads((path / "params.json").read_text())
-    return with_readonly((path / "query.sql").read_text()), params
+    return with_offline_settings((path / "query.sql").read_text()), params
 
 
-def fetch_e1(start: datetime, stop: datetime) -> list[dict[str, Any]]:
+def fetch_e1(
+    start: datetime,
+    stop: datetime,
+    query: Callable[[str, str, dict[str, Any]], list[dict[str, Any]]] = _query,
+) -> list[dict[str, Any]]:
     sql, params = saved_breakages_query()
     rows: list[dict[str, Any]] = []
     for lo, hi in chunks(start, stop):
@@ -225,7 +232,7 @@ def fetch_e1(start: datetime, stop: datetime) -> list[dict[str, Any]]:
             raise ValueError(
                 f"{SAVED_QUERY} params changed: {sorted(params['params'])}"
             )
-        rows += _query(SAVED_QUERY, sql, values)
+        rows += query(SAVED_QUERY, sql, values)
     return rows
 
 

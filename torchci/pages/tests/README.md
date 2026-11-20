@@ -5,7 +5,8 @@ page, built on the [HUD API](../../app/api/README.md)'s `GET /api/tests`.
 `/tests/[organization]/[repo]/test/[test_id]` is one test's own page, built on
 `GET /api/tests/test/{test_id}`; its section is [below](#test-page).
 `/tests/[organization]/[repo]/commit/[sha]` is one commit's page, built on
-`GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}`; its
+`GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}`, with
+GreenLight's verdict from `GET /api/tests/commit/{sha}/greenlight`; its
 section is [below](#commit-page).
 `/tests/[organization]/[repo]/pull/[number]` opens the commit page of a pull
 request's newest head, found by `GET /api/tests/pull/{number}`; its section
@@ -34,6 +35,12 @@ the page that shows it as `hud_url`.
   its response, hands out cursors, and is where queries are measured and
   optimized. When the page needs data the API does not have, extend the API
   first, following its README, then the page.
+- The pages are public, though the API is behind its GitHub gate: the routes
+  the pages read let a page's own requests through without a credential
+  (`admitHudPages` in `lib/api/auth.ts`, the API README's
+  [Authentication](../../app/api/README.md#authentication)), so no page asks
+  its reader to sign in. A page that starts reading another route opens that
+  route to the pages in the same change.
 - From `lib/api/` import types (`import type { ... }`) and, at run time, only
   the parameter definitions in `lib/api/tests/pages/parameters.ts`: the
   page's URL query defined as the API's own zod definitions, picked by name
@@ -583,11 +590,6 @@ the grid of its runs by commit.
   with the code `not_found`, is a state of the page, not an error, and is
   never asked again; the hook reports it as `notFound`. The page branches on
   the API's code, as the API asks, not on its text.
-- The gate is handled as the list page handles it: the page asks at once,
-  whatever the client-side session has found out, and a 401 or 403 from the
-  API (`accessReasonOf`, which reads the status the hook keeps on the error)
-  shows the `AccessNotice` in place of the test, under the bare title, with
-  the sign-in where it helps.
 - The URL names a repository and the page shows only that repository's test:
   a test whose `repo` is another is treated as not found, so a pytorch test's
   id under a vision URL shows no pytorch test.
@@ -1034,29 +1036,47 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
 
 `/tests/[organization]/[repo]/commit/[sha]` is one commit's page: what happened
 to the repository's tests on that commit, built on
-`GET /api/tests/commit/{sha}/summary` for its header and summary row and
-`GET /api/tests/commit/{sha}` for its table. It keeps the rules above: nothing
-but `/api/tests` endpoints, types and parameter definitions only from
-`lib/api/`, the theme's colors, logic in `lib/tests/` (`lib/tests/commit.ts`,
-`lib/tests/commitPage.ts`, `lib/tests/bundle.ts`, `lib/tests/jobName.ts`,
-tested in `test/tests/`), and the hub's components: the header pieces
+`GET /api/tests/commit/{sha}/summary` for its header,
+`GET /api/tests/commit/{sha}/jobs` and `GET /api/tests/job/{job_id}`
+for its timeline and the counts in its title, `GET /api/tests/commit/{sha}`
+for its table and
+`GET /api/tests/commit/{sha}/greenlight` for the header's GreenLight pill. It
+keeps the rules above: nothing but `/api/tests` endpoints, types and parameter
+definitions only from `lib/api/`, the theme's colors, logic in `lib/tests/`
+(`lib/tests/commit.ts`, `lib/tests/commitPage.ts`, `lib/tests/timeline.ts`,
+`lib/tests/bundle.ts`, `lib/tests/jobName.ts`, `lib/tests/greenlight.ts`,
+tested in `test/tests/`),
+and the hub's components: the header pieces
 (`PageHeader`, `FactPill`), the Name, Environment, Test Config and Owners
 columns (`sharedColumns`), the hub's grid (`HubDataGrid`), the Health cell's
 block (`CellBlock`), the grid's swatches and attempt pills.
 
-- The summary (`useCommitSummary`) and the runs (`useRunsListing`) are
-  asked for at once, in parallel. The summary's counts read every run of the
-  commit, a few seconds on a main commit (outside the database's heavy
-  workload since 2026-11-05, so the header no longer waits behind tests
-  pages); the runs come a page of the API's largest size at a time, in
+- The summary (`useCommitSummary`), the jobs and their tests
+  (`useCommitTimeline`: the jobs endpoint's two `fields`, a request each)
+  and the runs (`useRunsListing`) are asked for at once, in parallel. Of the
+  summary the
+  page asks for the header's fields alone (`COMMIT_HEADER_FIELDS`, the API's
+  `fields` parameter): the summary's counts read every run of the commit, a
+  second and more on a main commit, and the header waited for them, while
+  the jobs' tests hold each job's counts, which add up to the same
+  figures (`commitCounts`; 2026-11-17: the header 1.5 s before and 0.33 s
+  after, medians of six page loads in turn). The runs come a page of the
+  API's largest size at a time, in
   outcome order (the API's `-status` sort, worst first, which the page puts
   before its own), and with the default outcomes the read is pruned to the
   rows of the tests holding a failing row, in under a second. A commit
   GitHub never reported (the API's 404) is a state of the page, not an
-  error; a known commit with no runs says whether they expired
+  error; a known commit whose jobs hold no run says whether the runs expired
   (`retention_starts_at` against `committed_at`) or have not arrived, and
-  shows no summary row. When the summary fails, its error shows above the
-  table and the runs are listed all the same, since the two are separate
+  shows no table. The jobs' tests say whether any run is held, so both
+  notices wait for them. "No test runs are recorded for this commit yet"
+  stands under the timeline, where the table would be: the timeline is
+  drawn by then, and a notice above it would push it down. A commit made
+  before the runs table keeps is not drawn until its tests say it has runs,
+  since an expired commit has no timeline, and an empty table keeps its
+  skeleton until the tests can say why it is empty. When the summary fails,
+  its error shows above the
+  table and the runs are listed all the same, since they are separate
   requests (2026-11-02).
 - The header (`CommitHeader`): the breadcrumb is the repository, the branch
   (HUD's view of it) or the pull request's number for a pull request head,
@@ -1064,49 +1084,231 @@ block (`CellBlock`), the grid's swatches and attempt pills.
   the commit title with its trailing `(#N)` taken off; backtick
   spans are code; a `#N` inside
   the title, as the merge bot's reverts name the reverted pull request,
-  links that pull request too (`headline`). The facts are, first, the
-  pull request's number in a GitHub-blue pill linking the pull request
-  (`FactPill` with `tone="accent"` and `href`; `accentPillColors`, GitHub's
-  accent emphasis with white ink), for a pull request head and a merged
+  links that pull request too (`headline`). The facts are, after
+  GreenLight's pill, the pull request and the commit as one pill
+  (`PullRequestAndCommit`): the pull request's, "PR #204150" in the facts'
+  grey, linking the pull request, for a pull request head and a merged
   commit alike (`commitPullRequestNumber`: the API's pull request, else the
-  title's; 2026-11-02, after a muted number behind the title and a pill
-  before it), labelled "PR". A pull request from a fork gets it too: its
-  runs record no pull request at all (2026-11-02: 333 of 333 fork heads in
-  two days had an empty `pull_requests` array, their ciflow tag pushes
-  included), so the API finds it by the commit's SHA through
-  `materialized_views.pr_by_sha` and names the fork's branch as Branch; then "Commit" with the short SHA in monospace,
-  the full SHA as its tooltip, linking the commit on GitHub; then the author, when
+  title's), with the commit's short SHA in monospace set inside its end as
+  a chip, linking the commit on GitHub, the full SHA its tooltip. A pull
+  request from a fork gets it too: its runs record no pull request at all
+  (2026-11-02: 333 of 333 fork heads in two days had an empty
+  `pull_requests` array, their ciflow tag pushes included), so the API
+  finds it by the commit's SHA through `materialized_views.pr_by_sha` and
+  names the fork's branch as Branch. A commit of no pull request, a merge
+  bot's revert, has the same pill saying "Commit", the chip its value and
+  the whole pill its one link, so the SHA looks the same on every commit.
+  Then come the author, when
   it was committed, and on a branch the nearest commits with test jobs
   either way, the older to the left and the newer to the right, each by its
   short SHA, or for a pull request head its branch. A bright orange "Newer
   commit available" pill, shown on a pull request head the pull request had
   been pushed to since, was built and then removed on 2026-11-02 at the
   user's ask; the header has no attention tone.
-- The summary row (`CommitSummaryRow`) is two lines. The counts line: at
-  left the statuses with runs, "5 failed · 8 timed out · 87 flaky ·
-  4,721,574 passed …", each figure large (22px) and each a button that has
-  the table list that outcome alone, led by a green "Every test passed" when
-  nothing failed, timed out or was flaky; at right the facts, the total
-  tests ("9,177,729 total tests", the API's `counts.total.runs`), the unique
-  tests ("672,763 unique tests", `counts.total.tests`), the jobs and the
-  wall time (2026-11-02: the total moved from a hero figure at left into the
-  facts, and the counts took its place, at the user's ask). In a window too
-  narrow for both to share the line, the counts' figures shrink a pixel at a
-  time from 22px to the facts' 15px, the gaps between counts in proportion
-  (`fittingCountSize` and `countGap` in `lib/tests/commit.ts`, measured in
-  place when the row is laid out, resized or gets its fonts), and only past
-  that do the facts wrap under the counts (2026-11-02, at the user's ask: the
-  second line read as an overflow). Under it a bar of the
-  statuses with runs. A run is one test in one environment, env var set and
-  job with all its attempts, so a test run in twelve jobs counts twelve
-  times, and the counts add up to the total tests. The bar is NOT to scale: a
-  segment's width is
-  log10(runs + 1), the user's choice (2026-11-01) so that five failures stay
-  visible beside millions of passes; nothing on the page says so, and only
-  a segment's hover title gives the true share ("Failed: 5 of 9,177,729
-  tests, under 0.01%"). The summary's `by_worst_status` counts stay in the
-  API; the page does not read them. The row covers the whole commit; the
-  search and the column filters narrow the table only.
+- The pull request and the commit were two pills until 2026-11-11, the
+  pull request's in GitHub's blue since 2026-11-02 (after a muted number
+  behind the title and a pill before it). The user: "The PR pill is
+  currently blue. I want to make it grey", and asked for the two as one
+  pill, "combined + layered". Of four drawn (nested, stacked, two-tone,
+  split) they chose the nested one. The blue tone is gone from `FactPill`
+  with its one use: color in a header says a status and nothing else. The
+  chip (`FactPill`'s `chip`, `pillChipColors`) is the page's own background
+  on the pill's grey, the look a header key has on the band, 2px inside
+  the pill's end so the two ends are concentric; a faint shadow lifts it in
+  the light mode and a faint edge marks it in the dark one. The SHA has no
+  word beside it inside the pull request, where it reads as that pull
+  request's commit; its link is named "Commit 573c889" for a reader who
+  does not see it. The pill holds two links and each answers alone: the
+  pointer on the pill's words darkens the pill (`:has`, as `HeaderCheck`
+  uses it), on the chip it rings the chip; from the keyboard the pull
+  request's link rings the whole pill and the commit's the chip. The chip
+  is pressed over the pill's whole height and out to its end, not only
+  where it is drawn. The pill is 171px wide where the two were 238px.
+- GreenLight's verdict is the first pill of the facts (`GreenLightPill`,
+  2026-11-11; first at the user's ask, the first build had it last), from
+  `GET /api/tests/commit/{sha}/greenlight` (`useCommitGreenlight`): asked
+  for alongside the summary, which it does not wait for, and again each
+  minute only while a review is in flight. It is a status pill in the hub's
+  hues (`tonePillColors`): a lamp, "Green Light" and the verdict in a word
+  or three (`greenlightSignal` in `lib/tests/greenlight.ts`). The colors
+  are the user's (2026-11-11). Green is "Approved". Yellow is "Needs human
+  review" and "Reverted". The facts' grey is everything with no verdict,
+  its lamp hollow: "No verdict", "Unavailable", and a review that reached
+  none, by how it ended, "Inference failed", "Inference cancelled",
+  "Inference stalled" (in flight for over an hour). Red was built for those
+  three at the user's ask and withdrawn within the hour ("the red is
+  confusing"): do not bring it back, and a refusal stays yellow, since red
+  on this page is a failed test. "Reviewing" is grey too, and its lamp
+  alone has color: it pulses from the refusal's yellow to the approval's
+  green and back, a second each way, a ring leaving it at each turn (`Lamp`
+  in `GreenLightPill`). Two other looks were built first and withdrawn the
+  same day: the whole pill swinging between the two colors ("The pulsing
+  between green and yellow is actually confusing"), then a green pill with
+  the pulsing lamp ("No this is not what I meant. Reviewing pill should be
+  grey. But the dot should be pulsating with yellow and green"). Do not
+  color or move the pill again. For a reader who asked for less motion
+  nothing moves and the lamp is a still yellow dot. What a status means is
+  not decided here: the sentence, the reason and the hour after which a
+  review in flight did not complete are the HUD verdict panel's own
+  (`describeGreenlightStatus`), so the two pages say the same.
+- A pull request's head, in a repository GreenLight reviews, has the pill
+  whatever the answer (the user, 2026-11-11: "We should include the pill if
+  there is no verdict or if the inference failed. We should let the user
+  know those information"; the first build had no pill for a commit with no
+  verdict or for a verdict that failed to load, and said "Did not complete"
+  for an inference that failed). A commit on a branch has none, whatever
+  pull request it landed from (the user, 2026-11-17: "we should only show
+  the greenlight pill on commits that belong to pull requests", and of a
+  commit on main that had landed from one: "That commit is not a PR, but it
+  ran in main"). The API answers for such a commit with the verdict on the
+  head that landed as it, and the page leaves that to the head's own page:
+  of the last 200 commits on main that day 28 had one (14 refused, 9
+  approved, 3 with a failed review, 2 reverted), 132 said "No verdict", and
+  39 with no pull request said the same. The header knows a head from the
+  summary (`pull_request_head`) as the commit arrives, and holds no place
+  for a pill that will not come. The verdict is asked for alongside the
+  summary all the same: waiting to know would hold back every head's pill.
+  A commit with no verdict says "No verdict", and its tray what is known of
+  why, from the API's `no_verdict_reason`: GreenLight has no review of the
+  commit, or recorded a status HUD does not know (`noVerdictSignal`). A
+  verdict that could not be read says "Unavailable", and its tray the
+  failure with a Retry (`LoadError`); a refresh that fails leaves the
+  verdict it had (`commitGreenlightState`). While the answer is on its way a
+  placeholder holds the pill's place (`PillSkeleton`), so the facts after it
+  move by the difference in width alone. A repository GreenLight does not
+  review gets no pill and no request (`isGreenlightRepo`), and holds no
+  place for one.
+- The pill is a button (`FactPill` with `onClick`) and opens a tray, where
+  the old page has an accordion (the user's ask: "in the old UI, clicking
+  it expands it. Think about how we can better present this in the new
+  UI"). The tray unfolds from the pill's own footprint and lies over the
+  page, so the summary and the table do not move and closing it leaves the
+  reader where they were. For a verdict it holds the sentence for the
+  status with its reason code; the review's outline, each topic a title
+  over its details (`GreenLightOutline` in the tray's dress, so the model's
+  words stay the text nodes they are there: never render the message as
+  markup); and at its foot the pull request head the verdict is about, when
+  the commit shown is the one that head landed as, when the status was
+  recorded, the review's job on GitHub and, for a judgement, "Report wrong
+  verdict". It hangs from the pill's left edge while that fits the row of
+  pills, else from its right, and never crosses the row (`trayPlacement`);
+  it is as wide as what it holds, up to 560px, and as tall, and scrolls
+  with the page, never within itself. A click on the pill, a click
+  elsewhere or Escape folds it; focus stays on the pill, which says
+  `aria-expanded`, names the tray and keeps the look it has under the
+  pointer while the tray is open. It is closed on arrival whatever the
+  status, where the old panel opens itself for an approval: the pill
+  already says the verdict. The motion is the Web Animations API's, 300 ms
+  out and 160 ms back, the words leaving before the tray folds, and none
+  for a reader who asked for less.
+- The report button is the one exception to "no `pages/api/` endpoints": it
+  is the HUD's own (`GreenLightReportButton`), reused whole with its dialog
+  as it is (the user: "You don't need to stylize the report modal"), so
+  that both pages file the same report; it reads the reader's write access
+  and posts to `/api/greenlight/report`. It shows only to a signed-in
+  reader who may file one, as on the old page, so a signed-out reader's
+  tray has none.
+- The timeline (`CommitTimeline`, its rows in `TimelineRows`, what they are
+  drawn from in `lib/tests/timeline.ts`) puts every job of the commit on the
+  clock: folded by workflow and by build into ribbons as tall as the jobs
+  then running, and a job as a bar, a line of dots while it was queued (the
+  wait for a runner, then for its container), blue where a recorded test
+  was running (a hue no outcome has, so green says passed alone), hatched
+  in a soft pink for the rest of its Test step ("Unaccounted"; the user's
+  pick of seven pinks, 2026-11-16, the hatch in the test blue having read
+  as test time) and grey for its other steps, a grey well off the one that
+  the rows outside an open job fade to (the user's, 2026-11-17: the two
+  read as one). A ribbon is to the scale of its own row's busiest minute
+  and stands on a base of 2px wherever a job is running, which the
+  minute's layers share (`RIBBON_BASE_PX`; the user's pick of four ways to
+  show a thin tail, 2026-11-17): with 158 jobs in the busiest minute of one
+  commit's first row a job was a quarter of a pixel, and 89 of the 380
+  minutes in which a job ran were drawn thinner than half a pixel. A plain
+  minimum of 2px drew 206 of those minutes alike, and heights by the square
+  root drew a hill of 48% of the jobs at 69% of the height. A job that
+  ended before a
+  runner took it, cancelled as it waited, is dots from its creation to its
+  end and has no running time: waiting for a machine is queue (the user's,
+  2026-11-17). A job opens into its test
+  files and
+  a file's failed, flaky and slowest tests on the same clock, which closes
+  in on what is open. An open job's steps are in its own bar: the bar is
+  cut where a step that shows ends (`stepCuts`), and on the picked job's
+  bar the pointer names the step it is on, on its name the job. That is the
+  user's pick of three places for the steps (2026-11-16): a Steps row under
+  the job drew the Test step a second time, in the grey of other steps. A
+  file goes by its path under `test/` with its
+  extension, and a row's outcomes are said by its badges alone: the tracks
+  carry no marks for failing attempts (both the user's, 2026-11-16). The
+  job's failure line is left to the table (the user's, 2026-11-16).
+  Workflows started by anything but a push, a pull
+  request, a schedule, a dispatch or a merge group sit under "Bots and
+  uploads", outside the clock. A workflow the commit ran more than once has
+  a row for each of its runs and for each attempt of a run (the user's pick
+  of four ways to tell a re-run's jobs from the jobs they repeat,
+  2026-11-17), so a row lists a job once. The rows stand together, the runs
+  in the order they began and a run's attempts in order, and each row after
+  the first has a grey badge after its name (the user's): "attempt 2",
+  "run 2", "run 2 · attempt 2". Of two runs begun within two minutes the
+  longer is first, as of any two rows, so where a run was cancelled as
+  another took its place the cancelled one has the badge. A workflow whose
+  jobs are all of one attempt has none, whatever the attempt's number. In
+  the two weeks to
+  2026-11-17, 1,849 runs had jobs of a first and a second attempt, and
+  9,189 times a workflow had two runs with jobs for one commit: in 4,795 of
+  them one run ran nothing, its jobs cancelled or skipped, and in 2,760 both
+  ran, started by different events, most often a pull request and a push. A
+  workflow with more than eight such rows keeps one row
+  (`MAX_WORKFLOW_ROWS`): the workflows that test the commit had eight at
+  most, and a workflow dispatched again and again for the commit at the
+  head of main had 162 runs on one commit.
+  A click picks a row, and the pick shows at
+  once, ahead of the URL and the table. While a job is open the timeline
+  lists only the way down to the pick (the user's choice of five ways to keep
+  the eye on an open job, 2026-11-16): under each row on the way, the row
+  that leads on stays and the others fold into one line, "12 other jobs",
+  "18 other builds", "Other workflows" and, around an open file, "22 other
+  files", which keeps their failed and flaky counts and lists them when
+  clicked, until the next pick (`rowsOnWay`, `otherFiles`). The clock stays
+  the one clock, closed in on the pick, and the rows outside the pick are
+  grey until the pointer or the keyboard is on one, the names on the way
+  down still dark. A row clicked stays where it is in the window while the
+  rows above it fold, as far as the page can scroll. The hatch is a
+  background drawn once (`background-repeat: no-repeat`): tiled, as any
+  background is on a box that does not sit on whole pixels, it was drawn
+  small and stretched into a smear on the rows of a closed-in clock, a
+  quarter of a million pixels wide, by a browser that rasters on the GPU.
+- The timeline is drawn from the jobs before their tests arrive (the user's
+  pick of three first states, 2026-11-17): the rows, the clock and the
+  failed badges at once, every hill and bar in the hub's loading grey with
+  its pulse (`Skeleton`'s color and rhythm), the queue's dots faint, and
+  every color together when the tests arrive (`Timeline.testsPending`). The
+  tests bring what they alone know: how a Test step divides, the flaky
+  badges, a job that passed with a failed test, the title's counts, the Job
+  header's choices and the tooltips' lines on tests. A hill is one outline
+  while it waits, since two see-through bands leave a hairline where they
+  meet. The grey is still for a reader who asked for less motion, and once
+  the tests have failed to load, when their error stands over the chart
+  with a Retry that asks for them alone. On a page left folded no row moves
+  when the tests arrive; on a build opened meanwhile a flaky badge can take
+  a long name to a second line. The timeline had waited for both reads, and
+  the jobs answer in 0.57 s where their tests take 1.3 s (medians of twelve
+  requests of each, a commit of 851 jobs, 2026-11-17) and up to ten in a
+  busy minute. Ten page loads of that commit before and after, in turn: the
+  rows after 1.2 s where the timeline had come after 2.5 s, and the colors
+  after 2.2 s.
+- The table's title (`CommitTestsTitle`) says what the table lists, "Tests
+  in" and the pick by the timeline's own names; the table's top edge is a
+  bar of those tests by status and its first row their counts with their
+  total at its right, each count a button that lists that outcome alone and,
+  clicked again, the usual ones. The bar is NOT to scale: a part's width is
+  log10(tests + 1), the user's choice (2026-11-01), and only its tooltip
+  gives the true share. Nothing is cut off: the pick's earlier levels fold
+  into "+N", and the counts step down in size before they wrap. While the
+  table is below the window and the timeline's first row is in it, the
+  title docks at the window's bottom edge. The counts are the pick's,
+  whatever the search and the column filters narrow the table to: the
+  whole commit's are its jobs' added up (`testCountsOf`).
 - The table (`CommitTable`) is the hub's grid with one list of runs in
   outcome order, failed, timed out, flaky, passed, other, expected failures,
   skipped, and within each outcome the headers' sort, longest first by
@@ -1115,7 +1317,7 @@ block (`CellBlock`), the grid's swatches and attempt pills.
   chooses the outcomes listed: passes, skips and expected failures are off
   by default (`COMMIT_PAGE_DEFAULT_STATUSES`), so its key reads active. A
   run is listed once under its own status, so a test failed in one job and
-  flaky in another has a row in each while the summary counts it once. The
+  flaky in another has a row in each, and the title counts both. The
   page asks for the pages after the first by itself, under the table's
   progress bar, while the last row loaded is not of a common outcome
   (passed, skipped, expected failures) and the list holds fewer than
@@ -1128,10 +1330,27 @@ block (`CellBlock`), the grid's swatches and attempt pills.
   the API's `duration_milliseconds`. The chevron before a name opens the
   run's attempts, lined up with the columns; consecutive attempts with one
   outcome and one first message line, temp paths ignored, share a row
-  (`attemptGroups`).
-- The URL keeps the view: `search`, the column filters named as on the list
-  (`owner`, `test_config`, `workflow_path`, the environment facets),
-  `status`, repeated once per outcome as the API's is, and `sort`, defined
+  (`attemptGroups`). The Job header's filter is the timeline's pick by
+  another way (`jobFilterOf`): a menu of one choice that lists the jobs with
+  tests under their workflows, where a job chosen is picked in the timeline
+  too and "Any job" clears the pick. Its choices reach the header past the
+  grids (`JobFilterContext`), not as a part of the column: they arrive with
+  the jobs' tests, and a new column draws every row of the table again,
+  which with 87 rows listed held the timeline's colors back 0.27 s after
+  the answer where they now take 0.08 s (2026-11-17). The table stays where
+  it is in the
+  window while the pick's rows open above it (`useHeldPlace`), and the
+  timeline does not scroll to a pick made there. While a list is on its way
+  the grid's skeleton rows reach the window's bottom from their first
+  render; with fewer, a page scrolled down to the table was too short to
+  stay there and was scrolled back.
+- The URL keeps the view: the timeline's pick (`workflow`, with `run_id`
+  and `run_attempt` where the workflow has a row for each, `build`,
+  `job_id`, `file`, `suite`, `case_name`), `search`, the column filters
+  named as on the list (`owner`, `test_config`, `workflow_path`, the
+  environment facets), `status`, repeated once per outcome as the API's is
+  and left off while it is the usual list (the problems for the whole
+  commit, every outcome for a pick), and `sort`, defined
   in `lib/api/tests/pages/parameters.ts` and
   documented by the `commitPage` operation; defaults are left off and
   changes replace the entry in place, read from the state in force when the
@@ -1167,9 +1386,8 @@ the rules above: nothing but `/api/tests` endpoints, its logic in
   not reached HUD yet, seconds old, is not seen, and the page opens the head
   before it.
 - A number HUD has no pull request record for shows a warning under the
-  headline "Pull request #N", with no Retry; the gate's refusals show the
-  `AccessNotice`, and any other failure, a malformed number among them, the
-  API's error with a Retry (`LoadError`).
+  headline "Pull request #N", with no Retry; any other failure, a malformed
+  number among them, shows the API's error with a Retry (`LoadError`).
 
 ## Cost page
 
@@ -1222,22 +1440,30 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   row names and cells are buttons, so all of it works from the keyboard.
   Escape closes the drawer, then clears the highlight, unless a text field or
   menu has it.
-- Cost by owner (`CostPanel`), under the runner-hours chart: the same chart
-  in $, from a rates file the reader adds, so the page never asks for a unit
-  up front. Until a file is added the panel's body asks for one: a dashed
-  area to drop it on (a file dropped anywhere on the page lands there, so a
-  miss never opens the file in the tab), "Choose rates file…" and "File
-  format" (a JSON of runner label → $ per runner-hour, or wrapped as
-  `{valid_from, basis, rates}`). The file is read in the browser into the
-  page's state (`lib/tests/cost/rates.ts`): never sent, stored, or
-  put in the URL, whose query HUD's analytics record, and reloading drops it;
-  the panel's split keys stay out of the URL with it. The API holds no
-  prices. A row's price key is its runner labels without self-hosted; 0 is a
-  price, and a runner the file leaves out has no rate and stays out of the
-  cost. Once added, a line under the band names the file,
-  its valid_from and basis, how many of the window's runners it leaves
-  without a rate and how many of its labels didn't run (each listed in a
-  tooltip), and Replace, Clear and File format (the facts' "Priced" pill is
+- Cost by owner (`CostPanel`), under the runner-hours chart: the same chart in
+  $, from a rates file the reader adds, so the page never asks for a unit up
+  front. Until a file is added the panel's body asks for one: a dashed area to
+  drop it on (a file dropped anywhere on the page lands there, so a miss never
+  opens the file in the tab), "Download rates file", "Choose rates file…" and
+  "File format" (a JSON of runner label → $ per runner-hour, or wrapped as
+  `{valid_from, window, basis, rates}`; `window` is `{start, end}`, the UTC
+  days of usage the rates are averaged over, both included, and a bad one is
+  ignored as the notes are). "Download rates file" is a plain link to the
+  internal rates file (`RATES_FILE_URL`, a Meta-only fburl; its tooltip says
+  it needs access to the file) that opens in a new tab: the browser downloads
+  the file and the reader adds it as any other; HUD never fetches it. The file
+  is read in the browser into the page's state (`lib/tests/cost/rates.ts`):
+  never sent, stored, or put in the URL, whose query HUD's analytics record,
+  and reloading drops it; the panel's split keys stay out of the URL with it.
+  The API holds no prices. A row's price key is its runner labels without
+  self-hosted; 0 is a price, and a runner the file leaves out has no rate and
+  stays out of the cost. Once added, a line under the band names the file, its
+  usage window in a grey pill like the facts' (the page's date format, "Rates
+  averaged over 2026-10-08 to 11-06"; its tooltip counts the UTC days and says
+  the page prices all its days with these rates), its valid_from unless that
+  is the window's last day, its basis, how many of the window's runners it
+  leaves without a rate and how many of its labels didn't run (each listed in
+  a tooltip), and Replace, Clear and File format (the facts' "Priced" pill is
   the share, by scope); a file that can't be read says why, keeping the one
   loaded, and a file pricing no runner in the window is refused, with an
   example label. Rates run from 0 to 100,000 $/h and read to 3 significant
@@ -1328,7 +1554,7 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   module-level function (no suite crumb), an unknown id (`/test/1`, the
   warning), a malformed id (`/test/abc`, the API's error with Retry), a test
   of another repository (its id under `/tests/pytorch/vision/`, the warning)
-  and, with `HUD_API_REQUIRE_AUTH=1`, the access notice when signed out.
+  and, with `HUD_API_REQUIRE_AUTH=1`, that it all loads signed out.
   Then the grid, in both themes: the five header keys and their URL
   parameters (the commit search with a hash in and out of the window and
   its messages, `commit=`; code source and window, `ran_on=`, `window=`;
@@ -1349,6 +1575,37 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   said above the rows with its Unpin; the sticky header and footer while
   scrolling; and the Retry of a failed options load asking the options
   again.
+- For the commit page's GreenLight pill, open
+  `/tests/pytorch/pytorch/commit/<sha>` for a head GreenLight reviewed (the
+  heads of a recent pull request with a Green Light section in its Dr.CI
+  comment; `/api/tests/commit/<sha>/greenlight?repo=pytorch/pytorch` is a
+  plain JSON page to look at) and check, in both themes: the pill first in
+  the facts, in the verdict's tone; a review in flight in grey, its lamp
+  alone pulsing between yellow and green, and the lamp a still yellow dot
+  with the browser's reduced-motion emulation on; "No verdict" on a commit
+  GreenLight did not review, most of main; "Unavailable" and its Retry with
+  the request
+  blocked in the browser's network tools; no pill under another repository
+  (`/tests/pytorch/vision/commit/<sha>`); the placeholder holding the pill's
+  place on a slow connection; the tray opening by click, Enter and Space and
+  folding by each of them, by Escape, with focus back on the pill, and by a
+  click elsewhere, but not by a click inside it; the summary and the table
+  not moving; the tray within the row of pills in a narrow window; a merged
+  commit's tray naming the pull request head and linking its page; and,
+  signed in with write access, "Report wrong verdict" opening its dialog
+  over the tray (do not file one to test). The sign-in completes only on
+  the host `NEXTAUTH_URL` names, so a dev server opened by another name
+  shows no report button. Jest has no DOM, so the unfolding itself is only
+  seen here; slow it with the browser's animation tools.
+- For the commit header's pull request and commit pill, open a pull request
+  head, a commit on main and a merge bot's revert (a `Revert "..."` on main,
+  which has no pull request of its own) and check, in both themes: one grey
+  pill, the SHA a chip inside its end; the pointer on "PR #N" darkening the
+  pill and on the chip ringing the chip alone; Tab reaching the pull request,
+  the pill ringed, and then the commit, the chip ringed; a press just above
+  or below the chip, still within the pill, opening the commit; and the
+  revert's pill saying "Commit" and opening the commit wherever it is
+  pressed.
 - For the pull request page, open `/tests/pytorch/pytorch/pull/<number>` for
   an open pull request of pytorch/pytorch and check that the URL becomes the
   page of the head `gh pr view <number> --json headRefOid` names, that back

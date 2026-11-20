@@ -29,63 +29,37 @@ def pr(
 MANIFEST: dict[str, Any] = {
     "generated_at": "2026-10-05T12:00:00.000Z",
     "prs": {
-        "1": pr(1, "2026-10-04T00:00:00Z"),
         "2": pr(2, "2026-09-30T00:00:00Z", title="Fix <script> & co"),
         "3": pr(3, None, open_source=False),
         "4": pr(4, "2026-10-01T00:00:00Z"),
     },
     "reviewers": {
-        "alice": {
-            "pre_review": [{"pr": 1}, {"pr": 2}],
-            "final_review": [{"pr": 3}, {"pr": 4}],
-        },
-        "bob": {"pre_review": [], "final_review": [{"pr": 4}]},
-        "carol": {"pre_review": [], "final_review": []},
+        "alice": {"final_review": [{"pr": 3}, {"pr": 4}]},
+        "bob": {"final_review": [{"pr": 4}]},
+        "carol": {"final_review": []},
     },
     "failed_prs": [],
 }
 
 
 class RenderDigestTest(unittest.TestCase):
-    def test_sections_oldest_first(self) -> None:
-        self.assertEqual(
-            pns.render_digest(MANIFEST, "alice", NOW),
-            "\n".join(
-                [
-                    "*Daily digest: PyTorch PRs waiting on your review*",
-                    "",
-                    f"*Pre-review (2)* (<{pns.PRE_REVIEW_QUEUE_URL}|full queue>)",
-                    "To accept, :+1: the PR description or comment `@pytorchbot pre-review accept`.",  # noqa: B950
-                    "",
-                    "Waiting &gt;2 days (1)",
-                    "• <https://github.com/pytorch/pytorch/pull/2|#2 Fix &lt;script&gt; &amp; co>",  # noqa: B950
-                    "Waiting ≤2 days (1)",
-                    "• <https://github.com/pytorch/pytorch/pull/1|#1 PR 1>",
-                    "",
-                    f"*Final review (2)* (<{pns.FINAL_REVIEW_QUEUE_URL}|full queue>)",
-                    "OSS PRs (1)",
-                    "• <https://github.com/pytorch/pytorch/pull/4|#4 PR 4>",
-                    "Maintainer PRs (1)",
-                    "• <https://github.com/pytorch/pytorch/pull/3|#3 PR 3>",
-                ]
-            ),
+    def test_escapes_titles(self) -> None:
+        manifest = json.loads(json.dumps(MANIFEST))
+        manifest["reviewers"]["bob"]["final_review"] = [{"pr": 2}]
+        self.assertIn(
+            "#2 Fix &lt;script&gt; &amp; co>", pns.render_digest(manifest, "bob") or ""
         )
-
-    def test_final_review_only_has_no_pre_review_hint(self) -> None:
-        digest = pns.render_digest(MANIFEST, "bob", NOW) or ""
-        self.assertIn("Final review (1)", digest)
-        self.assertNotIn("Pre-review", digest)
 
     def test_old_manifest_prs_count_as_oss(self) -> None:
         manifest = json.loads(json.dumps(MANIFEST))
         del manifest["prs"]["4"]["open_source"]
-        digest = pns.render_digest(manifest, "bob", NOW) or ""
+        digest = pns.render_digest(manifest, "bob") or ""
         self.assertIn("OSS PRs (1)", digest)
         self.assertNotIn("Maintainer PRs", digest)
 
     def test_nothing_waiting(self) -> None:
-        self.assertIsNone(pns.render_digest(MANIFEST, "carol", NOW))
-        self.assertIsNone(pns.render_digest(MANIFEST, "nobody", NOW))
+        self.assertIsNone(pns.render_digest(MANIFEST, "carol"))
+        self.assertIsNone(pns.render_digest(MANIFEST, "nobody"))
 
 
 class FetchManifestTest(unittest.TestCase):
@@ -149,7 +123,7 @@ class SendDigestsTest(unittest.TestCase):
         users = {"UALICE": "alice", "UBOB": "Bob", "UCAROL": "carol", "UDAVE": "alice"}
         out = io.StringIO()
         with redirect_stdout(out):
-            failures = pns.send_digests(slack, users, MANIFEST, live, NOW)
+            failures = pns.send_digests(slack, users, MANIFEST, live)
         return failures, slack, out.getvalue()
 
     def test_only_channel_members_are_messaged(self) -> None:
@@ -169,7 +143,7 @@ class SendDigestsTest(unittest.TestCase):
         users = {"UALICE": "alice", "UBOB": "bob"}
         out = io.StringIO()
         with redirect_stdout(out):
-            pns.send_digests(pns.SlackClient(""), users, MANIFEST, False, NOW)
+            pns.send_digests(pns.SlackClient(""), users, MANIFEST, False)
         self.assertIn("would send to UALICE (alice)", out.getvalue())
         self.assertIn("would send to UBOB (bob)", out.getvalue())
 

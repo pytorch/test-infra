@@ -283,7 +283,7 @@ def test_a_reverted_pr_keeps_its_labels_until_its_gate_row_is_the_reverted_row(g
 @pytest.mark.parametrize(
     "flags",
     [
-        pytest.param({}, id="undetermined"),
+        pytest.param({}, id="outside-the-recent-prs"),
         pytest.param({"eligible": True}, id="eligible"),
         pytest.param({"ineligible": True, "final": True}, id="ineligible"),
     ],

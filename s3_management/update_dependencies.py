@@ -67,14 +67,18 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "spmd-types": [{"project": "torch"}],
     "nvidia-cudnn-cu11": [{"project": "torch"}],
     "typing-extensions": [{"project": "torch"}],
-    # Only torch's 13.4 dependency list pins cupti-python, so mirror it for
-    # cu134 alone. NB the target must be explicit: cupti-python does not match
-    # the nvidia-/cuda- prefix in is_nvidia_package, so a target-less entry
-    # would also mirror it into the CPU, ROCm and XPU channels.
+    # Only torch's 13.4 and 13.5 dependency lists pin cupti-python, so mirror it
+    # for cu134 and cu135 alone. NB the target must be explicit: cupti-python
+    # does not match the nvidia-/cuda- prefix in is_nvidia_package, so a
+    # target-less entry would also mirror it into the CPU, ROCm and XPU channels.
     "cupti-python": [
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "cuda-bindings": [
@@ -89,6 +93,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
         {
             "project": "vllm",
@@ -106,6 +114,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "nvidia-cuda-nvrtc-cu12": [
@@ -129,6 +141,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "nvidia-cuda-runtime-cu12": [
         {
@@ -150,6 +166,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "nvidia-cuda-cupti-cu12": [
@@ -173,6 +193,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "nvidia-cudnn-cu12": [
         {
@@ -194,6 +218,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "nvidia-cublas-cu12": [
@@ -217,6 +245,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "nvidia-cufft-cu12": [
         {
@@ -238,6 +270,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "nvidia-curand-cu12": [
@@ -261,6 +297,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "nvidia-cusolver-cu12": [
         {
@@ -282,6 +322,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "nvidia-cusparse-cu12": [
@@ -305,6 +349,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "nvidia-cusparselt-cu12": [
         {
@@ -326,6 +374,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "nvidia-nccl-cu12": [
@@ -349,6 +401,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "nvidia-nvshmem-cu12": [
         {
@@ -370,6 +426,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "nvidia-cuda-cccl-cu12": [
@@ -393,6 +453,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "nvidia-nvtx-cu12": [
         {
@@ -414,6 +478,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
     ],
     "nvidia-nvjitlink-cu12": [
@@ -437,6 +505,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "nvidia-cufile-cu12": [
         {
@@ -459,12 +531,12 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu134",
         },
+        {
+            "project": "torch",
+            "target": "cu135",
+        },
     ],
     "rocm": [
-        {
-            "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
@@ -472,398 +544,402 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-core": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-devel": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-libraries": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1010": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1011": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1012": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1030": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1031": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1032": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1033": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1034": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1035": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1036": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1100": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1101": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1102": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1103": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1150": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1151": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1152": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1153": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1200": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1201": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx1250": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx908": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx90a": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx942": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "rocm-sdk-device-gfx950": [
         {
             "project": "torch_rocm",
-            "target": "rocm7.14",
-        },
-        {
-            "project": "torch_rocm",
             "target": "rocm10.0",
         },
         {
             "project": "torch_rocm",
             "target": "rocm10.1",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.2",
         },
     ],
     "arpeggio": [{"project": "triton"}],
@@ -941,13 +1017,15 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "onemkl-sycl-rng": [{"project": "torch_xpu", "target": "xpu"}],
     "onemkl-license": [{"project": "torch_xpu", "target": "xpu"}],
     "mkl": [{"project": "torch_xpu", "target": "xpu"}],
-    # cu134 entry is transitive: cupti-python requires pyelftools, and torch is
-    # installed from this index alone (--index-url, not --extra-index-url), so a
-    # dependency of a dependency has to be mirrored too or the install cannot
-    # resolve. Same cu134 scope as cupti-python, the only thing that pulls it in.
+    # The cu134 and cu135 entries are transitive: cupti-python requires
+    # pyelftools, and torch is installed from this index alone (--index-url, not
+    # --extra-index-url), so a dependency of a dependency has to be mirrored too
+    # or the install cannot resolve. Same cu134/cu135 scope as cupti-python, the
+    # only thing that pulls it in.
     "pyelftools": [
         {"project": "torch_xpu", "target": "xpu"},
         {"project": "torch", "target": "cu134"},
+        {"project": "torch", "target": "cu135"},
     ],
     "pyzes": [{"project": "torch_xpu", "target": "xpu"}],
     # vLLM
@@ -965,6 +1043,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
             "target": "cu134",
+        },
+        {
+            "project": "torch",
+            "target": "cu135",
         },
         {"project": "vllm"},
     ],
@@ -1182,6 +1264,9 @@ PYPI_HOSTED_NVIDIA_PACKAGES = {
     # 9.27.0.42 is published to PyPI only; pypi.nvidia.com stops at 9.26.0.51. PyPI
     # carries every version already mirrored, so switching the source drops none.
     "nvidia-cudnn-cu13",
+    # 3.8.0 is published to PyPI only; pypi.nvidia.com stops at 3.7.2. PyPI
+    # carries every version already mirrored, so switching the source drops none.
+    "nvidia-nvshmem-cu13",
 }
 
 # NVIDIA packages outside the nvidia-/cuda- prefix whose wheels are published to
@@ -1251,11 +1336,7 @@ def get_package_source_url(pkg_name: str, prefix: str) -> str:
     if is_amd_package(pkg_name):
         if "rocm-preview" in prefix:
             return f"https://nightly.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
-        # ROCm7.14 had older index url
-        if "rocm7.14" in prefix:
-            return f"https://repo.amd.com/rocm/whl-multi-arch/{pkg_name}/"
-        else:
-            return f"https://stable.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
+        return f"https://stable.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
     return f"https://pypi.org/simple/{pkg_name}/"
 
 

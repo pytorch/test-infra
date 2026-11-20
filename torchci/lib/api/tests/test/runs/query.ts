@@ -132,6 +132,8 @@ function rare(outcomes: readonly RunOutcome[]): boolean {
 }
 
 export interface RunStatusFilter {
+  // GitHub jobs to select, by ID: the commit list's own filter.
+  job_id?: readonly string[];
   // Bundle statuses to select, the outcomes the commit page lists.
   status?: readonly BundleStatus[];
   // Bundle statuses a selected bundle's test must have as its worst over
@@ -293,6 +295,8 @@ export interface RunPageScope {
   prefix?: string;
   // Job-scoped discovery may use the runs table's by_job projection.
   byJob?: boolean;
+  // A job scope's jobs, as a parenthesized subquery of their IDs.
+  jobIds?: string;
 }
 
 // Reuse the list API's column and type registry. Request values are bound;
@@ -348,6 +352,14 @@ function selectionJoins(
           "\n            AND "
         )}`;
 
+  // A by_job scope's catalog filters hold the run's ID through identity().
+  // The filters are pushed into the run reads, and with the ID bare ClickHouse
+  // searched the main table's primary index for the catalog's IDs, every part,
+  // before it chose by_job: a second and more of a file's page on 2026-11-16.
+  // by_job's own index still prunes by the IDs through identity().
+  const runId = (column: string) =>
+    scope.byJob ? `identity(run.${column})` : `run.${column}`;
+
   const testFilters = [
     ...catalogFilters(query, "test", "test", params),
     ...catalogFilters(query, "owner", "owner", params),
@@ -366,11 +378,23 @@ function selectionJoins(
         ? "if(empty(owner.owners), NULL, arraySort(owner.owners)[1]) AS owner"
         : `test.${key.field} AS ${key.field}`
     );
+    // A sort joins the catalog, so the scope's tests bound the rows the join
+    // holds. A filter alone reads the whole catalog: finding a commit's tests
+    // first read every run of the commit to bound a table smaller than them.
+    // The join needs one row a test, so it reads FINAL. A filter's set of IDs
+    // does not: an ID is the hash of the columns a filter reads, so a test's
+    // rows before a merge all pass or all fail, and IN drops the repeats.
+    const bound =
+      scope.testId !== undefined
+        ? ["test.id = {test_id: UInt64}"]
+        : testSorts.length
+        ? [`test.id IN (${discover("tests_id")})`]
+        : [];
     const catalog = `
     SELECT test.id AS id${
       columns.length ? `, ${columns.join(", ")}, toUInt8(1) AS has_catalog` : ""
     }
-    FROM ${CI_DATABASE}.tests AS test FINAL${
+    FROM ${CI_DATABASE}.tests AS test${testSorts.length ? " FINAL" : ""}${
       needsOwners
         ? `
     LEFT JOIN (
@@ -378,18 +402,14 @@ function selectionJoins(
     ) AS owner ON owner.repo = test.repo AND owner.file = test.file`
         : ""
     }
-    WHERE ${
-      scope.testId !== undefined
-        ? "test.id = {test_id: UInt64}"
-        : `test.id IN (${discover("tests_id")})`
-    }${testFilters.map((filter) => `\n        AND ${filter}`).join("")}`;
+    WHERE ${[...bound, ...testFilters].join("\n        AND ")}`;
     if (testSorts.length) {
       joins.push(
         `LEFT JOIN (${catalog}\n) AS run_test ON run_test.id = run.tests_id`
       );
       if (testFilters.length) filters.push("run_test.has_catalog = 1");
     } else {
-      filters.push(`run.tests_id IN (${catalog}\n    )`);
+      filters.push(`${runId("tests_id")} IN (${catalog}\n    )`);
     }
   }
 
@@ -419,7 +439,7 @@ function selectionJoins(
       if (environmentFilters.length)
         filters.push("run_environment.has_catalog = 1");
     } else {
-      filters.push(`run.environments_id IN (${catalog}\n    )`);
+      filters.push(`${runId("environments_id")} IN (${catalog}\n    )`);
     }
   }
 
@@ -443,22 +463,21 @@ function selectionJoins(
     );
     if (envVarFilters.length) filters.push("run_env_vars.has_catalog = 1");
   } else if (envVarFilters.length) {
-    filters.push(`run.env_vars_id IN (
+    filters.push(`${runId("env_vars_id")} IN (
         SELECT id FROM ${CI_DATABASE}.env_vars AS env_var_set FINAL
         WHERE ${envVarFilters.join(" AND ")}
     )`);
   }
 
   const jobNameSorted = keys.some((key) => key.field === "job_name");
-  if (
-    query.workflow_path !== undefined ||
-    keys.some((key) => key.field === "workflow_path") ||
-    jobNameSorted
-  ) {
+  const workflowSorted =
+    jobNameSorted || keys.some((key) => key.field === "workflow_path");
+  if (query.workflow_path !== undefined || workflowSorted) {
     // Bound both metadata tables by jobs in this selection, through the lookup
-    // page enrichment uses, so filters and sorting see the returned path.
+    // page enrichment uses, so filters and sorting see the returned path. A
+    // job scope's own jobs bound them without a read of the scope's runs.
     const workflow = workflowMetadataSql({
-      jobIds: `(${discover("github_workflow_job_id")})`,
+      jobIds: scope.jobIds ?? `(${discover("github_workflow_job_id")})`,
       jobColumns: jobNameSorted ? ["name"] : [],
       workflowColumns: ["path"],
       columns: [
@@ -467,14 +486,29 @@ function selectionJoins(
         ...(jobNameSorted ? ["nullIf(job.name, '') AS job_name"] : []),
       ],
     });
-    joins.push(
-      `LEFT JOIN (\n${workflow}\n) AS run_workflow ON run_workflow.id = run.github_workflow_job_id`
-    );
     if (query.workflow_path !== undefined) {
       params.workflow_path = query.workflow_path;
-      filters.push(
-        "run_workflow.workflow_path IN {workflow_path: Array(String)}"
+    }
+    if (workflowSorted || scope.jobIds === undefined) {
+      joins.push(
+        `LEFT JOIN (\n${workflow}\n) AS run_workflow ON run_workflow.id = run.github_workflow_job_id`
       );
+      if (query.workflow_path !== undefined) {
+        filters.push(
+          "run_workflow.workflow_path IN {workflow_path: Array(String)}"
+        );
+      }
+    } else {
+      // A job scope's filter alone names the workflows' jobs, a condition on
+      // a group key that ClickHouse applies to the run reads; joined, the
+      // paths met the bundles of every job only after the grouping. A test's
+      // page keeps the join: the lookup there starts from a read of the
+      // test's runs, and repeated in each read it cost a third of a second.
+      filters.push(`run.github_workflow_job_id IN (
+    SELECT run_workflow.id
+    FROM (\n${workflow}\n) AS run_workflow
+    WHERE run_workflow.workflow_path IN {workflow_path: Array(String)}
+    )`);
     }
   }
   return joins.length ? `\n${joins.join("\n")}` : "";
@@ -484,7 +518,7 @@ function selectionJoins(
 // only when one retained execution satisfies all of them; aggregation still
 // includes every execution of that group.
 function selectionFilters(
-  query: RunSelectionQuery,
+  query: RunSelectionQuery & RunStatusFilter,
   scope: RunPageScope,
   keys: RunSortKey[],
   params: Record<string, unknown>
@@ -498,6 +532,15 @@ function selectionFilters(
       );
     }
   }
+  // The page's jobs, apart as well: by_job prunes a read by them.
+  const jobFilters: string[] = [];
+  if (query.job_id !== undefined) {
+    params.filter_job_id = query.job_id;
+    jobFilters.push(
+      "run.github_workflow_job_id IN CAST({filter_job_id: Array(String)}, 'Array(Int64)')"
+    );
+  }
+  identityFilters.push(...jobFilters);
   const attemptFilters: string[] = [];
   if (query.rerun_number !== undefined) {
     params.rerun_number = query.rerun_number;
@@ -516,7 +559,7 @@ function selectionFilters(
     joinFilters,
     params
   );
-  return { identityFilters, attemptFilters, joinFilters, joins };
+  return { identityFilters, jobFilters, attemptFilters, joinFilters, joins };
 }
 
 export function buildRunsQuery(
@@ -563,7 +606,7 @@ export function buildRunPageQuery(
   // clause into every subquery, and the nested evaluations took gigabytes.
   const candidates = scope.byJob ? candidateOutcomes(query) : undefined;
   if (candidates !== undefined) params.candidate_outcomes = candidates;
-  const { identityFilters, attemptFilters, joinFilters, joins } =
+  const { identityFilters, jobFilters, attemptFilters, joinFilters, joins } =
     selectionFilters(query, scope, keys, params);
   // A worst_status filter ranks every bundle of a test on the commit, in any
   // job, so the grouped bundles carry their statuses and are ranked by a
@@ -681,7 +724,11 @@ export function buildRunPageQuery(
       classify
         ? classifiedRunsSource(where, attemptColumns(query, keys))
         : pruned
-        ? prunedRunsSource(scope, where, "candidate_outcomes")
+        ? prunedRunsSource(
+            ranking ? scope.filters : [...scope.filters, ...jobFilters],
+            where,
+            "candidate_outcomes"
+          )
         : `${CI_DATABASE}.runs AS run${
             useProjection ? "" : " FINAL"
           }\n    ${where}`
@@ -768,13 +815,19 @@ export function sharedStartsSubquery(where: string) {
 // the scope's jobs, every row of the commit and no more: spelled plainly,
 // ClickHouse read it from the main table by the tests, fewer rows for 80 of
 // them but a read that grows with each test's retained history, as the old
-// pruning's did.
+// pruning's did. Both passes hold the page's jobs beside the scope's (every
+// row of a bundle is its job's), so with a job picked they read that job's
+// rows, where the scope's filter alone had them read the commit's: 0.46
+// million rows against 12.59 million on a main commit. An environment or
+// env var set filter is left out of them: with one a pass read the same
+// rows in seven to ten times the time (commit/query-validation.md,
+// 2026-11-17).
 export function prunedRunsSource(
-  scope: Pick<RunPageScope, "filters">,
+  passFilters: readonly string[],
   where: string,
   outcomesParameter: string
 ) {
-  const filters = scope.filters.join("\n                AND ");
+  const filters = passFilters.join("\n                AND ");
   return `${CI_DATABASE}.runs AS run FINAL
     PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at
         FROM ${CI_DATABASE}.runs AS run

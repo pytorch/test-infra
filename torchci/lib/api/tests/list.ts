@@ -1,5 +1,6 @@
 import { queryPage } from "lib/api/pagination";
 import type { ListPageData } from "lib/api/schema";
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import {
   encodeCursor,
   listIdentity,
@@ -11,7 +12,6 @@ import { testsPageLink } from "lib/api/tests/pages/links";
 import { TestListQuery } from "lib/api/tests/parameters";
 import { buildListQuery, sortKeys } from "lib/api/tests/query";
 import { TestListPage } from "lib/api/tests/types";
-import { queryClickhouse } from "lib/clickhouse";
 
 // Empty results have no health row from which to read a generation. Observe
 // the current generation afterward; a refresh may have occurred in between.
@@ -43,6 +43,7 @@ export async function listTests({
       // it and its probe run in the heavy workload; the generation lookup
       // above reads one row and stays outside it.
       settings: CI_WORKLOAD_HEAVY,
+      query: queryClickhouse,
       cursor,
       limit: query.limit,
       afterQuery: async (rows) => {

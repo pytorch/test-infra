@@ -73,13 +73,11 @@ head) when the listed `updated_at` was at least two minutes old (`FINGERPRINT_QU
 read after the listing, before the fan-out. Each is keyed on that `updated_at`, the listed head and
 the merge-authorized login set. A fast tick decides a PR whose key is unchanged on its kept result
 without fetching its fingerprint, and fingerprints afresh any PR that decision would dispatch, so
-every dispatch carries a head and hash read that tick. A PR whose author only path-scoped merge rules
-name still has its changed files read every tick, to decide whether that author is eligible for it.
-Each `updated_at` bump, a bot's comment edit such as Dr. CI's included, costs the PR a fresh fetch on
-every tick until one finds the bump at least two minutes old: at most two when ticks are two minutes
-or more apart, and more on a `--loop` daemon, whose ticks are 60 s apart by default. Each tick logs
-how many fingerprints it reused and how many it fetched fresh, and logs a decision taken from a kept
-result with a `cached` tag. The quiet age compares the host's clock with GitHub's `updated_at`, so a
+every dispatch carries a head and hash read that tick. Each `updated_at` bump, a bot's comment edit
+such as Dr. CI's included, costs the PR a fresh fetch on every tick until one finds the bump at
+least two minutes old: at most two when ticks are two minutes or more apart, and more on a `--loop`
+daemon, whose ticks are 60 s apart by default. Each tick logs how many fingerprints it reused and
+how many it fetched fresh, and logs a decision taken from a kept result with a `cached` tag. The quiet age compares the host's clock with GitHub's `updated_at`, so a
 `--loop` host needs a synced clock.
 
 Full ticks never reuse a result, so what the key cannot see waits at most for the next full tick:
@@ -104,8 +102,8 @@ just run review                      # scan + dispatch once, then exit
 just review                          # convenience alias for `just run review`
 just run review --loop               # scan + dispatch forever as a daemon
 just run review --loop --interval 30 # daemon, 30s between iterations
-just run review --pr 123             # scan only PR #123 (its author must be eligible for it)
-just run review --pr 123 --requester alice  # recheck PR #123 for alice (author eligible for it, alice in the evaluation cohort)
+just run review --pr 123             # scan only PR #123 (it must be eligible)
+just run review --pr 123 --requester alice  # recheck PR #123 for alice (PR eligible, alice in the evaluation cohort)
 just run review --max 5              # cap this iteration at 5 dispatches
 just run review --ref my-branch      # dispatch the reviewer workflow at this test-infra ref (default main)
 just run review --timeout-minutes 60 # re-dispatch an in-flight review after 60 min (default 45)
@@ -134,9 +132,9 @@ explicitly: `merge_rules.yaml` names bare logins, so its entry resolves to `pyto
 which is not bot-shaped and would otherwise put greenlight in its own cohort reviewing its own
 PRs.
 
-**Whose verdict carries authority** is decided per PR ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)): the
-author must be named by one merge rule covering every file the PR changes, a path-scoped rule only
-on a PR based on `main`, on a ghstack PR or on a PR in a GitHub-native stack whose trunk is `main`.
+**Whose verdict carries authority** is decided per PR ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)): a
+valid merge rule must name the author, whatever files the PR changes, on a base trymerge accepts by
+branch name: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk is `main`.
 The listing scan fingerprints and dispatches only such eligible PRs, and applies that cut to the
 *fingerprint candidates*, after the revert guard and the state read, not to the listing. Every other
 listed PR is therefore still state-read and still reaches `revert_guard` — so it still loses a
@@ -144,7 +142,7 @@ greenlight approval it should no longer hold and still gets its permanent `REVER
 never dispatched; when it is inside the review window and not labelled `Stale`, and its latest
 recorded row is a `LAND`, the scan dismisses greenlight's approval.
 
-A review is recorded in **shadow** when the verdict's record-time merge-rule check fails, when
+A review is recorded in **shadow** when the verdict's record-time eligibility check fails, when
 `verdict` runs with `--shadow`, or when a local `--allow-untrusted-author` run reviews an ineligible
 PR. Its row is stamped `shadow`, and a shadow row
 
@@ -167,10 +165,10 @@ the path runs only when a `pytorch/test-infra` writer dispatches it by hand. The
 that one PR through `--pr`, for a requester in the evaluation cohort.
 
 The scan is the single source of authorization and enforces two gates. A requester confers no
-authority: a review carries it only when its PR's author passes the merge-rule check.
+authority: a review carries it only when its PR passes the eligibility check.
 
 - **Target-author gate** — `--pr N` fetches PR `N` and refuses (no fingerprint, no dispatch, no
-  review) unless its author is eligible for `N`. The listing scan is at least filtered to the
+  review) unless `N` is eligible. The listing scan is at least filtered to the
   evaluation cohort, whereas `--pr` names an arbitrary PR and is filtered by nothing, so this gate
   is what stops an arbitrary PR from being reviewed or approved on request.
 - **Requester gate** — `--requester <login>`, when given, additionally requires `<login>` to be
@@ -204,7 +202,7 @@ daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canon
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. For
 `LAND`/`NO_LAND`, a `NO_LAND` first dismisses greenlight's prior approval; unless `--shadow`,
-[the record-time merge-rule check](TRUSTED_AUTHORS.md) decides shadow next, and a failed check writes
+[the record-time eligibility check](TRUSTED_AUTHORS.md) decides shadow next, and a failed check writes
 no row; after the row, a `LAND` approves, or dismisses if shadow, and a non-shadow verdict sets its
 [`GL/*` label](STATUS_LABELS.md). `CANCELLED` and `FAILED` markers only emit the row. The model's
 message is asked for as a short markdown outline (see "How the verdict message is rendered") and is
@@ -742,12 +740,12 @@ src/greenlight/
   scan_dispatch.py # the scan's dispatch loop: the --max cap, the AI_REVIEW_DISPATCHED marker, and the Dr. CI poke
   authz_gates.py   # the scan's two authz gates: the --requester login and the --pr target
   cohort.py        # who greenlight evaluates (evaluation_cohort) and whose verdict carries authority (assess_rules)
-  authority.py     # the scan's lazy per-PR eligibility lookup, REVERTED-row stamp and moved-head deferral
+  authority.py     # the scan's per-PR eligibility lookup from the listing, with no GitHub call, and the REVERTED-row stamp
   candidate_filter.py # prune listed PRs the scan can leave alone this iteration (recency window, excluded labels)
   review_gate.py   # detect PRs a human already decided, so the scan skips fingerprint + dispatch
   revert_guard.py  # permanently exclude reverted PRs: revoke greenlight's approval, record the REVERTED row
-  ineligible_approvals.py # revoke greenlight's approval on a listed PR whose author is no longer eligible for it
-  merge_authz.py   # resolve merge_rules.yaml: the authorized-login set (the fingerprint comment allowlist) and each rule's approvers and trymerge file patterns, with TTL cache; list a PR's changed files
+  ineligible_approvals.py # revoke greenlight's approval on a listed PR that is no longer eligible
+  merge_authz.py   # resolve merge_rules.yaml: the authorized-login set (the fingerprint comment allowlist) and each rule's approvers and trymerge file patterns, with TTL cache; test a PR's base as trymerge does; list a PR's changed files
   state.py         # read a PR's latest recorded state from misc.greenlight_pr_state (deliberately shadow-unfiltered), and, for the GL/* labels, the non-shadow rows pytorch's land gate reads
   state_emit.py    # build and emit a state row to S3 for replicator ingestion; single source of the row schema and object key
   decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)

@@ -7,19 +7,55 @@ import {
 } from "lib/api/parameters";
 import { pathParameter } from "lib/api/schema";
 import { CommitShaSchema } from "lib/api/tests/commit/sha";
-import { PARAMETER_DEFINITIONS } from "lib/api/tests/parameters";
+import { JobIdSchema } from "lib/api/tests/job/parameters";
+import { exactValues, PARAMETER_DEFINITIONS } from "lib/api/tests/parameters";
 import { RUN_LIST_PARAMETER_DEFINITIONS } from "lib/api/tests/test/runs/parameters";
 import { BUNDLE_STATUSES } from "lib/runOutcomes";
 import { z } from "zod/v4";
+
+// The commit, as every endpoint about one takes it: the repository as
+// owner/name and the full SHA. Each endpoint has a list of its own, so a
+// parameter added to one is no other's.
+export const COMMIT_PARAMETER_DEFINITIONS = {
+  sha: { encoding: "single", schema: CommitShaSchema },
+  repo: PARAMETER_DEFINITIONS.repo,
+} as const;
+
+export const CommitParamsSchema = parameterSchema(COMMIT_PARAMETER_DEFINITIONS);
+export type CommitQuery = z.infer<typeof CommitParamsSchema>;
+
+// For an endpoint that takes the commit and nothing else.
+export function parseCommitParams(rawQuery: RawQuery) {
+  return parseParameters(
+    rawQuery,
+    COMMIT_PARAMETER_DEFINITIONS,
+    CommitParamsSchema
+  );
+}
+
+export function commitParameters() {
+  return [
+    pathParameter("sha", CommitParamsSchema.shape.sha),
+    ...parameterQueryParameters(
+      CommitParamsSchema.omit({ sha: true }),
+      COMMIT_PARAMETER_DEFINITIONS
+    ),
+  ];
+}
 
 // The shared run list's filters, then the commit's own, then the paging, in
 // the order the other endpoints document theirs.
 const { sort, limit, cursor, ...runFilters } = RUN_LIST_PARAMETER_DEFINITIONS;
 
 export const COMMIT_RUNS_PARAMETER_DEFINITIONS = {
-  sha: { encoding: "single", schema: CommitShaSchema },
-  repo: PARAMETER_DEFINITIONS.repo,
+  ...COMMIT_PARAMETER_DEFINITIONS,
   ...runFilters,
+  job_id: {
+    encoding: "repeat",
+    schema: exactValues(JobIdSchema).describe(
+      "Select the bundles of these GitHub jobs of the commit, by job ID, github_workflow.job_id in the response. Repeat this parameter to match any supplied job. A job that is not the commit's matches nothing."
+    ),
+  },
   status: {
     encoding: "repeat",
     schema: z

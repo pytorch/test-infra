@@ -1,10 +1,19 @@
+import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import { Box, Button, Collapse, Typography, useTheme } from "@mui/material";
+import {
+  Box,
+  Button,
+  Collapse,
+  Tooltip,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import RatesFormat from "components/tests/cost/RatesFormat";
 import TextButton from "components/tests/TextButton";
+import { RATES_FILE_URL } from "lib/tests/cost/rates";
 import { headerBandColor } from "lib/tests/headerColors";
 import { type ReactNode, useEffect, useState } from "react";
 
@@ -42,8 +51,9 @@ export interface RatesDropzoneProps {
 // The cost panel's body until a rates file is added: a dashed area that asks
 // for one where its chart will be, as file drops do elsewhere. A file dropped
 // anywhere on the page lands here (CostPanel), and the area lights up while
-// one is dragged; the button is the way in without a mouse. A file that
-// can't be read says why here, the format open under the buttons.
+// one is dragged; the button is the way in without a mouse, after a link to
+// download the internal rates file. A file that can't be read says why here,
+// the format open under the buttons.
 export default function RatesDropzone({
   dragging,
   error,
@@ -60,6 +70,16 @@ export default function RatesDropzone({
     if (error !== null) setFormatOpen(true);
   }, [error]);
   const warning = dark ? theme.palette.error.light : theme.palette.error.dark;
+  // The secondary actions: the band's grey, as the examples the format opens.
+  const secondary = {
+    textTransform: "none",
+    whiteSpace: "nowrap",
+    color: "text.primary",
+    backgroundColor: headerBandColor(theme),
+    "&:hover": {
+      backgroundColor: alpha(theme.palette.text.primary, dark ? 0.16 : 0.1),
+    },
+  } as const;
   return (
     <Box
       sx={{
@@ -123,6 +143,26 @@ export default function RatesDropzone({
           color: "text.secondary",
         }}
       >
+        {/* A plain link: the browser downloads the file, which then comes
+            in as any other does. Public readers see it too, but it opens
+            only for Meta employees, as its tooltip says. */}
+        <Tooltip
+          describeChild
+          title="Needs access to the internal rates file. Opens in a new tab."
+        >
+          <Button
+            component="a"
+            href={RATES_FILE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            size="small"
+            disableElevation
+            startIcon={<DownloadRoundedIcon />}
+            sx={secondary}
+          >
+            Download rates file
+          </Button>
+        </Tooltip>
         <Button
           variant="contained"
           size="small"
@@ -132,7 +172,6 @@ export default function RatesDropzone({
         >
           {error === null ? "Choose rates file…" : "Choose another file…"}
         </Button>
-        {/* The secondary action: the band's grey, as the examples it opens. */}
         <Button
           size="small"
           disableElevation
@@ -141,18 +180,7 @@ export default function RatesDropzone({
           endIcon={
             formatOpen ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />
           }
-          sx={{
-            textTransform: "none",
-            whiteSpace: "nowrap",
-            color: "text.primary",
-            backgroundColor: headerBandColor(theme),
-            "&:hover": {
-              backgroundColor: alpha(
-                theme.palette.text.primary,
-                dark ? 0.16 : 0.1
-              ),
-            },
-          }}
+          sx={secondary}
         >
           File format
         </Button>

@@ -93,11 +93,12 @@ PyTorch Green Light has one unit of work — the `review` phase:
   Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (PR write, for the revocation and the `GL/*` labels),
   `BOT_LOGIN`, and `CLICKHOUSE_*` read access.
 
-`cohort.assess_rules` answers a different question, per PR: whose evaluation carries authority. The
-author must be named by a merge rule that covers every file the PR changes, a path-scoped rule only
-on a PR based on `main`, on a ghstack PR or on a PR in a GitHub-native stack whose trunk is `main`
-(`merge_authz.native_stack_trunk`); the scan and the verdict (`verdict.has_covering_rule`) run
-this same check. Any other non-draft PR the scan lists is state-read and revert-guarded but never dispatched;
+`cohort.assess_rules` answers a different question, per PR: whose evaluation carries authority. A
+valid merge rule must name the author, whatever files the PR changes, and the PR must be on a base
+`merge_authz.accepts_base` accepts: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
+is `main`, matched by branch names. The scan judges the base from the listing (`pr_listing`), the
+`--pr` gate and the verdict (`verdict.has_eligible_author`, which also requires the reviewed head)
+from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's
 record-time downgrade, `verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
@@ -106,8 +107,8 @@ and follows the PR's eligibility otherwise. A shadow verdict is never approved a
 any prior greenlight approval; every shadow row is filtered out of both HUD readers (Dr. CI's
 render and the land-time ledger route) and triggers no Dr. CI poke. The two authorization gates
 (`authz_gates`) require the `--requester` login to be in the evaluation cohort and the `--pr`
-target's author to be eligible for that PR. A requester confers no authority: a review carries it
-only when its PR's author passes the merge-rule check.
+target to be eligible. A requester confers no authority: a review carries it only when its PR
+passes the eligibility check.
 
 The scan drops ineligible PRs from the **fingerprint candidates** only after `revert_guard` and the
 state read, so an ineligible PR still loses a stale approval and still gets its `REVERTED` row.

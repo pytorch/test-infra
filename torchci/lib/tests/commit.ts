@@ -1,8 +1,5 @@
 import dayjs from "dayjs";
-import type {
-  CommitRecord,
-  CommitTestCounts,
-} from "lib/api/tests/commit/summary/types";
+import type { CommitRecord } from "lib/api/tests/commit/summary/types";
 import { testsPagePath } from "lib/api/tests/pages/parameters";
 import { titleFirstLine, titleSuffix } from "lib/commitTitle";
 import type { Hue } from "lib/tests/blockColors";
@@ -16,8 +13,8 @@ import type { Crumb } from "lib/tests/header";
 
 // The commit page's rules that are not a bundle's own: how the headline
 // reads a commit title, how the header and the rows say times, and what
-// the summary row shows for a commit's counts. Free of React, so the tests
-// can run them as plain functions.
+// the table's title shows of the tests by status. Free of React, so the
+// tests can run them as plain functions.
 
 // A commit title in pieces: text; a span the author set in backticks,
 // `not`, which is set as code; and "#202376", which links the pull request.
@@ -91,7 +88,7 @@ export function clockLabel(iso: string): string {
   return dayjs(iso).format("h:mm:ss a");
 }
 
-// The span the commit's runs took, under the wall time: "5:22 – 9:45 am"
+// The span the commit's jobs took, beside its length: "5:22 – 9:45 am"
 // within one half of a day, "11:50 am – 1:10 pm" across noon, and the days
 // named when they differ, "Oct 29, 5:07 pm – Oct 30, 1:10 am".
 export function timeRangeLabel(startIso: string, endIso: string): string {
@@ -106,14 +103,11 @@ export function timeRangeLabel(startIso: string, endIso: string): string {
   )}`;
 }
 
-// The summary endpoint's counts of a commit's tests, and the runs' row of
-// them. A run is a bundle: one test in one environment, env var set and
-// GitHub job with all its attempts, so a test run in twelve jobs is twelve
-// runs; the page's figures count runs and call them tests.
-export type { CommitTestCounts };
-export type RunCounts = CommitTestCounts["total"];
+// The page's figures count runs and call them tests. A run is a bundle: one
+// test in one environment, env var set and GitHub job with all its attempts,
+// so a test run in twelve jobs is twelve tests.
 
-// The summary row's titles for each status, as a category of tests: the
+// The title's names for each status, as a category of tests: the
 // Outcome cell's words (BUNDLE_STATUS_WORDS), in the plural where the two
 // differ.
 export const STATUS_TITLES: Record<BundleStatus, string> = {
@@ -121,44 +115,13 @@ export const STATUS_TITLES: Record<BundleStatus, string> = {
   xfailed: "Expected failures",
 };
 
-// The legend's word for a status: "failed", "timed out", "expected
+// The counts' word for a status: "failed", "timed out", "expected
 // failures".
 export function statusWord(status: BundleStatus): string {
   return STATUS_TITLES[status].toLowerCase();
 }
 
-// The summary row's sizes, in px: the facts' text and the counts' words, and
-// the counts' figures, COUNT_FIGURE_SIZE while the counts and the facts share
-// the line at it. When the line is short of room the figures shrink a pixel
-// at a time, down to the facts' size and no further, so a figure never reads
-// smaller than the facts beside it; the gap between counts shrinks with them.
-// At the floor the facts wrap under the counts, as they would have.
-export const SUMMARY_TEXT_SIZE = 15;
-export const COUNT_FIGURE_SIZE = 22;
-export const COUNT_FIGURE_MIN_SIZE = SUMMARY_TEXT_SIZE;
-export const COUNT_GAP = 30;
-
-// The gap between counts at a figure size: COUNT_GAP at the full size,
-// smaller in proportion.
-export function countGap(figureSize: number): number {
-  return Math.round((COUNT_GAP * figureSize) / COUNT_FIGURE_SIZE);
-}
-
-// The largest figure size, from COUNT_FIGURE_SIZE down a pixel at a time, at
-// which the counts on one line (`widthAt`, measured at that size) fit the
-// width left beside the facts; COUNT_FIGURE_MIN_SIZE when none above it
-// does.
-export function fittingCountSize(
-  available: number,
-  widthAt: (_figureSize: number) => number
-): number {
-  for (let size = COUNT_FIGURE_SIZE; size > COUNT_FIGURE_MIN_SIZE; size--) {
-    if (widthAt(size) <= available) return size;
-  }
-  return COUNT_FIGURE_MIN_SIZE;
-}
-
-// The hue of each status in the summary's bar and legend: the Health
+// The hue of each status in the title's bar and counts: the Health
 // cells' red for the failing statuses, yellow for flaky, green for passed,
 // purple for skipped; null is the neutral grey of the grid's "other" cell,
 // for the expected failures and the rest.
@@ -172,40 +135,19 @@ export const SUMMARY_STATUS_HUES: Record<BundleStatus, Hue | null> = {
   skipped: "purple",
 };
 
-// The hue a problem status is marked with, in the legend's counts and the
+// The hue a problem status is marked with, in the title's counts and the
 // table's Outcome blocks: failed and timed out red, flaky yellow; null for
 // the rest, which stay plain.
 export function problemHue(status: BundleStatus): Hue | null {
   return PROBLEM_STATUSES.includes(status) ? SUMMARY_STATUS_HUES[status] : null;
 }
 
-// A status with runs, as the summary's bar and legend show it.
-export interface SummaryStatus {
-  status: BundleStatus;
-  counts: RunCounts;
-  // The segment's width relative to the others', log10(runs + 1).
-  weight: number;
-  // The status's true share of the runs, "51.4%" or "under 0.01%".
-  share: string;
-}
-
-// The statuses with runs, in BUNDLE_STATUSES order, each weighted for the
-// bar by log10(runs + 1): a handful of failures beside millions of passes
-// gets a visible width. So the bar is not to scale; the share says what
-// the proportion is.
-export function summaryStatuses(counts: CommitTestCounts): SummaryStatus[] {
-  return BUNDLE_STATUSES.flatMap((status) => {
-    const statusCounts = counts.by_status[status];
-    if (statusCounts.runs === 0) return [];
-    return [
-      {
-        status,
-        counts: statusCounts,
-        weight: Math.log10(statusCounts.runs + 1),
-        share: shareLabel(statusCounts.runs, counts.total.runs),
-      },
-    ];
-  });
+// A status's width in the title's bar, relative to the others': the
+// logarithm of its tests, so a handful of failures beside millions of passes
+// gets a visible width, and none for a status without tests. So the bar is
+// not to scale; the share says what the proportion is.
+export function barWeight(tests: number): number {
+  return tests > 0 ? Math.log10(tests + 1) : 0;
 }
 
 // A status's share of the runs to three figures, "51.4%", "0.883%"; below
@@ -221,12 +163,12 @@ export function shareLabel(runs: number, total: number): string {
   return `${rounded}%`;
 }
 
-// Whether the commit has runs and none failed, timed out or was flaky: the
-// legend then leads with "Every test passed".
-export function allPassed(counts: CommitTestCounts): boolean {
+// Whether tests were recorded and none failed, timed out or was flaky: the
+// counts then lead with "Every test passed".
+export function allPassed(counts: Record<BundleStatus, number>): boolean {
   return (
-    counts.total.runs > 0 &&
-    PROBLEM_STATUSES.every((status) => counts.by_status[status].runs === 0)
+    BUNDLE_STATUSES.some((status) => counts[status] > 0) &&
+    PROBLEM_STATUSES.every((status) => counts[status] === 0)
   );
 }
 

@@ -1,6 +1,7 @@
 import { Link, Tooltip, Typography } from "@mui/material";
 import { GridColDef } from "@mui/x-data-grid";
 import { durationDisplay } from "components/common/TimeUtils";
+import { QUEUED_JOBS_SCOPE } from "components/metrics/panels/QueuedJobsTable";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { fetcher } from "lib/GeneralUtils";
 import { useMemo, useState } from "react";
@@ -37,7 +38,7 @@ export default function QueuedJobsByMachineTypeTable({
   const [countSuspectedStuck, setCountSuspectedStuck] = useState(false);
 
   const url = `/api/clickhouse/queued_jobs_by_label?parameters=${encodeURIComponent(
-    JSON.stringify({})
+    JSON.stringify(QUEUED_JOBS_SCOPE)
   )}`;
 
   const { data } = useSWR(url, fetcher, {

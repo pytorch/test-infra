@@ -1,6 +1,6 @@
 import { PageDirection, queryPage } from "lib/api/pagination";
 import type { ListPageData } from "lib/api/schema";
-import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import { queryRunAttempts } from "lib/api/tests/test/runs/attempts";
 import {
   encodeRunsCursor,
@@ -9,6 +9,7 @@ import {
 } from "lib/api/tests/test/runs/cursor";
 import {
   expandRunRows,
+  lookupRunMetadata,
   runGroup,
   RunGroupRow,
 } from "lib/api/tests/test/runs/mapping";
@@ -41,11 +42,11 @@ export async function listRuns({
 }
 
 // A page of bundles: the grouped page query, then every attempt of the
-// selected bundles and their shared metadata. The attempts read runs in the
-// heavy workload for every list, since on a big commit it reaches tens of
-// CPU-seconds; the page query and its probe stay out, as a test's page reads
-// by primary key in milliseconds and a typical commit page costs a couple of
-// CPU-seconds (app/api/README.md, Heavy queries).
+// selected bundles and, alongside, their shared metadata, which follows from
+// the bundles' keys as the attempts do. None of them runs in the heavy
+// workload: a test's page reads by primary key in milliseconds, a typical
+// commit page costs a couple of CPU-seconds, and the attempts read answers
+// in a fraction of a second (app/api/README.md, Heavy queries).
 export async function queryRunsPage<
   Cursor extends { direction?: PageDirection }
 >({
@@ -82,10 +83,14 @@ export async function queryRunsPage<
         direction
       ),
     encodeCursor,
+    query: queryClickhouse,
   });
   const groups = paged.page.map(runGroup);
-  const attempts = await queryRunAttempts(groups, CI_WORKLOAD_HEAVY);
-  const expanded = await expandRunRows(attempts.rows, groups);
+  const [attempts, metadata] = await Promise.all([
+    queryRunAttempts(groups),
+    lookupRunMetadata(groups),
+  ]);
+  const expanded = await expandRunRows(attempts.rows, groups, metadata);
   return {
     runs: expanded.runs,
     // Retention can remove every selected bundle between page discovery and

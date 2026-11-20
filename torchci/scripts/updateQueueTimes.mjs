@@ -12,9 +12,10 @@ export function getS3Client() {
 
 const s3client = getS3Client();
 
-// %7B%7D = encoded {}
+// Keep this scope in sync with get_jobs_interval in aws/lambda/ci-queue-pct
+const params = encodeURIComponent(JSON.stringify({ org: "pytorch", repo: "" }));
 const response = await fetch(
-  "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D",
+  `https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=${params}`,
   {
     headers: {
       "x-hud-internal-bot": process.env.HUD_API_TOKEN,

@@ -14,18 +14,10 @@ on:
         options:
           - vision
           - audio
-          - torchrec
           - tensorrt
-          - data
           - fbgemm
-          - mslk
           - executorch
-          - torchtune
-          - torchcodec
-          - torchvision-extra-decoders
           - torchtitan
-          - torchcomms
-          - torchforge
           - all
 jobs:
   trigger:
@@ -41,16 +33,8 @@ jobs:
           - domain: audio
             repository: pytorch/audio
             ref: main
-          - domain: data
-            repository: meta-pytorch/data
-            app_repository: data
-            ref: main
           - domain: vision
             repository: pytorch/vision
-            ref: main
-          - domain: torchrec
-            repository: meta-pytorch/torchrec
-            app_repository: torchrec
             ref: main
           - domain: tensorrt
             repository: pytorch/tensorrt
@@ -58,56 +42,19 @@ jobs:
           - domain: fbgemm
             repository: pytorch/fbgemm
             ref: main
-          - domain: mslk
-            repository: meta-pytorch/mslk
-            app_repository: mslk
-            ref: main
           - domain: executorch
             repository: pytorch/executorch
             ref: viable/strict
-          - domain: torchtune
-            repository: meta-pytorch/torchtune
-            app_repository: torchtune
-            ref: main
-          - domain: torchcodec
-            repository: meta-pytorch/torchcodec
-            app_repository: torchcodec
-            ref: main
-          - domain: torchvision-extra-decoders
-            repository: meta-pytorch/torchvision-extra-decoders
-            app_repository: torchvision-extra-decoders
-            ref: main
           - domain: torchtitan
             repository: pytorch/torchtitan
             ref: main
-          - domain: torchcomms
-            repository: meta-pytorch/torchcomms
-            app_repository: torchcomms
-            ref: main
-          - domain: torchforge
-            repository: meta-pytorch/torchforge
-            app_repository: torchforge
-            ref: main
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      # meta-pytorch rejects classic PATs, so its nightly branches are cut with a
-      # GitHub App installation token scoped to the one target repository. The app
-      # must also be a bypass actor on the nightly branch ruleset of that repository.
-      - name: Mint nightly cut app token
-        id: app-token
-        if: ${{ startsWith(matrix.repository, 'meta-pytorch/') && (github.event_name == 'schedule' || inputs.domain == matrix.domain || inputs.domain == 'all') }}
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
-        with:
-          app-id: ${{ secrets.NIGHTLY_APP_ID }}
-          private-key: ${{ secrets.NIGHTLY_APP_PRIVATE_KEY }}
-          owner: meta-pytorch
-          repositories: ${{ matrix.app_repository }}
-          permission-contents: write
       - name: Trigger nightly ${{ matrix.domain }} build
         if: ${{ github.event_name == 'schedule' || inputs.domain == matrix.domain || inputs.domain == 'all' }}
         uses: ./.github/actions/trigger-nightly
         with:
           ref: ${{ matrix.ref }}
           repository: ${{ matrix.repository }}
-          token: ${{ steps.app-token.outputs.token || secrets.GH_PYTORCHBOT_TOKEN }}
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: ${{ matrix.domain }}

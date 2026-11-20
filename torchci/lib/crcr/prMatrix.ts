@@ -1,11 +1,16 @@
-// Row-building for the CRCR pull-request matrix. A row represents one
-// downstream workflow run, so every displayed job URL belongs to that run.
+import {
+  CanonicalCrcrRun,
+  CrcrRunSelectionJob,
+  selectCanonicalCrcrRuns,
+  selectFinalCrcrJobAttempts,
+} from "lib/crcr/runSelection";
 
 export interface PrMatrixJob {
   upstream_repo?: string;
   pr_number?: number;
   pytorch_head_sha: string;
   job_name: string;
+  check_run_id?: string;
   run_id: string;
   run_attempt: number;
   started_at: string;
@@ -20,19 +25,14 @@ export interface PrMatrixRow<T extends PrMatrixJob = PrMatrixJob> {
   jobs: Map<string, T>;
 }
 
-interface RunGroup<T extends PrMatrixJob> {
-  prNumber: number;
-  runId: string;
-  sha: string;
-  upstreamRepo: string;
-  firstStartedAt: string;
-  latestStartedAt: string;
-  jobs: T[];
+interface MatrixSelectionJob<T extends PrMatrixJob>
+  extends CrcrRunSelectionJob {
+  source: T;
 }
 
 function isNewerRun<T extends PrMatrixJob>(
-  candidate: RunGroup<T>,
-  current: RunGroup<T>
+  candidate: CanonicalCrcrRun<MatrixSelectionJob<T>>,
+  current: CanonicalCrcrRun<MatrixSelectionJob<T>>
 ): boolean {
   if (candidate.firstStartedAt !== current.firstStartedAt) {
     return candidate.firstStartedAt > current.firstStartedAt;
@@ -57,68 +57,49 @@ export function buildPrMatrix<T extends PrMatrixJob>(
   rows: PrMatrixRow<T>[];
 } {
   const jobNames = new Set<string>();
-  const runGroups = new Map<string, RunGroup<T>>();
-
+  const selectionJobs: MatrixSelectionJob<T>[] = [];
   for (const job of data) {
     const prNumber = job.pr_number ?? 0;
     if (prNumber <= 0) continue;
 
     jobNames.add(job.job_name);
-    const key = `${prNumber}:${job.pytorch_head_sha}:${job.run_id}`;
-    let group = runGroups.get(key);
-    if (!group) {
-      group = {
-        prNumber,
-        runId: job.run_id,
-        sha: job.pytorch_head_sha,
-        upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
-        firstStartedAt: job.started_at,
-        latestStartedAt: job.started_at,
-        jobs: [],
-      };
-      runGroups.set(key, group);
-    }
-
-    group.firstStartedAt =
-      job.started_at < group.firstStartedAt
-        ? job.started_at
-        : group.firstStartedAt;
-    group.latestStartedAt =
-      job.started_at > group.latestStartedAt
-        ? job.started_at
-        : group.latestStartedAt;
-    group.jobs.push(job);
+    selectionJobs.push({
+      source: job,
+      prNumber,
+      headSha: job.pytorch_head_sha,
+      downstreamRepo: "",
+      runId: job.run_id,
+      runAttempt: job.run_attempt,
+      jobKey: job.job_name,
+      startedAt: job.started_at,
+      recordId: job.check_run_id ?? "",
+    });
   }
 
-  const latestRunByPr = new Map<number, RunGroup<T>>();
-  for (const group of runGroups.values()) {
-    const current = latestRunByPr.get(group.prNumber);
-    if (!current || isNewerRun(group, current)) {
-      latestRunByPr.set(group.prNumber, group);
+  const latestRunByPr = new Map<
+    number,
+    CanonicalCrcrRun<MatrixSelectionJob<T>>
+  >();
+  for (const run of selectCanonicalCrcrRuns(selectionJobs)) {
+    const current = latestRunByPr.get(run.prNumber);
+    if (!current || isNewerRun(run, current)) {
+      latestRunByPr.set(run.prNumber, run);
     }
   }
 
   const rows = Array.from(latestRunByPr.values())
-    .map((group) => {
+    .map((run) => {
       const jobs = new Map<string, T>();
-      for (const job of group.jobs) {
-        const existing = jobs.get(job.job_name);
-        if (
-          !existing ||
-          job.run_attempt > existing.run_attempt ||
-          (job.run_attempt === existing.run_attempt &&
-            job.started_at > existing.started_at)
-        ) {
-          jobs.set(job.job_name, job);
-        }
+      for (const selected of selectFinalCrcrJobAttempts(run.jobs)) {
+        jobs.set(selected.jobKey, selected.source);
       }
 
       return {
-        prNumber: group.prNumber,
-        runId: group.runId,
-        sha: group.sha,
-        upstreamRepo: group.upstreamRepo,
-        latestTime: group.latestStartedAt,
+        prNumber: run.prNumber,
+        runId: run.runId,
+        sha: run.headSha,
+        upstreamRepo: run.jobs[0].source.upstream_repo ?? "pytorch/pytorch",
+        latestTime: run.latestStartedAt,
         jobs,
       };
     })

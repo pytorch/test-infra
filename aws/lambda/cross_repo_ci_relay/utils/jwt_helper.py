@@ -42,6 +42,14 @@ _jwks_clients: Dict[str, jwt.PyJWKClient] = {
 # required_claims maps claim_name -> list of allowed values (any match passes).
 BUILDKITE_REPO_MAP: Dict[Tuple[str, str], dict] = {}
 
+# Runtime-populated list of workflows that may add late reports (triage verdicts)
+# to the rows of ANOTHER repo, for repos whose triage runs outside their own
+# repo (e.g. vLLM's runs in pytorch/test-infra).  Each entry is
+# {"repository": ..., "job_workflow_ref": ..., "on_behalf_of": "owner/repo"}.
+# Both claims must match exactly: the workflow file at a pinned ref, run in the
+# named repository.  A delegate can add late reports and nothing else.
+LATE_REPORT_DELEGATES: list[dict] = []
+
 
 def _load_buildkite_repo_map(repo_map: dict) -> None:
     """Parse a repo_map dict into BUILDKITE_REPO_MAP entries."""
@@ -83,6 +91,31 @@ def _load_buildkite_repo_map(repo_map: dict) -> None:
             }
 
 
+def _load_late_report_delegates(entries: object) -> None:
+    """Parse ``providers.github.late_report_delegates`` into LATE_REPORT_DELEGATES."""
+    if not isinstance(entries, list):
+        return
+    for entry in entries:
+        if not isinstance(entry, dict):
+            logger.warning("Skipping late_report_delegates entry that is not a map")
+            continue
+        parsed = {
+            key: str(entry.get(key, "")).strip()
+            for key in ("repository", "job_workflow_ref", "on_behalf_of")
+        }
+        # An entry that is missing a field, or does not pin the workflow to a
+        # ref, would trust more than intended: skip it.
+        if (
+            not all(parsed.values())
+            or "/" not in parsed["repository"]
+            or "/" not in parsed["on_behalf_of"]
+            or "@" not in parsed["job_workflow_ref"]
+        ):
+            logger.warning("Skipping invalid late_report_delegates entry: %s", entry)
+            continue
+        LATE_REPORT_DELEGATES.append(parsed)
+
+
 def load_ci_provider_mappings(raw: dict) -> None:
     """Populate repo maps from ci_providers.yml.
 
@@ -95,9 +128,13 @@ def load_ci_provider_mappings(raw: dict) -> None:
     and the legacy flat ``buildkite:`` section.
     """
     BUILDKITE_REPO_MAP.clear()
+    LATE_REPORT_DELEGATES.clear()
 
     providers = raw.get("providers")
     if providers and isinstance(providers, dict):
+        gh = providers.get("github")
+        if gh and isinstance(gh, dict):
+            _load_late_report_delegates(gh.get("late_report_delegates"))
         bk = providers.get("buildkite")
         if bk and isinstance(bk, dict):
             repo_map = bk.get("repo_map")
@@ -216,6 +253,33 @@ def _extract_repo_buildkite(claims: dict) -> str:
             )
 
     return entry["repo"]
+
+
+def resolve_reporting_repo(claims: dict, event_type: str) -> str:
+    """Return the repo whose rows this callback may touch.
+
+    That is the OIDC-verified ``repository`` -- except for a late report sent by
+    a workflow listed in ``LATE_REPORT_DELEGATES``, which reports for the repo it
+    is listed under.  ``event_type`` comes from the unauthenticated body, but it
+    only selects whether a delegation is considered: the repo itself comes from
+    the verified claims and the config, never from the body.
+    """
+    repo = claims["repository"]
+    if event_type != "late-report":
+        return repo
+    for delegate in LATE_REPORT_DELEGATES:
+        if (
+            claims.get("repository") == delegate["repository"]
+            and claims.get("job_workflow_ref") == delegate["job_workflow_ref"]
+        ):
+            logger.info(
+                "late report from %s (%s) accepted on behalf of %s",
+                repo,
+                delegate["job_workflow_ref"],
+                delegate["on_behalf_of"],
+            )
+            return delegate["on_behalf_of"]
+    return repo
 
 
 _REPO_EXTRACTORS = {

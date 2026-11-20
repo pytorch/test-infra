@@ -909,6 +909,60 @@ def pr_review_verdicts_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+def pr_review_eval_targets_adapter(table, bucket, key):
+    # Order must match misc.pr_review_eval_targets: general_adapter inserts
+    # positionally.
+    schema = """
+        `schema_version` UInt16,
+        `timestamp` DateTime64(3),
+        `run_id` Int64,
+        `run_attempt` Int32,
+        `run_url` String,
+        `trigger_event` String,
+        `dataset` String,
+        `dataset_sha` String,
+        `ref_label` String,
+        `ref_sha` String,
+        `model` String,
+        `case_id` String,
+        `pr_number` Int64,
+        `rep` UInt16,
+        `job_status` String,
+        `target_id` String,
+        `target_type` String,
+        `labeler` String,
+        `found` Bool,
+        `blocking` Bool,
+        `severity` String,
+        `judge_reason` String
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
+def pr_review_finding_reactions_adapter(table, bucket, key):
+    # Order must match misc.pr_review_finding_reactions: general_adapter
+    # inserts positionally. `reactors` arrives as [login, content, reacted_at]
+    # arrays.
+    schema = """
+        `schema_version` UInt16,
+        `observed_at` DateTime64(3),
+        `repo` String,
+        `pr_number` Int64,
+        `pr_author` String,
+        `comment_id` Int64,
+        `review_id` Int64,
+        `comment_url` String,
+        `path` String,
+        `finding_created_at` DateTime64(3),
+        `blocking` Bool,
+        `thumbs_up` UInt32,
+        `thumbs_down` UInt32,
+        `other_reactions` UInt32,
+        `reactors` Array(Tuple(String, String, DateTime64(3)))
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
 # Test run reports (pytorch/pytorch torch/testing/_internal/torchci/README.md):
 # each test process writes one JSONL report, and each test job uploads its
 # reports when it ends, one object each, to
@@ -1181,6 +1235,8 @@ SUPPORTED_PATHS = {
     "claude_code_usage": "misc.claude_code_usage",
     "autorevert_advisor_verdicts": "misc.autorevert_advisor_verdicts",
     "pr_review_verdicts": "misc.pr_review_verdicts",
+    "pr_review_eval_targets": "misc.pr_review_eval_targets",
+    "pr_review_finding_reactions": "misc.pr_review_finding_reactions",
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
     "test_jsons_while_running": "tests.all_test_runs",
@@ -1212,6 +1268,8 @@ OBJECT_CONVERTER = {
     "misc.claude_code_usage": claude_code_usage_adapter,
     "misc.autorevert_advisor_verdicts": autorevert_advisor_verdicts_adapter,
     "misc.pr_review_verdicts": pr_review_verdicts_adapter,
+    "misc.pr_review_eval_targets": pr_review_eval_targets_adapter,
+    "misc.pr_review_finding_reactions": pr_review_finding_reactions_adapter,
     "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
     "misc.runner_fleet_count": runner_fleet_count_adapter,
     "misc.greenlight_pr_state": greenlight_pr_state_adapter,

@@ -213,7 +213,7 @@ describe("verify-drci-functionality", () => {
     probot = utils.testProbot();
     probot.load(pytorchBot);
     jest
-      .spyOn(github, "getPreReviewOctokit")
+      .spyOn(github, "getPrStatusOctokit")
       .mockResolvedValue(utils.testOctokit());
 
     nock("https://api.github.com")

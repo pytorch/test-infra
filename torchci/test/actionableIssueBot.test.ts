@@ -1,5 +1,4 @@
 import actionableIssueBot from "lib/bot/actionableIssueBot";
-import { PYTORCH_BOT_USER_ID } from "lib/bot/Constants";
 import nock from "nock";
 import { handleScope, requireDeepCopy } from "./common";
 import { testProbot } from "./utils";
@@ -7,8 +6,8 @@ import { testProbot } from "./utils";
 nock.disableNetConnect();
 const REPO = "pytorch/pytorch";
 const MISSING = "missing actionable issue";
-const LABELS = ["open source", "triaged", "bot-triaged", MISSING];
-const LABELED_AT = "2026-10-30T04:00:00Z";
+const RETRIAGE = "bot-retriage";
+const LABELS = ["triaged", "bot-triaged", MISSING];
 
 function event() {
   const payload = requireDeepCopy("./fixtures/issues.labeled.json");
@@ -19,7 +18,6 @@ function event() {
     default_branch: "main",
   });
   payload.issue.number = 5;
-  payload.issue.updated_at = LABELED_AT;
   payload.issue.labels = [{ name: "actionable" }];
   payload.label.name = "actionable";
   return { name: "issues", payload, id: "actionable" } as any;
@@ -98,13 +96,29 @@ function pull(number: number, overrides: object = {}) {
     });
 }
 
+const ON_PR_BELOW = { ref: "alice/below" };
+const NATIVE_STACK_ON_MAIN = {
+  base: { ref: "main", sha: "e".repeat(40) },
+  id: 7,
+  number: 8,
+  position: 2,
+  size: 3,
+};
+const NATIVE_STACK_NOT_ON_MAIN = [
+  { ...NATIVE_STACK_ON_MAIN, base: { ref: "viable/strict" } },
+  null,
+  {},
+  { base: "main" },
+  { base: { ref: ["main"] } },
+].map((stack) => ({ base: ON_PR_BELOW, stack }));
+
 function requeue(
   number: number,
   outcomes = ["triaged", "bot-triaged"],
-  hasOpenSource = true
+  hasRetriage = false
 ) {
   const order: string[] = [];
-  const expected = [...outcomes, ...(hasOpenSource ? ["open source"] : [])];
+  const expected = [...outcomes, ...(hasRetriage ? [RETRIAGE] : [])];
   const scope = nock("https://api.github.com");
   for (const name of expected) {
     scope
@@ -117,7 +131,7 @@ function requeue(
       });
   }
   scope
-    .post(`/repos/${REPO}/issues/${number}/labels`, { labels: ["open source"] })
+    .post(`/repos/${REPO}/issues/${number}/labels`, { labels: [RETRIAGE] })
     .reply(() => {
       expect(order).toEqual(expected);
       order.push("trigger");
@@ -215,13 +229,9 @@ test.each([
   { state: "closed" },
   { draft: true },
   { base: { ref: "release/2.9" } },
+  ...NATIVE_STACK_NOT_ON_MAIN,
   {
     labels: LABELS.filter((name) => name !== MISSING).map((name) => ({ name })),
-  },
-  {
-    labels: LABELS.filter((name) => name !== "open source").map((name) => ({
-      name,
-    })),
   },
   ...["no automated triage", "in progress", "ready for review"].map(
     (label) => ({ labels: [...LABELS, label].map((name) => ({ name })) })
@@ -234,16 +244,6 @@ test.each([
       timeline([{ source: reference(10) }]),
       pull(10, overrides),
     ];
-    if (
-      "labels" in overrides &&
-      !overrides.labels.some((label) => label.name === "open source")
-    ) {
-      scopes.push(
-        nock("https://api.github.com")
-          .get(`/repos/${REPO}/issues/10/events?per_page=100`)
-          .reply(200, [])
-      );
-    }
     await bot.receive(event());
     handleScope(scopes);
   }
@@ -321,26 +321,44 @@ test("re-triages ghstack base branches supported by Auto PR Triage", async () =>
   handleScope(scopes);
 });
 
-function botRemoval(overrides: object = {}) {
-  return {
-    id: 2,
-    event: "unlabeled",
-    label: { name: "open source" },
-    actor: { id: PYTORCH_BOT_USER_ID },
-    created_at: "2026-10-30T04:00:01Z",
-    ...overrides,
-  };
-}
+test("re-triages GitHub-native stack PRs on main supported by Auto PR Triage", async () => {
+  const scopes = [
+    currentIssue(),
+    timeline([{ source: reference(10) }]),
+    pull(10, {
+      body: "Part of #5",
+      base: ON_PR_BELOW,
+      stack: NATIVE_STACK_ON_MAIN,
+    }),
+    requeue(10),
+  ];
+  await bot.receive(event());
+  handleScope(scopes);
+});
 
-test("a redelivery recovers a failed trigger using paginated bot-removal history", async () => {
+test("re-adds the trigger label when a previous one is still present", async () => {
+  const scopes = [
+    currentIssue(),
+    timeline([{ source: reference(10) }]),
+    pull(10, {
+      body: "Part of #5",
+      labels: [...LABELS, RETRIAGE].map((name) => ({ name })),
+    }),
+    requeue(10, ["triaged", "bot-triaged"], true),
+  ];
+  await bot.receive(event());
+  handleScope(scopes);
+});
+
+test("a failed trigger keeps the hold so a redelivery retries and succeeds", async () => {
   const reset = nock("https://api.github.com");
-  for (const name of ["triaged", "bot-triaged", "open source"]) {
+  for (const name of ["triaged", "bot-triaged"]) {
     reset
       .delete(`/repos/${REPO}/issues/10/labels/${encodeURIComponent(name)}`)
       .reply(200, []);
   }
   reset
-    .post(`/repos/${REPO}/issues/10/labels`, { labels: ["open source"] })
+    .post(`/repos/${REPO}/issues/10/labels`, { labels: [RETRIAGE] })
     .reply(503);
   const failedScopes = [
     currentIssue(),
@@ -353,61 +371,17 @@ test("a redelivery recovers a failed trigger using paginated bot-removal history
   );
   handleScope(failedScopes);
 
-  // Only the hold remains after the failed POST. The successful replay must
-  // restore the trigger without clearing the hold before the POST succeeds.
-  const history = nock("https://api.github.com")
-    .get(`/repos/${REPO}/issues/10/events?per_page=100`)
-    .reply(200, [botRemoval({ id: 1, created_at: "2026-10-29T00:00:00Z" })], {
-      Link: `<https://api.github.com/repos/${REPO}/issues/10/events?per_page=100&page=2>; rel="next"`,
-    })
-    .get(`/repos/${REPO}/issues/10/events?per_page=100&page=2`)
-    .reply(200, [botRemoval()]);
+  // Only the hold remains after the failed POST. The replay must add the
+  // trigger before clearing the hold.
   const retryScopes = [
     currentIssue(),
     timeline([{ source: reference(10) }]),
     pull(10, { body: "Part of #5", labels: [{ name: MISSING }] }),
-    history,
-    requeue(10, [], false),
+    requeue(10, []),
   ];
   await bot.receive(event());
   handleScope(retryScopes);
 });
-
-test.each(
-  [
-    [botRemoval({ created_at: "2026-10-29T00:00:00Z" })],
-    [botRemoval({ created_at: "invalid" })],
-    [
-      botRemoval(),
-      botRemoval({ id: 1, actor: { id: 123 }, created_at: "invalid" }),
-    ],
-    [botRemoval({ actor: null })],
-    [botRemoval({ event: "labeled" })],
-    [botRemoval(), botRemoval({ id: 3, actor: { id: 123 } })],
-    [
-      botRemoval({
-        id: 3,
-        actor: { id: 123 },
-        created_at: "2026-10-30T05:00:00Z",
-      }),
-      botRemoval(),
-    ],
-  ].map((events) => ({ events }))
-)(
-  "does not restore absent open source without a current bot reset: %j",
-  async ({ events }) => {
-    const scopes = [
-      currentIssue(),
-      timeline([{ source: reference(10) }]),
-      pull(10, { body: "Part of #5", labels: [{ name: MISSING }] }),
-      nock("https://api.github.com")
-        .get(`/repos/${REPO}/issues/10/events?per_page=100`)
-        .reply(200, events),
-    ];
-    await bot.receive(event());
-    handleScope(scopes);
-  }
-);
 
 function prEvent(
   action = "edited",
@@ -426,7 +400,6 @@ function prEvent(
         state: "open",
         draft: false,
         body,
-        updated_at: LABELED_AT,
         labels: LABELS.map((name) => ({ name })),
       },
       changes: action === "edited" ? { body: { from: before } } : {},
@@ -608,13 +581,9 @@ test.each([
   { draft: true },
   { draft: undefined },
   { base: { ref: "release/2.9" } },
+  ...NATIVE_STACK_NOT_ON_MAIN,
   {
     labels: LABELS.filter((name) => name !== MISSING).map((name) => ({ name })),
-  },
-  {
-    labels: LABELS.filter((name) => name !== "open source").map((name) => ({
-      name,
-    })),
   },
   ...["no automated triage", "in progress", "ready for review"].map((name) => ({
     labels: [...LABELS, name].map((name) => ({ name })),
@@ -623,12 +592,6 @@ test.each([
   "body wake-ups leave currently ineligible PRs alone: %j",
   async (overrides) => {
     const scopes = [pull(10, { body: "Part of #5", ...overrides })];
-    if (
-      "labels" in overrides &&
-      !overrides.labels.some((label) => label.name === "open source")
-    ) {
-      scopes.push(resetHistory([]));
-    }
     await bot.receive(prEvent());
     handleScope(scopes);
   }
@@ -637,6 +600,20 @@ test.each([
 test("new wake-ups preserve ghstack eligibility", async () => {
   const scopes = [
     pull(10, { body: "Part of #5", base: { ref: "gh/author/1/base" } }),
+    issueLabels(),
+    requeue(10),
+  ];
+  await bot.receive(prEvent());
+  handleScope(scopes);
+});
+
+test("new wake-ups preserve GitHub-native stack eligibility", async () => {
+  const scopes = [
+    pull(10, {
+      body: "Part of #5",
+      base: ON_PR_BELOW,
+      stack: NATIVE_STACK_ON_MAIN,
+    }),
     issueLabels(),
     requeue(10),
   ];
@@ -702,7 +679,7 @@ test.each(["title only", "other label removed", "other repository"])(
       delivery.payload.changes = { title: { from: "old" } };
     if (kind === "other label removed") {
       delivery.payload.action = "unlabeled";
-      delivery.payload.label.name = "open source";
+      delivery.payload.label.name = RETRIAGE;
     }
     if (kind === "other repository")
       delivery.payload.repository.name = "vision";
@@ -898,87 +875,10 @@ test("a failed outcome reset on an edit retains the hold and succeeds on redeliv
   handleScope(retry);
   const alreadyAdvanced = pull(10, {
     body: "Part of #5",
-    labels: [{ name: "open source" }],
+    labels: [{ name: RETRIAGE }],
   });
   await bot.receive(delivery);
   handleScope(alreadyAdvanced);
-});
-
-function resetHistory(events: object[]) {
-  return nock("https://api.github.com")
-    .get(`/repos/${REPO}/issues/10/events?per_page=100`)
-    .reply(200, events);
-}
-
-test.each(["edited", "reopened"])(
-  "failed trigger on %s recovers on replay using the original event timestamp",
-  async (action) => {
-    const delivery = prEvent(action);
-    const reset = nock("https://api.github.com");
-    for (const name of ["triaged", "bot-triaged", "open source"]) {
-      reset
-        .delete(`/repos/${REPO}/issues/10/labels/${encodeURIComponent(name)}`)
-        .reply(200, []);
-    }
-    reset
-      .post(`/repos/${REPO}/issues/10/labels`, { labels: ["open source"] })
-      .reply(503);
-    const failed = [pull(10, { body: "Part of #5" }), issueLabels(), reset];
-    await expect(bot.receive(delivery)).rejects.toThrow();
-    handleScope(failed);
-
-    // Later live updates must not replace the failed delivery's provenance.
-    const retry = [
-      pull(10, {
-        body: "Part of #5",
-        updated_at: "2026-10-30T05:00:00Z",
-        labels: [{ name: MISSING }],
-      }),
-      resetHistory([botRemoval()]),
-      issueLabels(),
-      requeue(10, [], false),
-    ];
-    await bot.receive(delivery);
-    handleScope(retry);
-  }
-);
-
-test.each(["edited", "reopened"])(
-  "a later human removal prevents %s redelivery from restoring opt-in",
-  async (action) => {
-    const scopes = [
-      pull(10, { body: "Part of #5", labels: [{ name: MISSING }] }),
-      resetHistory([botRemoval(), botRemoval({ id: 3, actor: { id: 123 } })]),
-    ];
-    await bot.receive(prEvent(action));
-    handleScope(scopes);
-  }
-);
-
-test.each([
-  { events: [] },
-  { events: [botRemoval({ created_at: "2026-10-29T00:00:00Z" })] },
-])(
-  "PR events require current reset provenance before restoring absent opt-in: %j",
-  async ({ events }) => {
-    const scopes = [
-      pull(10, { body: "Part of #5", labels: [{ name: MISSING }] }),
-      resetHistory(events),
-    ];
-    await bot.receive(prEvent());
-    handleScope(scopes);
-  }
-);
-
-test("PR events with invalid timestamps cannot recover a missing opt-in", async () => {
-  const delivery = prEvent();
-  delivery.payload.pull_request.updated_at = "invalid";
-  const scopes = [
-    pull(10, { body: "Part of #5", labels: [{ name: MISSING }] }),
-    resetHistory([botRemoval()]),
-  ];
-  await bot.receive(delivery);
-  handleScope(scopes);
 });
 
 test.each(["main", "release/2.9"])(

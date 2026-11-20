@@ -165,33 +165,12 @@ review.add_argument("-h", "--help", {
 const triage = commands.add_parser("triage", {
   help: "Re-run Auto PR Triage",
   description:
-    "Re-run Auto PR Triage on a PR labeled 'open source', e.g. after linking an\n" +
-    "actionable issue in the PR description. Only for pytorch/pytorch.",
+    "Re-run Auto PR Triage, e.g. after linking an actionable issue in the PR\n" +
+    "description. Only for pytorch/pytorch.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
 triage.add_argument("-h", "--help", {
-  action: "store_true",
-  help: SUPPRESS,
-});
-
-// Pre-review
-const preReview = commands.add_parser("pre-review", {
-  help: "Accept a PR in pre-review",
-  description:
-    "Agree, as an assigned reviewer, that this PR is worth pursuing. This counts the\n" +
-    "same as reacting with a thumbs-up to the PR description. Reviewers have one\n" +
-    "week after entering pre-review to respond; silence then counts as acceptance.\n" +
-    "A thumbs-down or outstanding request for changes blocks acceptance. Once every\n" +
-    "assigned reviewer agrees or times out, the PR is marked 'in progress'.",
-  formatter_class: RawTextHelpFormatter,
-  add_help: false,
-});
-preReview.add_argument("action", {
-  choices: ["accept"],
-  help: "Only 'accept' is supported",
-});
-preReview.add_argument("-h", "--help", {
   action: "store_true",
   help: SUPPRESS,
 });
@@ -292,9 +271,6 @@ ${review.format_help()}\`\`\`
 ## Triage
 \`\`\`
 ${triage.format_help()}\`\`\`
-## Pre-review
-\`\`\`
-${preReview.format_help()}\`\`\`
 ## Lint
 \`\`\`
 ${lint.format_help()}\`\`\`

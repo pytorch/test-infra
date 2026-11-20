@@ -3,9 +3,10 @@
 -- Given a job (entityType='job') or a runner/instance label (entityType='label'), returns one row per
 -- FAILED default.workflow_job run that belongs to a logical outcome classified as a flake. A "logical
 -- outcome" is one (commit, workflow, job-shard) collapsed across every run_attempt / restart run_id;
--- flake = infra_flake (advisor infra_issue, persistent or not) OR test_flake (advisor
--- not_related/garbage; advisor-only). real_regression (advisor related/revert, or a persistent
--- fallback) and unclassified reds (non-persistent, no advisor verdict) are excluded.
+-- flake = infra_flake (advisor infra_issue, native or coverage_, persistent or not) OR test_flake
+-- (advisor not_related/garbage; advisor-only; a coverage_ one only on a non-persistent red).
+-- real_regression (native related/revert, a persistent fallback, or coverage_ related/revert on a
+-- non-persistent red) and unclassified reds (non-persistent, no advisor verdict) are excluded.
 --
 -- The classification chain (trunk_commits .. final_jobs) is the same logic used by flaky_trunk_jobs and
 -- flaky_trunk_runner_labels, so categories are IDENTICAL to those aggregate tables; this query
@@ -44,9 +45,18 @@ advisor_agg AS (
     SELECT
         head_sha,
         adv_norm,
-        maxIf(1, verdict IN ('related', 'revert')) AS advisor_real,
+        maxIf(1, NOT is_coverage AND verdict IN ('related', 'revert'))
+            AS advisor_real,
         maxIf(1, verdict = 'infra_issue') AS advisor_infra,
-        maxIf(1, verdict IN ('not_related', 'garbage')) AS advisor_testflake
+        maxIf(1, NOT is_coverage AND verdict IN ('not_related', 'garbage'))
+            AS advisor_testflake,
+        -- A coverage dispatch is keyed to the OBSERVED commit, not the culprit, so its
+        -- commit-attribution verdicts rank below persistence in final_jobs; its infra_issue
+        -- describes the failure itself and keeps the native rank (advisor_infra above).
+        maxIf(1, is_coverage AND verdict IN ('related', 'revert'))
+            AS coverage_real,
+        maxIf(1, is_coverage AND verdict IN ('not_related', 'garbage'))
+            AS coverage_testflake
     FROM (
         SELECT
             toString(suspect_commit) AS head_sha,
@@ -67,7 +77,10 @@ advisor_agg AS (
             argMax(
                 verdict,
                 (toUInt8(NOT startsWith(signal_key, 'coverage_')), timestamp)
-            ) AS verdict
+            ) AS verdict,
+            -- 1 only when every verdict for this (commit, job) is a coverage_ one,
+            -- i.e. exactly when the verdict picked above is a coverage_ verdict.
+            min(toUInt8(startsWith(signal_key, 'coverage_'))) AS is_coverage
         FROM misc.autorevert_advisor_verdicts
         WHERE
             repo = {repo: String}
@@ -139,7 +152,9 @@ job_signals AS (
         toUInt8(c.has_failure AND NOT c.has_success) AS hard_red,
         COALESCE(aa.advisor_real, 0) AS adv_real,
         COALESCE(aa.advisor_infra, 0) AS adv_infra,
-        COALESCE(aa.advisor_testflake, 0) AS adv_testflake
+        COALESCE(aa.advisor_testflake, 0) AS adv_testflake,
+        COALESCE(aa.coverage_real, 0) AS cov_real,
+        COALESCE(aa.coverage_testflake, 0) AS cov_testflake
     FROM consolidated c
     LEFT JOIN
         advisor_agg aa
@@ -155,7 +170,8 @@ final_jobs AS (
         commit_time,
         is_green,
         is_red,
-        -- Exactly one category per logical red, advisor-verdict-primary with a structural fallback:
+        -- Exactly one category per logical red, advisor-verdict-primary with a structural fallback;
+        -- coverage_ attribution verdicts only classify reds that are not persistent:
         --   1 real_regression, 3 test_flake, 4 infra_flake, 5 unclassified.
         multiIf(
             is_red = 0, 0,
@@ -163,6 +179,8 @@ final_jobs AS (
             adv_infra = 1, 4,
             adv_testflake = 1, 3,
             persistent = 1, 1,
+            cov_real = 1, 1,
+            cov_testflake = 1, 3,
             5
         ) AS category
     FROM (
@@ -177,6 +195,8 @@ final_jobs AS (
             adv_real,
             adv_infra,
             adv_testflake,
+            cov_real,
+            cov_testflake,
             -- persistent: this job's adjacent observed run is also hard-red (>= 2 of its runs in a row).
             toUInt8(
                 hard_red = 1

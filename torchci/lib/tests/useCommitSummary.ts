@@ -1,22 +1,18 @@
-import type { CommitSummary } from "lib/api/tests/commit/summary/types";
-import { commitSummaryApiUrl } from "lib/tests/commitPage";
+import { CommitHeaderSummary, commitSummaryApiUrl } from "lib/tests/commitPage";
 import { useApiResource } from "lib/tests/useApiResource";
 import { isNotFound } from "lib/tests/useTestDetail";
-import { useEffect, useState } from "react";
 
-// A commit's summary from GET /api/tests/commit/{sha}/summary, read as the
-// hooks read the API (useApiResource): fetched once per page load and shared
-// through SWR's cache, nothing until the repository and the commit are
-// known, asked again on its own only after a failure that may pass on
-// retry. When it arrived is kept for the table's caption.
+// A commit's summary from GET /api/tests/commit/{sha}/summary, the fields
+// the header shows (COMMIT_HEADER_FIELDS), read as the hooks read the API
+// (useApiResource): fetched once per page load and shared through SWR's
+// cache, nothing until the repository and the commit are known, asked again
+// on its own only after a failure that may pass on retry.
 export function useCommitSummary(
   repo: string | undefined,
   sha: string | undefined
 ): {
   // undefined until the endpoint answers, or after it fails.
-  summary: CommitSummary | undefined;
-  // When the summary shown arrived, as an ISO timestamp; null before.
-  fetchedAt: string | null;
+  summary: CommitHeaderSummary | undefined;
   // HUD has no commit with this SHA in this repository.
   notFound: boolean;
   // Any other failure, the gate's refusals among them.
@@ -27,15 +23,10 @@ export function useCommitSummary(
     repo === undefined || sha === undefined
       ? null
       : commitSummaryApiUrl(repo, sha);
-  const { data, error, retry } = useApiResource<CommitSummary>(url);
-  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
-  useEffect(() => {
-    setFetchedAt(data === undefined ? null : new Date().toISOString());
-  }, [data]);
+  const { data, error, retry } = useApiResource<CommitHeaderSummary>(url);
   const notFound = isNotFound(error);
   return {
     summary: data,
-    fetchedAt,
     notFound,
     error: notFound ? undefined : error,
     retry,

@@ -18,7 +18,7 @@ import {
   isOutdatedVerdict,
   reviewedCommitLines,
 } from "lib/greenlight/greenlightCommitLine";
-import { inlineCode } from "lib/greenlight/greenlightInlineCode";
+import { inlineCode, shortSha } from "lib/greenlight/greenlightInlineCode";
 import {
   defangGreenlightMessage,
   GREENLIGHT_MESSAGE_CAP,
@@ -73,7 +73,39 @@ export interface PrReviewRow {
   // extra['findings']: a JSON array of the sanitized findings, "" when absent.
   findings_json: string;
   review_run_id: number | string;
+  trigger_run_id?: number | string;
+  started_at_ms?: number | string;
   timestamp: string;
+}
+
+export interface PrReviewRequest {
+  headSha: string;
+  runId: number;
+  completedAt: string;
+}
+
+// A successful capture is a request, not evidence that the reviewer started.
+// Use the same grace period and sweep marker as a started row so a preparation
+// failure cannot leave the PR silently waiting forever (pytorch#203784).
+export function renderMissingPrReview(
+  request: PrReviewRequest,
+  repo: string,
+  now: Date
+): string {
+  const stale = isReviewRunStale(request.completedAt, now);
+  const headline = stale ? PR_REVIEW_INCOMPLETE_HEADLINE : "Review pending";
+  const explanation = stale
+    ? "The review workflow was triggered, but no automated review status was recorded within two hours. " +
+      "Comment `@pytorchbot review` to try again."
+    : "The review workflow was triggered; waiting for an automated review status.";
+  const marker = stale ? "" : `${PR_REVIEW_PENDING_MARKER}\n`;
+  return (
+    `\n${marker}<details><summary>${
+      stale ? NO_VERDICT_EMOJI : IN_PROGRESS_EMOJI
+    } <b>${PR_REVIEW_SECTION_HEADER}</b> - ${headline}:</summary><p>\n\n` +
+    `${explanation}\n\nRequested commit: ${shortSha(request.headSha)}\n\n` +
+    `[Review request](${reviewRunUrl(repo, request.runId)})\n\n</p></details>`
+  );
 }
 
 interface Finding {
@@ -114,7 +146,7 @@ function fence(text: string): string {
 // ClickHouse serves DateTime64 zone-less (`2026-10-01 19:50:00.000`); the server
 // runs in UTC, so build the epoch explicitly rather than let Date.parse read it
 // as local time. NaN when unparseable.
-function timestampMs(value: string): number {
+export function timestampMs(value: string): number {
   const m =
     /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/.exec(
       (value || "").trim()

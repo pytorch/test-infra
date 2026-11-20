@@ -97,14 +97,18 @@ describe("app/api/tests/options", () => {
       "api_tests_options_owners",
       "api_tests_options_workflow_paths",
     ]);
-    // Every options read answers in well under a second, so none runs in
-    // the heavy workload, where it would wait behind list pages.
-    expect(queryClickhouse.mock.calls.map((call) => call[4])).toEqual([
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-    ]);
+    // None runs in the heavy workload, where it would wait behind list
+    // pages. The workflow paths, the one read of millions of rows, are kept
+    // by the server's query cache; the catalogs are read each time.
+    const settings = Object.fromEntries(
+      queryClickhouse.mock.calls.map((call) => [call[2], call.slice(3, 5)])
+    );
+    expect(settings).toEqual({
+      api_tests_options_environments: [],
+      api_tests_options_env_vars: [],
+      api_tests_options_owners: [],
+      api_tests_options_workflow_paths: [true, { query_cache_ttl: 300 }],
+    });
     expect(values(res.body.python_version)).toEqual([
       "3.9",
       "3.10",

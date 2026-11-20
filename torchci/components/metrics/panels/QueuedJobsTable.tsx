@@ -6,6 +6,10 @@ import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
 
+// Shared with QueuedJobsByMachineTypeTable so the summary and the job list it
+// drills into always cover the same repos. repo = "" means every repo in org.
+export const QUEUED_JOBS_SCOPE = { org: "pytorch", repo: "" };
+
 export default function QueuedJobsTable({
   machineTypeFilter,
   onClearFilter,
@@ -13,8 +17,10 @@ export default function QueuedJobsTable({
   machineTypeFilter: string | null;
   onClearFilter: () => void;
 }) {
+  // Every repo in the pytorch org, not only pytorch/pytorch (the query's
+  // default, kept for out-of-repo callers of the public endpoint).
   const url = `/api/clickhouse/queued_jobs?parameters=${encodeURIComponent(
-    JSON.stringify({})
+    JSON.stringify(QUEUED_JOBS_SCOPE)
   )}`;
 
   const { data } = useSWR(url, fetcher, {
@@ -61,6 +67,15 @@ export default function QueuedJobsTable({
         },
         { field: "machine_type", headerName: "Machine Type", flex: 1 },
         {
+          field: "repo",
+          headerName: "Repo",
+          flex: 1,
+          valueFormatter: (value: string) =>
+            value?.startsWith(`${QUEUED_JOBS_SCOPE.org}/`)
+              ? value.substring(QUEUED_JOBS_SCOPE.org.length + 1)
+              : value,
+        },
+        {
           field: "source",
           headerName: "Source",
           flex: 2,
@@ -85,7 +100,8 @@ export default function QueuedJobsTable({
             const fullSha = row.head_sha || "";
             const sourceType = row.source_type;
             const ciflowId = row.ciflow_id;
-            const hudCommitUrl = `https://hud.pytorch.org/pytorch/pytorch/commit/${fullSha}`;
+            const repo = row.repo || "pytorch/pytorch";
+            const hudCommitUrl = `https://hud.pytorch.org/${repo}/commit/${fullSha}`;
 
             if (sourceType === "autorevert") {
               return (
@@ -106,7 +122,7 @@ export default function QueuedJobsTable({
                 <span>
                   ciflow{" "}
                   <a
-                    href={`https://github.com/pytorch/pytorch/pull/${ciflowId}`}
+                    href={`https://github.com/${repo}/pull/${ciflowId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

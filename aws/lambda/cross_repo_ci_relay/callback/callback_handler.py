@@ -426,8 +426,8 @@ def _handle_late_report(
     hours after the build) cannot ride on its callback. Each of ``reports`` names a
     row by the values that keyed its original callback (``delivery_id``,
     ``workflow_name``, ``job_name`` and, for a GitHub row, ``check_run_id``) and
-    carries that job's ``triage_verdict``. Every row belongs to the OIDC-verified
-    repo.
+    carries that job's ``triage_verdict``. Every row belongs to ``verified_repo``:
+    the OIDC-verified repo, or the repo a configured delegate reports for.
 
     A verdict is advisory, so one bad report does not fail the others: it gets an
     ``invalid`` result and the rest are forwarded. HUD answers for those, and

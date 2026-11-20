@@ -26,7 +26,11 @@ it uses a native-preference argMax(verdict, (NOT startsWith coverage_, timestamp
 grouped by a coverage-stripped `base_key` — the lambda needs neither. advisor_agg
 additionally strips a leading `coverage_` so an already-written coverage verdict
 normalizes to (and classifies) the same red — the lambda's category=5 set then
-matches the page's classified set. raw_jobs binds jobs by trunk-commit
+matches the page's unclassified set. The page also ranks a coverage
+related/not_related/garbage verdict below persistence (so it decides between
+real_regression and a flake bucket), which changes no red's membership in
+category=5: an unclassified red is non-persistent with no verdict either way, so
+final_jobs here keeps the simpler precedence. raw_jobs binds jobs by trunk-commit
 membership, not a created_at window, so late retry attempts of a windowed commit
 are still counted.
 """

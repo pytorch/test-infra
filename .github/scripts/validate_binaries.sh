@@ -327,6 +327,15 @@ fi
 # the stable releases are expected to as well.
 create_uv_venv "${ENV_NAME}" "${MATRIX_PYTHON_VERSION}"
 
+# `conda activate` put <env>\Library\bin on PATH, `venv\Scripts\activate` does not.
+# Wheels that ship DLLs through pip's Library\bin data directory (the Intel runtime
+# packages the XPU wheel depends on) fail to import without it: torch adds the
+# directory with os.add_dll_directory, but loading torch_xpu.dll still ends in
+# "DLL load failed while importing _C" unless the directory is also on PATH.
+if [[ ${TARGET_OS} == 'windows' ]]; then
+    export PATH="$(cygpath -u "${VIRTUAL_ENV}")/Library/bin:${PATH}"
+fi
+
 # Nightly ROCm validation runs on the lean pytorch/almalinux-builder:cpu-main
 # image, which does not ship libatomic.so.1. torch's _C extension links it, so
 # `import torch` fails with "libatomic.so.1: cannot open shared object file".

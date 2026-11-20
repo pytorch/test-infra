@@ -157,5 +157,84 @@ class TestCallbackLambdaHandler(unittest.TestCase):
         self.assertEqual(response["statusCode"], 500)
 
 
+class TestDelegatedLateReport(unittest.TestCase):
+    """A late report from a configured workflow is handled as the repo it names."""
+
+    WORKFLOW = (
+        "pytorch/test-infra/.github/workflows/vllm-torch-nightly-triage.yml"
+        "@refs/heads/main"
+    )
+
+    def setUp(self):
+        import utils.config
+        from utils import jwt_helper
+
+        utils.config._cached_config = None
+        jwt_helper.load_ci_provider_mappings(
+            {
+                "providers": {
+                    "github": {
+                        "late_report_delegates": [
+                            {
+                                "repository": "pytorch/test-infra",
+                                "job_workflow_ref": self.WORKFLOW,
+                                "on_behalf_of": "vllm-project/vllm",
+                            }
+                        ]
+                    }
+                }
+            }
+        )
+        self.addCleanup(jwt_helper.LATE_REPORT_DELEGATES.clear)
+        for target in (
+            "callback.lambda_function.jwt_helper.load_ci_providers",
+            "callback.lambda_function.get_config",
+        ):
+            patcher = patch(target)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _send(self, body, claims):
+        with patch(
+            "callback.lambda_function.jwt_helper.verify_oidc_token",
+            return_value=claims,
+        ), patch(
+            "callback.lambda_function.callback_handler.handle",
+            return_value={"ok": True},
+        ) as handle:
+            response = lambda_handler(_event(body=json.dumps(body)), {})
+        return response, handle
+
+    def test_the_triage_workflow_reports_for_vllm(self):
+        claims = {"repository": "pytorch/test-infra", "job_workflow_ref": self.WORKFLOW}
+        response, handle = self._send({"event_type": "late-report"}, claims)
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(handle.call_args[0][2], "vllm-project/vllm")
+
+    def test_the_repo_to_report_for_cannot_be_chosen_by_the_body(self):
+        claims = {"repository": "pytorch/test-infra", "job_workflow_ref": self.WORKFLOW}
+        body = {"event_type": "late-report", "on_behalf_of": "someone/else"}
+        _, handle = self._send(body, claims)
+
+        self.assertEqual(handle.call_args[0][2], "vllm-project/vllm")
+
+    def test_other_events_from_the_triage_workflow_stay_test_infra(self):
+        claims = {"repository": "pytorch/test-infra", "job_workflow_ref": self.WORKFLOW}
+        _, handle = self._send({"event_type": "nightly"}, claims)
+
+        self.assertEqual(handle.call_args[0][2], "pytorch/test-infra")
+
+    def test_another_workflow_cannot_report_for_vllm(self):
+        claims = {
+            "repository": "pytorch/test-infra",
+            "job_workflow_ref": "pytorch/test-infra/.github/workflows/x.yml"
+            "@refs/heads/main",
+        }
+        _, handle = self._send({"event_type": "late-report"}, claims)
+
+        self.assertEqual(handle.call_args[0][2], "pytorch/test-infra")
+
+
 if __name__ == "__main__":
     unittest.main()

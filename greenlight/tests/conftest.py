@@ -16,7 +16,7 @@ def _no_real_watchdog_exit(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_real_merge_rule_lookup(monkeypatch):
-    """Refuse ``verdict.has_covering_rule``, which reads the merge rules from live GitHub.
+    """Refuse ``verdict.has_eligible_author``, which reads the merge rules from live GitHub.
 
     ``_run_full`` looks the function up on the module at call time, which is the attribute patched
     here; ``set_eligible`` swaps a fake in. A test module that imports the function itself binds the
@@ -26,11 +26,11 @@ def _no_real_merge_rule_lookup(monkeypatch):
     def unreachable(*_args: object, **_kwargs: object) -> bool:
         raise AssertionError("a test reached the live merge-rule lookup")
 
-    monkeypatch.setattr(verdict, "has_covering_rule", unreachable)
+    monkeypatch.setattr(verdict, "has_eligible_author", unreachable)
 
 
 class _FakeEligibility:
-    """Stand-in for ``verdict.has_covering_rule`` that records each call and answers from a fixed set."""
+    """Stand-in for ``verdict.has_eligible_author`` that records each call and answers from a fixed set."""
 
     def __init__(self, authors: frozenset[str]) -> None:
         self.authors = authors
@@ -43,14 +43,14 @@ class _FakeEligibility:
 
 @pytest.fixture
 def set_eligible(monkeypatch):
-    """Replace ``verdict.has_covering_rule`` with a fake under which exactly the given authors are eligible.
+    """Replace ``verdict.has_eligible_author`` with a fake under which exactly the given authors are eligible.
 
     ``set_eligible("alice")`` returns the installed fake; its ``calls`` record every lookup.
     """
 
     def _install(*authors: str) -> _FakeEligibility:
         fake = _FakeEligibility(frozenset(authors))
-        monkeypatch.setattr(verdict, "has_covering_rule", fake)
+        monkeypatch.setattr(verdict, "has_eligible_author", fake)
         return fake
 
     return _install

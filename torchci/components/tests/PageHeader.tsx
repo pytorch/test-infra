@@ -74,6 +74,18 @@ export function HeaderRule() {
   return <Divider sx={{ mt: 2.5 }} />;
 }
 
+// A pill's place while its fact is on its way, at the width given, "9ch".
+export function PillSkeleton({ width }: { width: string }) {
+  return (
+    <Skeleton
+      variant="rounded"
+      width={width}
+      height={VIEW_CHIP_HEIGHT}
+      sx={{ borderRadius: "999px" }}
+    />
+  );
+}
+
 // The header's place while its subject is on its way, so nothing moves when
 // it comes: a line for the breadcrumb, one for the headline, and a pill for
 // each fact, at the widths given, "9ch".
@@ -91,13 +103,7 @@ export function HeaderSkeleton({
       />
       <Box sx={{ display: "flex", gap: 1, mt: 1.75 }}>
         {pillWidths.map((width, index) => (
-          <Skeleton
-            key={index}
-            variant="rounded"
-            width={width}
-            height={VIEW_CHIP_HEIGHT}
-            sx={{ borderRadius: "999px" }}
-          />
+          <PillSkeleton key={index} width={width} />
         ))}
       </Box>
       <HeaderRule />

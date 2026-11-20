@@ -1,3 +1,4 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import { readGeneration } from "lib/api/tests/list";
 import {
   EntityRow,
@@ -7,7 +8,6 @@ import {
 import { HealthWindow, RanOn } from "lib/api/tests/parameters";
 import { buildTestDetailQuery } from "lib/api/tests/test/query";
 import { TestDetail } from "lib/api/tests/test/types";
-import { queryClickhouse } from "lib/clickhouse";
 
 interface TestDetailRow extends EntityRow {
   window: HealthWindow;

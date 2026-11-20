@@ -5,7 +5,7 @@ the cost of a fingerprint, from the recency window and the ``Stale`` label.
 
 Everything here takes PR numbers and returns PR numbers. Nothing in this module knows who wrote a
 PR or whether its verdict carries authority -- ``authority`` decides that per PR through
-``cohort.assess_rules``.
+``cohort.assess_rules`` and the listed base.
 """
 
 from __future__ import annotations

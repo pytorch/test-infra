@@ -209,28 +209,28 @@ got.
   export and the HUD quality dashboard read. On a repo Dr. CI does not render,
   greenlight does post the comment, and it is identical to an enforcing one.
 
-  Authority is decided per row, and the author and the PR's changed files are
-  what normally decide it: the scan decides it before dispatch, a terminal
-  verdict ORs the caller's `--shadow` against a fresh merge-rule check of the
+  Authority is decided per row, and the author and the PR's base are what
+  normally decide it: the scan decides it before dispatch, a terminal verdict
+  ORs the caller's `--shadow` against a fresh eligibility check of the
   reviewed commit, a marker row (`AI_REVIEW_STARTED`, `CANCELLED`, `FAILED`)
   takes `--shadow` verbatim, and a `REVERTED` row takes the scan's answer —
   except that a PR with a recorded row gets a non-shadow `REVERTED` row, because
   that row can only deny. **Who carries authority is set by pytorch's
   `merge_rules.yaml` as greenlight read it; read that rather than a list of
   logins here, which goes stale.** Its git history says how it stood. A PR
-  carries authority only when a merge rule names the author and covers every
-  file the PR changes, a path-scoped rule only on a PR based on `main`, on a
-  ghstack PR, or on a PR in a GitHub-native stack whose trunk is `main`. That
-  last case holds for the scan from the deployment of the `greenlight-scan`
-  release that reviews such PRs, and for workflow runs dispatched on `main`,
-  the verdict's included, from the merge (see dispatch refs below). Until the
-  third era below, every other PR was shadow by default.
+  carries authority only when a valid merge rule names the author, whatever
+  files it changes, and it is based on `main`, is a ghstack PR, or is in a
+  GitHub-native stack whose trunk is `main`. The native-stack case holds for
+  the scan from the deployment of the `greenlight-scan` release that reviews
+  such PRs, and for workflow runs dispatched on `main`, the verdict's
+  included, from the merge (see dispatch refs below). Until the third era
+  below, every other PR was shadow by default.
   `--shadow` — a CLI flag, and a `workflow_dispatch` input on the reviewer
   workflow — makes anyone shadow on demand.
 
-  Those rules hold in the last of three eras — a hardcoded set, then the
+  Those rules hold in the last of four eras — a hardcoded set, then the
   trusted-authors issue plus merge rules, then merge rules alone without shadow
-  reviews — and a row follows the era it was written in:
+  reviews, then any path — and a row follows the era it was written in:
 
   - **Hardcoded set.** Rows written before the issue went live were decided by
     the author alone, against `cohort.TRUSTED_AUTHORS`, a hardcoded set whose
@@ -253,6 +253,10 @@ got.
     whose fresh merge-rule check fails, `--shadow`, or a local
     `--allow-untrusted-author` run, and the HUD quality dashboard's totals in
     its default `all` mode drop from that day.
+  - **Any path**, from the deployment of the `greenlight-scan` release that
+    stops reading a PR's files. Before it, the merge rule naming the author
+    also had to cover every file the PR changed, and the base test bound only
+    authors whom path-scoped rules alone named.
 
   Runs of `.github/workflows/greenlight-review.yml` use the code at their
   dispatch ref, so a run dispatched on `main` crosses each boundary when its
@@ -266,15 +270,15 @@ got.
 
   - one whose authority changed mid-review: its author added to or removed from
     the trusted-authors issue (issue plus merge rules), a push that moved its
-    files into or out of the covering merge rule, a path-scoped author's
+    files into or out of the covering merge rule (before any path), a
     non-ghstack PR retargeted away from `main` other than into a GitHub-native
-    stack on `main`, a path-scoped author's non-ghstack PR on a base other than
-    `main` leaving such a stack (unstacked, or its stack's trunk changed), or a
-    merge-rules change;
-  - a path-scoped author's verdict recorded after the head moved off the
-    reviewed commit, or whose base branch changed while it listed the files
-    (for a PR listed because it was in a GitHub-native stack on `main`, also
-    that stack's trunk changing or the PR leaving it), which is shadow;
+    stack on `main`, a non-ghstack PR on a base other than `main` leaving such
+    a stack (unstacked, or its stack's trunk changed), or a merge-rules change;
+    before any path, a base change counted for path-scoped authors only;
+  - a verdict recorded after the head moved off the reviewed commit, or on a
+    base the base test refuses, which is shadow; before any path, only a
+    path-scoped author's, also when its base branch changed while it listed
+    the files;
   - a `REVERTED` row stamped differently from the PR's other rows: non-shadow on
     a shadow PR (under merge rules alone, every one; under the issue plus merge
     rules, one whose author was listed), or shadow on a PR whose author was no

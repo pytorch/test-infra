@@ -157,6 +157,16 @@ export function rateLabel(rate: number): string {
   return `$${whole}.${frac.replace(/0+$/, "").padEnd(2, "0")}/h`;
 }
 
+// UTC days as the page writes a range of them: "2026-11-03", "2026-10-28 to
+// 11-03", the year again only when it changes. Read as text, so no time zone
+// moves a day.
+export function datesLabel(first: string, last: string): string {
+  if (first === last) return first;
+  return `${first} to ${
+    last.slice(0, 4) === first.slice(0, 4) ? last.slice(5) : last
+  }`;
+}
+
 // A share as a whole percent, "<1%" for a sliver and ">99%" for all but
 // one, so a part never reads as none or as the whole.
 export function shareLabel(share: number): string {

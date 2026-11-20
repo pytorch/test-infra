@@ -1,5 +1,6 @@
 import { GET as getOpenApiDocument } from "app/api/openapi.json/route";
 import { buildOpenApiDocument } from "lib/api/openapi";
+import { isPublicApiPath } from "lib/api/public";
 import { ErrorResponseSchema } from "lib/api/schema";
 import {
   FILTER_DEFINITIONS,
@@ -29,13 +30,9 @@ function* walk(
   }
 }
 
-// The three lists run heavy queries: they alone document the 429 of a refused
+// The tests list runs heavy queries: it alone documents the 429 of a refused
 // query (app/api/README.md, Heavy queries).
-const HEAVY_PATHS = [
-  "/api/tests",
-  "/api/tests/test/{test_id}/runs",
-  "/api/tests/commit/{sha}",
-];
+const HEAVY_PATHS = ["/api/tests"];
 
 // The document's paths under one tag: `tests` for the JSON API served by
 // app/api, `pages` for the HUD pages under pages/tests built on it.
@@ -86,11 +83,18 @@ describe("GET /api/openapi.json", () => {
     const served = routeFiles()
       .map(({ path }) => path)
       .filter((path) => path !== "/api/openapi.json");
+    // The public routes are the release portal's, tagged `releases`; the rest are
+    // behind the GitHub gate and tagged `tests`.
     expect(
       pathsTagged(document, "tests")
         .map(([path]) => path)
         .sort()
-    ).toEqual(served.sort());
+    ).toEqual(served.filter((path) => !isPublicApiPath(path)).sort());
+    expect(
+      pathsTagged(document, "releases")
+        .map(([path]) => path)
+        .sort()
+    ).toEqual(served.filter(isPublicApiPath).sort());
     for (const [route, item] of Object.entries<any>(document.paths)) {
       const templated = Array.from(
         route.matchAll(/\{(\w+)\}/g),
@@ -108,7 +112,11 @@ describe("GET /api/openapi.json", () => {
     const pages = pathsTagged(document, "pages").map(([path]) => path);
     expect(pages.sort()).toEqual(served.sort());
     expect(Object.keys(document.paths).sort()).toEqual(
-      [...pathsTagged(document, "tests"), ...pathsTagged(document, "pages")]
+      [
+        ...pathsTagged(document, "tests"),
+        ...pathsTagged(document, "releases"),
+        ...pathsTagged(document, "pages"),
+      ]
         .map(([path]) => path)
         .sort()
     );
@@ -284,7 +292,7 @@ describe("GET /api/openapi.json", () => {
       expect(item.get.responses["403"].description).toMatch(/forbidden/);
       expect(item.get.responses["503"].description).toMatch(/Retry-After/);
     }
-    // The pages need no token of their own: the browser's sign-in is theirs.
+    // The pages are public: they need no token.
     for (const [path, item] of pathsTagged(document, "pages")) {
       expect({ path, security: item.get.security }).toEqual({
         path,
@@ -294,7 +302,77 @@ describe("GET /api/openapi.json", () => {
     }
   });
 
-  test("documents the 429 of a refused heavy query on the lists alone", () => {
+  test("documents the release portal endpoints as public: no security, no gate errors", () => {
+    expect(
+      pathsTagged(document, "releases")
+        .map(([path]) => path)
+        .sort()
+    ).toEqual([
+      "/api/releases",
+      "/api/releases/{version}",
+      "/api/releases/{version}/artifacts",
+      "/api/releases/{version}/config",
+      "/api/releases/{version}/milestone",
+    ]);
+    for (const [path, item] of pathsTagged(document, "releases")) {
+      expect({ path, security: item.get.security }).toEqual({
+        path,
+        security: [],
+      });
+      expect(item.get.tags).toEqual(["releases"]);
+      expect(item.get.responses).not.toHaveProperty("401");
+      expect(item.get.responses).not.toHaveProperty("403");
+      expect(item.get.responses).not.toHaveProperty("429");
+      expect(item.get.responses).not.toHaveProperty("503");
+      for (const [status, response] of Object.entries<any>(
+        item.get.responses
+      )) {
+        if (status !== "200") {
+          expect(response.content["application/json"].schema).toEqual({
+            $ref: "#/components/schemas/ErrorResponse",
+          });
+        }
+      }
+    }
+  });
+
+  test("documents the release artifacts from the parameter registry", () => {
+    const operation = document.paths["/api/releases/{version}/artifacts"].get;
+    expect(operation.operationId).toBe("listReleaseArtifacts");
+    expect(operation.parameters.map((p: any) => `${p.in}:${p.name}`)).toEqual([
+      "path:version",
+      "query:channel",
+      "query:rc",
+      "query:package",
+      "query:os",
+      "query:verdict",
+      "query:limit",
+      "query:cursor",
+    ]);
+    const byName = Object.fromEntries(
+      operation.parameters.map((p: any) => [p.name, p])
+    );
+    expect(byName.verdict.schema.enum).toEqual([
+      "present",
+      "missing",
+      "size_anomalous",
+      "unexpected",
+    ]);
+    expect(byName.limit.schema).toMatchObject({
+      type: "integer",
+      default: 50,
+      minimum: 1,
+      maximum: 500,
+    });
+    for (const parameter of operation.parameters) {
+      expect(parameter.description).toBeTruthy();
+    }
+    expect(
+      operation.responses["200"].content["application/json"].schema
+    ).toEqual({ $ref: "#/components/schemas/ReleaseArtifactPage" });
+  });
+
+  test("documents the 429 of a refused heavy query on the tests list alone", () => {
     for (const [path, item] of Object.entries<any>(document.paths)) {
       const overloaded = item.get.responses["429"];
       expect({ path, documented: overloaded !== undefined }).toEqual({
@@ -490,6 +568,36 @@ describe("GET /api/openapi.json", () => {
         operation.responses[status].content["application/json"].schema
       ).toEqual({ $ref: "#/components/schemas/ErrorResponse" });
     }
+  });
+
+  test("an endpoint about one commit documents its own parameters: one's fields are not another's", () => {
+    const documented = (path: string) =>
+      document.paths[path].get.parameters.map((parameter: any) => [
+        parameter.name,
+        parameter.schema.items?.enum,
+      ]);
+    const commit = [
+      ["sha", undefined],
+      ["repo", undefined],
+    ];
+    expect(documented("/api/tests/commit/{sha}/greenlight")).toEqual(commit);
+    expect(documented("/api/tests/commit/{sha}/summary")).toEqual([
+      ...commit,
+      [
+        "fields",
+        [
+          "commit",
+          "counts",
+          "first_started_at",
+          "last_ended_at",
+          "retention_starts_at",
+        ],
+      ],
+    ]);
+    expect(documented("/api/tests/commit/{sha}/jobs")).toEqual([
+      ...commit,
+      ["fields", ["jobs", "tests"]],
+    ]);
   });
 
   test("detail responses reuse the list's test, owner and health shapes", () => {

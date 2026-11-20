@@ -19,7 +19,7 @@ function req(overrides = {}) {
 
 beforeEach(() => {
   process.env.DRCI_BOT_KEY = "test-bot-key";
-  jest.spyOn(github, "getPreReviewOctokit").mockResolvedValue(reader);
+  jest.spyOn(github, "getPrStatusOctokit").mockResolvedValue(reader);
   jest.spyOn(github, "getOctokit").mockResolvedValue(writer);
   jest
     .spyOn(sweep, "refreshPrStatusComments")
@@ -59,7 +59,7 @@ test.each([
     const res = mockRes();
     await handler(req(overrides), res);
     expect(res._status).toBe(status);
-    expect(github.getPreReviewOctokit).not.toHaveBeenCalled();
+    expect(github.getPrStatusOctokit).not.toHaveBeenCalled();
     expect(github.getOctokit).not.toHaveBeenCalled();
   }
 );
@@ -69,11 +69,11 @@ test("an unset key cannot authorize an anonymous request", async () => {
   const res = mockRes();
   await handler(req({ headers: {} }), res);
   expect(res._status).toBe(403);
-  expect(github.getPreReviewOctokit).not.toHaveBeenCalled();
+  expect(github.getPrStatusOctokit).not.toHaveBeenCalled();
 });
 
 test("missing reader configuration fails without falling back to PyTorchBot", async () => {
-  jest.mocked(github.getPreReviewOctokit).mockResolvedValue(null);
+  jest.mocked(github.getPrStatusOctokit).mockResolvedValue(null);
   const res = mockRes();
   await handler(req(), res);
   expect(res._status).toBe(503);

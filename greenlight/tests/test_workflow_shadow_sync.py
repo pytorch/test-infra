@@ -1,9 +1,9 @@
 """Pins the shadow wiring in the reviewer workflow, which nothing at run time holds together.
 
 ``greenlight verdict`` takes ``--shadow`` as a bare flag, so leaving it off means ``shadow=False``
-and nothing fails. The terminal verdict ORs ``request.shadow`` with its own ``has_covering_rule``
-check, but that catches a forgotten flag only for an author no merge rule covers: for one a rule
-covers, the flag alone withholds the approval. The three marker calls take
+and nothing fails. The terminal verdict ORs ``request.shadow`` with its own ``has_eligible_author``
+check, but that catches a forgotten flag only for a PR that check finds ineligible: for an eligible
+one, the flag alone withholds the approval. The three marker calls take
 ``request.shadow`` verbatim -- deliberately, since deriving a marker fail-closed would hide a trusted
 author's in-flight review from a reader that filters shadow out. A marker written without the flag
 therefore records a shadow PR as an ordinary one, and Dr. CI renders it: greenlight state shown on
@@ -351,13 +351,13 @@ def _sizecheck_step() -> dict[str, Any]:
     return gates[0]
 
 
-def test_size_gate_file_cap_matches_the_merge_rule_check() -> None:
+def test_size_gate_file_cap_matches_max_diff_files() -> None:
     gate = _sizecheck_step()
     cap = gate.get("env", {}).get(_FILE_CAP_ENV)
     assert str(cap) == str(constants.MAX_DIFF_FILES), _file_cap_drift(
         f"the {_SIZECHECK_STEP_ID} step sets {_FILE_CAP_ENV} to {cap!r}, but constants.MAX_DIFF_FILES is "
-        f"{constants.MAX_DIFF_FILES}. They are one cap: the merge-rule check refuses a path-scoped author past it, "
-        f"and for an author a catch-all rule names, whose files that check never lists, this gate is the only file cap."
+        f"{constants.MAX_DIFF_FILES}. They are one cap, and this gate is the only file cap a review has: "
+        f"eligibility never lists a PR's files, for any author."
     )
     assert _FILE_CAP_COMPARISON in _field(gate, "run"), _file_cap_drift(
         f"the {_SIZECHECK_STEP_ID} step's run: body no longer contains `{_FILE_CAP_COMPARISON}`, so the cap pinned "
