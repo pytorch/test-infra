@@ -562,7 +562,8 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "pyzes",
         # torch_rocm packages, mirrored from repo.amd.com by
         # update_dependencies.py (see PACKAGES_PER_PROJECT entries with
-        # project "torch_rocm"). Keep the two lists in sync.
+        # project "torch_rocm"). Keep the two lists in sync; rocm-sdk-device-*
+        # packages are also discovered at mirror time and need not be listed.
         "rocm",
         "rocm-sdk-core",
         "rocm-sdk-devel",
