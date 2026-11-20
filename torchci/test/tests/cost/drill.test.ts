@@ -1,13 +1,15 @@
 // The drill-down's pure model (lib/tests/cost/drill.ts) over /scope and
 // /cases answers captured from a local dev server on 2026-11-19 (A = Nov
 // 5–11, B = Nov 12–18): trail edits and validity, rows, cuts, scales, the
-// change sentence, per commit and $ with a stub Pricer, the test level, and
-// what a row opened in place lists.
+// change sentence, per commit and $ with a stub Pricer and the FAKE weekly
+// rates, each side's total, the test level, and what a row opened in place
+// lists.
 
 import type {
   CostCases,
   CostScope,
   Day,
+  Per,
   PieceRate,
   Pill,
   Pricer,
@@ -64,9 +66,13 @@ import {
   swapPill,
   testsListHref,
   trendDaily,
+  unitWords,
   validTrail,
   windowText,
 } from "lib/tests/cost/drill";
+import { makePricer, parseRatesFiles } from "lib/tests/cost/ratePeriods";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import CASES_OK from "./cases_ok.json";
 import FILE from "./scope_file.json";
 import OWNER from "./scope_owner.json";
@@ -610,6 +616,382 @@ describe("$ (stub Pricer)", () => {
     // Hours never count priced days.
     const h = levelView(tiny, { unit: "hours", per: "day", pricer });
     expect(sideChips(h, "2026-10-29").join()).not.toContain("priced");
+  });
+
+  test("a side's total: its $ over the days per day divides by, whatever the per", () => {
+    const pricer = stubPricer();
+    const v = levelView(tiny, { unit: "usd", per: "day", pricer });
+    const { a, b } = v.total.totals;
+    near(b.value, 160 * 2);
+    near(b.value, (v.total.b as number) * 4);
+    expect(b).toMatchObject({
+      approx: false,
+      days: "4 days",
+      range: { from: "2026-11-12", to: "2026-11-17" },
+    });
+    near(a.value, 40 * 2);
+    expect(a.days).toBe("2 days");
+    // Per commit: still the side's totals, never per commit.
+    const commit = levelView(tiny, { unit: "usd", per: "commit", pricer });
+    expect(commit.total.totals).toEqual(v.total.totals);
+    // Hours: every hour of every day with data, priced or not.
+    const h = levelView(tiny, { unit: "hours", per: "commit", pricer });
+    near(h.total.totals.b.value, 170);
+    expect(h.total.totals.b).toMatchObject({
+      approx: false,
+      days: "4 days",
+      notes: [],
+    });
+  });
+
+  test("a total with days unpriced: the priced days only, ≈, and how many", () => {
+    const pricer = stubPricer({ gap: ["2026-11-16", "2026-11-22"] });
+    const v = levelView(tiny, { unit: "usd", per: "day", pricer });
+    const b = v.total.totals.b;
+    near(b.value, 60 * 2);
+    near(b.value, (v.total.b as number) * 2);
+    // Per day averages the priced days; a total leaves the others out.
+    expect(v.total.approxB).toBe(false);
+    expect(b).toMatchObject({ approx: true, days: "2 of 4 days priced" });
+    // None priced: blank as per day, never $0.
+    const none = levelView(tiny, {
+      unit: "usd",
+      per: "day",
+      pricer: stubPricer({ gap: ["2026-11-01", "2026-11-30"] }),
+    });
+    expect(none.total.totals.b).toMatchObject({
+      value: null,
+      blank: "no rates",
+      approx: false,
+    });
+    // No days: no data.
+    const noA = levelView(
+      {
+        ...tiny,
+        sides: [{ days: [], pushes: [], filling: [] }, tiny.sides[1]],
+      },
+      hours
+    );
+    expect(noA.total.totals.a).toMatchObject({
+      value: null,
+      blank: "no data",
+      range: null,
+    });
+  });
+
+  test("a total over one day says so", () => {
+    const one: CostScope = {
+      ...tiny,
+      sides: [
+        tiny.sides[0],
+        { days: ["2026-11-12"], pushes: [10], filling: [] },
+      ],
+      cells: [tiny.cells[0], [1, 1, 0, 0, 15, 3]],
+    };
+    for (const unit of ["usd", "hours"] as const) {
+      const v = levelView(one, { unit, per: "day", pricer: stubPricer() });
+      expect(v.total.totals.b).toMatchObject({
+        days: "1 day",
+        range: { from: "2026-11-12", to: "2026-11-12" },
+      });
+      near(v.total.totals.b.value, unit === "usd" ? 30 : 15);
+      near(v.total.totals.b.value, v.total.b ?? 0);
+    }
+  });
+});
+
+// Totals priced with the FAKE weekly rates (synthetic, for tests only):
+// Oct 19 – Nov 15 in weeks, Nov 9–15 provisional by the meta; the gap file
+// lacks Nov 2–8. Today is Nov 19, so Nov 16–18 borrow the last week (≈).
+describe("totals with the FAKE weekly rates", () => {
+  const fake = (name: string) => ({
+    name,
+    text: readFileSync(join(__dirname, name), "utf8"),
+  });
+  const WEEKLY = fake("rates_FAKE_weekly.json");
+  const META = fake("rates_FAKE_weekly.meta.json");
+  const GAP = fake("rates_FAKE_weekly_gap.json");
+  const TODAY = "2026-11-19";
+  const weekly = makePricer(parseRatesFiles([WEEKLY, META]), TODAY);
+  const gap = makePricer(parseRatesFiles([GAP]), TODAY);
+  const usd = (scope: CostScope, pricer: Pricer, per: Per = "day") =>
+    levelView(scope, { unit: "usd", per, pricer });
+
+  test("every day priced: per day × 7 days; B's borrowed days read ≈ and say why", () => {
+    const v = usd(root, weekly);
+    const { a, b } = v.total.totals;
+    near(b.value, (v.total.b as number) * 7);
+    near(a.value, (v.total.a as number) * 7);
+    expect(b).toMatchObject({
+      approx: true,
+      days: "7 days",
+      range: { from: "2026-11-12", to: "2026-11-18" },
+      notes: [
+        "≈ priced with Nov 9–15 rates (provisional; no rates for these days yet)",
+        "Provisional: rates from Nov 9–13",
+      ],
+    });
+    expect(a).toMatchObject({
+      approx: false,
+      days: "7 days",
+      range: { from: "2026-11-05", to: "2026-11-11" },
+      notes: ["Provisional: rates from Nov 9–13"],
+    });
+    // Per commit keeps the totals.
+    expect(usd(root, weekly, "commit").total.totals).toEqual(v.total.totals);
+    // A row's total is its own: inductor's share of the root's.
+    const ind = rowByKey(v, "inductor");
+    near(ind?.totals.b.value ?? null, (ind?.b as number) * 7);
+    expect((ind?.totals.b.value as number) < (b.value as number)).toBe(true);
+  });
+
+  test("a missing week: A sums its 3 priced days, ≈, as the chips count them", () => {
+    const v = usd(root, gap);
+    const a = v.total.totals.a;
+    expect(a).toMatchObject({ approx: true, days: "3 of 7 days priced" });
+    near(a.value, (v.total.a as number) * 3);
+    expect(sideChips(v, null)).toContain("A: 3 of 7 days priced");
+    expect(v.total.totals.b).toMatchObject({ approx: true, days: "7 days" });
+  });
+
+  test("a week with the gap file: A's 3 priced days fall in one week, which counts whole; ≈ as per day", () => {
+    const day = usd(root, gap);
+    const week = levelView(root, {
+      unit: "usd",
+      per: "day",
+      pricer: gap,
+      rollup: "week",
+    });
+    // A's priced days (Nov 9–11) are in one week: its priced total.
+    near(week.total.a, day.total.totals.a.value as number);
+    expect(week.total.approxA).toBe(day.total.approxA);
+    expect(week.total.totals).toEqual(day.total.totals);
+    // B, every day priced, touches two weeks (Thu–Wed): its total over 2.
+    near(week.total.b, (week.total.totals.b.value as number) / 2);
+    expect(week.figures.divisors[0]).toMatchObject({
+      days: 7,
+      pricedDays: 3,
+      units: 2,
+      pricedUnits: 1,
+    });
+  });
+
+  test("6 of 7 days priced, and none", () => {
+    // B = Nov 8–14: Nov 8 is in the gap file's missing week; A = Nov 2–7
+    // all is.
+    const label = "mt-l-x86iavx512-16-128";
+    const span = (from: Day, n: number) =>
+      Array.from({ length: n }, (_, i) => addDays(from, i));
+    const straddle: CostScope = {
+      repo: "pytorch/pytorch",
+      workflows: [],
+      trail: [],
+      by: "o",
+      a: { from: "2026-11-02", to: "2026-11-07" },
+      b: { from: "2026-11-08", to: "2026-11-14" },
+      sides: [
+        { days: span("2026-11-02", 6), pushes: Array(6).fill(10), filling: [] },
+        { days: span("2026-11-08", 7), pushes: Array(7).fill(10), filling: [] },
+      ],
+      pieces: [
+        { side: 0, from: "2026-11-02", to: "2026-11-07" },
+        { side: 1, from: "2026-11-08", to: "2026-11-08" },
+        { side: 1, from: "2026-11-09", to: "2026-11-14" },
+      ],
+      children: ["inductor"],
+      info: [{}],
+      labels: [label],
+      cells: [
+        [0, 0, 0, 0, 60, 6],
+        [1, 1, 0, 0, 10, 1],
+        [1, 2, 0, 0, 600, 60],
+      ],
+      tests: [],
+      query_duration_ms: 1,
+    };
+    const rate = JSON.parse(GAP.text).periods[2].rates[label]; // Nov 9–15
+    const v = usd(straddle, gap);
+    const { a, b } = v.total.totals;
+    near(b.value, 600 * rate);
+    near(b.value, (v.total.b as number) * 6);
+    expect(b).toMatchObject({ approx: true, days: "6 of 7 days priced" });
+    expect(a).toMatchObject({ value: null, blank: "no rates", approx: false });
+    // In hours every day counts.
+    const h = levelView(straddle, { unit: "hours", per: "day", pricer: gap });
+    near(h.total.totals.b.value, 610);
+    expect(h.total.totals.b.days).toBe("7 days");
+    expect(h.total.totals.a).toMatchObject({ value: 60, days: "6 days" });
+  });
+});
+
+// Total reads each side per bar of the rollup: its sum over the share of
+// its bars' calendar days it counts (days with data; priced days in $).
+describe("per bar of the rollup (Total)", () => {
+  const span = (from: Day, n: number) =>
+    Array.from({ length: n }, (_, i) => addDays(from, i));
+  // One child at a flat h a day on every day of A and B.
+  const flat = (a: Day[], b: Day[], h: number): CostScope => ({
+    repo: "pytorch/pytorch",
+    workflows: [],
+    trail: [],
+    by: "o",
+    a: { from: a[0], to: a[a.length - 1] },
+    b: { from: b[0], to: b[b.length - 1] },
+    sides: [
+      { days: a, pushes: a.map(() => 10), filling: [] },
+      { days: b, pushes: b.map(() => 10), filling: [] },
+    ],
+    pieces: [
+      { side: 0, from: a[0], to: a[a.length - 1] },
+      { side: 1, from: b[0], to: b[b.length - 1] },
+    ],
+    children: ["inductor"],
+    info: [{}],
+    labels: ["lf-l-x86iavx512-16-128"],
+    cells: [
+      [0, 0, 0, 0, h * a.length, h * a.length * 0.1],
+      [1, 1, 0, 0, h * b.length, h * b.length * 0.1],
+    ],
+    tests: [],
+    query_duration_ms: 1,
+  });
+
+  test("Day view is per day, exactly as before", () => {
+    const day = levelView(root, { ...hours, rollup: "day" });
+    expect(day.rollup).toBe("day");
+    expect(day.total.a).toBe(levelView(root, hours).total.a);
+    expect(day.total.b).toBe(levelView(root, hours).total.b);
+    near(day.total.b, (day.total.totals.b.value as number) / 7);
+    expect(day.total.daily).toEqual({ a: day.total.a, b: day.total.b });
+  });
+
+  test("a week: A and B (Thu–Wed) touch two weeks each and read their average week; change, %, rows and the folded rest follow", () => {
+    const day = levelView(root, hours);
+    const week = levelView(root, { ...hours, rollup: "week" });
+    near(week.total.a, (week.total.totals.a.value as number) / 2);
+    near(week.total.b, (week.total.totals.b.value as number) / 2);
+    near(week.total.b, ((day.total.b as number) * 7) / 2);
+    near(week.total.delta, ((day.total.delta as number) * 7) / 2);
+    near(week.total.pct, day.total.pct as number, 9);
+    // Per day stays per day; per commit is unchanged.
+    expect(week.total.daily).toEqual({ a: day.total.a, b: day.total.b });
+    expect(week.total.other).toEqual(day.total.other);
+    week.rows.forEach((r, i) => {
+      const d = day.rows[i];
+      near(r.b ?? 0, ((d.b ?? 0) * 7) / 2);
+      near(r.delta ?? 0, ((d.delta ?? 0) * 7) / 2);
+      expect(r.hidden).toBe(d.hidden); // the hide floor stays a day's
+    });
+    const rest = week.rows.slice(5).map((r) => r.key);
+    near(sumRows(week, rest).a, ((sumRows(day, rest).a as number) * 7) / 2);
+    const open = expansionRows(week, "change");
+    near(
+      open.more?.b ?? null,
+      ((expansionRows(day, "change").more?.b ?? 0) * 7) / 2
+    );
+  });
+
+  test("two whole weeks: their average week", () => {
+    const v = levelView(
+      flat(span("2026-10-26", 14), span("2026-11-09", 7), 10),
+      { ...hours, rollup: "week" }
+    );
+    near(v.total.a, 70); // 140 h over 2 weeks
+    near(v.total.b, 70);
+    expect(v.total.totals.a.value).toBe(140);
+    expect(v.total.pct).toBe(0);
+  });
+
+  test("a partial week counts as a whole week: Mon–Thu reads its 4 days' sum", () => {
+    const v = levelView(
+      flat(span("2026-11-09", 7), span("2026-11-16", 4), 10),
+      { ...hours, rollup: "week" }
+    );
+    near(v.total.a, 70);
+    near(v.total.b, 40); // naturally lower, as its bar
+    expect(v.total.totals.b.value).toBe(40);
+  });
+
+  test("a month: October's 31 days against November's 30 read as the months' totals", () => {
+    const scope = flat(span("2026-10-01", 31), span("2026-11-01", 30), 10);
+    const month = levelView(scope, { ...hours, rollup: "month" });
+    near(month.total.a, 310);
+    near(month.total.b, 300);
+    near(month.total.pct, -1 / 31, 9);
+    // The same days per day and a week: flat.
+    const day = levelView(scope, hours);
+    expect([day.total.a, day.total.b, day.total.pct]).toEqual([10, 10, 0]);
+    // Weeks: October touches 5 (Sep 28 – Nov 1), November 6 (Oct 26 –
+    // Dec 6); partial weeks count whole, so both read lower than 70.
+    const week = levelView(scope, { ...hours, rollup: "week" });
+    near(week.total.a, 310 / 5);
+    near(week.total.b, 300 / 6);
+  });
+
+  test("$ with a gap week: weeks with a priced day count whole; the gap week is left out", () => {
+    // tiny's B: Nov 12–13 priced (2/7 of the Nov 9 week), Nov 16–17 in the
+    // gap; A: Nov 5–6 priced (2/7 of the Nov 2 week).
+    const tiny: CostScope = {
+      ...flat(["2026-11-05", "2026-11-06"], span("2026-11-12", 2), 0),
+      sides: [
+        { days: ["2026-11-05", "2026-11-06"], pushes: [10, 10], filling: [] },
+        {
+          days: ["2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17"],
+          pushes: [10, 30, 20, 40],
+          filling: [],
+        },
+      ],
+      pieces: [
+        { side: 0, from: "2026-11-05", to: "2026-11-08" },
+        { side: 1, from: "2026-11-12", to: "2026-11-15" },
+        { side: 1, from: "2026-11-16", to: "2026-11-18" },
+      ],
+      cells: [
+        [0, 0, 0, 0, 40, 8],
+        [1, 1, 0, 0, 60, 12],
+        [1, 2, 0, 0, 100, 20],
+      ],
+    };
+    const pricer = stubPricer({ gap: ["2026-11-16", "2026-11-22"] });
+    const usd = levelView(tiny, {
+      unit: "usd",
+      per: "day",
+      pricer,
+      rollup: "week",
+    });
+    near(usd.total.b, 60 * 2); // $120 over one priced week
+    near(usd.total.a, 40 * 2);
+    near(usd.total.daily.b, (60 * 2) / 2); // per day: the priced days
+    expect(usd.total.totals.b).toMatchObject({
+      value: 120,
+      approx: true,
+      days: "2 of 4 days priced",
+    });
+    // Hours count every week with data: two.
+    const h = levelView(tiny, {
+      unit: "hours",
+      per: "day",
+      pricer,
+      rollup: "week",
+    });
+    near(h.total.b, 160 / 2);
+    // Per commit doesn't follow the rollup.
+    const commit = levelView(tiny, {
+      unit: "usd",
+      per: "commit",
+      pricer,
+      rollup: "week",
+    });
+    near(commit.total.b, (12 * 2) / (10 + 30));
+  });
+
+  test("words follow the rollup; per commit doesn't", () => {
+    expect(unitWords("hours", "day", "week")).toBe("runner-hours a week");
+    expect(unitWords("usd", "day", "month")).toBe("$ a month");
+    expect(unitWords("hours", "day")).toBe("runner-hours a day");
+    expect(unitWords("hours", "commit", "week")).toBe(
+      "runner-hours per commit"
+    );
   });
 });
 

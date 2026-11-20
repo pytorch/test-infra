@@ -221,14 +221,18 @@ export default function Page() {
     (patch: Partial<TrendsQuery>) => write({ trends: patch }),
     [write]
   );
+  // The drill reads its answer's A/B per bar of the rollup they were
+  // snapped to.
+  const settled = useSettled(compare, 400);
   const drill = useDrill({
     repo,
     workflows,
-    compare: useSettled(compare, 400),
+    compare: settled,
     context: ctx,
     query: q.drill,
     onQueryChange: onDrillChange,
     per: t.per,
+    rollup: settled?.rollup ?? t.rollup,
     unit,
     pricer,
     runnerHours: prepared,

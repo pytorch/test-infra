@@ -56,10 +56,10 @@ export function sideText(theme: Theme, side: Side): string {
 }
 
 export interface BandTab {
-  label: string; // "B · 43.9K h a day"
-  short?: string; // "B · 43.9K": what a crowded tab reads before its letter
+  label: string; // "B · 307.3K h a week"
+  short?: string; // "B · 307.3K": what a crowded tab reads before its letter
   title?: string; // the tab's plain tooltip
-  value: number | null; // the band's average, for its line
+  value: number | null; // the band's figure per bar, for its average line
 }
 
 export interface TrendBarsProps {
@@ -166,14 +166,6 @@ export default function TrendBars(props: TrendBarsProps) {
   const plotTop = TAB_H;
   const plotBottom = TAB_H + PLOT_H;
 
-  const values = Array.from(stacks.total);
-  for (const s of ["a", "b"] as const) {
-    if (tabs[s].value !== null) values.push(tabs[s].value!);
-  }
-  const ticks = niceTicks(Math.max(0, ...values), 4);
-  const yMax = ticks[ticks.length - 1] || 1;
-  const Y = (v: number) => plotBottom - (v / yMax) * PLOT_H;
-
   const barIndex = (day: Day): number => {
     let lo = 0;
     let hi = n - 1;
@@ -193,6 +185,23 @@ export default function TrendBars(props: TrendBarsProps) {
     return { s, e, clipped, x0: X(s), x1: X(e + 1) };
   };
   const spans = { a: spanOf(picker.sel.a), b: spanOf(picker.sel.b) };
+  // A band's average line is drawn only over two bars or more.
+  const avgOf = (s: Side): number | null => {
+    const span = spans[s];
+    const v = tabs[s].value;
+    return span === null || v === null || v <= 0 || span.e <= span.s ? null : v;
+  };
+
+  // The y-scale: the bars and the average lines drawn. A one-bar band's
+  // figure stays off it: a partial bar's is a whole bar's worth, above it.
+  const values = Array.from(stacks.total);
+  for (const s of ["a", "b"] as const) {
+    const v = avgOf(s);
+    if (v !== null) values.push(v);
+  }
+  const ticks = niceTicks(Math.max(0, ...values), 4);
+  const yMax = ticks[ticks.length - 1] || 1;
+  const Y = (v: number) => plotBottom - (v / yMax) * PLOT_H;
   const ghostSide =
     hover !== null && hover.role.kind === "draw" && !hover.touch
       ? hover.shift
@@ -220,7 +229,7 @@ export default function TrendBars(props: TrendBarsProps) {
     laneStart += offText(s).length * charW + 12 + 4;
   }
 
-  // ── tabs: "B · 43.9K h a day". Crowded tabs shorten together ("A · 61.3K",
+  // ── tabs: "B · 307.3K h a week". Crowded tabs shorten together ("A · 61.3K",
   // "B · 63.2K"), then A's, then both, drop to their letters; the left tab
   // steps left of the right one rather than covering it ──
   const tabWidth = (text: string) => text.length * charW + 14;
@@ -461,10 +470,13 @@ export default function TrendBars(props: TrendBarsProps) {
   const paper = theme.palette.background.paper;
   const faded = dark ? 0.26 : 0.2;
   const hatchColor = theme.palette.grey[500];
+  // A focus from other stacks (past the keys) draws as none.
+  const lit =
+    focus !== null && focus >= 0 && focus < stacks.keys.length ? focus : null;
   const drawOrder =
-    focus === null
+    lit === null
       ? stacks.keys.map((_, k) => k)
-      : [focus, ...stacks.keys.map((_, k) => k).filter((k) => k !== focus)];
+      : [lit, ...stacks.keys.map((_, k) => k).filter((k) => k !== lit)];
   const gap = barW >= 4 ? 1 : 0;
   const usd = stacks.unit === "usd";
 
@@ -479,7 +491,7 @@ export default function TrendBars(props: TrendBarsProps) {
     const total = stacks.total[i];
     const segs: ReactNode[] = [];
     let cum = 0;
-    const visible = drawOrder.filter((k) => stacks.value[k][i] > 0);
+    const visible = drawOrder.filter((k) => (stacks.value[k]?.[i] ?? 0) > 0);
     visible.forEach((k, j) => {
       const v = stacks.value[k][i];
       const y0 = Y(cum);
@@ -503,9 +515,7 @@ export default function TrendBars(props: TrendBarsProps) {
           fill={fill.hatch ? `url(#${id}-hatch)` : fill.color}
           opacity={
             // The grey rest under a hovered row is already muted.
-            focus !== null &&
-            k !== focus &&
-            stacks.keys[k].paint.kind !== "pale"
+            lit !== null && k !== lit && stacks.keys[k].paint.kind !== "pale"
               ? faded
               : 1
           }
@@ -569,8 +579,8 @@ export default function TrendBars(props: TrendBarsProps) {
   // that bar's own top and says nothing.
   const avgMarks = (["a", "b"] as const).map((s) => {
     const span = spans[s];
-    const v = tabs[s].value;
-    if (span === null || v === null || v <= 0 || span.e <= span.s) return null;
+    const v = avgOf(s);
+    if (span === null || v === null) return null;
     return (
       <line
         key={s}

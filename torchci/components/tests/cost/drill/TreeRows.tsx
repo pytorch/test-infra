@@ -420,11 +420,11 @@ function Children({
   change: ChangeScale;
 }) {
   const theme = useTheme();
-  const { unit, per, pricer, query } = drill.input;
+  const { unit, per, pricer, rollup, query } = drill.input;
   const level = useLevel(
     drill.scopeUrl(expansion.trail, expansion.by),
     drill.fetchScope,
-    { unit, per, pricer }
+    { unit, per, pricer, rollup }
   );
   const what = `${byNoun(expansion.by, true)} of ${scopeName(
     expansion.trail,

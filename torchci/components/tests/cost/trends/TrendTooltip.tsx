@@ -52,16 +52,11 @@ export function barTitle(folded: Folded, i: number): string {
   return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}${soFar}`;
 }
 
-// A value in its unit and per, as tabs and tooltips write it.
-export function perLabel(
-  unit: Unit,
-  per: Per,
-  value: number,
-  rollup: Folded["rollup"]
-): string {
+// A bar's value in its unit and per, as the tooltip heads it: Total is the
+// bar's sum.
+export function perLabel(unit: Unit, per: Per, value: number): string {
   const amount = fineAmountLabel(costUnit(unit), value);
-  if (per === "commit") return `${amount} per commit`;
-  return rollup === "day" ? amount : `${amount} a day`;
+  return per === "commit" ? `${amount} per commit` : amount;
 }
 
 export interface TrendTooltipProps {
@@ -78,7 +73,8 @@ export interface TrendTooltipProps {
 
 // The bars' hover breakdown: one card level with the plot top, the
 // bar's every series in legend order with its value and share, "Other owners"
-// with its next few owners, then muted lines only when they apply.
+// with its next few owners, then muted lines only when they apply (per day
+// under a Week or Month total, its days with data, the other per).
 export default function TrendTooltip({
   open,
   anchor,
@@ -113,6 +109,11 @@ export default function TrendTooltip({
       : { approx: false, lines: [] };
   const other = stacks.per === "day" ? "commit" : "day";
   const otherValue = barValue(folded, stacks, bar, other);
+  const daily =
+    stacks.per === "day" && folded.rollup !== "day"
+      ? barValue(folded, stacks, bar, "day")
+      : null;
+  if (daily !== null) lines.push(`Per day ${fineAmountLabel(cu, daily)}`);
   if (otherValue !== null) {
     const pushes =
       folded.rollup === "day" || b.data === 0
@@ -127,10 +128,12 @@ export default function TrendTooltip({
   const note = daysNote(b);
   if (note !== null) {
     lines.push(
-      `${note} with data · ${amountLabel(
-        cu,
-        total * stacks.divisor[bar]
-      )} total`
+      stacks.per === "day"
+        ? `${note} with data`
+        : `${note} with data · ${amountLabel(
+            cu,
+            total * stacks.divisor[bar]
+          )} total`
     );
   }
   if (b.filling) lines.push("Includes a day still filling (reads low)");
@@ -208,8 +211,7 @@ export default function TrendTooltip({
               : `${notes.approx ? "≈" : ""}${perLabel(
                   unit,
                   stacks.per,
-                  total,
-                  folded.rollup
+                  total
                 )}`}
           </Typography>
         </Box>

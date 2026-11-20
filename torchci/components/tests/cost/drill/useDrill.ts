@@ -148,7 +148,7 @@ const MAX_LEVELS = 3; // one pill per dimension
 export function useLevel(
   url: string | null,
   fetcher: (_url: string) => Promise<CostScope>,
-  opts: Pick<DrillInput, "unit" | "per" | "pricer">
+  opts: Pick<DrillInput, "unit" | "per" | "pricer" | "rollup">
 ): LevelState {
   const res = useApiResource<CostScope>(
     url,
@@ -163,10 +163,10 @@ export function useLevel(
   const kept =
     res.data !== undefined && res.data.by === by ? res.data : undefined;
   const shown = url === null ? undefined : now ?? kept;
-  const { unit, per, pricer } = opts;
+  const { unit, per, pricer, rollup } = opts;
   const view = useMemo(
-    () => (shown ? levelView(shown, { unit, per, pricer }) : null),
-    [shown, unit, per, pricer]
+    () => (shown ? levelView(shown, { unit, per, pricer, rollup }) : null),
+    [shown, unit, per, pricer, rollup]
   );
   return {
     url,
@@ -186,7 +186,16 @@ export function useDrill(
   input: DrillInput,
   options: { fetcher?: (_url: string) => Promise<unknown> } = {}
 ): DrillModel {
-  const { repo, workflows, compare, query, onQueryChange, per, pricer } = input;
+  const {
+    repo,
+    workflows,
+    compare,
+    query,
+    onQueryChange,
+    per,
+    rollup,
+    pricer,
+  } = input;
   const unit = pricer === null ? "hours" : input.unit;
   const fetcher = (options.fetcher ?? requestJson) as (
     _url: string
@@ -198,7 +207,7 @@ export function useDrill(
     repo && compare
       ? costScopeUrl(repo, workflows, compare.a, compare.b, pills, by)
       : null;
-  const opts = { unit, per, pricer };
+  const opts = { unit, per, pricer, rollup };
   // Fixed hook count: three levels and the canvas, null URLs when unused.
   const level0 = useLevel(
     trail.length > 0 ? urlOf([], trail[0].dim) : null,
@@ -391,6 +400,7 @@ export function useDrill(
               children: canvas.view && !canvas.stale ? children : [],
               unit,
               per,
+              rollup,
               aHasDays: basis.aHasDays,
             })
           : null,
@@ -413,6 +423,7 @@ export function useDrill(
     previewLevel.current,
     unit,
     per,
+    rollup,
     input.context?.firstDay,
     level0.view,
     level1.view,

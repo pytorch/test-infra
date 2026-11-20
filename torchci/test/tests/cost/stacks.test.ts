@@ -124,7 +124,7 @@ describe("the owner stack (owner root, /trend)", () => {
     });
   });
 
-  it("divides $ per day by priced days and leaves a gap day blank", () => {
+  it("sums a week bar (its priced days in $) and reads its span a week", () => {
     const pricer = stubPricer(() => 2, ["2026-10-27"]);
     const week = foldBars(
       trendDayCells(answer),
@@ -145,9 +145,24 @@ describe("the owner stack (owner root, /trend)", () => {
     const priced = ["2026-10-26", "2026-10-28", "2026-10-29", "2026-10-30"]
       .concat(["2026-10-31", "2026-11-01"])
       .reduce((x, d) => x + day(d), 0);
-    expect(usd.total[b]).toBeCloseTo((2 * priced) / 6, 9);
+    expect(usd.total[b]).toBeCloseTo(2 * priced, 9);
+    expect(usd.divisor[b]).toBe(1);
     expect(usd.unpriced[b]).toBeCloseTo(day("2026-10-27"), 9);
-    expect(hours.total[b]).toBeCloseTo((priced + day("2026-10-27")) / 7, 9);
+    expect(hours.total[b]).toBeCloseTo(priced + day("2026-10-27"), 9);
+    // The week as A: a whole week is its total in hours; in $, a week with
+    // any priced day counts whole, so it reads its priced days' $.
+    const range = { from: "2026-10-26", to: "2026-11-01" };
+    const h = spanTotals(week, hours, range);
+    expect(h.units).toBe(1);
+    expect(h.value).toBeCloseTo(hours.total[b], 9);
+    const u = spanTotals(week, usd, range);
+    expect(u.pricedDays).toBe(6);
+    expect(u.pricedUnits).toBe(1); // a week with any priced day counts whole
+    expect(u.value).toBeCloseTo(2 * priced, 9);
+    // The same days in Day view: per day, as before.
+    const d = spanTotals(fold, trendStacks(fold, opts()), range);
+    expect(d.units).toBe(7);
+    expect(d.value).toBeCloseTo(hours.total[b] / 7, 9);
   });
 
   it("reads A and B per day and per commit over their days", () => {

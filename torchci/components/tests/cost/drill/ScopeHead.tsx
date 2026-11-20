@@ -6,7 +6,8 @@ import {
   arrowText,
   changeText,
   deltaText,
-  perWord,
+  rangeText,
+  type SideTotal,
   testHoursText,
 } from "lib/tests/cost/drill";
 import { shareLabel } from "lib/tests/cost/query";
@@ -19,16 +20,17 @@ export interface ScopeHeadProps {
 }
 
 // The A/B summary that follows the trail: the scope's title in
-// its ancestors, fact pills (B with its change, A, the other per, pushes to
-// main at the root or the share of the parent, test time at a file), the
-// data chips, and the change sentence. The page's own facts (a year, owners,
+// its ancestors, fact pills (B per bar of the rollup with its change, A, both
+// totals, per day in Week and Month, the other per, pushes to main at the root
+// or the share of the parent, test time at a file), the data chips, and the
+// change sentence. The page's own facts (a year, owners,
 // the PR signals) sit under its title, being neither A/B nor the scope's. A
 // previewed sibling draws here with a dashed outline.
 export default function ScopeHead({ drill }: ScopeHeadProps) {
   const theme = useTheme();
   const c = drillColors(theme);
   const { head } = drill;
-  const { unit, per } = drill.input;
+  const { unit, per, rollup } = drill.input;
   const row = head.scope;
   const stale = head.stale || row === null;
   const tone = toneOf(row?.delta ?? null);
@@ -44,6 +46,42 @@ export default function ScopeHead({ drill }: ScopeHeadProps) {
       ? (side === "A" ? row?.blankA : row?.blankB) ?? "no data"
       : `${approx ? "≈" : ""}${amount(unit, x)}`;
   const otherPer = per === "day" ? "commit" : "day";
+  // "B per day", "B a week", "B a month", "B per commit".
+  const perText =
+    per === "commit"
+      ? "per commit"
+      : rollup === "day"
+      ? "per day"
+      : `a ${rollup}`;
+  // A side's total, whatever the per, and the days it covers; its title
+  // the exact days and, in $, how they were priced.
+  const total = (side: "A" | "B", t: SideTotal | undefined) => (
+    <FactPill
+      label={`${side} total`}
+      muted={!stale && t?.value === null}
+      title={
+        stale || !t?.range
+          ? undefined
+          : [rangeText(t.range), ...t.notes].join("\n")
+      }
+    >
+      {stale || t === undefined ? (
+        dots
+      ) : t.value === null ? (
+        t.blank
+      ) : (
+        <Box component="span" sx={{ display: "inline-flex", gap: 0.75 }}>
+          <span>{`${t.approx ? "≈" : ""}${amount(unit, t.value)}`}</span>
+          <Box
+            component="span"
+            sx={{ color: "text.secondary", fontWeight: 400 }}
+          >
+            · {t.days}
+          </Box>
+        </Box>
+      )}
+    </FactPill>
+  );
   return (
     <Box
       onKeyDown={drillKeys(drill)}
@@ -92,7 +130,7 @@ export default function ScopeHead({ drill }: ScopeHeadProps) {
           alignItems: "center",
         }}
       >
-        <FactPill label={`B ${perWord(per).replace("a ", "per ")}`}>
+        <FactPill label={`B ${perText}`}>
           <Box component="span" sx={{ display: "inline-flex", gap: 0.75 }}>
             <span>{v("B", row?.b ?? null, row?.approxB)}</span>
             {!stale && row?.delta != null && (
@@ -102,12 +140,18 @@ export default function ScopeHead({ drill }: ScopeHeadProps) {
             )}
           </Box>
         </FactPill>
-        <FactPill
-          label={`A ${perWord(per).replace("a ", "per ")}`}
-          muted={!stale && row?.a === null}
-        >
+        <FactPill label={`A ${perText}`} muted={!stale && row?.a === null}>
           {v("A", row?.a ?? null, row?.approxA)}
         </FactPill>
+        {total("B", row?.totals.b)}
+        {total("A", row?.totals.a)}
+        {per === "day" && rollup !== "day" && (
+          <FactPill label="Per day">
+            {stale
+              ? dots
+              : arrowText(unit, row?.daily.a ?? null, row?.daily.b ?? null)}
+          </FactPill>
+        )}
         <FactPill label={otherPer === "commit" ? "Per commit" : "Per day"}>
           {stale
             ? dots

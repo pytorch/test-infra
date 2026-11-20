@@ -346,7 +346,7 @@ export default function DrillTable({ drill }: { drill: DrillModel }) {
   const parent = n === 0 ? null : parentName(drill.trail, drill.root);
   const band = (
     <DrillBand
-      title={`${byTitle(by)} · ${unitWords(unit, per)}`}
+      title={`${byTitle(by)} · ${unitWords(unit, per, drill.input.rollup)}`}
       of={parent ? `of ${parent}` : undefined}
       keys={
         <>

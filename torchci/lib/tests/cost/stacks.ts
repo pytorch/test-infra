@@ -1,6 +1,7 @@
 import type { Theme } from "@mui/material/styles";
 import {
   type BarsScope,
+  type Day,
   type DayRange,
   namedOwners,
   NO_OWNER,
@@ -17,12 +18,12 @@ import {
   otherMachinesColor,
   ownerFill,
 } from "lib/tests/cost/colors";
-import type { Folded } from "lib/tests/cost/fold";
+import { type Folded, rollupUnits } from "lib/tests/cost/fold";
 import { ownerLabel, type PreparedHours } from "lib/tests/cost/runnerHours";
 
 // The bars' stacks: each bar split by what the bars' scope
-// lists, in a fixed order (never re-ranked), each value per day with data or
-// per commit, in hours or $ priced per day cell (h × rate(label, day)).
+// lists, in a fixed order (never re-ranked), each value the bar's total (Total)
+// or per commit, in hours or $ priced per day cell (h × rate(label, day)).
 //   owner root (/trend) or a scope listing owners: 5 named owners, Other
 //     owners, No owner, No test reports (owner hues);
 //   a scope listing machines: the colored machines, Other machines, Unknown
@@ -75,9 +76,9 @@ export interface Stacks {
   per: Per;
   by: ScopeBy;
   keys: StackKey[]; // bottom to top
-  value: Float64Array[]; // [key][bar] in the unit, per day or per commit
+  value: Float64Array[]; // [key][bar] in the unit, the bar's total or per commit
   total: Float64Array; // Σ keys per bar
-  divisor: Float64Array; // per bar: days with data (priced days in $) or pushes
+  divisor: Float64Array; // per bar: 1 (Total) or pushes (priced days' in $)
   hours: Float64Array; // per bar: runner-hours behind the bar (raw, per day or main)
   unpriced: Float64Array; // per bar: raw hours with no rate
   pricedDays: Int32Array; // per bar: days with data and a rate period
@@ -374,7 +375,8 @@ export function trendStacks(folded: Folded, opts: StackOptions): Stacks {
     }
   }
 
-  // Divisors: days with data, or pushes; in $ only the days with rates.
+  // Divisors: none for Total (a bar is its sum), else pushes; in $ only the
+  // pushes on days with rates.
   const divisor = new Float64Array(nb);
   const pricedDays = new Int32Array(nb);
   for (let d = 0; d < nd; d++) {
@@ -384,7 +386,7 @@ export function trendStacks(folded: Folded, opts: StackOptions): Stacks {
     if (commit) divisor[b] += cells.pushes[d] ?? 0;
   }
   bars.forEach((bar, b) => {
-    if (!commit) divisor[b] = usd ? pricedDays[b] : bar.data;
+    if (!commit) divisor[b] = 1;
     else if (!usd) divisor[b] = bar.pushes;
   });
   const total = new Float64Array(nb);
@@ -417,9 +419,11 @@ export function trendStacks(folded: Folded, opts: StackOptions): Stacks {
 }
 
 export interface SpanTotals {
-  value: number; // per day or per commit, in the unit
+  value: number; // per bar of the rollup (Total) or per commit, in the unit
   days: number; // days with data in the range
   pricedDays: number;
+  units: number; // rollupUnits of the days with data
+  pricedUnits: number; // rollupUnits of the priced days
   pushes: number;
   pricedPushes: number;
   hours: number; // Σ hours (main hours per commit) in the range
@@ -428,7 +432,8 @@ export interface SpanTotals {
 }
 
 // A range's totals over the bars' scope (every day the answer holds in it):
-// what A's and B's tabs and average lines read, and the strip's spans.
+// what A's and B's tabs and average lines read, and the strip's spans. Total
+// reads per bar of the rollup, as the drill does.
 export function spanTotals(
   folded: Folded,
   stacks: Stacks,
@@ -440,6 +445,8 @@ export function spanTotals(
     value: 0,
     days: 0,
     pricedDays: 0,
+    units: 0,
+    pricedUnits: 0,
     pushes: 0,
     pricedPushes: 0,
     hours: 0,
@@ -447,19 +454,25 @@ export function spanTotals(
     unpriced: 0,
   };
   const d = stacks.days;
+  const days: Day[] = [];
+  const priced: Day[] = [];
   cells.days.forEach((day, i) => {
     if (day < range.from || day > range.to) return;
     const pushes = cells.pushes[i] ?? 0;
     t.days++;
     t.pushes += pushes;
+    days.push(day);
     if (d.priced[i]) {
       t.pricedDays++;
       t.pricedPushes += pushes;
+      priced.push(day);
     }
     t.hours += commit ? d.main[i] : d.h[i];
     t.usd += commit ? d.usdMain[i] : d.usd[i];
     t.unpriced += commit ? d.unpricedMain[i] : d.unpriced[i];
   });
+  t.units = rollupUnits(folded.rollup, days);
+  t.pricedUnits = rollupUnits(folded.rollup, priced);
   const usd = stacks.unit === "usd";
   const sum = usd ? t.usd : t.hours;
   const div = commit
@@ -467,8 +480,8 @@ export function spanTotals(
       ? t.pricedPushes
       : t.pushes
     : usd
-    ? t.pricedDays
-    : t.days;
+    ? t.pricedUnits
+    : t.units;
   t.value = div > 0 ? sum / div : 0;
   return t;
 }
