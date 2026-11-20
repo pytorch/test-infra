@@ -38,8 +38,10 @@ LIMIT 1`,
 
 // A row with no details is a release candidate the collector has looked at and has no
 // downstream repo to list for yet. Opted-in repos that have not reported are listed in
-// the details, with the result no_result.
-function parseRepos(details: string) {
+// the details, with the result no_result. Every repo is for the row's release candidate,
+// the one the response names as current: a repo of another one is bad collector data,
+// not a result to show as current.
+function parseRepos(details: string, rc: string) {
   if (details === "") return [];
   let collected: unknown;
   try {
@@ -50,6 +52,11 @@ function parseRepos(details: string) {
   const parsed = CollectedCrcrResultsSchema.safeParse(collected);
   if (!parsed.success) {
     throw new Error("Release CRCR observation has invalid details");
+  }
+  if (parsed.data.repos.some((repo) => repo.rc !== rc)) {
+    throw new Error(
+      "Release CRCR observation has a repo for another release candidate"
+    );
   }
   return parsed.data.repos;
 }
@@ -107,5 +114,5 @@ export async function getCrcrResults(version: string): Promise<ReleaseCrcr> {
       "Release CRCR observation has an invalid release candidate"
     );
   }
-  return buildCrcr(version, rc.data, parseRepos(row.details));
+  return buildCrcr(version, rc.data, parseRepos(row.details, rc.data));
 }

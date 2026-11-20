@@ -563,10 +563,19 @@ export const CrcrRepoSchema = CollectedCrcrRepoSchema.extend({
 
 // The collector persists this object in release_event.details of the crcr_summary
 // step, one row per release candidate. The counts are not stored: the API computes
-// them from the repos, so they cannot disagree.
-export const CollectedCrcrResultsSchema = z.object({
-  repos: z.array(CollectedCrcrRepoSchema),
-});
+// them from the repos, so they cannot disagree. A repo is listed once, as the contract
+// says: a duplicate record would show it twice and count it twice. GitHub names are
+// case-insensitive, so Ascend/pytorch and ascend/pytorch are the same repo.
+export const CollectedCrcrResultsSchema = z
+  .object({
+    repos: z.array(CollectedCrcrRepoSchema),
+  })
+  .refine(
+    ({ repos }) =>
+      new Set(repos.map(({ repo }) => repo.toLowerCase())).size ===
+      repos.length,
+    { error: "repos must list each repo once" }
+  );
 
 export const ReleaseCrcrSchema = z
   .object({

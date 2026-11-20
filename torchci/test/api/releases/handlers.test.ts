@@ -807,6 +807,88 @@ describe("GET /api/releases/{version}/crcr", () => {
     error.mockRestore();
   });
 
+  test("repos of the row's own release candidate, each listed once, are served", async () => {
+    answerCrcr({
+      rc: "rc10",
+      details: JSON.stringify({
+        repos: [
+          repoResult({ rc: "rc10" }),
+          passed("Ascend/pytorch", { rc: "rc10" }),
+        ],
+      }),
+    });
+    const { status, body } = await callRoute(
+      getCrcr,
+      "/api/releases/{version}/crcr",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(body.rc).toBe("rc10");
+    expect(body.summary.repos).toBe(2);
+  });
+
+  test("rejects details that contradict the contract instead of showing them as current", async () => {
+    const error = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const cases: { name: string; rc: string; repos: unknown[]; log: string }[] =
+      [
+        {
+          name: "every repo is of an older release candidate",
+          rc: "rc10",
+          repos: [repoResult({ rc: "rc9" })],
+          log: "another release candidate",
+        },
+        {
+          name: "one repo is of an older release candidate",
+          rc: "rc10",
+          repos: [
+            repoResult({ rc: "rc10" }),
+            passed("sgl-project/sglang", { rc: "rc9" }),
+          ],
+          log: "another release candidate",
+        },
+        {
+          name: "a repo of a newer release candidate than the row's",
+          rc: "rc9",
+          repos: [repoResult({ rc: "rc10" })],
+          log: "another release candidate",
+        },
+        {
+          name: "a repo listed twice",
+          rc: "rc9",
+          repos: [repoResult(), repoResult({ result: "passed" })],
+          log: "invalid details",
+        },
+        {
+          name: "a repo listed twice, in another case",
+          rc: "rc9",
+          repos: [passed("Ascend/pytorch"), passed("ascend/pytorch")],
+          log: "invalid details",
+        },
+      ];
+    for (const { name, rc, repos, log } of cases) {
+      error.mockClear();
+      answerCrcr({ rc, details: JSON.stringify({ repos }) });
+      const { status, body } = await callRoute(
+        getCrcr,
+        "/api/releases/{version}/crcr",
+        { version: "2.16.0" }
+      );
+      expect({ name, status, code: body.code }).toEqual({
+        name,
+        status: 500,
+        code: "internal_error",
+      });
+      // The 500 is for the reason under test, not for some other failure.
+      expect({ name, logged: String(error.mock.calls[0]?.[1]) }).toEqual({
+        name,
+        logged: expect.stringContaining(log),
+      });
+    }
+    error.mockRestore();
+  });
+
   test("a failed query is a 500 that gives nothing away", async () => {
     const error = jest
       .spyOn(console, "error")
