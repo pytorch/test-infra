@@ -613,8 +613,7 @@ describe("GET /api/releases/{version}/crcr", () => {
       ],
       owner: "vLLM CI oncall",
       finished_at: "2026-10-29T10:12:00Z",
-      hud_url:
-        "https://hud.pytorch.org/crcr/vllm-project/vllm?event=release&version=2.16.0",
+      hud_url: null,
     });
     expect(headers.get("Cache-Control")).toMatch(/^public, /);
     const crcrCall = query.mock.calls.find(([sql]) =>
@@ -698,8 +697,7 @@ describe("GET /api/releases/{version}/crcr", () => {
       failing_jobs: [],
       run_url: null,
       finished_at: null,
-      hud_url:
-        "https://hud.pytorch.org/crcr/Ascend/pytorch?event=release&version=2.16.0",
+      hud_url: null,
     });
   });
 
@@ -733,28 +731,6 @@ describe("GET /api/releases/{version}/crcr", () => {
       summary: { repos: 0, passing: 0, failing: 0, no_result: 0 },
       repos: [],
     });
-  });
-
-  test("links a repo to the HUD the API itself is served from", async () => {
-    const before = process.env.HUD_SELF_URL;
-    process.env.HUD_SELF_URL = "https://hud.example.test";
-    try {
-      answerCrcr({
-        rc: "rc9",
-        details: JSON.stringify({ repos: [repoResult()] }),
-      });
-      const { body } = await callRoute(
-        getCrcr,
-        "/api/releases/{version}/crcr",
-        { version: "2.16.0" }
-      );
-      expect(body.repos[0].hud_url).toBe(
-        "https://hud.example.test/crcr/vllm-project/vllm?event=release&version=2.16.0"
-      );
-    } finally {
-      if (before === undefined) delete process.env.HUD_SELF_URL;
-      else process.env.HUD_SELF_URL = before;
-    }
   });
 
   test("an unknown release is a 404 and a bad version, or a parameter, a 400", async () => {

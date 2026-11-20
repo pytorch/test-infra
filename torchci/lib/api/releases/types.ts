@@ -556,8 +556,9 @@ const CollectedCrcrRepoSchema = z.object({
 export const CrcrRepoSchema = CollectedCrcrRepoSchema.extend({
   hud_url: z
     .string()
+    .nullable()
     .describe(
-      "The repo's release view on HUD for this release, with its CRCR results in more detail."
+      "The repo's release view on HUD for this release, with its CRCR results in more detail. Null until HUD has that view: the repo page does not read a release yet."
     ),
 }).describe("One downstream repo's result for the release candidate.");
 

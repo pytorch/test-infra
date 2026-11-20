@@ -1,7 +1,6 @@
 import { RELEASE_DATABASE } from "lib/api/releases/database";
 import type { CrcrRepo, ReleaseCrcr } from "lib/api/releases/types";
 import { CollectedCrcrResultsSchema } from "lib/api/releases/types";
-import { hudOrigin } from "lib/api/tests/pages/links";
 import { queryClickhouse } from "lib/clickhouse";
 import { z } from "zod/v4";
 
@@ -77,18 +76,16 @@ function problemsFirst(a: CrcrRepo, b: CrcrRepo): number {
 }
 
 export function buildCrcr(
-  version: string,
   rc: string | null,
   collected: ReturnType<typeof parseRepos>
 ): ReleaseCrcr {
   const repos = collected
     .map((repo) => ({
       ...repo,
-      // The repo's release view on HUD, the page the nightly view of the same repo
-      // reuses (/crcr/{org}/{repo}?event=nightly), scoped to this release.
-      hud_url: `${hudOrigin()}/crcr/${
-        repo.repo
-      }?event=release&version=${encodeURIComponent(version)}`,
+      // The repo page has no release view yet: it reads event=nightly and shows its PR
+      // view for anything else, so a release link would show unrelated results. Null
+      // until it does (/crcr/{org}/{repo}?event=release&version={version}).
+      hud_url: null,
     }))
     .sort(problemsFirst);
   const count = (result: CrcrRepo["result"]) =>
@@ -107,12 +104,12 @@ export function buildCrcr(
 
 export async function getCrcrResults(version: string): Promise<ReleaseCrcr> {
   const row = await latestCrcrRow(version);
-  if (row === null) return buildCrcr(version, null, []);
+  if (row === null) return buildCrcr(null, []);
   const rc = RcSchema.safeParse(row.rc);
   if (!rc.success) {
     throw new Error(
       "Release CRCR observation has an invalid release candidate"
     );
   }
-  return buildCrcr(version, rc.data, parseRepos(row.details, rc.data));
+  return buildCrcr(rc.data, parseRepos(row.details, rc.data));
 }
