@@ -61,7 +61,7 @@ describe("release components", () => {
     ).toContain("Manual check");
     expect(
       renderToStaticMarkup(<ReleaseEvidenceCell evidence={null} />)
-    ).toContain("Not checked");
+    ).toContain("Not completed");
     const unsafe = renderToStaticMarkup(
       <ReleaseEvidenceCell
         evidence={{ text: "Unsafe evidence", url: "javascript:alert(1)" }}
