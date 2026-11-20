@@ -766,8 +766,10 @@ function myBot(app: Probot): void {
           if (!pending) {
             heldBack = covered;
           } else if (
-            Date.now() - createdAt <=
-            PENDING_GHSTACK_LISTING_WINDOW_MS
+            // A ghstack rerun pushes before it fills the listing in, so the
+            // listing a crashed run left pending is still to be filled in.
+            context.payload.action === "synchronize" ||
+            Date.now() - createdAt <= PENDING_GHSTACK_LISTING_WINDOW_MS
           ) {
             heldBack = stackManagedCiflowLabels;
           } else {
