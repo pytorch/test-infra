@@ -270,11 +270,11 @@ describe("getPrStatusMessage", () => {
     expect(message).not.toMatch(/queued for automated review/i);
   });
 
-  test("in progress explains automated feedback and CI readiness criteria", () => {
+  test("in progress explains review feedback and CI readiness criteria", () => {
     const message = getPrStatusMessage(
       state({ labels: [PR_STATUS_LABEL_IN_PROGRESS] })
     );
-    expect(message).toContain("please address automated review on your PR");
+    expect(message).toContain("Please address review feedback on your PR");
     expect(message).toContain("a code/PR description change");
     expect(message).toContain(
       "The change must pass any running CI and existing failures must be classified as unrelated"
@@ -292,12 +292,8 @@ describe("getPrStatusMessage", () => {
       );
       expect(message).toBe(
         "## PR Status: in progress\n\n" +
-          (hasChangesRequested
-            ? "A maintainer requested changes. Please address their feedback " +
-              "before the PR returns to maintainer review.\n\n"
-            : "") +
-          "To become ready for review, please address automated review on " +
-          "your PR either with a code/PR description change. If a review " +
+          "Please address review feedback on your PR either with a " +
+          "code/PR description change. If a review " +
           "comment is irrelevant, react with 👎 on that specific comment to " +
           "reject it, and leave a short reply explaining why. The change " +
           "must pass any running CI and existing failures must be classified " +
@@ -315,23 +311,6 @@ describe("getPrStatusMessage", () => {
       );
     }
   );
-
-  test("an outstanding change request explains how to return to maintainer review", () => {
-    const message = getPrStatusMessage(
-      state({
-        labels: [PR_STATUS_LABEL_IN_PROGRESS],
-        hasChangesRequested: true,
-      })
-    );
-    expect(message).toContain(
-      "A maintainer requested changes. Please address their feedback before the PR returns to maintainer review."
-    );
-    expect(message).toContain(
-      "To trigger a fresh automated review, make a new push or comment @pytorchbot review."
-    );
-    expect(message).toContain("please address automated review on your PR");
-    expect(message).not.toContain("The overall direction");
-  });
 
   test("opted-out ready PRs keep maintainer review guidance after a change request", () => {
     const message = getPrStatusMessage(
