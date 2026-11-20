@@ -6,7 +6,11 @@ import {
   trendQuery,
 } from "lib/api/tests/cost/query";
 import type { CostTrend } from "lib/api/tests/cost/types";
-import { TREND_PERIODS, type TrendRollup } from "lib/api/tests/cost/windows";
+import {
+  TREND_MAX_PERIODS,
+  TREND_PERIODS,
+  type TrendRollup,
+} from "lib/api/tests/cost/windows";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -50,7 +54,7 @@ export function periodStart(rollup: TrendRollup, dayMs: number): number {
 // the days the daily totals read: from January 1 of yesterday's year, or the
 // first period if it starts earlier. Today is never counted: its rollup is
 // still being computed.
-export function trendWindow(rollup: TrendRollup, now: Date) {
+export function trendWindow(rollup: TrendRollup, now: Date, count?: number) {
   const endMs = Date.UTC(
     now.getUTCFullYear(),
     now.getUTCMonth(),
@@ -58,7 +62,11 @@ export function trendWindow(rollup: TrendRollup, now: Date) {
   );
   const last = periodStart(rollup, endMs - DAY_MS);
   const periods: number[] = [last];
-  while (periods.length < TREND_PERIODS[rollup]) {
+  const wanted = Math.min(
+    count ?? TREND_PERIODS[rollup],
+    TREND_MAX_PERIODS[rollup]
+  );
+  while (periods.length < wanted) {
     const next = periods[0];
     const d = new Date(next);
     periods.unshift(
@@ -182,7 +190,7 @@ export async function getCostTrend(
   params: CostTrendParams,
   now: Date = new Date()
 ): Promise<CostTrend> {
-  const window = trendWindow(params.rollup, now);
+  const window = trendWindow(params.rollup, now, params.periods);
   const workflows = params.workflow ?? [];
   const started = performance.now();
   // The first two read only the window's days of test_cost and run about

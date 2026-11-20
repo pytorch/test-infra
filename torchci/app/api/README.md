@@ -118,7 +118,16 @@ CPU-seconds on a big commit when it read every retained attempt of the
 selected bundles through `FINAL`; it now reads a commit's bundles through
 `by_job` and a test's at their own starts, 0.04 to 0.20 server seconds for a
 page of bundles (`lib/api/tests/test/runs/attempts-query-validation.md`), and
-queued, both run lists waited behind tests pages. Leave a query off when it is
+queued, both run lists waited behind tests pages. Two cost reads are tagged
+(`lib/api/tests/cost/query-validation.md`, Cost V2): the scan of a test file's
+cases on one machine (`/api/tests/cost/cases`), 20 to 59 server seconds at 4
+threads for files of 1,300 to 9,300 tests over 13 days, behind a gate that
+answers too big, without scanning, when it predicts more than 45; and the
+banner's organization jobs (`/api/tests/cost/coverage/jobs`), 9.2 seconds on
+one thread for the page's 14 days and 14.1 for the 28 it accepts
+(5.1 and 9.5 seconds at 4 threads). The cases gate, the drill's scope and
+series and the banner's test segments stay untagged at 0.1 to 1.6 seconds on
+one thread. Leave a query off when it is
 fast: the cost runner-hours read about 0.3 CPU-seconds
 (`lib/api/tests/cost/query-validation.md`), and the catalog, options and test
 detail reads answer in milliseconds. The
@@ -349,6 +358,11 @@ old route in the same change.
 | `GET /api/releases/{version}/config`                     | The release's resolved config (shared steps merged with its own file); public                                                                                         | `lib/api/releases/`                |
 | `GET /api/releases/{version}/artifacts`                  | The release's expected artifacts and whether each is present, missing, size_anomalous or unexpected, problems first, with the counts; public                          | `lib/api/releases/`                |
 | `GET /api/tests/cost/changes`                            | Two periods' test-job runner-hours by test file and workflow, all and of pushes to main, with each day's pushes to main: what changed; prototype                      | `lib/api/tests/cost/changes.ts`    |
+| `GET /api/tests/cost/scope`                              | A drill scope's children (owners, machines, files, lanes or labels) in two periods by runner label and piece, all and of pushes to main; prototype                    | `lib/api/tests/cost/scope.ts`      |
+| `GET /api/tests/cost/series`                             | A drill scope's runner-hours by day, child and runner label: the cost page's bars below the owner root; prototype                                                     | `lib/api/tests/cost/series.ts`     |
+| `GET /api/tests/cost/cases`                              | A test file's configurations and largest test-case moves on one machine in two periods, from the runs table, behind a size gate; heavy; prototype                     | `lib/api/tests/cost/cases.ts`      |
+| `GET /api/tests/cost/coverage`                           | A repository's test-job runner-hours by day, segment (running, setup and idle, no reports, out of scope) and runner label; prototype                                  | `lib/api/tests/cost/coverage.ts`   |
+| `GET /api/tests/cost/coverage/jobs`                      | An organization's job runner-hours by day, repository segment and runner label, up to 28 days; heavy; prototype                                                       | `lib/api/tests/cost/coverage.ts`   |
 
 The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 
