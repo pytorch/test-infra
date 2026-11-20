@@ -189,3 +189,16 @@ export function heatColors(theme: Theme, share: number) {
 export function rampGradient(theme: Theme): string {
   return `linear-gradient(to right, ${RAMP[theme.palette.mode].join(", ")})`;
 }
+
+// The owner hues, contrast-checked in both modes. Never on one chart with MACHINE_HUES:
+// one dimension is stacked at a time. Position = index in namedOwners(); Other owners = otherMachinesColor.
+const OWNER_HUES = {
+  light: ["#00a9d3", "#ba2c3a", "#978200", "#794881", "#ad4d00"],
+  dark: ["#04a0b9", "#ae2738", "#8fa000", "#a14fa3", "#965220"],
+};
+export function ownerFill(theme: Theme, position: number): string | undefined {
+  return OWNER_HUES[theme.palette.mode][position];
+}
+export function noOwnerColor(theme: Theme): string {
+  return theme.palette.mode === "dark" ? "#a8a8a8" : "#c4c4c4";
+}

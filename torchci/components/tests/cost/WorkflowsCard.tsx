@@ -32,6 +32,8 @@ export interface WorkflowsCardProps {
   // The days the answer covers, in words.
   dates: string;
   onScopeChange: (_workflows: string[]) => void;
+  // Whether the card starts open; it does unless the page folds it.
+  defaultOpen?: boolean;
 }
 
 // The scope picker: every workflow's runner-hours as a share of the whole
@@ -48,10 +50,11 @@ export default function WorkflowsCard({
   loading,
   dates,
   onScopeChange,
+  defaultOpen = true,
 }: WorkflowsCardProps) {
   const theme = useTheme();
-  // Open at first: folded, it was easy to miss.
-  const [open, setOpen] = useState(true);
+  // Open at first unless the page folds it: folded, it was easy to miss.
+  const [open, setOpen] = useState(defaultOpen);
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
   const { shown, hidden } = workflowRows(prepared, view, expanded, search);

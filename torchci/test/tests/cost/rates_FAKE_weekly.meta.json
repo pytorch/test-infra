@@ -1,0 +1,37 @@
+{
+ "generated_at": "2026-11-19T06:00:00Z",
+ "periods": [
+  {
+   "valid_from": "2026-10-19",
+   "status": "final",
+   "window": {
+    "start": "2026-10-19",
+    "end": "2026-10-25"
+   }
+  },
+  {
+   "valid_from": "2026-10-26",
+   "status": "final",
+   "window": {
+    "start": "2026-10-26",
+    "end": "2026-11-01"
+   }
+  },
+  {
+   "valid_from": "2026-11-02",
+   "status": "final",
+   "window": {
+    "start": "2026-11-02",
+    "end": "2026-11-08"
+   }
+  },
+  {
+   "valid_from": "2026-11-09",
+   "status": "provisional",
+   "window": {
+    "start": "2026-11-09",
+    "end": "2026-11-13"
+   }
+  }
+ ]
+}

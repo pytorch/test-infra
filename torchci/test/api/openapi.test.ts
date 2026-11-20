@@ -30,9 +30,14 @@ function* walk(
   }
 }
 
-// The tests list runs heavy queries: it alone documents the 429 of a refused
-// query (app/api/README.md, Heavy queries).
-const HEAVY_PATHS = ["/api/tests"];
+// The tests list, a test file's cost cases and the cost banner's jobs run
+// heavy queries: they alone document the 429 of a refused query
+// (app/api/README.md, Heavy queries).
+const HEAVY_PATHS = [
+  "/api/tests",
+  "/api/tests/cost/cases",
+  "/api/tests/cost/coverage/jobs",
+];
 
 // The document's paths under one tag: `tests` for the JSON API served by
 // app/api, `pages` for the HUD pages under pages/tests built on it.
@@ -373,7 +378,7 @@ describe("GET /api/openapi.json", () => {
     ).toEqual({ $ref: "#/components/schemas/ReleaseArtifactPage" });
   });
 
-  test("documents the 429 of a refused heavy query on the tests list alone", () => {
+  test("documents the 429 of a refused heavy query on the heavy endpoints alone", () => {
     for (const [path, item] of Object.entries<any>(document.paths)) {
       const overloaded = item.get.responses["429"];
       expect({ path, documented: overloaded !== undefined }).toEqual({

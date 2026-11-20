@@ -1762,6 +1762,29 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   once and from the URL with the next change (`knownChoices`), except on a
   window change, whose new answer may hold them.
 
+## Cost page V2 preview
+
+`/tests/[organization]/[repo]/cost/v2` is the next cost page, kept beside the
+current one while it is evaluated; the current page is unchanged. It reads the
+same endpoints plus `/api/tests/cost/scope`, `/series`, `/cases`, `/coverage`
+and `/coverage/jobs`:
+
+- A compact banner of what share of the organization's CI runner-hours the
+  page accounts for over period B (`components/tests/cost/banner`).
+- Trends: owner-stacked daily, weekly or monthly bars with two periods, A and
+  B, picked on the chart: pick A or B, click a bar, drag to draw, drag an edge
+  to stretch, arrow keys to move (`components/tests/cost/trends`).
+- With a rates file, a strip of its rate periods under the bars; each day is
+  priced by the period covering it, and days without one read as no rates,
+  never $0 (`lib/tests/cost/ratePeriods.ts`).
+- A drill-down under the trends, A against B row by row, through a trail of
+  owner, machine and test file down to configurations and test cases
+  (`components/tests/cost/drill`).
+- The owner-machine matrix and the workflows card, folded.
+
+Its URL parameters are defined in `lib/api/tests/cost/pageV2.ts` and read and
+written by `lib/tests/cost/queryV2.ts`.
+
 ## Verifying a change
 
 - `yarn test test/tests` runs the unit tests for the glue and the cells, and

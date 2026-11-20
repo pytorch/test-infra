@@ -7,6 +7,12 @@
 // from the table it was measured on.
 
 import { readFileSync } from "fs";
+import { casesGateQuery } from "lib/api/tests/cost/cases";
+import { decodeTrail } from "lib/api/tests/cost/contracts";
+import {
+  coverageOwnedQuery,
+  coverageTestsQuery,
+} from "lib/api/tests/cost/coverage";
 import {
   changesDaysQuery,
   changesQuery,
@@ -18,6 +24,7 @@ import {
   trendPushesQuery,
   trendQuery,
 } from "lib/api/tests/cost/query";
+import { scopeDaysQuery, scopeQuery } from "lib/api/tests/cost/scope";
 import { TREND_ROLLUPS } from "lib/api/tests/cost/windows";
 import { CI_DATABASE } from "lib/api/tests/database";
 import { join } from "path";
@@ -53,6 +60,24 @@ const READERS: Record<string, string> = {
   "changes for owners": changesQuery(true),
   "changes for every owner": changesQuery(false),
   changesDays: changesDaysQuery(),
+  // Cost V2: the drill, its bars, the banner and the cases gate.
+  "scope root": scopeQuery("sides", [], "o"),
+  "scope pair files": scopeQuery(
+    "sides",
+    decodeTrail("o:inductor;m:Linux%20x86_64%20avx512"),
+    "f"
+  ),
+  "series machines": scopeQuery("days", decodeTrail("o:inductor"), "m"),
+  "series lanes": scopeQuery(
+    "days",
+    decodeTrail("o:inductor;m:NVIDIA%20L4;f:test%2Ftest_ops.py"),
+    "lane"
+  ),
+  scopeDays: scopeDaysQuery("sides"),
+  seriesDays: scopeDaysQuery("days"),
+  coverageTests: coverageTestsQuery(),
+  coverageOwned: coverageOwnedQuery(),
+  casesGate: casesGateQuery(),
 };
 
 // The columns of test_cost the queries read, by name.
@@ -138,6 +163,11 @@ describe("each day as last computed", () => {
       trendDailyQuery(),
       changesQuery(true),
       changesQuery(false),
+      scopeQuery("sides", [], "o"),
+      scopeQuery("days", decodeTrail("m:NVIDIA%20L4"), "o"),
+      coverageTestsQuery(),
+      coverageOwnedQuery(),
+      casesGateQuery(),
     ]) {
       expect(sql).toContain("(day, computed_at) IN (");
       expect(sql).toContain("SELECT day, max(computed_at) FROM ci.test_cost");
