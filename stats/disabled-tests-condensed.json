@@ -222,6 +222,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_special_bessel_y1_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "205805",
+    "https://github.com/pytorch/pytorch/issues/205805",
+    [
+      "xpu"
+    ]
+  ],
   "test_cond_in_NN (__main__.TestControlFlowNNCUDA)": [
     "196982",
     "https://github.com/pytorch/pytorch/issues/196982",
