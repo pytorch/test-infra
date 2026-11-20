@@ -101,7 +101,7 @@ export const COST_V2_PAGE_PARAMETER_DEFINITIONS = {
       .enum(["day", "commit"])
       .default("day")
       .describe(
-        "day divides each period's runner-hours by its days with data; commit divides the hours of jobs on pushes to main by those pushes."
+        "day (Total) sums each bar's runner-hours over its days, and reads A, B and the drill per bar of the rollup: a day, a week or a month, a partial bar counting as its share of days; commit divides the hours of jobs on pushes to main by those pushes."
       ),
   },
   unit: {

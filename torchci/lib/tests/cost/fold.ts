@@ -255,3 +255,16 @@ export function daysNote(bar: Bar): string | null {
 // Whether a bar reads low or partial: days without data, or a day filling.
 export const isPartialBar = (bar: Bar): boolean =>
   bar.data < bar.calendar || bar.filling;
+
+// What a side's Total divides by: the bars of the rollup it touches that
+// count at least one day (days with data in hours, priced days in $), each as
+// one whole bar. Day: its counted days (per day); a whole week or month: 1
+// (its total); two weeks: 2 (their average week). A partial bar counts as a
+// whole one, so it reads naturally lower, as its bar does; a bar with nothing
+// counted (no data, or no rates in $) is unknown and left out.
+export function rollupUnits(rollup: Rollup, counted: readonly Day[]): number {
+  return new Set(counted.map((day) => barStart(rollup, day))).size;
+}
+
+// The Total's unit in words: "a day", "a week", "a month".
+export const rollupWord = (rollup: Rollup): string => `a ${rollup}`;

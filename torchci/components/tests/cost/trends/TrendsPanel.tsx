@@ -24,6 +24,7 @@ import {
   type DayCells,
   foldBars,
   type Folded,
+  rollupWord,
   seriesDayCells,
   trendDayCells,
 } from "lib/tests/cost/fold";
@@ -79,7 +80,7 @@ const ROLLUPS: { value: Rollup; label: string }[] = [
 
 const DESCRIPTION = [
   "Runner-hours of test jobs (ci.test_cost) by day, week or month, stacked by what the scope lists; $ with a rates file, each day priced at its own rate period.",
-  "Per day: a bar's hours over its days with data. Per commit: push-to-main hours over pushes to main (main runs every test).",
+  'Total: a bar is its days\' hours summed (a bar missing days reads low, marked "4 of 7"); A, B, the drill and their change read per bar of the rollup: a day, a week or a month, a partial bar counting as its share of days. Per commit: push-to-main hours over pushes to main (main runs every test).',
   "Owners are today's ownership map applied to every day (not kept per day yet). A machine is the job environment's, else the machine its runner label ran on most that week. No data before the first day shown.",
   "Picking periods: choose A or B (or press A, B), then click a bar to place it at its length, drag across bars to draw a longer one, drag an edge to stretch it or its label to move it. ← → move it, Shift+← → by its length, [ ] resize.",
 ].join("\n");
@@ -307,7 +308,9 @@ export default function TrendsPanel(props: TrendsPanelProps) {
   const liveRef = useRef<Selection | null>(null);
   const [pending, setPending] = useState<Selection | null>(null);
   const origin = useRef<Picker | null>(null);
-  const [legendFocus, setLegendFocus] = useState<number | null>(null);
+  // The hovered legend entry, by key id: an index would outlive a change of
+  // stacks (scope, split, rollup, unit) and point past the new keys.
+  const [legendFocus, setLegendFocus] = useState<string | null>(null);
   const [hoverSpan, setHoverSpan] = useState<DayRange | null>(null);
   const showMemory = useRef<Partial<Record<Rollup, number | null>>>({});
   const compareKey =
@@ -421,11 +424,11 @@ export default function TrendsPanel(props: TrendsPanelProps) {
       </KeyButton>
       <Box sx={{ width: 8 }} />
       <KeyButton
-        title="Per day: a bar's hours over its days with data"
+        title="Total: each bar's hours summed over its days"
         active={per === "day"}
         onClick={() => onQueryChange({ per: "day" })}
       >
-        Per day
+        Total
       </KeyButton>
       <KeyButton
         title="Per commit: push-to-main hours over pushes to main"
@@ -473,7 +476,7 @@ export default function TrendsPanel(props: TrendsPanelProps) {
   }
 
   const cu = costUnit(unit);
-  const perText = per === "day" ? "a day" : "per commit";
+  const perText = per === "day" ? rollupWord(rollup) : "per commit";
   const sideFacts = (s: Side) => {
     const r = sel[s];
     const t = spanTotals(folded, stacks, r);
@@ -510,10 +513,19 @@ export default function TrendsPanel(props: TrendsPanelProps) {
     const value = `${amount} ${perText}${
       priced === null ? "" : ` · ${priced}`
     }`;
+    // Total's side sum, on hover: what the head's A and B totals read.
+    const sumDays = unit === "usd" ? t.pricedDays : t.days;
+    const sum =
+      per === "day"
+        ? ` · ${approx ? "≈" : ""}${fineAmountLabel(
+            cu,
+            unit === "usd" ? t.usd : t.hours
+          )} over ${sumDays} ${sumDays === 1 ? "day" : "days"}`
+        : "";
     return {
       label: `${name} · ${value}`,
       short: `${name} · ${amount.replace(/ h$/, "")}`,
-      title: `${range} · ${value} · ${grip}`,
+      title: `${range} · ${value}${sum} · ${grip}`,
       value: t.value,
     };
   };
@@ -547,7 +559,11 @@ export default function TrendsPanel(props: TrendsPanelProps) {
           Math.round(change * 100)
         )}% vs A`
   }`;
-  const focus = legendFocus ?? stacks.lit;
+  const legendIndex =
+    legendFocus === null
+      ? -1
+      : stacks.keys.findIndex((key) => key.id === legendFocus);
+  const focus = legendIndex >= 0 ? legendIndex : stacks.lit;
   const legendKeys = stacks.keys
     .map((key, k) => ({ key, k }))
     .filter(({ k }) => stacks.keyTotals[k] > 0);
@@ -658,13 +674,13 @@ export default function TrendsPanel(props: TrendsPanelProps) {
             listStyle: "none",
           }}
         >
-          {legendKeys.map(({ key, k }) => {
+          {legendKeys.map(({ key }) => {
             const fill = paintFill(theme, key.paint);
             return (
               <Box
                 component="li"
                 key={key.id}
-                onMouseEnter={() => setLegendFocus(k)}
+                onMouseEnter={() => setLegendFocus(key.id)}
                 onMouseLeave={() => setLegendFocus(null)}
                 sx={{
                   display: "flex",

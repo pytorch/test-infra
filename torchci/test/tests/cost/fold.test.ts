@@ -4,13 +4,15 @@
 // counts days with data and pushes, says "n of N days", and the drawn
 // window starts at the first bar with data.
 
-import { addDays } from "lib/api/tests/cost/contracts";
+import { addDays, type Day } from "lib/api/tests/cost/contracts";
 import { CostTrendSchema } from "lib/api/tests/cost/types";
 import {
   barAt,
   daysNote,
   foldBars,
   isPartialBar,
+  rollupUnits,
+  rollupWord,
   seriesDayCells,
   trendDayCells,
 } from "lib/tests/cost/fold";
@@ -141,5 +143,57 @@ describe("foldBars", () => {
     expect(isPartialBar(fold.bars[1])).toBe(false);
     expect(isPartialBar(fold.bars[3])).toBe(true);
     expect(daysNote(fold.bars[3])).toBe("3 of 7 days so far");
+  });
+});
+
+// n days from a start, every day counted.
+const run = (from: Day, n: number): Day[] =>
+  Array.from({ length: n }, (_, i) => addDays(from, i));
+
+// What Total divides a side by: each counted day as its share of its bar.
+describe("rollupUnits", () => {
+  it("counts a day per day in Day view: per day as before", () => {
+    expect(rollupUnits("day", run("2026-11-02", 7))).toBe(7);
+    expect(rollupUnits("day", [])).toBe(0);
+    expect(rollupWord("day")).toBe("a day");
+  });
+
+  it("counts a whole Mon–Sun week as 1: a week is its total", () => {
+    expect(rollupUnits("week", run("2026-11-02", 7))).toBe(1);
+    expect(rollupWord("week")).toBe("a week");
+  });
+
+  it("counts two whole weeks as 2: their average week", () => {
+    expect(rollupUnits("week", run("2026-11-02", 14))).toBe(2);
+  });
+
+  it("counts a partial week as a whole week: it reads naturally lower", () => {
+    // Mon–Thu of the current week: one bar.
+    expect(rollupUnits("week", run("2026-11-16", 4))).toBe(1);
+    // Thu–Wed touches two weeks: two bars.
+    expect(rollupUnits("week", run("2026-11-05", 7))).toBe(2);
+    // A week missing its Wednesday is still one week.
+    const gap = run("2026-11-02", 7).filter((d) => d !== "2026-11-04");
+    expect(rollupUnits("week", gap)).toBe(1);
+  });
+
+  it("counts a whole month as 1, 31 days or 30", () => {
+    expect(rollupUnits("month", run("2026-10-01", 31))).toBe(1);
+    expect(rollupUnits("month", run("2026-11-01", 30))).toBe(1);
+    expect(rollupUnits("month", run("2026-02-01", 28))).toBe(1);
+    expect(rollupWord("month")).toBe("a month");
+    // 3 of October's 31 days and 19 of November's 30: two bars.
+    expect(
+      rollupUnits("month", [...run("2026-10-29", 3), ...run("2026-11-01", 19)])
+    ).toBe(2);
+  });
+
+  it("counts a bar with any priced day in $; a bar with none is left out", () => {
+    const priced = run("2026-11-02", 7).filter(
+      (d) => d !== "2026-11-07" && d !== "2026-11-08"
+    );
+    expect(rollupUnits("week", priced)).toBe(1);
+    // No priced day in the week: nothing to count.
+    expect(rollupUnits("week", [])).toBe(0);
   });
 });

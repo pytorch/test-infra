@@ -566,6 +566,7 @@ export interface DrillInput {
   query: DrillQuery;
   onQueryChange(patch: Partial<DrillQuery>): void;
   per: Per;
+  rollup: Rollup; // Total reads per bar of it: a day, a week, a month
   unit: Unit;
   pricer: Pricer | null;
   runnerHours: PreparedHours | undefined; // hues only

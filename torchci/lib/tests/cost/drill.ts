@@ -12,6 +12,7 @@ import {
   type Per,
   type Pill,
   type Pricer,
+  type Rollup,
   type ScopeBy,
   type ScopeChildInfo,
   type Unit,
@@ -20,7 +21,9 @@ import {
 import type { CostTrend } from "lib/api/tests/cost/types";
 import { testsPagePath } from "lib/api/tests/pages/parameters";
 import type { EnvironmentRecord, EnvVarsRecord } from "lib/api/tests/types";
+import { rollupUnits, rollupWord } from "lib/tests/cost/fold";
 import { fineAmountLabel } from "lib/tests/cost/query";
+import { pricedDays, pricingNotes } from "lib/tests/cost/ratePeriods";
 import { isBucket, ownerLabel } from "lib/tests/cost/runnerHours";
 import { niceTicks } from "lib/tests/cost/ticks";
 import { deltaLabel } from "lib/tests/cost/trend";
@@ -371,37 +374,49 @@ function addFigures(into: Figures, f: Figures): void {
   into.approx = into.approx || f.approx;
 }
 
-// What a side's per day and per commit divide by: its days with data and
-// their pushes to main; in $, only the priced days and their pushes.
+// What a side's figures divide by: its days with data, their bars of the
+// rollup (rollupUnits) and their pushes to main; in $, only the priced days
+// and their pushes, as pricedDays counts them.
 export interface SideDivisors {
   asked: number; // calendar days asked for
   days: number;
+  units: number; // rollupUnits of the days with data
   pushes: number;
   pricedDays: number;
+  pricedUnits: number; // rollupUnits of the priced days
   pricedPushes: number;
+  pricedNote: string | null; // "6 of 7 days priced" when some aren't
+  pricingNotes: string[]; // how its days were priced: borrowed, provisional
+  range: DayRange | null; // its first to last day with data
   filling: number;
 }
 export function sideDivisors(
   answer: CostScope,
   side: 0 | 1,
-  pricer: Pricer | null
+  pricer: Pricer | null,
+  rollup: Rollup = "day"
 ): SideDivisors {
   const s = answer.sides[side];
   const range = side === 0 ? answer.a : answer.b;
-  let pricedDays = 0;
-  let pricedPushes = 0;
-  s.days.forEach((day, i) => {
-    if (pricer !== null && pricer.dayKind(day) !== "gap") {
-      pricedDays += 1;
-      pricedPushes += s.pushes[i] ?? 0;
-    }
-  });
+  const priced = pricer === null ? null : pricedDays(pricer, s);
+  const n = s.days.length;
   return {
     asked: daysIn(range),
-    days: s.days.length,
+    days: n,
+    units: rollupUnits(rollup, s.days),
     pushes: s.pushes.reduce((t, p) => t + p, 0),
-    pricedDays,
-    pricedPushes,
+    pricedDays: priced?.days ?? 0,
+    pricedUnits:
+      pricer === null
+        ? 0
+        : rollupUnits(
+            rollup,
+            s.days.filter((d) => pricer.dayKind(d) !== "gap")
+          ),
+    pricedPushes: priced?.pushes ?? 0,
+    pricedNote: priced?.note ?? null,
+    pricingNotes: pricer === null ? [] : pricingNotes(pricer, s.days).lines,
+    range: n === 0 ? null : { from: s.days[0], to: s.days[n - 1] },
     filling: s.filling.length,
   };
 }
@@ -417,7 +432,8 @@ export interface LevelFigures {
 }
 export function levelFigures(
   answer: CostScope,
-  pricer: Pricer | null
+  pricer: Pricer | null,
+  rollup: Rollup = "day"
 ): LevelFigures {
   const children = answer.children.map(
     () => [noFigures(), noFigures()] as [Figures, Figures]
@@ -469,34 +485,70 @@ export function levelFigures(
     children,
     total,
     divisors: [
-      sideDivisors(answer, 0, pricer),
-      sideDivisors(answer, 1, pricer),
+      sideDivisors(answer, 0, pricer, rollup),
+      sideDivisors(answer, 1, pricer, rollup),
     ],
     tests,
   };
 }
 
-// A side's figure in the unit and per, null where it can't be said: no days
-// (no data), no pushes, or in $ hours with no price.
+// What a figure is per: a bar of the rollup (Total; a day in Day view), a
+// day with data, or a commit.
+export type Basis = "unit" | "day" | "commit";
+export const basisOf = (per: Per): Basis => (per === "day" ? "unit" : "commit");
+
+// A side's figure in the unit and basis, null where it can't be said: no
+// days (no data), no pushes, or in $ hours with no price.
 export function shownValue(
   f: Figures,
   d: SideDivisors,
   unit: Unit,
-  per: Per
+  basis: Basis
 ): number | null {
   if (d.days === 0) return null;
+  const unitBasis = basis === "unit";
   if (unit === "hours") {
-    if (per === "day") return f.h / d.days;
+    if (basis !== "commit") return f.h / (unitBasis ? d.units : d.days);
     return d.pushes > 0 ? f.mainH / d.pushes : null;
   }
-  if (per === "day") {
+  if (basis !== "commit") {
     if (f.h === 0) return 0;
-    return d.pricedDays > 0 && f.unpricedH < f.h ? f.usd / d.pricedDays : null;
+    const by = unitBasis ? d.pricedUnits : d.pricedDays;
+    return by > 0 && f.unpricedH < f.h ? f.usd / by : null;
   }
   if (f.mainH === 0) return d.pricedPushes > 0 ? 0 : null;
   return d.pricedPushes > 0 && f.unpricedMainH < f.mainH
     ? f.mainUsd / d.pricedPushes
     : null;
+}
+
+// A side's total over the days its per day divides by: every day with data
+// in hours, the priced ones in $. Per day × those days, so the two never
+// disagree, and blank where per day is. Whatever the per.
+export interface SideTotal {
+  value: number | null;
+  blank: string; // what a null reads, as per day's
+  approx: boolean; // ≈: a rate inexact or borrowed, or days left unpriced
+  days: string; // what it covers: "7 days", "1 day", "6 of 7 days priced"
+  range: DayRange | null; // first to last day with data
+  notes: string[]; // $: how its days were priced
+}
+export function sideTotal(f: Figures, d: SideDivisors, unit: Unit): SideTotal {
+  const usd = unit === "usd";
+  const value =
+    shownValue(f, d, unit, "day") === null ? null : usd ? f.usd : f.h;
+  // A side with no hours is $0 however its days were priced.
+  const partial = usd && f.h > 0 && d.pricedNote !== null;
+  return {
+    value,
+    blank: blankText(f, d, unit, "day"),
+    approx: value !== null && usd && (f.approx || partial),
+    days: partial
+      ? (d.pricedNote as string)
+      : `${d.days} ${d.days === 1 ? "day" : "days"}`,
+    range: d.range,
+    notes: usd ? d.pricingNotes : [],
+  };
 }
 
 // ── Rows ──
@@ -507,7 +559,7 @@ export interface DrillRow {
   detail: string; // muted: a file's directory, a lane's workflow
   bucket: boolean;
   info: ScopeChildInfo;
-  a: number | null; // A in the unit and per; null = no data / unpriced
+  a: number | null; // A in the unit, per bar of the rollup or per commit; null = no data / unpriced
   b: number | null;
   // What a null side reads: "no data" (no days), "no rates" ($ and none of
   // its hours priced), "–" (nothing to divide by).
@@ -519,7 +571,9 @@ export interface DrillRow {
   approxA: boolean; // ≈: a rate on that side inexact or borrowed
   approxB: boolean;
   unpricedH: number; // A + B hours with no price ($ only)
-  other: { a: number | null; b: number | null }; // the other per
+  other: { a: number | null; b: number | null }; // the other per (per commit, or per day)
+  daily: { a: number | null; b: number | null }; // per day, whatever the per
+  totals: { a: SideTotal; b: SideTotal }; // over each side, whatever the per
   notOnMain: boolean; // no push:main hours on either side
   hidden: boolean;
   tests: { a: number; b: number; skippedA: number; skippedB: number } | null; // per day
@@ -530,6 +584,7 @@ export interface LevelView {
   answer: CostScope;
   unit: Unit; // hours without a pricer
   per: Per;
+  rollup: Rollup; // what Total is per
   figures: LevelFigures;
   rows: DrillRow[]; // every child, in answer order
   total: DrillRow;
@@ -542,12 +597,12 @@ export function blankText(
   f: Figures,
   d: SideDivisors,
   unit: Unit,
-  per: Per
+  basis: Basis
 ): string {
   if (d.days === 0) return "no data";
   if (unit === "usd") {
     const unpriced =
-      per === "day"
+      basis !== "commit"
         ? d.pricedDays === 0 || (f.h > 0 && f.unpricedH >= f.h)
         : d.pricedPushes === 0 || (f.mainH > 0 && f.unpricedMainH >= f.mainH);
     if (unpriced) return "no rates";
@@ -565,8 +620,9 @@ function rowOf(
   per: Per,
   extra: Pick<DrillRow, "tests" | "labels">
 ): DrillRow {
-  const a = shownValue(fa, divisors[0], unit, per);
-  const b = shownValue(fb, divisors[1], unit, per);
+  const basis = basisOf(per);
+  const a = shownValue(fa, divisors[0], unit, basis);
+  const b = shownValue(fb, divisors[1], unit, basis);
   const otherPer: Per = per === "day" ? "commit" : "day";
   const hoursA = shownValue(fa, divisors[0], "hours", per) ?? 0;
   const hoursB = shownValue(fb, divisors[1], "hours", per) ?? 0;
@@ -581,8 +637,8 @@ function rowOf(
     info,
     a,
     b,
-    blankA: blankText(fa, divisors[0], unit, per),
-    blankB: blankText(fb, divisors[1], unit, per),
+    blankA: blankText(fa, divisors[0], unit, basis),
+    blankB: blankText(fb, divisors[1], unit, basis),
     delta: a === null || b === null ? null : b - a,
     pct: a === null || b === null || a === 0 ? null : (b - a) / a,
     approx: unit === "usd" && (fa.approx || fb.approx),
@@ -593,6 +649,14 @@ function rowOf(
       a: shownValue(fa, divisors[0], unit, otherPer),
       b: shownValue(fb, divisors[1], unit, otherPer),
     },
+    daily: {
+      a: shownValue(fa, divisors[0], unit, "day"),
+      b: shownValue(fb, divisors[1], unit, "day"),
+    },
+    totals: {
+      a: sideTotal(fa, divisors[0], unit),
+      b: sideTotal(fb, divisors[1], unit),
+    },
     notOnMain: fa.mainH === 0 && fb.mainH === 0,
     hidden: hoursA < floor && hoursB < floor,
     ...extra,
@@ -600,13 +664,15 @@ function rowOf(
 }
 
 // An answer's rows in the unit and per: every child (hidden ones marked) and
-// the total. by=f|lane rows carry test time a day from test_cost.
+// the total, Total per bar of the rollup (per day in Day view). by=f|lane
+// rows carry test time a day from test_cost.
 export function levelView(
   answer: CostScope,
-  opts: { unit: Unit; per: Per; pricer: Pricer | null }
+  opts: { unit: Unit; per: Per; pricer: Pricer | null; rollup?: Rollup }
 ): LevelView {
   const unit = opts.pricer === null ? "hours" : opts.unit;
-  const figures = levelFigures(answer, opts.pricer);
+  const rollup = opts.rollup ?? "day";
+  const figures = levelFigures(answer, opts.pricer, rollup);
   const [da, db] = figures.divisors;
   const labelsB = answer.children.map(() => new Map<number, number>());
   if (answer.by === "lane" || answer.by === "label") {
@@ -673,6 +739,7 @@ export function levelView(
     answer,
     unit,
     per: opts.per,
+    rollup,
     figures,
     rows,
     total,
@@ -937,11 +1004,15 @@ export function arrowText(
 ): string {
   return `${valueText(unit, a)} → ${valueText(unit, b)}`;
 }
-export function perWord(per: Per): string {
-  return per === "day" ? "a day" : "per commit";
+export function perWord(per: Per, rollup: Rollup = "day"): string {
+  return per === "day" ? rollupWord(rollup) : "per commit";
 }
-export function unitWords(unit: Unit, per: Per): string {
-  return `${unit === "usd" ? "$" : "runner-hours"} ${perWord(per)}`;
+export function unitWords(
+  unit: Unit,
+  per: Per,
+  rollup: Rollup = "day"
+): string {
+  return `${unit === "usd" ? "$" : "runner-hours"} ${perWord(per, rollup)}`;
 }
 
 // ── Scales ──
@@ -1051,12 +1122,13 @@ export function changeSentence(opts: {
   children: readonly DrillRow[];
   unit: Unit;
   per: Per;
+  rollup?: Rollup;
   aHasDays: boolean;
 }): Phrase[] | null {
   const { scope, unit, per } = opts;
   if (!opts.aHasDays || scope.a === null || scope.b === null) return null;
   const d = scope.b - scope.a;
-  const words = perWord(per);
+  const words = perWord(per, opts.rollup);
   const out: Phrase[] = [{ text: opts.name, strong: true }];
   if (scope.a === 0 && scope.b === 0) return null;
   if (scope.a > 0 && Math.abs(d / scope.a) < 0.005) {

@@ -217,6 +217,50 @@ describe("TrendsPanel under SSR", () => {
     expect(text).toContain("B · 11.8K h a day");
     expect(text).toContain("Nov 18 is still filling");
   });
+
+  it("reads week bars as totals and A and B a week (the live inductor answer)", () => {
+    const series = SERIES_OWNER as unknown as CostSeries;
+    const end = "2026-11-19";
+    const c = {
+      ...ctx,
+      end,
+      lastFull: "2026-11-18",
+      days: new Set(series.days),
+      filling: new Set(["2026-11-18"]),
+      firstDay: series.days[0],
+    };
+    const q = query({
+      rollup: "week",
+      a: { from: "2026-11-02", to: "2026-11-08" },
+      b: { from: "2026-11-09", to: "2026-11-15" },
+    });
+    const text = words(
+      renderToStaticMarkup(
+        <TrendsPanel
+          {...props({
+            context: c,
+            query: q,
+            compare: resolveCompare(q, c),
+            scope: {
+              ...ROOT,
+              trail: [{ dim: "o", value: "inductor" }],
+              by: "m",
+              fromTrend: false,
+            },
+            series,
+          })}
+        />
+      )
+    );
+    // Whole weeks: a week is the week's sum, 121.5K → 82.8K h (−32%).
+    expect(text).toContain("A · 121.5K h a week");
+    expect(text).toContain("B · 82.8K h a week");
+    expect(text).toContain("▼ 32% vs A");
+    // The axis is in the bars' unit: week sums reach past 100K h.
+    expect(text).toMatch(/\b1[0-9]0K h\b/);
+    expect(text).toContain("Total Per commit");
+    expect(text).not.toContain("Per day");
+  });
 });
 
 // A node with a box: 960 px wide, so 42 bars of (960 − 64) / 42 px.

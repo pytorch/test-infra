@@ -2,8 +2,9 @@
 // /cases answers (SWR fallback keyed by the URLs useDrill asks), read as
 // words: the trail's pills, the head, the table's total, rows and fold line,
 // the canvas header, the file level's cases button, the cases panel, the
-// too-big gate that offers one environment instead of a table, and rows
-// opened in place.
+// too-big gate that offers one environment instead of a table, rows opened
+// in place, and the head's totals in hours and in $ with the FAKE weekly
+// rates.
 
 import DrillTable from "components/tests/cost/drill/DrillTable";
 import ScopeHead from "components/tests/cost/drill/ScopeHead";
@@ -24,9 +25,13 @@ import {
   type CostScope,
   costScopeUrl,
   type DrillQuery,
+  type Per,
   type Pill,
+  type Pricer,
+  type Rollup,
   type ScopeBy,
   type TrendContext,
+  type Unit,
 } from "lib/api/tests/cost/contracts";
 import {
   amount,
@@ -37,6 +42,9 @@ import {
   type MachineOpens,
   rowByKey,
 } from "lib/tests/cost/drill";
+import { makePricer, parseRatesFiles } from "lib/tests/cost/ratePeriods";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { act, create } from "react-test-renderer";
@@ -96,14 +104,23 @@ const QUERY: DrillQuery = {
   rank: null,
 };
 
+interface Pricing {
+  unit?: Unit;
+  per?: Per;
+  rollup?: Rollup;
+  pricer?: Pricer | null;
+}
+
 function Inner({
   query,
   part,
   onQueryChange = () => {},
+  pricing = {},
 }: {
   query: DrillQuery;
   part: (_drill: DrillModel) => ReactNode;
   onQueryChange?: (_patch: Partial<DrillQuery>) => void;
+  pricing?: Pricing;
 }) {
   const drill = useDrill({
     repo: REPO,
@@ -112,9 +129,10 @@ function Inner({
     context,
     query,
     onQueryChange,
-    per: "day",
-    unit: "hours",
-    pricer: null,
+    per: pricing.per ?? "day",
+    rollup: pricing.rollup ?? "day",
+    unit: pricing.unit ?? "hours",
+    pricer: pricing.pricer ?? null,
     runnerHours: undefined,
   });
   return <>{part(drill)}</>;
@@ -122,11 +140,12 @@ function Inner({
 
 function render(
   patch: Partial<DrillQuery>,
-  part: (_drill: DrillModel) => ReactNode
+  part: (_drill: DrillModel) => ReactNode,
+  pricing: Pricing = {}
 ): string {
   return renderToStaticMarkup(
     <SWRConfig value={{ provider: () => new Map(), fallback: FALLBACK }}>
-      <Inner query={{ ...QUERY, ...patch }} part={part} />
+      <Inner query={{ ...QUERY, ...patch }} part={part} pricing={pricing} />
     </SWRConfig>
   );
 }
@@ -289,6 +308,92 @@ describe("drill components (SSR)", () => {
         "PR merge signals",
       ]) {
         expect(w).not.toContain(gone);
+      }
+    }
+  });
+
+  test("the head's totals: each side over its days, after both per days, with its days in the title", () => {
+    const head = (drill: DrillModel) => <ScopeHead drill={drill} />;
+    const html = render({}, head);
+    const w = words(html);
+    expect(w).toContain("B total 307.1K h · 7 days");
+    expect(w).toContain("A total 355K h · 7 days");
+    const at = (s: string) => w.indexOf(s);
+    expect(at("B per day")).toBeLessThan(at("A per day"));
+    expect(at("A per day")).toBeLessThan(at("B total"));
+    expect(at("B total")).toBeLessThan(at("A total"));
+    expect(at("A total")).toBeLessThan(at("Per commit"));
+    // Day view: per day is the first chips' own, no chip of its own.
+    expect(w).not.toMatch(/ Per day /);
+    expect(html).toContain('title="Nov 12–18"');
+    expect(html).toContain('title="Nov 5–11"');
+    // Per commit: still totals.
+    const commit = words(render({}, head, { per: "commit" }));
+    expect(commit).toContain("B per commit");
+    expect(commit).toContain("B total 307.1K h · 7 days");
+    // A scope's own, one level down.
+    expect(words(render({ trail: [IND] }, head))).toMatch(
+      /B total \S+ h · 7 days .*A total \S+ h · 7 days/
+    );
+  });
+
+  test("the head, band and pill read per bar of the rollup: a week, a month", () => {
+    const head = (drill: DrillModel) => <ScopeHead drill={drill} />;
+    // A (Nov 5–11) and B (Nov 12–18) each straddle two Mon–Sun weeks, 4 and
+    // 3 of 7 days: one week's worth each, so a week is the side's total.
+    const week = words(render({}, head, { rollup: "week" }));
+    // A and B (Thu–Wed) each touch two weeks: their average week.
+    expect(week).toMatch(/B a week 153\.5K h ▼ −23\.9K h ▼ −13%/);
+    expect(week).toContain("A a week 177.5K h");
+    expect(week).toContain("B total 307.1K h · 7 days");
+    expect(week).toMatch(/Per day 50\.7K h → 43\.9K h/);
+    const at = (s: string) => week.indexOf(s);
+    expect(at("A a week")).toBeLessThan(at("B total"));
+    expect(at("A total")).toBeLessThan(at("Per day"));
+    expect(at("Per day")).toBeLessThan(at("Per commit"));
+    expect(words(render({}, all, { rollup: "week" }))).toContain(
+      "Owners · runner-hours a week"
+    );
+    // A month: 7 of November's 30 days, so 30/7 of the total; the % holds
+    // since both sides sit in one month.
+    const month = words(render({}, head, { rollup: "month" }));
+    // Each side sits in one month: the month's sum so far.
+    expect(month).toMatch(/B a month 307\.1K h ▼ −47\.9K h ▼ −13%/);
+    expect(month).toContain("A a month 355K h");
+    expect(month).toContain("fell 47.9K h a month (−13%) from A to B");
+    expect(month).toContain("B total 307.1K h · 7 days");
+    // Per commit doesn't follow the rollup.
+    const commit = words(render({}, head, { rollup: "week", per: "commit" }));
+    expect(commit).toContain("B per commit");
+    expect(commit).not.toContain("a week");
+  });
+
+  test("the head's totals in $ with the FAKE weekly rates: ≈ for borrowed or unpriced days, 3 of 7 days priced", () => {
+    const fake = (name: string) => ({
+      name,
+      text: readFileSync(join(__dirname, name), "utf8"),
+    });
+    const head = (drill: DrillModel) => <ScopeHead drill={drill} />;
+    const root = ROOT as unknown as CostScope;
+    for (const [files, aDays] of [
+      [["rates_FAKE_weekly.json", "rates_FAKE_weekly.meta.json"], "7 days"],
+      [["rates_FAKE_weekly_gap.json"], "3 of 7 days priced"],
+    ] as const) {
+      const pricer = makePricer(parseRatesFiles(files.map(fake)), "2026-11-19");
+      const { a, b } = levelView(root, { unit: "usd", per: "day", pricer })
+        .total.totals;
+      const approxA = aDays === "7 days" ? "" : "≈";
+      for (const per of ["day", "commit"] as const) {
+        const html = render({}, head, { unit: "usd", per, pricer });
+        const w = words(html);
+        expect(w).toContain(
+          `B total ≈${amount("usd", b.value as number)} · 7 days`
+        );
+        expect(w).toContain(
+          `A total ${approxA}${amount("usd", a.value as number)} · ${aDays}`
+        );
+        // B's title says how its last days were priced.
+        expect(html).toMatch(/title="Nov 12–18\n≈ priced with Nov 9–15 rates/);
       }
     }
   });
