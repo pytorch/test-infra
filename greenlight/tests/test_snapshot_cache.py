@@ -45,6 +45,7 @@ def _cache(
 ) -> SnapshotCache[Any, merge_authz.MergeRulesSnapshot]:
     return SnapshotCache(
         fetch,
+        label="merge rules of pytorch/x",
         ttl_seconds=ttl,
         max_stale_seconds=max_stale,
         stale_on_broken=stale_on_broken,
@@ -168,7 +169,9 @@ def test_cache_serves_stale_on_a_transient_failure_within_the_bound(caplog, erro
         assert cache.snapshot(_Client).authorized == frozenset({"good"})
 
     assert cache.stale_error is error
-    assert "(transient); serving the snapshot fetched 700s ago" in caplog.text
+    assert (
+        "refresh of merge rules of pytorch/x failed (transient); serving the snapshot fetched 700s ago" in caplog.text
+    )
     assert any(record.exc_info is not None for record in caplog.records)
 
 

@@ -221,7 +221,13 @@ def test_drain_passes_are_numbered_and_end_or_clear_forgets_the_current_one():
 
     first = memory.start_drain_pass(_STARTED, None)
     assert memory.drain_pass() is first
-    assert (first.number, first.started_at, first.blocker, first.cursor) == (1, _STARTED, None, None)
+    assert (first.number, first.started_at, first.blocker, first.checked, first.attempted) == (
+        1,
+        _STARTED,
+        None,
+        set(),
+        {},
+    )
     memory.end_drain_pass()
     assert memory.drain_pass() is None
 
@@ -231,16 +237,23 @@ def test_drain_passes_are_numbered_and_end_or_clear_forgets_the_current_one():
     assert memory.drain_pass() is None
 
 
-def test_a_drain_pass_remembers_a_clean_pr_only_once_its_updated_at_is_quiet():
+def test_a_drain_pass_orders_unattempted_prs_recorded_first_then_attempted_ones_oldest_attempt_first():
+    current = ScanMemory().start_drain_pass(_STARTED, None, recorded=frozenset({6, 9}))
+    current.attempt(2)
+    current.attempt(9)
+    current.attempt(4)
+    current.attempt(2)
+    current.checked.add(4)
+
+    assert current.pending([1, 2, 3, 4, 5, 6, 7, 8, 9]) == [6, 1, 3, 5, 7, 8, 9, 2]
+    assert current.attempted == {2: 4, 9: 2, 4: 3}
+    assert current.attempts == 4
+
+
+def test_a_checked_pr_is_never_pending_again_in_its_pass():
     current = ScanMemory().start_drain_pass(_STARTED, None)
-    quiet = _STARTED - FINGERPRINT_QUIET
-    young = _STARTED - FINGERPRINT_QUIET + timedelta(seconds=1)
+    current.attempt(1)
+    current.checked.add(1)
 
-    current.remember_clean(1, quiet, _STARTED)
-    current.remember_clean(2, young, _STARTED)
-    current.remember_clean(3, None, _STARTED)
-
-    assert current.is_clean(1, quiet)
-    assert not current.is_clean(1, quiet + timedelta(seconds=1))
-    assert not current.is_clean(2, young)
-    assert not current.is_clean(3, None)
+    assert current.pending([1]) == []
+    assert current.pending([1, 2]) == [2]

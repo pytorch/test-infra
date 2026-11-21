@@ -37,6 +37,7 @@ def test_defaults_when_env_empty():
     assert cfg.review_window_hours == 24.0
     assert cfg.drci_poke_delay_seconds == 10.0
     assert cfg.github_token is None
+    assert cfg.dispatch_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
     assert cfg == Config()
@@ -70,6 +71,7 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS": "48",
         "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS": "3",
         "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
+        "PYTORCH_GREENLIGHT_DISPATCH_TOKEN": "ghs_dispatch",
         "PYTORCH_GREENLIGHT_DRCI_TOKEN": "drci-key",
         "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN": "hud-key",
     }
@@ -84,6 +86,7 @@ def test_from_env_parses_all_vars():
     assert cfg.review_window_hours == 48.0
     assert cfg.drci_poke_delay_seconds == 3.0
     assert cfg.github_token == "ghp_abc123"
+    assert cfg.dispatch_token == "ghs_dispatch"
     assert cfg.drci_token == "drci-key"
     assert cfg.drci_internal_token == "hud-key"
 
@@ -98,6 +101,20 @@ def test_blank_lock_path_becomes_none(blank):
 def test_blank_github_token_becomes_none(blank):
     cfg = Config.from_env({"PYTORCH_GREENLIGHT_GITHUB_TOKEN": blank})
     assert cfg.github_token is None
+
+
+@pytest.mark.parametrize("blank", BLANK_VALUES)
+def test_blank_dispatch_token_becomes_none(blank):
+    assert Config.from_env({"PYTORCH_GREENLIGHT_DISPATCH_TOKEN": blank}).dispatch_token is None
+    assert Config(dispatch_token=blank).dispatch_token is None
+
+
+def test_the_dispatch_repo_token_is_the_dispatch_token_else_the_scan_token():
+    assert Config(github_token="scan", dispatch_token="dispatch").dispatch_or_scan_token == "dispatch"
+    assert Config(github_token="scan").dispatch_or_scan_token == "scan"
+    assert Config(dispatch_token="dispatch").dispatch_or_scan_token == "dispatch"
+    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN is required"):
+        _ = Config().dispatch_or_scan_token
 
 
 @pytest.mark.parametrize("var", ["PYTORCH_GREENLIGHT_DRCI_TOKEN", "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN"])
@@ -127,6 +144,11 @@ def test_github_token_with_surrounding_spaces_preserved_unstripped():
 def test_github_token_excluded_from_repr():
     cfg = Config(github_token="secret-xyz")
     assert "secret-xyz" not in repr(cfg)
+
+
+def test_dispatch_token_excluded_from_repr():
+    cfg = Config(dispatch_token="dispatch-secret")
+    assert "dispatch-secret" not in repr(cfg)
 
 
 def test_drci_tokens_excluded_from_repr():

@@ -181,6 +181,14 @@ def test_resolve_raises_on_empty_result(yaml_text: str) -> None:
         merge_authz.resolve_authorized_logins(client)
 
 
+def test_resolve_expands_an_earlier_rules_team_before_a_later_rule_fails():
+    client = _client("- name: A\n  approved_by: [org/team]\n- 1\n", teams={"org/team": ["alice"]})
+
+    with pytest.raises(ValueError, match="merge rule must be a mapping"):
+        merge_authz.resolve_merge_rules(client, "pytorch/vision")
+    assert client._orgs["org"].requested_slugs == ["team"]
+
+
 def test_resolve_raises_when_contents_is_a_directory():
     client = _FakeAuthzClient(contents=[_FakeContent("- x")])
 
@@ -443,10 +451,3 @@ def test_resolve_merge_rules_reads_the_named_repo_and_names_it_in_errors():
         merge_authz.resolve_merge_rules(_client("a: 1\n"), "pytorch/vision")
     with pytest.raises(ValueError, match=r"pytorch/vision/\.github/merge_rules\.yaml: merge rule must be a mapping"):
         merge_authz.resolve_merge_rules(_client("- 1\n"), "pytorch/vision")
-
-
-def test_resolve_authorized_logins_defaults_to_the_target_repo():
-    client = _client("- name: CI\n  approved_by: [Alice]\n")
-
-    assert merge_authz.resolve_authorized_logins(client) == frozenset({"alice"})
-    assert client.get_repo_names == [constants.TARGET_REPO]

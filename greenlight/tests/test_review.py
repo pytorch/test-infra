@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import itertools
 import logging
 import queue
@@ -236,6 +237,7 @@ class _Scan:
     updated_calls: list[datetime]
     error: Exception | None
     repos_seen: set[str] = field(default_factory=set)
+    returned: int | None = None
 
 
 def _run_scan(
@@ -273,6 +275,7 @@ def _run_scan(
     label_prs: Callable[[verdict_labels.LabelPass], None] | None = None,
     entry: RepoEntry = BUILTIN_PYTORCH,
     optional: bool = True,
+    cancel_event: threading.Event | None = None,
 ) -> _Scan:
     states = states or {}
     repos_seen: set[str] = set()
@@ -402,37 +405,43 @@ def _run_scan(
         if label_prs is not None:
             label_prs(label_pass)
 
+    returned: list[int] = []
+
     def scan() -> None:
-        review.run(
-            make_config(github_token="t", **(config_kwargs or {})),
-            entry=entry,
-            optional=optional,
-            pr=pr,
-            max_dispatches=max_dispatches,
-            ref=ref,
-            timeout_minutes=timeout_minutes,
-            force=force,
-            requester=requester,
-            allow_untrusted_author=allow_untrusted_author,
-            bot_login=bot_login,
-            build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=fake_fetch,
-            fetch_updated=fake_fetch_updated,
-            fetch_labels=fake_fetch_labels,
-            fingerprint=fake_fingerprint,
-            read_state=fake_read_state,
-            read_reverted=fake_read_reverted,
-            dispatch=fake_dispatch,
-            emit_dispatched=fake_emit,
-            emit_reverted=fake_emit_reverted,
-            poke_drci=fake_poke,
-            get_pr=fake_get_pr,
-            dismiss_approvals=fake_dismiss,
-            upsert_comment=fake_upsert,
-            label_prs=_no_label_pass if label_prs is None else fake_label_prs,
-            resolve_merge_rules=fake_resolve_merge_rules,
-            now=clock or (lambda: now),
-            memory=memory,
+        returned.append(
+            review.run(
+                make_config(github_token="t", **(config_kwargs or {})),
+                entry=entry,
+                optional=optional,
+                pr=pr,
+                max_dispatches=max_dispatches,
+                ref=ref,
+                timeout_minutes=timeout_minutes,
+                force=force,
+                requester=requester,
+                allow_untrusted_author=allow_untrusted_author,
+                bot_login=bot_login,
+                build_github=lambda _token, **_kwargs: _CLIENT,
+                fetch=fake_fetch,
+                fetch_updated=fake_fetch_updated,
+                fetch_labels=fake_fetch_labels,
+                fingerprint=fake_fingerprint,
+                read_state=fake_read_state,
+                read_reverted=fake_read_reverted,
+                dispatch=fake_dispatch,
+                emit_dispatched=fake_emit,
+                emit_reverted=fake_emit_reverted,
+                poke_drci=fake_poke,
+                get_pr=fake_get_pr,
+                dismiss_approvals=fake_dismiss,
+                upsert_comment=fake_upsert,
+                label_prs=_no_label_pass if label_prs is None else fake_label_prs,
+                resolve_merge_rules=fake_resolve_merge_rules,
+                dispatch_token="t",
+                now=clock or (lambda: now),
+                memory=memory,
+                cancel_event=cancel_event,
+            )
         )
 
     # A pass that must fail is still observed: every fake has recorded into the lists by the time
@@ -468,6 +477,7 @@ def _run_scan(
         reverted_shadow=reverted_shadow,
         updated_calls=updated_calls,
         error=error,
+        returned=returned[0] if returned else None,
         repos_seen=repos_seen,
     )
 
@@ -1092,6 +1102,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             dispatch=fake_dispatch,
             label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1327,6 +1338,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1427,6 +1439,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
             dispatch=fake_dispatch,
             label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1463,6 +1476,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
             dispatch=fake_dispatch,
             label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1496,6 +1510,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
             dispatch=boom_dispatch,
             label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1527,6 +1542,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
             dispatch=boom_dispatch,
             label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1553,6 +1569,7 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
             read_reverted=_no_reverted,
             dispatch=timeout_dispatch,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1586,6 +1603,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
             dispatch=boom_dispatch,
             label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1636,6 +1654,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
         dispatch=fake_dispatch,
         label_prs=_no_label_pass,
         resolve_merge_rules=_merge_rules,
+        dispatch_token="t",
         now=lambda: _NOW,
     )
 
@@ -1680,6 +1699,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
         dispatch=fake_dispatch,
         label_prs=_no_label_pass,
         resolve_merge_rules=_merge_rules,
+        dispatch_token="t",
         now=lambda: _NOW,
     )
 
@@ -1721,6 +1741,7 @@ def test_run_closes_main_and_worker_clients(make_config):
         dispatch=lambda *_args, **_kwargs: None,
         label_prs=_no_label_pass,
         resolve_merge_rules=_merge_rules,
+        dispatch_token="t",
         now=lambda: _NOW,
     )
 
@@ -1790,6 +1811,7 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, ca
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1838,6 +1860,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
             dispatch=fake_dispatch,
             poke_drci=record_poke,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1890,6 +1913,7 @@ def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, m
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1932,6 +1956,7 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1968,6 +1993,7 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
             dispatch=fake_dispatch,
             label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -1993,6 +2019,7 @@ def test_fetch_failure_still_closes_main_client(make_config):
             read_reverted=_no_reverted,
             dispatch=lambda *_args, **_kwargs: None,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -2046,7 +2073,7 @@ def test_per_pr_listing_detail_is_below_info(make_config, caplog):
 
 def test_run_without_token_raises(make_config):
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        review.run(make_config(github_token=None), resolve_merge_rules=_merge_rules)
+        review.run(make_config(github_token=None), resolve_merge_rules=_merge_rules, dispatch_token=None)
 
 
 def test_run_missing_token_never_resolves_the_merge_rules(make_config):
@@ -2057,7 +2084,7 @@ def test_run_missing_token_never_resolves_the_merge_rules(make_config):
         return _SNAPSHOT
 
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        review.run(make_config(github_token=None), resolve_merge_rules=counting_rules)
+        review.run(make_config(github_token=None), resolve_merge_rules=counting_rules, dispatch_token=None)
 
     # The token check precedes the resolution, so a tokenless scan never builds a client -- it
     # fails fast on the cheaper local check.
@@ -2086,6 +2113,7 @@ def test_run_cold_merge_rules_failure_propagates(make_config):
             read_reverted=_no_reverted,
             dispatch=lambda *_args, **_kwargs: None,
             resolve_merge_rules=boom_resolve,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
     assert fetched == []
@@ -3377,6 +3405,7 @@ def test_the_label_pass_reads_a_pr_through_the_get_pr_seam_on_the_scans_main_cli
         get_pr=recording_get_pr,
         label_prs=passes.append,
         resolve_merge_rules=_merge_rules,
+        dispatch_token="t",
         now=lambda: _NOW,
     )
 
@@ -3434,6 +3463,7 @@ def test_prs_that_failed_still_get_the_label_pass_and_the_scan_raises_after_it(m
             dispatch=boom_dispatch,
             label_prs=passes.append,
             resolve_merge_rules=_merge_rules,
+            dispatch_token="t",
             now=lambda: _NOW,
         )
 
@@ -3594,4 +3624,99 @@ def test_the_review_refuses_a_repo_that_is_off(make_config):
             make_config(github_token="t"),
             entry=replace(_VISION, mode="off"),
             resolve_merge_rules=lambda: _SNAPSHOT,
+            dispatch_token="t",
         )
+
+
+def test_a_scan_returns_how_many_reviews_it_dispatched(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2), _open_pr(3)],
+        fingerprints={number: (f"headsha{number}", _HASH_A) for number in (1, 2, 3)},
+        max_dispatches=2,
+    )
+
+    assert len(scan.dispatched) == 2
+    assert scan.returned == 2
+
+
+def test_a_scan_stopped_before_its_listing_returns_zero(make_config):
+    scan = _run_scan(make_config, listed=[_open_pr(1)], fingerprints={}, requester="mallory")
+
+    assert scan.listed_calls == 0
+    assert scan.returned == 0
+
+
+def test_a_rate_limit_in_the_safety_work_sets_the_cancel_event_it_was_given(make_config):
+    from github import RateLimitExceededException
+
+    cancel_event = threading.Event()
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",)), _open_pr(2, updated_at=_NEW)],
+        fingerprints={2: ("headsha2", _HASH_A)},
+        bot_login=_APP_BOT,
+        dismiss_errors={1: RateLimitExceededException(403)},
+        cancel_event=cancel_event,
+        raises=RuntimeError,
+    )
+
+    assert cancel_event.is_set()
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+
+
+def test_a_cancel_event_set_before_the_scan_fingerprints_and_dispatches_nothing(make_config):
+    cancel_event = threading.Event()
+    cancel_event.set()
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={number: (f"headsha{number}", _HASH_A) for number in (1, 2)},
+        cancel_event=cancel_event,
+        raises=RuntimeError,
+    )
+
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "2 PR(s) abandoned due to rate limit: [1, 2]" in str(scan.error)
+
+
+def _prepared_scan(make_config: Callable[..., Config], **kwargs: Any) -> review_finish.PreparedScan:
+    kwargs.setdefault("dispatch_token", "t")
+    with contextlib.ExitStack() as stack:
+        prepared = review.prepare(
+            make_config(github_token="t"),
+            entry=BUILTIN_PYTORCH,
+            stack=stack,
+            build_github=lambda _token, **_kwargs: _CLIENT,
+            fetch=lambda _client, _repo, _authors: [],
+            read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
+            resolve_merge_rules=_merge_rules,
+            now=lambda: _NOW,
+            **kwargs,
+        )
+    assert prepared is not None
+    return prepared
+
+
+def test_prepare_keeps_the_cancel_event_and_dispatch_token_it_was_given(make_config):
+    cancel_event = threading.Event()
+
+    prepared = _prepared_scan(make_config, cancel_event=cancel_event, dispatch_token="dispatch")
+
+    assert prepared.cancel_event is cancel_event
+    assert (prepared.token, prepared.dispatch_token) == ("t", "dispatch")
+
+
+def test_prepare_defaults_to_a_fresh_cancel_event(make_config):
+    first = _prepared_scan(make_config)
+    second = _prepared_scan(make_config)
+
+    assert first.cancel_event is not second.cancel_event
+    assert not first.cancel_event.is_set()
+
+
+def test_prepare_keeps_no_dispatch_token_when_it_has_none(make_config):
+    assert _prepared_scan(make_config, dispatch_token=None).dispatch_token is None

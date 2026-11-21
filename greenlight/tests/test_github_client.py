@@ -174,6 +174,68 @@ def test_build_client_defaults_pacing_to_pygithub_default(monkeypatch):
     assert captured["seconds_between_requests"] == 0.25
 
 
+def _captured_github(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+    captured: dict[str, object] = {}
+
+    def _fake_github(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("github.Github", _fake_github)
+    return captured
+
+
+def test_build_client_without_a_meter_uses_a_plain_token_and_retry(monkeypatch):
+    from github import Auth
+
+    captured = _captured_github(monkeypatch)
+
+    github_client.build_client("tok")
+
+    assert type(captured["auth"]) is Auth.Token
+    assert type(captured["retry"]) is Retry
+
+
+@pytest.mark.parametrize(
+    ("build", "base"),
+    [
+        pytest.param(github_client.build_client, github_client._build_retry, id="fail-fast"),
+        pytest.param(github_client.build_authz_client, github_client._build_authz_retry, id="patient"),
+    ],
+)
+def test_a_meter_counts_through_its_token_and_its_retry_of_the_clients_own_policy(monkeypatch, build, base):
+    from greenlight import quota
+
+    captured = _captured_github(monkeypatch)
+    meter = quota.TickMeter().meter("pytorch/vision")
+
+    build("tok", meter=meter)
+
+    auth = captured["auth"]
+    retry = captured["retry"]
+    assert isinstance(auth, quota.CountingToken)
+    assert (auth.meter, auth.token) == (meter, "tok")
+    assert isinstance(retry, quota.MeteredRetry)
+    assert retry.meter is meter
+    expected = base()
+    assert {name: getattr(retry, name) for name in quota._RETRY_PARAMETERS} == {
+        name: getattr(expected, name) for name in quota._RETRY_PARAMETERS
+    }
+
+
+def test_build_client_meters_a_retry_it_is_given(monkeypatch):
+    from greenlight import quota
+
+    captured = _captured_github(monkeypatch)
+    meter = quota.TickMeter().meter("pytorch/vision")
+
+    github_client.build_client("tok", retry=Retry(total=7), meter=meter)
+
+    retry = captured["retry"]
+    assert isinstance(retry, quota.MeteredRetry)
+    assert retry.total == 7
+
+
 def test_build_authz_retry_is_patient_and_honors_retry_after():
     retry = github_client._build_authz_retry()
 
@@ -307,6 +369,30 @@ def test_is_rate_limit_error_false_for_retry_error():
 
 def test_is_rate_limit_error_false_for_plain_value_error():
     assert github_client.is_rate_limit_error(ValueError("unrelated")) is False
+
+
+@pytest.mark.parametrize(
+    ("status", "headers", "expected"),
+    [
+        pytest.param(429, None, True, id="429"),
+        pytest.param(403, {"retry-after": "60"}, True, id="403-retry-after"),
+        pytest.param(403, {"x-ratelimit-remaining": "0"}, True, id="403-no-quota-left"),
+        pytest.param(403, {"x-ratelimit-remaining": "4999"}, False, id="403-quota-left"),
+        pytest.param(403, None, False, id="403-no-headers"),
+        pytest.param(500, {"retry-after": "60"}, False, id="500"),
+        pytest.param(None, None, False, id="no-status"),
+    ],
+)
+def test_is_rate_limit_status(status, headers, expected):
+    assert github_client.is_rate_limit_status(status, headers) is expected
+
+
+def test_is_rate_limit_status_reads_a_urllib3_responses_headers_in_any_case():
+    from urllib3 import HTTPHeaderDict
+
+    assert github_client.is_rate_limit_status(403, HTTPHeaderDict({"Retry-After": "1"})) is True
+    assert github_client.is_rate_limit_status(403, HTTPHeaderDict({"X-RateLimit-Remaining": "0"})) is True
+    assert github_client.is_rate_limit_status(403, HTTPHeaderDict({"X-RateLimit-Remaining": "12"})) is False
 
 
 def _build_fp(

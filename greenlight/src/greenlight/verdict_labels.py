@@ -11,9 +11,9 @@ row.
 
 The verdict labels its own PR, on the verdict's repo, as it records (``label_verdict``). The scan
 supersedes and restores labels on the PRs of the repo it scans (``LabelPass.repo``): every listing
-tick that reaches its dispatch phase without a rate limit relabels the PRs it listed that are
-reverted, kept by the recency filter or Stale-skipped (``label_listed_prs``), restoring a removed
-label on any whose rows imply labels.
+tick that reaches its dispatch phase without a rate limit, and whose dispatch hits none, relabels the
+PRs it listed that are reverted, kept by the recency filter or Stale-skipped (``label_listed_prs``),
+restoring a removed label on any whose rows imply labels.
 """
 
 from __future__ import annotations
@@ -43,6 +43,7 @@ from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
+    import threading
     from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
     from datetime import datetime, timedelta
 
@@ -86,7 +87,9 @@ class LabelPass:
     and ``eligible`` and ``ineligible`` split the ``recent`` PRs by whether they are eligible.
     ``skips`` holds the PRs a human decided, and ``labels`` and ``heads`` each listed PR's labels and
     head. An in-flight gate row counts as a review in progress for ``timeout``, and a PR is started
-    only while ``clock()`` reads less than ``LABEL_PASS_DEADLINE`` after ``listed_at``.
+    only while ``clock()`` reads less than ``LABEL_PASS_DEADLINE`` after ``listed_at``. ``cancel_event``
+    is the run's rate-limit latch: the pass does not start once it is set, and sets it on the rate
+    limit that stops it.
     """
 
     repo: str
@@ -101,6 +104,7 @@ class LabelPass:
     listed_at: datetime
     clock: Callable[[], datetime]
     timeout: timedelta
+    cancel_event: threading.Event
 
 
 def desired_labels(
@@ -209,7 +213,8 @@ def label_listed_prs(
     never fails the scan: a rate limit stops the pass, and so does a run of ``LABEL_PASS_MAX_FAILURES``
     other failures with no PR synced between them; a failure short of that moves it on to the next
     PR. As the order is fixed, PRs that keep failing stop the pass at the same place every tick.
-    Every PR the pass does not reach waits for the next tick.
+    Every PR the pass does not reach waits for the next tick, and so does every PR when the run's
+    ``cancel_event`` is already set; a rate limit sets it.
     """
     reverted = frozenset(scan.reverted)
     recent = frozenset(scan.recent)
@@ -219,6 +224,9 @@ def label_listed_prs(
     final = frozenset(number for number, _ in scan.skips) | ineligible | stale_skipped
     candidates = sorted(reverted | recent | stale_skipped)
     if not candidates:
+        return
+    if scan.cancel_event.is_set():
+        logger.info("label pass skipped: a rate limit stopped this tick's GitHub work")
         return
     now = scan.clock()
     if now - scan.listed_at >= LABEL_PASS_DEADLINE:
@@ -254,6 +262,7 @@ def label_listed_prs(
             raise
         except Exception as exc:
             if is_rate_limit_error(exc):
+                scan.cancel_event.set()
                 logger.error(
                     "label pass stopped at PR #%d by a rate limit; the rest wait for the next scan: %s",
                     number,

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
     from datetime import datetime
 
     from greenlight.scan_runner import FingerprintResult
@@ -39,35 +39,55 @@ class _Entry:
 
 @dataclass(slots=True)
 class DrainPass:
-    """One pass of the ``off`` drain over a repo's open PRs (``drain``).
+    """One pass of the ``off`` drain over a repo's open PRs (``drain``, which says why it is safe).
 
-    ``recorded`` holds the PRs that had a ledger row when the pass started (the queue's first part);
-    ``cursor`` is the queue key of the last PR the pass reached; ``clean`` maps each PR found with no
-    live approval to the listed ``updated_at`` it was found at, kept only once that ``updated_at``
-    was ``FINGERPRINT_QUIET`` old. ``blocker`` says why the pass cannot complete the drain even if it
-    finds nothing (review runs older than the off switch were unfinished when it started), or is None.
+    ``recorded`` holds the PRs that had a ledger row when the pass started. ``checked`` holds the PRs
+    the pass read successfully; a PR is pending while it is open and not there, so a later update to
+    a checked PR does not make it pending again, while one opened or reopened during the pass is.
+    ``attempted`` maps each PR the pass tried to read, successfully or not, to the sequence number of
+    its last attempt (``attempts`` is the last one given), which ``pending`` orders failed PRs by.
+    ``blocker`` says why the pass cannot complete the drain even if it finds nothing (review runs older
+    than the off switch were unfinished, or could not be read, when it started), or is None.
+    ``dismissed`` and ``failures`` are the pass's totals so far.
     """
 
     number: int
     started_at: datetime
     blocker: str | None
     recorded: frozenset[int] = frozenset()
-    cursor: tuple[int, int] | None = None
-    clean: dict[int, datetime] = field(default_factory=dict)
-    checked: int = 0
+    checked: set[int] = field(default_factory=set)
+    attempted: dict[int, int] = field(default_factory=dict)
+    attempts: int = 0
     dismissed: int = 0
     failures: int = 0
 
-    def is_clean(self, number: int, updated_at: datetime | None) -> bool:
-        return updated_at is not None and self.clean.get(number) == updated_at
+    def pending(self, open_prs: Iterable[int]) -> list[int]:
+        """The open PRs not checked yet, in reading order.
 
-    def remember_clean(self, number: int, updated_at: datetime | None, now: datetime) -> None:
-        if updated_at is not None and now - updated_at >= FINGERPRINT_QUIET:
-            self.clean[number] = updated_at
+        Never attempted first, those in ``recorded`` before the rest, each by number; then the ones
+        attempted already, the oldest attempt first, so a PR whose read keeps failing goes behind
+        every PR still awaiting its first read.
+        """
+        return sorted(
+            (number for number in open_prs if number not in self.checked),
+            key=lambda number: (
+                number in self.attempted,
+                self.attempted.get(number, 0),
+                number not in self.recorded,
+                number,
+            ),
+        )
+
+    def attempt(self, number: int) -> None:
+        """Record a read attempt on ``number``, successful or not, as the pass's latest."""
+        self.attempts += 1
+        self.attempted[number] = self.attempts
 
 
 class ScanMemory:
-    """When the last full listing tick that completed started, the fingerprint results to reuse, and the drain.
+    """When the last full listing tick that completed started, the fingerprint results to reuse, and the drain:
+    when the process first saw the repo off, and the pass under way (``DrainPass``: the PRs it checked
+    and its read attempts), which ends when no open PR is pending.
 
     Times are the scan's naive-UTC wall clock: a monotonic clock may not advance while Lambda freezes
     the execution environment between invocations. A full tick is due when none has completed, or once

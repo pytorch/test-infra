@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 from github import RateLimitExceededException
 
-from greenlight import drain, github_client, merge_authz, repo_scan, writers
+from greenlight import drain, github_client, merge_authz, quota, repo_scan, writers
 from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, RepoConfig, RepoEntry
@@ -27,8 +27,15 @@ def _identity(repo: str, *, private: bool = False, branch: str = "main") -> Repo
 
 
 class _Client:
-    def __init__(self) -> None:
+    def __init__(self, identity: RepoIdentity | None = None) -> None:
         self.closed = 0
+        self.identity = identity
+        self.requester = self
+
+    def requestJsonAndCheck(self, verb: str, url: str) -> tuple[dict[str, str], dict[str, object]]:
+        assert (verb, url[: len("/repos/")]) == ("GET", "/repos/")
+        identity = self.identity or _identity(url[len("/repos/") :])
+        return {}, identity._asdict()
 
     def close(self) -> None:
         self.closed += 1
@@ -82,6 +89,29 @@ def test_identity_problem(identity, problem):
         assert problem in found
 
 
+def test_check_identity_passes_a_repo_passing_every_live_check_and_refuses_any_other():
+    repo_scan.check_identity(_VISION, _Client())  # type: ignore[arg-type]
+
+    with pytest.raises(repo_scan.RepoUnavailable, match="it is private"):
+        repo_scan.check_identity(_VISION, _Client(_identity("pytorch/vision", private=True)))  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("entry", "served", "work"),
+    [
+        pytest.param(dataclasses.replace(_VISION, mode="off"), True, ("drain", False), id="off"),
+        pytest.param(dataclasses.replace(BUILTIN_PYTORCH, mode="off"), False, ("drain", False), id="off-safety-only"),
+        pytest.param(BUILTIN_PYTORCH, True, ("review", True), id="pytorchbot"),
+        pytest.param(BUILTIN_PYTORCH, False, ("review", False), id="pytorchbot-safety-only"),
+        pytest.param(_VISION, True, ("review", True), id="gate-shadow"),
+        pytest.param(dataclasses.replace(_VISION, mode="active"), True, ("review", True), id="gate-active"),
+        pytest.param(_VISION, False, ("none", False), id="gate-safety-only"),
+    ],
+)
+def test_repo_work_routes_every_entry(entry, served, work):
+    assert repo_scan.repo_work(entry, served=served) == work
+
+
 def test_the_merge_rules_resolver_reads_the_entrys_own_repo(monkeypatch):
     calls: list[str] = []
 
@@ -91,8 +121,11 @@ def test_the_merge_rules_resolver_reads_the_entrys_own_repo(monkeypatch):
 
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", resolve)
 
-    assert repo_scan.eligibility_resolver(_VISION)(object()) is _SNAPSHOT  # type: ignore[arg-type]
+    label, fetch = repo_scan.eligibility_resolver(_VISION)
+
+    assert fetch(object()) is _SNAPSHOT  # type: ignore[arg-type]
     assert calls == ["pytorch/vision"]
+    assert label == "merge rules of pytorch/vision"
 
 
 def test_the_write_permission_resolver_reads_the_entrys_own_writers(monkeypatch):
@@ -105,11 +138,11 @@ def test_the_write_permission_resolver_reads_the_entrys_own_writers(monkeypatch)
     monkeypatch.setattr(writers, "resolve_writers", resolve)
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
 
-    resolver = repo_scan.eligibility_resolver(dataclasses.replace(_VISION, eligibility="write_permission"))
+    label, fetch = repo_scan.eligibility_resolver(dataclasses.replace(_VISION, eligibility="write_permission"))
 
-    assert resolver(object()) is _SNAPSHOT  # type: ignore[arg-type]
+    assert fetch(object()) is _SNAPSHOT  # type: ignore[arg-type]
     assert calls == ["pytorch/vision"]
-    assert resolver.__name__ == "writers of pytorch/vision"
+    assert label == "writers of pytorch/vision"
 
 
 def _unexpected_merge_rules_read(_client: object, repo: str) -> NoReturn:
@@ -117,14 +150,28 @@ def _unexpected_merge_rules_read(_client: object, repo: str) -> NoReturn:
 
 
 def test_the_primary_reads_its_eligibility_patiently_and_others_fail_fast(monkeypatch):
-    built: list[tuple[str, str]] = []
-    monkeypatch.setattr(github_client, "build_authz_client", lambda token: built.append(("patient", token)))
-    monkeypatch.setattr(github_client, "build_client", lambda token: built.append(("fast", token)))
+    built: list[tuple[str, str, object]] = []
+    monkeypatch.setattr(
+        github_client, "build_authz_client", lambda token, *, meter: built.append(("patient", token, meter))
+    )
+    monkeypatch.setattr(github_client, "build_client", lambda token, *, meter: built.append(("fast", token, meter)))
 
     repo_scan.eligibility_client(BUILTIN_PYTORCH, "t1")()
     repo_scan.eligibility_client(_VISION, "t2")()
 
-    assert built == [("patient", "t1"), ("fast", "t2")]
+    assert built == [("patient", "t1", None), ("fast", "t2", None)]
+
+
+def test_the_eligibility_client_carries_the_repos_meter(monkeypatch):
+    built: list[tuple[str, object]] = []
+    monkeypatch.setattr(github_client, "build_authz_client", lambda _token, *, meter: built.append(("patient", meter)))
+    monkeypatch.setattr(github_client, "build_client", lambda _token, *, meter: built.append(("fast", meter)))
+    tick = quota.TickMeter()
+
+    repo_scan.eligibility_client(BUILTIN_PYTORCH, "t1", meter=tick.meter(TARGET_REPO))()
+    repo_scan.eligibility_client(_VISION, "t2", meter=tick.meter("pytorch/vision"))()
+
+    assert built == [("patient", tick.meter(TARGET_REPO)), ("fast", tick.meter("pytorch/vision"))]
 
 
 def test_eligibility_caches_are_made_once_per_repo_and_eligibility_with_their_policy():
@@ -138,10 +185,11 @@ def test_eligibility_caches_are_made_once_per_repo_and_eligibility_with_their_po
     assert other is not first
     assert set(caches) == {("pytorch/vision", "merge_rules"), ("pytorch/vision", "write_permission")}
     assert (first._ttl_seconds, first._max_stale_seconds, first._stale_on_broken) == (600.0, 1800.0, False)
+    assert (first._label, other._label) == ("merge rules of pytorch/vision", "writers of pytorch/vision")
 
 
 def _config_cache(fetch: Any) -> SnapshotCache[Any, RepoConfig]:
-    return SnapshotCache(fetch, ttl_seconds=0, max_stale_seconds=None, stale_on_broken=True)
+    return SnapshotCache(fetch, label="repos config", ttl_seconds=0, max_stale_seconds=None, stale_on_broken=True)
 
 
 def _config(
@@ -161,15 +209,25 @@ class _Scan:
         self.drain = Mock(return_value=drain.DrainReport(1, 0, 0, False, "x", failed))
         self.identity = identity
         self.clients: list[_Client] = []
+        self.tokens: list[str] = []
 
-    def _build(self, _token: str, **_kwargs: object) -> Any:
-        client = _Client()
+    def _build(self, token: str, **_kwargs: object) -> Any:
+        client = _Client(self.identity)
         self.clients.append(client)
+        self.tokens.append(token)
         return client
 
-    def run(self, make_config: Any, repo: str, *, pr: int | None = None, token: str | None = _TOKEN) -> None:
+    def run(
+        self,
+        make_config: Any,
+        repo: str,
+        *,
+        pr: int | None = None,
+        token: str | None = _TOKEN,
+        dispatch_token: str | None = None,
+    ) -> None:
         repo_scan.scan_repo(
-            make_config(github_token=token),
+            make_config(github_token=token, dispatch_token=dispatch_token),
             repo=repo,
             config_cache=self.config_cache,
             eligibility_caches=self.caches,
@@ -177,7 +235,6 @@ class _Scan:
             pr=pr,
             bot_login="bot[bot]",
             build_github=self._build,
-            get_identity=lambda _client, name: self.identity or _identity(name),
             run_review=self.review,
             run_drain=self.drain,
             ref="main",
@@ -199,7 +256,7 @@ def test_a_served_repo_runs_the_whole_review_with_its_entry_memory_and_eligibili
     assert kwargs["bot_login"] == "bot[bot]"
     assert kwargs["ref"] == "main"
     assert memory.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
-    monkeypatch.setattr(github_client, "build_client", lambda _token: _Client())
+    monkeypatch.setattr(github_client, "build_client", lambda _token, **_kwargs: _Client())
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", lambda _client, _repo: _SNAPSHOT)
     assert kwargs["resolve_merge_rules"]() is _SNAPSHOT
     cache = scan.caches[("pytorch/vision", "merge_rules")]
@@ -214,7 +271,7 @@ def test_a_write_permission_repo_reviews_with_its_writers_through_its_own_cache(
 
     scan.run(make_config, "pytorch/vision")
 
-    monkeypatch.setattr(github_client, "build_client", lambda _token: _Client())
+    monkeypatch.setattr(github_client, "build_client", lambda _token, **_kwargs: _Client())
     monkeypatch.setattr(writers, "resolve_writers", lambda _client, _repo: _SNAPSHOT)
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
     assert scan.review.call_args.kwargs["entry"] == writer_entry
@@ -240,6 +297,23 @@ def test_a_safety_only_repo_runs_only_its_safety_work_then_fails(make_config):
 
     assert scan.review.call_args.kwargs["optional"] is False
     assert scan.review.call_args.kwargs["entry"] == BUILTIN_PYTORCH
+
+
+def test_a_safety_only_gate_repo_gets_no_work_forgets_its_drain_and_fails(make_config, caplog):
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, safety_only=((_VISION, "unknown key(s) ['x']"),)))
+    memory = scan.memories["pytorch/vision"] = ScanMemory()
+    memory.off_since(datetime(2026, 1, 1))
+
+    with (
+        caplog.at_level(logging.WARNING, logger="greenlight"),
+        pytest.raises(RuntimeError, match=r"pytorch/vision: safety-only: unknown key\(s\) \['x'\]"),
+    ):
+        scan.run(make_config, "pytorch/vision")
+
+    scan.review.assert_not_called()
+    scan.drain.assert_not_called()
+    assert memory.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
+    assert "a safety-only gate entry has no safety work yet" in caplog.text
 
 
 def test_a_refused_repo_gets_no_work_and_fails_with_its_reason(make_config):
@@ -355,3 +429,46 @@ def test_a_rate_limit_or_timeout_reading_the_config_stops_the_scan(make_config, 
 def test_a_scan_needs_a_token(make_config):
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
         _Scan(lambda _client: BUILTIN_CONFIG).run(make_config, TARGET_REPO, token=None)
+
+
+@pytest.mark.parametrize(("dispatch_token", "expected"), [(None, _TOKEN), ("dispatch", "dispatch")])
+def test_the_config_and_the_dispatch_use_the_dispatch_token(make_config, dispatch_token, expected):
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH))
+
+    scan.run(make_config, TARGET_REPO, dispatch_token=dispatch_token)
+
+    assert scan.tokens == [expected, _TOKEN]
+    assert scan.review.call_args.kwargs["dispatch_token"] == expected
+
+
+def test_an_off_repos_drain_reads_the_review_runs_with_the_dispatch_token(make_config):
+    off = dataclasses.replace(_VISION, mode="off")
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, off))
+
+    scan.run(make_config, "pytorch/vision", dispatch_token="dispatch")
+
+    assert scan.drain.call_args.kwargs["dispatch_token"] == "dispatch"
+    assert scan.drain.call_args.args[0].github_token == _TOKEN
+
+
+def test_scanned_entries_put_the_primary_first_then_served_then_safety_only_in_file_order():
+    audio = dataclasses.replace(_VISION, repo="pytorch/audio")
+    data = dataclasses.replace(_VISION, repo="pytorch/data")
+    config = _config(_VISION, BUILTIN_PYTORCH, audio, safety_only=((data, "unknown key(s) ['x']"),))
+
+    assert repo_scan.scanned_entries(config) == (
+        (BUILTIN_PYTORCH, True),
+        (_VISION, True),
+        (audio, True),
+        (data, False),
+    )
+    assert repo_scan.scanned_entries(_config(safety_only=((BUILTIN_PYTORCH, "missing"),), refused=(("x", "y"),))) == (
+        (BUILTIN_PYTORCH, False),
+    )
+
+
+def test_drain_error_names_the_failed_prs_only_when_there_are_some():
+    assert repo_scan.drain_error(drain.DrainReport(1, 2, 0, False, "x", ())) is None
+    assert repo_scan.drain_error(drain.DrainReport(1, 2, 0, False, "x", (3, 5))) == (
+        "the drain failed on 2 PR(s): [3, 5]"
+    )

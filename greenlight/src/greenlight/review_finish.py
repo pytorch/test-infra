@@ -3,12 +3,17 @@
 ``finish`` fingerprints each eligible PR (``scan_runner``), dispatches the candidates (``scan_dispatch``),
 relabels the listed PRs (``verdict_labels``) and, on ``--pr``, posts the recheck refusals; then it
 raises one error naming every PR that failed, failed to dispatch or was abandoned to a rate limit,
-the safety work's failures included. A fast tick reuses a PR's cached fingerprint result while its
-listed ``updated_at`` and head and the approver set are unchanged, but fingerprints afresh any PR it
-would dispatch (``scan_memory``); ``--pr`` and ``--force`` never touch the cache. Every listing tick
-that reaches its dispatch phase without a rate limit relabels the PRs it listed that are reverted,
-kept by the recency filter or Stale-skipped. ``optional=False`` (a safety-only repo) skips all of the
-optional work and only raises the safety work's errors.
+the safety work's failures (``PreparedScan.failed``) included, and otherwise returns how many reviews
+it dispatched. The optional work's own failures are kept apart (``PreparedScan.optional_failed``), so
+a caller whose optional work was cut short reports them with the cut. The dispatch goes through a
+client on the scan's dispatch token when that differs from its repo token. A
+fast tick reuses a PR's cached fingerprint result while its listed ``updated_at`` and head and the
+approver set are unchanged, but fingerprints afresh any PR it would dispatch (``scan_memory``);
+``--pr`` and ``--force`` never touch the cache. Every listing tick that reaches its dispatch phase
+without a rate limit, and whose dispatch hits none, relabels the PRs it listed that are reverted, kept
+by the recency filter or Stale-skipped. ``optional=False`` (a safety-only repo) skips all of the
+optional work and raises only the safety work's errors. ``PreparedScan.dispatched`` counts each review
+as it goes out, so a caller still reads it when ``finish`` raises.
 """
 
 from __future__ import annotations
@@ -56,12 +61,16 @@ _FINGERPRINT_SECONDS_BETWEEN_REQUESTS = 0.5
 
 @dataclass(slots=True)
 class PreparedScan:
-    """One repo's scan after its safety work: what ``finish`` needs, and the failures so far."""
+    """One repo's scan after its safety work: what ``finish`` needs, and the failures so far.
+
+    ``dispatch_token`` is None when there is none: such a scan can run only its safety work.
+    """
 
     entry: RepoEntry
     stack: contextlib.ExitStack
     client: Github
     token: str
+    dispatch_token: str | None
     build_github: BuildClient
     pr: int | None
     max_dispatches: int | None
@@ -94,16 +103,20 @@ class PreparedScan:
     upsert_comment: Callable[..., None]
     now: Callable[[], datetime]
     failed: list[int] = field(default_factory=list)
+    optional_failed: list[int] = field(default_factory=list)
+    dispatched: int = 0
 
 
-def finish(prepared: PreparedScan, *, optional: bool = True) -> None:
+def finish(prepared: PreparedScan, *, optional: bool = True) -> int:
     abandoned: list[int] = []
     dispatch_failed: list[int] = []
+    failed = set(prepared.failed)
     if optional:
         dispatch_failed = _optional_work(prepared, abandoned)
+        failed.update(prepared.optional_failed)
     # A PR can land in failed twice (the revert guard's revoke and record) and in failed and abandoned both.
-    failed_prs = sorted(set(prepared.failed))
-    abandoned_prs = sorted(set(abandoned).difference(prepared.failed))
+    failed_prs = sorted(failed)
+    abandoned_prs = sorted(set(abandoned).difference(failed))
     if failed_prs or dispatch_failed or abandoned_prs:
         errors: list[str] = []
         if failed_prs:
@@ -113,6 +126,28 @@ def finish(prepared: PreparedScan, *, optional: bool = True) -> None:
         if abandoned_prs:
             errors.append(f"{len(abandoned_prs)} PR(s) abandoned due to rate limit: {abandoned_prs}")
         raise RuntimeError("; ".join(errors))
+    return prepared.dispatched
+
+
+def _dispatch_client(scan: PreparedScan) -> Github:
+    """The client for the scan's dispatch token (``github_client.dispatch_client``), closed with its stack."""
+    if scan.dispatch_token is None:
+        raise ValueError(f"{scan.entry.repo}: there is no dispatch token, so no review can be dispatched")
+    return scan.stack.enter_context(
+        github_client.dispatch_client(scan.client, scan.token, scan.dispatch_token, scan.build_github)
+    )
+
+
+def _counted(scan: PreparedScan) -> DispatchFn:
+    """``scan``'s dispatch, adding each review that went out to ``scan.dispatched``."""
+
+    def dispatch(
+        client: Github, pr_number: int, head_sha: str, eval_hash: str, ref: str, /, *, shadow: bool, repo: str
+    ) -> None:
+        scan.dispatch(client, pr_number, head_sha, eval_hash, ref, shadow=shadow, repo=repo)
+        scan.dispatched += 1
+
+    return dispatch
 
 
 def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
@@ -152,7 +187,7 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
             skip_on_approval=scan.skip_on_approval,
             now=scan.evaluated_at,
             timeout=scan.timeout,
-            failed=scan.failed,
+            failed=scan.optional_failed,
             abandoned=abandoned,
             skips=skips,
             force=scan.force,
@@ -172,7 +207,7 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
             limit=max(0, scan.max_dispatches),
             now=scan.evaluated_at,
             timeout=scan.timeout,
-            failed=scan.failed,
+            failed=scan.optional_failed,
             abandoned=abandoned,
             skips=skips,
             force=scan.force,
@@ -200,15 +235,16 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
         if scan.full_tick and scan.memory is not None and scan.pr is None:
             scan.memory.mark_full_tick(scan.listed_at)
         dispatch_failed = scan_dispatch._dispatch_pending(
-            scan.client,
+            _dispatch_client(scan) if pending else scan.client,
             pending,
             repo=repo,
             ref=scan.ref,
             max_dispatches=scan.max_dispatches,
-            dispatch=scan.dispatch,
+            dispatch=_counted(scan),
             emit_dispatched=scan.emit_dispatched,
             poke=scan.poke,
             shadow_for_pr=scan.authority.shadow,
+            cancel_event=scan.cancel_event,
         )
         if scan.pr is None:
             scan.label_prs(
@@ -225,6 +261,7 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
                     listed_at=scan.listed_at,
                     clock=scan.now,
                     timeout=scan.timeout,
+                    cancel_event=scan.cancel_event,
                 )
             )
     # Only the --pr recheck path posts refusals; a listing-scan skip gets no refusal

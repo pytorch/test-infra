@@ -52,20 +52,22 @@ def is_transient(exc: BaseException) -> bool:
 class SnapshotCache[C, T]:
     """One cached ``fetch(client)`` result; ``snapshot(build_client)`` returns it, refreshing when due.
 
-    ``stale_error`` is the failure behind the snapshot the last ``snapshot`` call served stale, or None
-    when that call served a fresh one.
+    ``label`` names what is cached in the logs. ``stale_error`` is the failure behind the snapshot the
+    last ``snapshot`` call served stale, or None when that call served a fresh one.
     """
 
     def __init__(
         self,
         fetch: Callable[[C], T],
         *,
+        label: str,
         ttl_seconds: float,
         max_stale_seconds: float | None,
         stale_on_broken: bool,
         clock: Callable[[], float] = time.time,
     ) -> None:
         self._fetch = fetch
+        self._label = label
         self._ttl_seconds = ttl_seconds
         self._max_stale_seconds = max_stale_seconds
         self._stale_on_broken = stale_on_broken
@@ -105,7 +107,7 @@ class SnapshotCache[C, T]:
             raise exc
         logger.warning(
             "refresh of %s failed (%s); serving the snapshot fetched %.0fs ago",
-            getattr(self._fetch, "__name__", "snapshot"),
+            self._label,
             kind,
             age,
             exc_info=True,
