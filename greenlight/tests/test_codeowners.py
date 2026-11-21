@@ -120,3 +120,15 @@ def test_review_policy_is_owned_by_policy_owners(path: str) -> None:
 @pytest.mark.parametrize("path", [".github/CODEOWNERS", "docs/CODEOWNERS"])
 def test_only_the_root_codeowners_exists(path: str) -> None:
     assert not (ROOT / path).exists()
+
+
+def test_the_test_infra_policy_names_every_control_plane_path() -> None:
+    policy = (ROOT / ".claude/skills/greenlight-review/repos/test-infra.md").read_text(encoding="utf-8")
+    stops = policy[policy.index("- Merge authorization:") :]
+    named = ["/" + token for token in re.findall(r"`([^`\s]+)`", stops)]
+    missing = [
+        p
+        for p, owners in _RULES
+        if owners == CONTROL and p not in named and not any(_matches(n, p.removeprefix("/")) for n in named if "*" in n)
+    ]
+    assert not missing, f"repos/test-infra.md's merge authorization and code ownership stops do not name {missing}"
