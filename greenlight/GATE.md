@@ -40,7 +40,8 @@ in a ruleset workflow). It checks that the workflow defining it is
 it logs), checks out `greenlight/` from that commit, installs Python 3.13 and uv from pinned actions
 with no cache, and runs `gate-check` with the run's `GITHUB_TOKEN` (`contents: read`,
 `pull-requests: read`). Every file it runs is code-owned: the workflow and `/greenlight/`
-(`CODEOWNERS`). `tests/test_gate_workflow.py` keeps these properties. Its `paths` filter limits the
+(`CODEOWNERS`). `tests/test_gate_workflow.py` keeps these properties, and `tests/test_codeowners.py`
+the code owners. Its `paths` filter limits the
 ordinary run in test-infra to PRs that change the gate; a ruleset ignores filters.
 
 ## The trigger
