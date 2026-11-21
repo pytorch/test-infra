@@ -148,14 +148,6 @@ def normalize_repo(repo: str) -> str:
     return repo.strip().lower()
 
 
-# Repos where Dr. CI renders greenlight's recorded state inside its own comment: the HUD's render list.
-# The repos.yaml loader (repo_config) accepts status_comment: drci only for these, since a drci entry
-# posts no status comment of its own and pokes DRCI_ENDPOINT instead, and a repo whose HUD side does
-# not render it would leave its PRs with no status anywhere. It must stay in step with GREENLIGHT_REPOS
-# in torchci/lib/greenlight/greenlightConfig.ts; greenlight/tests/test_render_sync.py enforces that.
-# Entries are folded at construction, so a mixed-case addition cannot silently never match.
-DRCI_STATUS_COMMENT_REPOS: frozenset[str] = frozenset(normalize_repo(repo) for repo in (TARGET_REPO,))
-
 # A GitHub App acts through a bot account whose login is ``<app-slug>[bot]``. The verdict writer
 # and the scan's recheck-refusal poster author-scope their comment writes to this login, so it must
 # be App-shaped or a copied marker in a third party's comment could be hijacked; the scan also

@@ -35,8 +35,8 @@ repos:
     mode: shadow
     future_key: x
   - repo: pytorch/text
-    status_comment: drci
-    safety: gate
+    status_comment: greenlight
+    safety: pytorchbot
     eligibility: write_permission
     mode: shadow
 """

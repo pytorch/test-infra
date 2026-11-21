@@ -202,7 +202,7 @@ got.
   withholds is force — no approving review, any standing greenlight approval
   dismissed, and nothing the land-time merge gate sees, which reads the ledger
   over `shadow = false`. On `pytorch/pytorch` it withholds visibility too, and
-  that is the whole of it: the repo is in `constants.DRCI_STATUS_COMMENT_REPOS`,
+  that is the whole of it: its `repos.yaml` entry is `status_comment: drci`,
   so greenlight posts no status comment of its own and Dr. CI renders the
   recorded row instead — behind the same `shadow = false`. Nothing on the pull
   request shows a shadow evaluation happened; it exists only in the ledger this

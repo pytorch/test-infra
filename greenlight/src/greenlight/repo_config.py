@@ -27,11 +27,9 @@ import yaml
 
 from greenlight.constants import (
     DISPATCH_REPO,
-    DRCI_STATUS_COMMENT_REPOS,
     PYTORCHBOT_GUARDED_REPOS,
     REPOS_CONFIG_PATH,
     TARGET_REPO,
-    normalize_repo,
 )
 
 if TYPE_CHECKING:
@@ -154,8 +152,6 @@ def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
     problems: list[str] = []
     if raw["safety"] == "pytorchbot" and repo not in PYTORCHBOT_GUARDED_REPOS:
         problems.append(f"safety: pytorchbot is only for {sorted(PYTORCHBOT_GUARDED_REPOS)}")
-    if raw["status_comment"] == "drci" and normalize_repo(repo) not in DRCI_STATUS_COMMENT_REPOS:
-        problems.append(f"status_comment: drci is only for {sorted(DRCI_STATUS_COMMENT_REPOS)}")
     if raw["safety"] == "gate" and raw["mode"] == "active":
         problems.append("safety: gate cannot be active in this release")
     return problems

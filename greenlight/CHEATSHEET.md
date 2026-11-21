@@ -96,7 +96,7 @@ subcommands:
 
 The delegation has a side the greenlight repo does not control: the HUD renders the Green Light
 section for the repos in `GREENLIGHT_REPOS` (`torchci/lib/greenlight/greenlightConfig.ts`), and
-greenlight suppresses its own comment for its `drci` entries, held to `constants.DRCI_STATUS_COMMENT_REPOS`. A
+greenlight suppresses its own comment for its `drci` entries. A
 repo in the second list but not the first is auto-approved with no status anywhere, so change
 both together; `greenlight/tests/test_render_sync.py` fails when they drift apart.
 
