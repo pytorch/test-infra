@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import threading
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
@@ -11,8 +12,10 @@ from github import GithubException
 
 from greenlight import merge_authz, quota, review_finish, verdict_labels
 from greenlight.authority import Authority
+from greenlight.change_feed import Marker
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_finish import PreparedScan
+from greenlight.scan_memory import FingerprintCache, ScanMemory
 from greenlight.state import PRState
 
 _NOW = datetime(2026, 11, 16, 12, 0, 0)
@@ -40,7 +43,7 @@ def _prepared(**overrides: Any) -> PreparedScan:
         "bot_login": "",
         "timeout": timedelta(minutes=45),
         "memory": None,
-        "full_tick": True,
+        "kind": "full",
         "listed_at": _NOW,
         "evaluated_at": _NOW,
         "states": {},
@@ -303,3 +306,99 @@ def test_a_safety_only_finish_counts_nothing():
 
     assert review_finish.finish(prepared, optional=False) == 0
     assert prepared.dispatched == 0
+
+
+def _landed(number: int) -> PRState:
+    return PRState(pr_number=number, status="LAND", eval_hash=_HASH, head_sha="h" * 40, version=_NOW, run_id=1)
+
+
+def _built_memory() -> ScanMemory:
+    memory = ScanMemory()
+    memory.view.rebuild([], _NOW)
+    memory.mark_full_tick(_NOW - timedelta(minutes=15))
+    return memory
+
+
+def test_a_wide_tick_whose_fan_out_hit_no_rate_limit_is_marked_at_its_listing_time():
+    memory = _built_memory()
+    prepared, _dispatched = _dispatching(memory=memory, kind="wide")
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert not memory.wide_due(_NOW + timedelta(minutes=14))
+    assert memory.wide_due(_NOW + timedelta(minutes=15))
+    assert memory.sweep_due(_NOW)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({"kind": "fast"}, id="fast-tick"),
+        pytest.param({"kind": "wide", "pr": 1}, id="single-pr"),
+    ],
+)
+def test_neither_a_fast_tick_nor_a_single_pr_scan_marks_a_wide_tick(overrides):
+    memory = _built_memory()
+    prepared, _dispatched = _dispatching(memory=memory, **overrides)
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert memory.wide_due(_NOW)
+
+
+def test_a_wide_tick_cut_by_a_rate_limit_is_not_marked():
+    memory = _built_memory()
+    prepared, _dispatched = _dispatching(
+        memory=memory, kind="wide", fingerprint=_rate_limited, recent=[1], fingerprint_numbers=[1]
+    )
+
+    with pytest.raises(RuntimeError, match=r"failed during scan: \[1\]"), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert prepared.cancel_event.is_set()
+    assert memory.wide_due(_NOW)
+
+
+def _rate_limited(*_args: object) -> NoReturn:
+    raise GithubException(429, {"message": "secondary rate limit"})
+
+
+def _cache_inputs(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    seen: dict[str, Any] = {}
+
+    class Recording(FingerprintCache):
+        def __init__(self, memory: ScanMemory, **kwargs: Any) -> None:
+            seen.update(kwargs)
+            super().__init__(memory, **kwargs)
+
+    monkeypatch.setattr(review_finish, "FingerprintCache", Recording)
+    return seen
+
+
+def test_the_cache_gets_the_scans_markers_and_revalidates_its_landed_prs(monkeypatch):
+    seen = _cache_inputs(monkeypatch)
+    markers = {1: (Marker(reviews=1), _NOW), 2: None}
+    prepared, _dispatched = _dispatching(memory=_built_memory(), kind="fast", markers=markers)
+    prepared.states.update({1: _landed(1), 3: _landed(3)})
+    prepared.states[2] = replace(_landed(2), status="NO_LAND")
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert seen["reuse"] is True
+    assert seen["markers"] is markers
+    assert seen["revalidate"] == frozenset({1, 3})
+
+
+def test_a_scan_without_markers_revalidates_nothing(monkeypatch):
+    seen = _cache_inputs(monkeypatch)
+    prepared, _dispatched = _dispatching(memory=ScanMemory(), kind="fast")
+    prepared.states.update({1: _landed(1)})
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert seen["markers"] == {}
+    assert seen["revalidate"] == frozenset()

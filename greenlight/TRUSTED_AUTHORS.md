@@ -1,7 +1,8 @@
 # Trusted authors
 
 greenlight lists the open PRs from the evaluation cohort — every one on a full tick; on a fast tick,
-the recently updated ones plus the open `Reverted`-labelled ones (see the README's "Usage" and "Who
+the recently updated ones plus the open `Reverted`-labelled ones (a `clickhouse` repo takes them from
+its view of open PRs, CHANGE_DETECTION.md; see the README's "Usage" and "Who
 is evaluated, and whose verdict carries authority") — but reviews only those whose author is
 eligible for them, and only an eligible author's review carries authority: only it can approve the
 PR, render in Dr. CI, or satisfy the land-time merge gate. On pytorch/pytorch, for a listed PR
@@ -44,7 +45,7 @@ head branch named like a ghstack head passes whatever repository it comes from.
 Where it is checked:
 
 - **The scan** judges each PR's base from the pull request listing's own payload, with no extra
-  request (`pr_listing`), and `authority.Authority` answers per PR, at most once per pass, from the
+  request (`pr_listing`; a `clickhouse` repo's view keeps that payload, `pr_view`), and `authority.Authority` answers per PR, at most once per pass, from the
   merge rules and that listing, with no GitHub call. A PR listed on a base trymerge refuses is
   shadow. A PR from the issues endpoint, which carries no base (the fast tick's `Reverted`-labelled
   supplement), is judged by its author alone.

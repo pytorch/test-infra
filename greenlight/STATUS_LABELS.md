@@ -58,7 +58,7 @@ and so does a listed PR the pass finds closed when it fetches it.
 A human decision comes to light only when a PR is fingerprinted. A paused tick fingerprints nothing,
 and a tick that reaches its `--max` cap stops fingerprinting there, so on those ticks the pass
 supersedes an unfingerprinted PR as human-decided only on a skip taken from a kept fingerprint
-result (logged `cached`), which only fast ticks reuse.
+result (logged `cached`), which only fast ticks reuse (and a `clickhouse` repo's wide and event ticks).
 
 Both write only on a transition: a PR whose `GL/*` labels, compared case-insensitively, already
 match is left alone; otherwise the extras are removed, then the missing labels are added in one
@@ -77,13 +77,14 @@ just before the deadline and for the Dr. CI poke drain that ends the scan. A tic
 the start of its listing when its dispatches end skips the pass without reading ClickHouse. Full
 ticks, which list every open PR and reuse no kept fingerprint result, can reach the pass that late,
 and PRs that only full ticks list, such as idle ones that are `Stale`-skipped or reverted only by
-their recorded row, then wait for a later full tick.
+their recorded row, then wait for a later full tick (on a `clickhouse` repo, its next wide tick).
 
 ## Side effects
 
 A label write is a PR update, with effects outside greenlight:
 
-- It bumps the PR's `updated_at`. That re-lists the PR on fast ticks for the next review window and,
+- It bumps the PR's `updated_at`. That re-lists the PR on fast ticks for the next review window (a
+  `clickhouse` repo's next recent listing reads it too) and,
   on a PR the scan fingerprints, costs a fresh fingerprint fetch on every tick until one finds the
   bump at least two minutes old: at most two with ticks two minutes or more apart, more on a
   `--loop` daemon (60 s apart by default). It never causes a re-review, since labels are not part of

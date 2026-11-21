@@ -120,6 +120,29 @@ FULL_TICK_INTERVAL = timedelta(minutes=15)
 # A tick scheduled one interval after a full tick can start slightly early; the tolerance keeps it a
 # full tick instead of pushing the full listing back a whole schedule period.
 FULL_TICK_TOLERANCE = timedelta(seconds=30)
+
+# A clickhouse repo's full tick (its reconciliation sweep) comes every full_tick_minutes while HUD's webhook tables
+# are fresh; repos.yaml may set the value within these bounds.
+FULL_TICK_MINUTES_DEFAULT = 240
+FULL_TICK_MINUTES_MIN = 60
+FULL_TICK_MINUTES_MAX = 1440
+# HUD's webhook tables count as stale once the newest event over all four is older than STALE_AFTER, or one table's
+# newest is older than its own threshold, each set above that table's longest gap measured over a week.
+STALE_AFTER = timedelta(minutes=10)
+# Its keys, in this order, are the tables change_feed reads.
+TABLE_STALE_AFTER: dict[str, timedelta] = {
+    "pull_request": timedelta(minutes=45),
+    "issue_comment": timedelta(minutes=30),
+    "pull_request_review": timedelta(minutes=75),
+    "pull_request_review_comment": timedelta(minutes=120),
+}
+# A webhook row dated further ahead than this is ignored when taking a table's newest event.
+FUTURE_EVENT_TOLERANCE = timedelta(minutes=5)
+CHANGE_FEED_MAX_EXECUTION_SECONDS = 10
+CHANGE_FEED_TIMEOUT_SECONDS = 15
+# The recent listing walks back to the previous listing's start less this much, so an updated_at that GitHub shows
+# late is still caught.
+LISTING_OVERLAP = timedelta(minutes=10)
 # A fingerprint is cached only when its PR's updated_at is this old at the clock read after the listing.
 # Close to an update GitHub can skip a review's updated_at bump (a second review within about 10 s of
 # the first), stamp two events with the same second, or serve updated_at and the reviews out of step,

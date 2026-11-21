@@ -52,12 +52,13 @@ dismissed). `verdict` records a single
 PR-review verdict and acts on the PR, and `drci-poke` refreshes the Dr. CI comment that shows
 that verdict on `pytorch/pytorch` (both below).
 
-Which open PRs a listing scan reads depends on the tick. A **full tick** lists every open PR. It
-runs on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
-`FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed —
+Which open PRs a listing scan reads depends on the repo's `change_source` and the tick. This section
+is a `github` repo; a `clickhouse` repo lists from a view of its open PRs that GitHub's recently
+updated PRs keep current, and reads HUD ClickHouse's webhook tables for what `updated_at` cannot
+show ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)). A **full tick** lists every open PR, on every tick
+until one completes, and again 15 minutes (less 30 s; `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last that completed —
 one whose listing and fingerprint fan-out finished without a rate-limit abort, even if a PR then
-failed. A clock that steps back past the start of
-the last full tick counts as due. Every scan in between is a **fast tick**: it walks
+failed; a clock stepping back past its start counts as due. Every scan in between is a **fast tick**: it walks
 the open PRs most recently updated first, stops at the review window's edge, and adds every open PR
 labelled `Reverted`, at any age (one issues-endpoint listing per Reverted label). Every source
 drops drafts and authors outside the evaluation cohort. What a fast tick does not list waits for
@@ -77,8 +78,7 @@ every dispatch carries a head and hash read that tick. Each `updated_at` bump, a
 such as Dr. CI's included, costs the PR a fresh fetch on every tick until one finds the bump at
 least two minutes old: at most two when ticks are two minutes or more apart, and more on a `--loop`
 daemon, whose ticks are 60 s apart by default. Each tick logs how many fingerprints it reused and
-how many it fetched fresh, and logs a decision taken from a kept result with a `cached` tag. The quiet age compares the host's clock with GitHub's `updated_at`, so a
-`--loop` host needs a synced clock.
+fetched fresh, and tags a decision taken from a kept result `cached`; a `--loop` host needs a synced clock.
 
 Full ticks never reuse a result, so what the key cannot see waits at most for the next full tick:
 
@@ -483,8 +483,8 @@ password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The
 hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
 under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead. A warm execution
-environment keeps the scan's tick memory (kept fingerprints, an `off` repo's drain) and caches between invocations, so the
-Lambda alternates full and fast ticks; a CLI one-shot always lists in full (see Usage). The scan's
+environment keeps the scan's tick memory (kept fingerprints, a `clickhouse` repo's view, an `off` repo's drain) and caches between invocations, so the
+Lambda alternates a `github` repo's full and fast ticks, or a `clickhouse` repo's full, wide and event ticks (CHANGE_DETECTION.md); a CLI one-shot always lists in full (see Usage). The scan's
 GitHub token must be able to list the repository's issues (`GET /repos/{owner}/{repo}/issues`,
 through public read access or the Issues: read permission); if it cannot, every fast tick fails
 loudly while full ticks still run.
@@ -633,7 +633,7 @@ in a configured repo, computes each PR's fingerprint (`eval_hash`), reads the PR
 state from `misc.greenlight_pr_state`, and dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`) for eligible PRs that are new or changed. It
 lists every open PR on a full tick, and on the fast ticks in between only the recently updated ones
-plus the open `Reverted`-labelled ones, reusing the fingerprint of a PR unchanged since an earlier
+plus the open `Reverted`-labelled ones (a `clickhouse` repo: full, wide and event ticks, CHANGE_DETECTION.md), reusing the fingerprint of a PR unchanged since an earlier
 tick (see Usage). Reverted PRs — those carrying the `Reverted` label or with a `REVERTED` row
 already recorded — are excluded permanently on every path: greenlight revokes its own approving
 review, records the `REVERTED` row unless it is already the PR's latest row, and pokes Dr. CI when
@@ -737,8 +737,8 @@ src/greenlight/    # the modules the per-repo config, the drain and the tick add
   lambda_handler.py # AWS Lambda entry point: load secrets, run one tick over every configured repo via cli.main with App tokens
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # one repo's review scan: prepare (rules, listing, state, revert guard, ineligible revoke); run is prepare, then review_finish.finish; raises on failure
-  pr_listing.py    # list the scan's open PRs: a full listing, or a fast one (recently updated, plus open Reverted-labelled PRs)
-  scan_memory.py   # what a process carries between listing scans: when the last full tick that completed started, and the fingerprint results a fast tick reuses
+  pr_listing.py    # list the scan's open PRs: a full listing, or a fast one (recently updated, plus open Reverted-labelled PRs); is_candidate, the one cohort rule
+  scan_memory.py   # what a process carries between listing scans: full and wide tick starts, a clickhouse repo's view, the fingerprint results a later tick reuses (CHANGE_DETECTION.md)
   scan_runner.py   # the scan's fingerprint fan-out, which decides cache hits without a fingerprint, and recheck-refusal posting
   scan_dispatch.py # the scan's dispatch loop: the --max cap, the AI_REVIEW_DISPATCHED marker, and the Dr. CI poke
   authz_gates.py   # the scan's two authz gates: the --requester login and the --pr target
@@ -762,7 +762,7 @@ src/greenlight/    # the modules the per-repo config, the drain and the tick add
   drci_poke.py     # ask Dr. CI to rebuild one PR's comment (drci-poke subcommand and the scan's dispatch poke); swallows its own failures
   github_client.py # GitHub PR access: build clients, read fingerprint inputs + post verdict actions
   github_types.py  # structural (Protocol) contracts the GitHub client speaks
-  clickhouse_client.py # ClickHouse connection helper for the service's read (SELECT) queries
+  clickhouse_client.py # ClickHouse connection helper and query() for the service's read (SELECT) queries
   pr_hash.py       # eval_hash land-guard: deterministic PR fingerprint hash
   config.py        # PYTORCH_GREENLIGHT_* environment configuration
   constants.py     # shared constants for the review scan/dispatch flow

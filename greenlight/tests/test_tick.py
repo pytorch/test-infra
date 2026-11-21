@@ -3,13 +3,14 @@ from __future__ import annotations
 import dataclasses
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
 from github import RateLimitExceededException
 
-from greenlight import drain, merge_authz, quota, repo_scan, tick
+from greenlight import drain, merge_authz, quota, repo_scan, review, review_finish, tick
+from greenlight.change_feed import Marker
 from greenlight.constants import (
     DISPATCH_REPO,
     OTHER_REPO_REQUEST_BUDGET,
@@ -23,12 +24,17 @@ from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, RepoConfig, RepoEntry
 from greenlight.scan_memory import ScanMemory
 from greenlight.snapshot_cache import SnapshotCache
+from greenlight.state import PRState
+from tests.change_helpers import ListingClient, Pull, fresh
 
 _NOW = datetime(2026, 11, 16, 12, 0, 0)
 _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow")
 _AUDIO = RepoEntry("pytorch/audio", "greenlight", "gate", "merge_rules", "shadow")
 _DATA = RepoEntry("pytorch/data", "greenlight", "gate", "merge_rules", "off")
 _SNAPSHOT = merge_authz.MergeRulesSnapshot(authorized=frozenset({"alice"}), rules=())
+_SNAPSHOT_ALL = merge_authz.MergeRulesSnapshot(
+    authorized=frozenset({"alice"}), rules=(merge_authz.compile_rule("all", ["*"], frozenset({"alice"})),)
+)
 
 
 def _config(
@@ -886,3 +892,80 @@ def test_a_cut_while_another_repo_prepares_reports_the_cut_alone(make_config):
         "pytorch/vision: Phase B cut short: pytorch/vision: past its deadline; its full tick did not fit"
     )
     assert "pytorch/vision" not in {repo for repo, _optional, _cap in run.finishes}
+
+
+def test_a_clickhouse_primary_refetches_only_the_pr_whose_marker_changed_without_an_update(make_config):
+    entry = dataclasses.replace(BUILTIN_PYTORCH, change_source="clickhouse")
+    updated = _NOW - timedelta(hours=1)
+    github = ListingClient([Pull(number, updated) for number in (1, 2, 3)])
+    markers = dict.fromkeys((1, 2, 3), Marker(reviews=1))
+    hashed = "a" * 64
+    states = {
+        number: PRState(
+            pr_number=number, status="NO_LAND", eval_hash=hashed, head_sha=f"sha{number}", version=updated, run_id=1
+        )
+        for number in (1, 2, 3)
+    }
+    clock = [_NOW]
+    fingerprinted: list[list[int]] = []
+    memories: dict[str, ScanMemory] = {}
+    config_cache: SnapshotCache[Any, RepoConfig] = SnapshotCache(
+        lambda _client: _config(entry),
+        label="repos config",
+        ttl_seconds=0,
+        max_stale_seconds=None,
+        stale_on_broken=True,
+    )
+
+    def fingerprint(_client, _repo, number, _authorized, _skip):
+        fingerprinted[-1].append(number)
+        return (f"sha{number}", hashed)
+
+    def run_prepare(config, **kwargs):
+        kwargs.update(
+            resolve_merge_rules=lambda: _SNAPSHOT_ALL,
+            read_markers=lambda _repo, numbers: {number: markers[number] for number in numbers},
+            read_freshness=fresh,
+            fingerprint=fingerprint,
+            read_state=lambda _repo, numbers: {number: states[number] for number in numbers},
+            read_reverted=lambda _repo, _numbers: set(),
+            poke_drci=lambda *_args: None,
+            label_prs=lambda _label_pass: None,
+            now=lambda: clock[0],
+        )
+        return review.prepare(config, **kwargs)
+
+    def build_github(*_args, **_kwargs):
+        return github
+
+    def run(at: datetime) -> list[int]:
+        clock[0] = at
+        fingerprinted.append([])
+        tick.run_tick(
+            make_config(),
+            tokens=_Tokens({}),
+            config_cache=config_cache,
+            eligibility_caches={},
+            memories=memories,
+            bot_login="bot[bot]",
+            max_dispatches=30,
+            ref="main",
+            timeout_minutes=45,
+            build_github=build_github,
+            run_prepare=run_prepare,
+            run_finish=review_finish.finish,
+            read_quota=lambda _client: (5000, 5000),
+            now=lambda: at,
+        )
+        return sorted(fingerprinted[-1])
+
+    full = run(_NOW)
+    event = run(_NOW + timedelta(minutes=2))
+    markers[2] = Marker(reviews=2)
+    dismissed = run(_NOW + timedelta(minutes=4))
+
+    # The first tick lists in full and keeps nothing, its markers first seen then; the second keeps
+    # every fetch. The third sees a dismissal on PR2 that moved no updated_at: only PR2 is refetched.
+    assert (full, event, dismissed) == ([1, 2, 3], [1, 2, 3], [2])
+    reverted = "issues open ['Reverted']"
+    assert github.listed == ["pulls open", "pulls all", reverted, "pulls all", reverted]

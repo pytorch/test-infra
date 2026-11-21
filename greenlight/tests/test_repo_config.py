@@ -13,7 +13,15 @@ import pytest
 import yaml
 
 from greenlight import merge_authz, repo_config
-from greenlight.constants import DISPATCH_REPO, MERGE_RULES_PATH, REPOS_CONFIG_PATH, TARGET_REPO
+from greenlight.constants import (
+    DISPATCH_REPO,
+    FULL_TICK_MINUTES_DEFAULT,
+    FULL_TICK_MINUTES_MAX,
+    FULL_TICK_MINUTES_MIN,
+    MERGE_RULES_PATH,
+    REPOS_CONFIG_PATH,
+    TARGET_REPO,
+)
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, ConfigUnreadable, RepoConfig, RepoEntry
 from greenlight.repo_scan import RepoIdentity, identity_problem
 
@@ -41,13 +49,21 @@ def _parse(*entries: str, pytorch_mode: str | None = "active") -> RepoConfig:
     return repo_config.parse("repos:\n" + body)
 
 
+_CHANGE_KEYS = ("change_source", "full_tick_minutes")
+
+
 def test_the_real_repos_yaml_parses_with_no_problem_and_its_primary_is_the_builtin():
     config = repo_config.load_local()
     written = yaml.safe_load(repo_config._default_path().read_text())["repos"]
+    primary = config.served[0]
+    pinned = {key: value for key, value in dataclasses.asdict(BUILTIN_PYTORCH).items() if key not in _CHANGE_KEYS}
+    [written_primary] = [entry for entry in written if entry["repo"] == TARGET_REPO]
 
     assert config.problems == ()
-    assert config.served[0] == BUILTIN_PYTORCH
-    assert [entry for entry in written if entry["repo"] == TARGET_REPO] == [dataclasses.asdict(BUILTIN_PYTORCH)]
+    assert {key: value for key, value in dataclasses.asdict(primary).items() if key not in _CHANGE_KEYS} == pinned
+    assert primary.change_source in repo_config.CHANGE_SOURCES
+    assert FULL_TICK_MINUTES_MIN <= primary.full_tick_minutes <= FULL_TICK_MINUTES_MAX
+    assert {key: value for key, value in written_primary.items() if key not in _CHANGE_KEYS} == pinned
 
 
 def test_a_valid_config_serves_every_entry_in_file_order_with_the_primary_first():
@@ -142,6 +158,131 @@ def test_an_unknown_key_never_saves_an_otherwise_refused_entry():
 
     assert config.safety_only == ()
     assert [repo for repo, _ in config.refused] == ["pytorch/vision"]
+
+
+def test_a_non_primary_entry_without_the_change_keys_takes_their_defaults():
+    [_, entry] = _parse(_entry("pytorch/vision")).served
+
+    assert entry.change_source == "github"
+    assert entry.full_tick_minutes == FULL_TICK_MINUTES_DEFAULT
+
+
+@pytest.mark.parametrize(
+    ("fields", "reason"),
+    [
+        pytest.param(
+            {"change_source": "hud"}, "change_source 'hud' is not one of ['github', 'clickhouse']", id="bad-source"
+        ),
+        pytest.param(
+            {"full_tick_minutes": "240"},
+            "full_tick_minutes is only for change_source: clickhouse",
+            id="defaulted-github",
+        ),
+        pytest.param(
+            {"change_source": "github", "full_tick_minutes": "240"},
+            "full_tick_minutes is only for change_source: clickhouse",
+            id="github",
+        ),
+        *(
+            pytest.param(
+                {"change_source": "clickhouse", "full_tick_minutes": written},
+                f"full_tick_minutes {shown} is not an integer from 60 to 1440",
+                id=f"minutes-{written}",
+            )
+            for written, shown in [
+                ("59", "59"),
+                ("1441", "1441"),
+                ("0", "0"),
+                ("!!bool true", "True"),
+                ("'240'", "'240'"),
+                ("240.0", "240.0"),
+                ("null", "None"),
+            ]
+        ),
+    ],
+)
+def test_a_bad_change_key_refuses_a_non_primary_entry(fields, reason):
+    config = _parse(_entry("pytorch/vision", **fields))
+
+    assert config.served == (BUILTIN_PYTORCH,)
+    assert config.refused == (("pytorch/vision", reason),)
+
+
+@pytest.mark.parametrize("minutes", [FULL_TICK_MINUTES_MIN, 240, FULL_TICK_MINUTES_MAX])
+def test_a_clickhouse_non_primary_entry_is_served_with_its_full_tick_minutes(minutes):
+    config = _parse(_entry("pytorch/vision", change_source="clickhouse", full_tick_minutes=str(minutes)))
+
+    assert config.problems == ()
+    assert config.lookup("pytorch/vision") == (
+        RepoEntry("pytorch/vision", "greenlight", "gate", "merge_rules", "shadow", "clickhouse", minutes),
+        True,
+    )
+
+
+def test_a_clickhouse_non_primary_entry_without_full_tick_minutes_takes_the_default():
+    [_, entry] = _parse(_entry("pytorch/vision", change_source="clickhouse")).served
+
+    assert (entry.change_source, entry.full_tick_minutes) == ("clickhouse", FULL_TICK_MINUTES_DEFAULT)
+
+
+def test_the_primary_without_the_change_keys_takes_the_builtins_silently(caplog):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        config = _parse()
+
+    assert config.served == (BUILTIN_PYTORCH,)
+    assert caplog.text == ""
+
+
+def test_the_primary_takes_valid_change_keys_from_the_file(caplog):
+    text = "repos:\n" + _PYTORCH.format(mode="active") + "    change_source: clickhouse\n    full_tick_minutes: 60\n"
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        config = repo_config.parse(text)
+
+    assert config.served == (dataclasses.replace(BUILTIN_PYTORCH, change_source="clickhouse", full_tick_minutes=60),)
+    assert caplog.text == ""
+
+
+@pytest.mark.parametrize(
+    ("lines", "change_source", "logged"),
+    [
+        pytest.param(["change_source: hud"], "github", "change_source 'hud' is not one of", id="bad-source"),
+        pytest.param(
+            ["change_source: clickhouse", "full_tick_minutes: 1441"],
+            "clickhouse",
+            "full_tick_minutes 1441 is not an integer from 60 to 1440; ignored, it stays 240",
+            id="bad-minutes",
+        ),
+        pytest.param(
+            ["change_source: clickhouse", "full_tick_minutes: !!bool true"],
+            "clickhouse",
+            "full_tick_minutes True is not an integer",
+            id="bool-minutes",
+        ),
+        pytest.param(
+            ["change_source: github", "full_tick_minutes: 120"],
+            "github",
+            "full_tick_minutes is only for change_source: clickhouse; ignored, it stays 240",
+            id="github-minutes",
+        ),
+        pytest.param(
+            ["full_tick_minutes: 120"], "github", "full_tick_minutes is only for change_source", id="default-minutes"
+        ),
+        pytest.param(
+            ["change_source: hud", "full_tick_minutes: 120"],
+            "github",
+            "full_tick_minutes is only for change_source",
+            id="bad-source-minutes",
+        ),
+    ],
+)
+def test_a_bad_change_key_on_the_primary_falls_back_to_the_builtin_with_an_error(caplog, lines, change_source, logged):
+    text = "repos:\n" + _PYTORCH.format(mode="active") + "".join(f"    {line}\n" for line in lines)
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        config = repo_config.parse(text)
+
+    assert config.served == (dataclasses.replace(BUILTIN_PYTORCH, change_source=change_source),)
+    assert config.problems == ()
+    assert f"repos config: {TARGET_REPO} {logged}" in caplog.text
 
 
 def test_the_primarys_mode_comes_from_the_file_and_its_other_fields_are_pinned(caplog):
@@ -275,6 +416,7 @@ def test_the_value_tuples_are_the_literals():
     assert repo_config.SAFETIES == ("pytorchbot", "gate")
     assert repo_config.ELIGIBILITIES == ("merge_rules", "write_permission")
     assert repo_config.MODES == ("shadow", "active", "off")
+    assert repo_config.CHANGE_SOURCES == ("github", "clickhouse")
 
 
 def test_is_primary_is_an_exact_match():

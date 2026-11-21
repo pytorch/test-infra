@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import Any
 
 import pytest
 
-from greenlight.constants import FINGERPRINT_QUIET
+from greenlight.change_feed import Marker
+from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
 from greenlight.scan_memory import FingerprintCache, ScanMemory
 
@@ -257,3 +259,147 @@ def test_a_checked_pr_is_never_pending_again_in_its_pass():
 
     assert current.pending([1]) == []
     assert current.pending([1, 2]) == [2]
+
+
+_MARKER = Marker(reviews=1, comments=2)
+
+
+def _seen(since: datetime = _STARTED - FINGERPRINT_QUIET, marker: Marker = _MARKER) -> dict[int, Any]:
+    return {1: (marker, since)}
+
+
+def _marker_tick(
+    memory: ScanMemory,
+    *,
+    reuse: bool = True,
+    markers: dict[int, Any] | None = None,
+    revalidate: frozenset[int] = frozenset(),
+    now: datetime = _STARTED,
+) -> FingerprintCache:
+    """A tick of a clickhouse repo that listed PR1 as ``_tick`` does, its marker read as ``markers``."""
+    return FingerprintCache(
+        memory,
+        reuse=reuse,
+        authorized_logins=_LOGINS,
+        updated_at={1: _UPDATED},
+        head_sha={1: "headsha1"},
+        now=now,
+        markers=_seen() if markers is None else markers,
+        revalidate=revalidate,
+    )
+
+
+def _marker_cached(*, markers: dict[int, Any] | None = None, now: datetime = _STARTED) -> ScanMemory:
+    memory = ScanMemory()
+    tick = _marker_tick(memory, reuse=False, markers=markers, now=now)
+    tick.store(1, _RESULT)
+    tick.commit()
+    return memory
+
+
+def test_a_pr_whose_marker_is_unchanged_reuses_its_result():
+    assert _marker_tick(_marker_cached()).lookup(1) == _RESULT
+
+
+@pytest.mark.parametrize(
+    "markers",
+    [
+        pytest.param(_seen(marker=Marker(reviews=2, comments=2)), id="a-dismissal-or-second-review"),
+        pytest.param({1: None}, id="not-read"),
+        pytest.param({2: (_MARKER, _STARTED)}, id="absent"),
+    ],
+)
+def test_a_change_of_marker_misses(markers):
+    assert _marker_tick(_marker_cached(), markers=markers).lookup(1) is None
+
+
+def test_a_result_kept_without_a_marker_misses_once_the_marker_is_read():
+    assert _marker_tick(_cached()).lookup(1) is None
+
+
+def test_a_result_is_kept_only_once_the_process_has_seen_its_marker_for_the_quiet_period():
+    young = _STARTED - FINGERPRINT_QUIET + timedelta(microseconds=1)
+
+    assert _marker_tick(_marker_cached()).lookup(1) == _RESULT
+    assert _marker_tick(_marker_cached(markers=_seen(young)), markers=_seen(young)).lookup(1) is None
+
+
+@pytest.mark.parametrize(
+    "markers", [pytest.param({1: None}, id="none"), pytest.param({2: (_MARKER, _STARTED)}, id="absent")]
+)
+def test_a_pr_with_no_marker_read_is_kept_under_none_on_its_updated_at_alone(markers):
+    memory = _marker_cached(markers=markers)
+
+    assert _marker_tick(memory, markers=markers).lookup(1) == _RESULT
+    assert _tick(memory).lookup(1) == _RESULT
+    assert _marker_tick(memory).lookup(1) is None
+
+
+def test_a_landed_prs_result_is_reused_until_it_is_a_full_tick_interval_old():
+    memory = _marker_cached()
+    almost = _STARTED + FULL_TICK_INTERVAL - timedelta(microseconds=1)
+
+    assert _marker_tick(memory, revalidate=frozenset({1}), now=almost).lookup(1) == _RESULT
+    assert _marker_tick(memory, revalidate=frozenset({1}), now=_STARTED + FULL_TICK_INTERVAL).lookup(1) is None
+    assert _marker_tick(memory, now=_STARTED + FULL_TICK_INTERVAL).lookup(1) == _RESULT
+
+
+def test_keep_carries_a_result_forward_with_the_time_it_was_stored():
+    memory = _marker_cached()
+    later = _STARTED + timedelta(minutes=10)
+    carried = _marker_tick(memory, now=later)
+    assert carried.lookup(1) == _RESULT
+    carried.keep(1)
+    carried.commit()
+
+    # Kept at 10 minutes, the result still dates from the tick that fetched it.
+    assert _marker_tick(memory, revalidate=frozenset({1}), now=_STARTED + FULL_TICK_INTERVAL).lookup(1) is None
+
+
+def _view_built(memory: ScanMemory) -> ScanMemory:
+    memory.view.rebuild([], _STARTED)
+    return memory
+
+
+def test_the_sweep_follows_the_interval_the_tick_set():
+    memory = _marked()
+    memory.full_tick_interval = timedelta(hours=4)
+
+    assert not memory.sweep_due(_STARTED + timedelta(hours=4) - FULL_TICK_TOLERANCE - timedelta(microseconds=1))
+    assert memory.sweep_due(_STARTED + timedelta(hours=4) - FULL_TICK_TOLERANCE)
+    assert memory.sweep_due(_STARTED - timedelta(seconds=1))
+    assert ScanMemory().sweep_due(_STARTED)
+
+
+def test_a_wide_tick_is_never_due_before_the_view_is_built():
+    memory = ScanMemory()
+
+    assert not memory.wide_due(_STARTED)
+    assert memory.full_tick_due(_STARTED) is memory.sweep_due(_STARTED)
+
+
+def test_a_wide_tick_is_due_a_full_tick_interval_after_the_later_full_or_wide_start():
+    memory = _view_built(ScanMemory())
+    memory.full_tick_interval = timedelta(hours=4)
+    due = FULL_TICK_INTERVAL - FULL_TICK_TOLERANCE
+
+    assert memory.wide_due(_STARTED)
+    memory.mark_full_tick(_STARTED)
+    assert not memory.wide_due(_STARTED + due - timedelta(microseconds=1))
+    assert memory.wide_due(_STARTED + due)
+    memory.mark_wide_tick(_STARTED + timedelta(minutes=15))
+    assert not memory.wide_due(_STARTED + timedelta(minutes=15) + due - timedelta(microseconds=1))
+    assert memory.wide_due(_STARTED + timedelta(minutes=15) + due)
+    # A clock stepped back past the later start makes one due.
+    assert memory.wide_due(_STARTED + timedelta(minutes=14))
+
+
+def test_a_full_tick_is_due_for_tick_py_when_a_sweep_or_a_wide_tick_is():
+    memory = _view_built(_marked())
+    memory.full_tick_interval = timedelta(hours=4)
+
+    assert not memory.full_tick_due(_STARTED + timedelta(minutes=10))
+    assert memory.full_tick_due(_STARTED + timedelta(minutes=15))
+    memory.mark_wide_tick(_STARTED + timedelta(minutes=15))
+    assert not memory.full_tick_due(_STARTED + timedelta(minutes=20))
+    assert memory.full_tick_due(_STARTED + timedelta(hours=4))
