@@ -300,8 +300,8 @@ def ghstack_policy(**caps):
 class StackTestCase(InputsTestCase):
     """``build_inputs`` under a policy whose workflow collects stack context."""
 
-    def build_stack(self, gh, cutoff=CUTOFF):
-        return self.build(gh, policy=ghstack_policy(), cutoff=cutoff)
+    def build_stack(self, gh, cutoff=CUTOFF, **repo):
+        return self.build(gh, policy=ghstack_policy(), cutoff=cutoff, **repo)
 
     def stack_document(self, result):
         return json.loads(result.stack_path.read_text(encoding="utf-8"))
@@ -624,8 +624,8 @@ class StepScriptTest(unittest.TestCase):
     def serve(self, name, answer):
         (self.root / name).write_text(json.dumps(answer), encoding="utf-8")
 
-    def run_step(self, pr=None, graphql=None):
-        """Run the step for ``PR_NUMBER``, ``pr`` being what ``gh pr view`` reports."""
+    def run_step(self, pr=None, graphql=None, repo="pytorch/pytorch"):
+        """Run the step for ``repo#PR_NUMBER``, ``pr`` being what ``gh pr view`` reports."""
         shutil.rmtree(self.stack_dir, ignore_errors=True)
         self.stack_json.unlink(missing_ok=True)
         (self.root / "calls").unlink(missing_ok=True)
@@ -641,6 +641,7 @@ class StepScriptTest(unittest.TestCase):
         env = dict(
             os.environ,
             PATH=f"{self.root / 'bin'}:{os.environ['PATH']}",
+            REPO=repo,
             PR_NUMBER=str(PR_NUMBER),
             GH_TOKEN="unused",
             FAKE_GH_DIR=str(self.root),
@@ -689,6 +690,18 @@ class StepScriptTest(unittest.TestCase):
             written = (self.stack_dir / f"{number}.diff").read_text(encoding="utf-8")
             endpoint = f"{self.COMPARE}/{head_oid(below)}...{head_oid(number)}"
             self.assertEqual(written, f"diff of {endpoint}\n")
+
+    def test_every_read_names_the_reviewed_repo(self):
+        completed_run = self.run_step(
+            graphql=stack_response(self.stack_of_three()), repo="pytorch/vision"
+        )
+        self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
+        calls = self.calls()
+        self.assertNotIn("pytorch/pytorch", calls)
+        self.assertIn(f"pr view {PR_NUMBER} --repo pytorch/vision", calls)
+        self.assertIn("-f owner=pytorch -f name=vision", calls)
+        endpoint = f"repos/pytorch/vision/compare/{head_oid(PR_NUMBER)}"
+        self.assertIn(f"{endpoint}...{head_oid(self.ABOVE)}", calls)
 
     def test_outside_a_stack_nothing_is_written(self):
         response = stack_response([])
@@ -803,6 +816,21 @@ class GateTest(unittest.TestCase):
                 policy = self.materialize(lambda steps, step: None)
         self.assertIs(policy.stack_context, stack_step.StackContext.GHSTACK)
         self.assertIn("stack context is on, ghstack only", "\n".join(logs.output))
+
+    def test_the_pytorch_only_step_replays_with_both_kinds_of_context(self):
+        pytorch_only = stack_step.PYTORCH_ONLY_STEP_SHA256
+        with mock.patch.object(workflow_mod, "step_digest", return_value=pytorch_only):
+            policy = self.materialize(lambda steps, step: None)
+        self.assertIs(policy.stack_context, stack_step.StackContext.BOTH)
+
+    def test_every_pin_is_distinct_and_maps_to_a_context(self):
+        pins = (
+            stack_step.STEP_SHA256,
+            stack_step.PYTORCH_ONLY_STEP_SHA256,
+            stack_step.GHSTACK_ONLY_STEP_SHA256,
+        )
+        self.assertEqual(len(set(pins)), len(pins))
+        self.assertEqual(set(stack_step.STACK_CONTEXT_BY_PIN), set(pins))
 
     def test_any_other_digest_is_refused_naming_the_pin(self):
         with mock.patch.object(workflow_mod, "step_digest", return_value="0" * 64):
@@ -1033,6 +1061,25 @@ class CutoffTest(StackTestCase):
         self.assertEqual(variables["owner"], ("-f", "pytorch"))
         self.assertEqual(variables["name"], ("-f", "pytorch"))
         self.assertEqual(variables["number"], ("-F", str(PR_NUMBER)))
+
+    def test_every_read_names_the_reviewed_repo_as_the_step_does(self):
+        # The step splits $REPO at its slash into the owner and name variables and puts
+        # it whole into each compare URL and gh pr view.
+        gh = StackGh({None: listed_page()}, self.three_siblings())
+        result = self.build_stack(gh, repo="pytorch/vision")
+        self.assertEqual(
+            self.stacked_numbers(result), [TOP, MIDDLE, NEAREST, PR_NUMBER]
+        )
+        self.assertTrue(gh.queries())
+        for query in gh.queries():
+            variables = graphql_variables(query)
+            self.assertEqual(variables["owner"], ("-f", "pytorch"))
+            self.assertEqual(variables["name"], ("-f", "vision"))
+        self.assertTrue(gh.compares())
+        for endpoint in gh.compares():
+            self.assertTrue(endpoint.startswith("repos/pytorch/vision/compare/"))
+        pr_view = gh.call_matching(["gh", "pr", "view"])
+        self.assertEqual(pr_view[pr_view.index("--repo") + 1], "pytorch/vision")
 
 
 class CiExitTest(StackTestCase):

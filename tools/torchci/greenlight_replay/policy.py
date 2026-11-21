@@ -67,7 +67,6 @@ __all__ = [
     "WORKFLOW_RELPATH",
     "materialize",
     "refspec",
-    "render_prompt",
 ]
 
 logger = logging.getLogger(__name__)
@@ -79,17 +78,11 @@ SCHEMA_FILENAME = "verdict-schema.json"
 SANITIZE_FILENAME = "sanitize-untrusted-checkout.sh"
 TOO_LARGE_FILENAME = "too-large-verdict.json"
 
-PR_NUMBER_EXPR = "github.event.inputs.pr_number"
-HEAD_SHA_EXPR = "github.event.inputs.head_sha"
-
 # A git ref name, safe to pass as an argv element and to splice into a REST path.
 # The leading class rejects a value starting with "-", which git would read as an
 # option, and the lookahead rejects "..", which git forbids in a ref name anyway and
 # which would otherwise let a base ref forge a second "..." inside a compare path.
 GIT_REF_PATTERN = re.compile(r"(?!.*\.\.)[A-Za-z0-9_][A-Za-z0-9_./-]*")
-
-_INTERPOLATION = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
-_INTERPOLATION_OPEN = re.compile(r"\$\{\{")
 
 _GIT_TIMEOUT_SECONDS = 600
 
@@ -177,55 +170,6 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
         tools=tools,
         stack_context=context,
     )
-
-
-def render_prompt(policy: Policy, pr_number: int, head_sha: str) -> str:
-    """Resolve the two dispatch-input interpolations the prompt template carries.
-
-    Any other ``${{ ... }}`` aborts. An unresolved interpolation is not a crash, it is
-    a successful-looking run: the reviewer is told it is reviewing PR
-    ``${{ github.event.inputs.pr_number }}`` and returns a verdict about nothing.
-    """
-    _reject_unclosed(policy.prompt_template)
-    substitutions = {
-        PR_NUMBER_EXPR: str(pr_number),
-        HEAD_SHA_EXPR: head_sha,
-    }
-    unresolved: list[str] = []
-
-    def replace(match: re.Match[str]) -> str:
-        expression = match.group(1).strip()
-        if expression in substitutions:
-            return substitutions[expression]
-        unresolved.append(expression)
-        return match.group(0)
-
-    # One pass: a substituted value that itself contains "${{" is never rescanned.
-    rendered = _INTERPOLATION.sub(replace, policy.prompt_template)
-    if unresolved:
-        raise ValueError(
-            "prompt template carries interpolations this harness cannot resolve: "
-            + ", ".join(sorted(set(unresolved)))
-        )
-    return rendered
-
-
-def _reject_unclosed(template: str) -> None:
-    """Every ``${{`` in the template must open a well-formed interpolation.
-
-    The substitution pattern only sees balanced ``${{ ... }}``, so a template carrying
-    ``${{ github.event.inputs.pr_number }`` -- one closing brace -- renders verbatim and
-    trips nothing, which defeats the whole guard. Checked against the template rather
-    than the rendered text so that a substituted value which happens to contain ``${{``
-    is not mistaken for the policy's own malformed markup.
-    """
-    for match in _INTERPOLATION_OPEN.finditer(template):
-        if _INTERPOLATION.match(template, match.start()) is None:
-            excerpt = template[match.start() : match.start() + 60]
-            raise ValueError(
-                "prompt template carries an interpolation that never closes: "
-                f"{excerpt!r}"
-            )
 
 
 def refspec(ref: str) -> str:

@@ -39,6 +39,7 @@ from torchci.greenlight_replay.runner import BEDROCK_SWITCH, Outcome
 POLICY_MODEL = "global.anthropic.claude-opus-5"
 POLICY_MARKER = "policy-marker"
 SANITIZE_RELPATH = ".claude/hooks/greenlight/sanitize-untrusted-checkout.sh"
+REPO_POLICIES_RELPATH = "skills/greenlight-review/repos"
 SCRATCH_PREFIX = "greenlight-replay-test-"
 VERDICTS = frozenset({"LAND", "NO_LAND"})
 VALID_SCHEMA = '{"type": "object"}'
@@ -75,18 +76,19 @@ def run_result(status="LAND", outcome=Outcome.SUCCESS):
 
 
 class FakePool:
-    """Lays slots out as the real pool does: ``<workspace>/pytorch``, one per slot."""
+    """Lays slots out as the real pool does: ``<workspace>/<dirname>``, one per slot."""
 
-    def __init__(self, bare_clone, slots, repo_url=None):
+    def __init__(self, bare_clone, slots, repo_url=None, dirname="pytorch"):
         self.bare_clone = Path(bare_clone)
         self.slots = slots
         self.repo_url = repo_url
+        self.dirname = dirname
         self.slot_root = self.bare_clone.parent / f"{self.bare_clone.name}-slots"
         self.cloned = False
         self.acquired = []
         self._lock = threading.Lock()
         self._free = [
-            self.slot_root / f"slot-{index}" / "pytorch" for index in range(slots)
+            self.slot_root / f"slot-{index}" / dirname for index in range(slots)
         ]
 
     def ensure_clone(self):
@@ -120,8 +122,8 @@ class PoolFactory:
     def __init__(self, made):
         self.made = made
 
-    def __call__(self, bare_clone, slots, repo_url=None):
-        pool = FakePool(bare_clone, slots, repo_url)
+    def __call__(self, bare_clone, slots, repo_url=None, dirname="pytorch"):
+        pool = FakePool(bare_clone, slots, repo_url, dirname)
         self.made.append(pool)
         return pool
 
@@ -143,6 +145,7 @@ class Fakes:
         too_large=False,
         outcomes=None,
         on_review=None,
+        repo_policies=(),
     ):
         self.rows = [dict(row) for row in rows]
         self.statuses = dict(statuses or {})
@@ -155,9 +158,12 @@ class Fakes:
         self.too_large = too_large
         self.outcomes = dict(outcomes or {})
         self.on_review = on_review
+        self.repo_policies = tuple(repo_policies)
         self.checkpoint = {}
         self.pools = []
         self.materialized = []
+        self.trusted_skills = []
+        self.repos = []
         self.workspaces = []
         self.reviewed = []
         self.comment_cutoffs = []
@@ -246,6 +252,10 @@ class Fakes:
         self.materialized.append(root)
         for name in self.policy_claude:
             (root / ".claude" / name).mkdir(parents=True, exist_ok=True)
+        for name in self.repo_policies:
+            repo_policy = root / ".claude" / REPO_POLICIES_RELPATH / name
+            repo_policy.parent.mkdir(parents=True, exist_ok=True)
+            repo_policy.write_text(f"policy of {name}\n", encoding="utf-8")
         (root / POLICY_MARKER).write_text(ref, encoding="utf-8")
         script = root / SANITIZE_RELPATH
         script.parent.mkdir(parents=True, exist_ok=True)
@@ -270,8 +280,9 @@ class Fakes:
         if self.hooks_missing:
             raise RuntimeError("hook scripts are missing")
 
-    def materialize_trusted_skills(self, dest):
+    def materialize_trusted_skills(self, dest, **kwargs):
         dest = Path(dest)
+        self.trusted_skills.append((dest, kwargs.get("repo_url")))
         (dest / ".claude" / "skills").mkdir(parents=True, exist_ok=True)
         return dest
 
@@ -286,6 +297,7 @@ class Fakes:
             self.workspaces.append(Path(workspace))
             self.reviewed.append(pr_number)
             self.models.append(kwargs["model"])
+            self.repos.append(kwargs.get("repo"))
             self.run_dirs.append(Path(run_dir))
         if self.on_review is not None:
             self.on_review(pr_number)

@@ -4,6 +4,10 @@ The manual scan mints two tokens, as ``app_tokens.AppTokens`` does: a ``pytorch/
 the repos config and the dispatch, the only one with ``actions``, and a repo token for the configured
 repos with no ``actions``. Nothing at run time ties the workflow's ``permission-*`` inputs to the
 Python permission sets, so these tests do.
+
+A recheck's repo token covers the one repo ``greenlight target`` validated, and the reviewer workflow
+(``greenlight-pr-review.yml``) scopes each of its mints to that job's validated target as well: an
+empty ``repositories`` with ``owner`` set would mint for every repo of the installation.
 """
 
 from __future__ import annotations
@@ -87,14 +91,37 @@ def test_no_mint_but_the_dispatch_token_grants_actions():
     assert "actions" not in app_tokens.LISTING_TOKEN_PERMISSIONS
 
 
-def test_the_repos_step_lists_the_primary_for_a_recheck_and_the_configured_repos_otherwise():
+def test_the_repos_step_lists_the_validated_repo_for_a_recheck_and_the_configured_repos_otherwise():
     assert _STEPS.index(_step(_REPOS_STEP)) < _STEPS.index(_step(_REPO_STEP)), _drift(
         "the repos step must run before the repo mint"
     )
-    run = _step(_REPOS_STEP)["run"]
-    assert f"names={TARGET_REPO.partition('/')[2]}\n" in run
+    step = _step(_REPOS_STEP)
+    run = step["run"]
+    assert step["env"] == {"IN_PR": "${{ inputs.pr }}", "IN_REPO": "${{ inputs.repo }}"}
+    assert 'target=$(mise exec -- uv run greenlight target --repo "$IN_REPO" --pr "$IN_PR")' in run
+    assert "names=$(sed -n 's/^name=//p' <<<\"$target\")" in run
+    assert "repo=$(sed -n 's/^repo=//p' <<<\"$target\")" in run
+    assert "pr=$(sed -n 's/^pr=//p' <<<\"$target\")" in run
     assert "app_tokens.repo_token_names(repo_config.load_local())" in run
-    assert '"names=$names" >> "$GITHUB_OUTPUT"' in run
+    for name in ("names", "repo", "pr"):
+        assert f'echo "{name}=${name}"' in run
+    assert '} >> "$GITHUB_OUTPUT"' in run
+
+
+def test_a_repo_without_a_pr_fails_the_repos_step():
+    run = _step(_REPOS_STEP)["run"]
+    without_pr = run.split('elif [ -n "$IN_REPO" ]; then', 1)[1].split("else", 1)[0]
+    assert "exit 1" in without_pr
+
+
+def test_the_repo_input_defaults_to_the_primary():
+    inputs = yaml.safe_load((ROOT / _WORKFLOW).read_text())[True]["workflow_dispatch"]["inputs"]
+    assert inputs["repo"] == {
+        "description": inputs["repo"]["description"],
+        "required": False,
+        "default": "",
+        "type": "string",
+    }
 
 
 def test_repo_token_names_lists_the_served_and_safety_only_repos_of_the_real_config():
@@ -113,4 +140,47 @@ def test_the_scan_step_reads_both_tokens_and_runs_every_repo_without_a_pr():
     assert env["PYTORCH_GREENLIGHT_GITHUB_TOKEN"] == "${{ steps.repo-token.outputs.token }}"
     assert env["PYTORCH_GREENLIGHT_DISPATCH_TOKEN"] == "${{ steps.dispatch-token.outputs.token }}"
     assert env["BOT_LOGIN"] == "${{ steps.repo-token.outputs.app-slug }}[bot]"
-    assert 'if [ -n "$IN_PR" ]; then args+=(--pr "$IN_PR"); else args+=(--all-repos); fi' in scan["run"]
+    assert env["PR"] == "${{ steps.repos.outputs.pr }}"
+    assert env["REPO"] == "${{ steps.repos.outputs.repo }}"
+    assert "IN_PR" not in env
+    assert 'if [ -n "$PR" ]; then args+=(--repo "$REPO" --pr "$PR"); else args+=(--all-repos); fi' in scan["run"]
+
+
+_REVIEWER = ".github/workflows/greenlight-pr-review.yml"
+_REVIEWER_JOBS: dict[str, Any] = yaml.safe_load((ROOT / _REVIEWER).read_text())["jobs"]
+_TARGET_NAME = "${{ steps.target.outputs.name }}"
+
+
+def _reviewer_mints() -> dict[str, tuple[int, dict[str, Any]]]:
+    found: dict[str, tuple[int, dict[str, Any]]] = {}
+    for job, spec in _REVIEWER_JOBS.items():
+        for index, step in enumerate(spec["steps"]):
+            if str(step.get("uses", "")).startswith(_TOKEN_ACTION):
+                assert job not in found, f"{_REVIEWER}: job {job} mints more than one App token"
+                found[job] = (index, step)
+    return found
+
+
+def test_the_reviewer_mints_only_in_the_two_row_writing_jobs():
+    assert sorted(_reviewer_mints()) == ["announce_start", "record"]
+
+
+def test_every_reviewer_mint_is_scoped_to_its_jobs_validated_target():
+    for job, (index, step) in _reviewer_mints().items():
+        assert (step["with"]["owner"], step["with"]["repositories"]) == (_OWNER, _TARGET_NAME), job
+        target = [i for i, s in enumerate(_REVIEWER_JOBS[job]["steps"]) if s.get("id") == "target"]
+        assert target, f"{_REVIEWER}: job {job} has no target step"
+        assert target[0] < index, f"{_REVIEWER}: job {job} mints before validating its target"
+        assert "permission-actions" not in step["with"]
+
+
+def test_the_record_mint_never_runs_without_a_validated_target():
+    _index, step = _reviewer_mints()["record"]
+    assert step["if"] == "always() && steps.target.outcome == 'success'"
+    assert step["continue-on-error"] is True
+
+
+def test_the_announce_mint_keeps_the_implicit_success_and_continues_on_error():
+    _index, step = _reviewer_mints()["announce_start"]
+    assert "if" not in step
+    assert step["continue-on-error"] is True

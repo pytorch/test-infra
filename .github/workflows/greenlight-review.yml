@@ -3,8 +3,10 @@ name: Green Light Scan
 # The periodic scan of every repo greenlight/repos.yaml serves runs as the `greenlight-scan` AWS
 # Lambda (pytorch-gha-infra-2, us-east-1, EventBridge rate(2 minutes)). This workflow is the manual /
 # `@greenlight recheck` entry point: dispatched by filename from a pytorch/pytorch trigger (or run
-# by hand), it runs the same greenlight scanner. With `pr` it rechecks that pytorch/pytorch PR
-# (`greenlight review --pr`); without it, it runs one tick over every configured repo
+# by hand), it runs the same greenlight scanner. With `pr` it rechecks that PR of `repo`
+# (pytorch/pytorch when `repo` is empty; `greenlight review --repo --pr`), after `greenlight target`
+# validates both against this checkout's greenlight/repos.yaml; without it, it runs one tick over
+# every configured repo
 # (`greenlight review --all-repos`, greenlight/REPOS.md), which lists each repo's open PRs from its
 # evaluation cohort and dispatches greenlight-pr-review.yml for each new or changed PR whose author
 # is eligible, on a base trymerge's base rule accepts, matched by branch name
@@ -14,6 +16,11 @@ name: Green Light Scan
 on:
   workflow_dispatch:
     inputs:
+      repo:
+        description: "Repo of `pr`: empty for pytorch/pytorch, else the configured repo's canonical name (used only with `pr`)"
+        required: false
+        default: ""
+        type: string
       pr:
         description: "Single PR number to scan; a merge rule must name its author and trymerge must accept its base, as greenlight/TRUSTED_AUTHORS.md defines (empty = whole evaluation cohort)"
         required: false
@@ -90,21 +97,35 @@ jobs:
       - name: Sync dependencies
         run: just setup
 
-      # The repos the repo token covers: pytorch alone for a recheck, so no other repo's state can
-      # break it; otherwise every served and safety-only entry of this checkout's repos.yaml. A repo
-      # the App installation lacks then fails the mint below, and this manual scan with it.
+      # The repos the repo token covers: the rechecked repo alone for a recheck, so no other repo's
+      # state can break it; otherwise every served and safety-only entry of this checkout's
+      # repos.yaml. A repo the App installation lacks then fails the mint below, and this manual scan
+      # with it. A recheck's repo and PR reach the scan only as `greenlight target` printed them.
       - name: List the configured repos
         id: repos
         env:
           IN_PR: ${{ inputs.pr }}
+          IN_REPO: ${{ inputs.repo }}
         run: |
           set -euo pipefail
           if [ -n "$IN_PR" ]; then
-            names=pytorch
+            target=$(mise exec -- uv run greenlight target --repo "$IN_REPO" --pr "$IN_PR")
+            names=$(sed -n 's/^name=//p' <<<"$target")
+            repo=$(sed -n 's/^repo=//p' <<<"$target")
+            pr=$(sed -n 's/^pr=//p' <<<"$target")
+          elif [ -n "$IN_REPO" ]; then
+            echo "the repo input is used only with pr; got repo '$IN_REPO' and no pr" >&2
+            exit 1
           else
             names=$(mise exec -- uv run python -I -c 'from greenlight import app_tokens, repo_config; print(app_tokens.repo_token_names(repo_config.load_local()))')
+            repo=
+            pr=
           fi
-          echo "names=$names" >> "$GITHUB_OUTPUT"
+          {
+            echo "names=$names"
+            echo "repo=$repo"
+            echo "pr=$pr"
+          } >> "$GITHUB_OUTPUT"
 
       # The two permission sets are app_tokens.DISPATCH_TOKEN_PERMISSIONS and REPO_TOKEN_PERMISSIONS,
       # the ones the Lambda mints; tests/test_review_workflow_tokens.py pins them.
@@ -153,7 +174,8 @@ jobs:
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
           PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN: ${{ secrets.HUD_API_TOKEN }}
-          IN_PR: ${{ inputs.pr }}
+          PR: ${{ steps.repos.outputs.pr }}
+          REPO: ${{ steps.repos.outputs.repo }}
           IN_REQUESTER: ${{ inputs.requester }}
           IN_MAX: ${{ inputs.max }}
           IN_REF: ${{ inputs.ref }}
@@ -162,7 +184,7 @@ jobs:
         run: |
           set -euo pipefail
           args=()
-          if [ -n "$IN_PR" ]; then args+=(--pr "$IN_PR"); else args+=(--all-repos); fi
+          if [ -n "$PR" ]; then args+=(--repo "$REPO" --pr "$PR"); else args+=(--all-repos); fi
           if [ -n "$IN_REQUESTER" ]; then args+=(--requester "$IN_REQUESTER"); fi
           if [ -n "$IN_MAX" ]; then args+=(--max "$IN_MAX"); fi
           args+=(--ref "$IN_REF" --timeout-minutes "$IN_TIMEOUT" --log-level "$IN_LOG_LEVEL")

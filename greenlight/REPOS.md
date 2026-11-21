@@ -192,14 +192,51 @@ or whose mint fails, gets no work and fails the tick; when the listing itself fa
 listing or a mint is no repo's failure: it stops the tick's GitHub work. From the environment
 (the CLI and `greenlight-review.yml`): `PYTORCH_GREENLIGHT_GITHUB_TOKEN` for every repo, its live
 checks through `GET /repos/{repo}`, and `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` (falling back to the
-first) for the config, the dispatch and the review runs. Adding a repo needs its entry and the App
-installed on it, and no Terraform change.
+first) for the config, the dispatch and the review runs. Adding a repo needs its entry, its review
+policy file (below) and the App installed on it, and no Terraform change.
 
 `greenlight-review.yml` mints the same two permission sets (`tests/test_review_workflow_tokens.py`
-pins them). With `pr`, its repo token covers `pytorch/pytorch` alone and the run rechecks that PR;
-without it, the repo token covers every served and safety-only entry of its checkout's
-`repos.yaml` and the run is one `--all-repos` tick, so a repo the installation lacks fails that
-mint, and that manual scan, loudly.
+pins them). With `pr`, it rechecks that PR of the repo its `repo` input names (empty for
+`pytorch/pytorch`), validated by `greenlight target` (below), and its repo token covers that repo
+alone; `repo` without `pr` fails. Without `pr`, the repo token covers every served and safety-only
+entry of its checkout's `repos.yaml` and the run is one `--all-repos` tick, so a repo the
+installation lacks fails that mint, and that manual scan, loudly.
+
+## Reviewing a repo's PRs
+
+**The review policy.** `.claude/skills/greenlight-review/SKILL.md` is the policy every repo gets:
+the procedure, the criteria, the decision order, the output contract and the hard stops that hold
+anywhere. Each configured repo `pytorch/<name>` also has
+`.claude/skills/greenlight-review/repos/<name>.md`, which adds hard stops and trivial classes and
+defines the repo's own terms, each under its own heading: `## User-facing surface`,
+`## Merge-gating workflows`, `## Lint gate` and `## Test layout`. A repo file never narrows a
+general hard stop; on any conflict the general file wins. Decision step 3, the one class that lands
+before the hard stops, is pytorch/pytorch's `### Meta-internal only` alone.
+`tests/test_repo_policy_files.py` keeps a configured repo without its file, a file without one of
+those headings, that heading in another repo's file, or a symlinked policy file from merging. The
+policy replay CI (`greenlight-policy-replay.yml`) runs for every policy change but one limited to
+other repos' files, since it replays `pytorch/pytorch` decisions.
+
+**The reviewer workflow.** `greenlight-pr-review.yml` takes an optional `repo` input: empty for
+`pytorch/pytorch` (the scan sends none for it, `dispatch.py`), else a configured repo's canonical
+name. Every job first runs `greenlight target` (`workflow_target.py`), which checks the inputs
+against its own checkout's `repos.yaml` and prints the values every later step uses: an exact
+served or safety-only entry (a non-empty spelling of `pytorch/pytorch` is refused), a plain PR
+number, a 40-hex head SHA, the checkout directory (`pytorch` for `pytorch/pytorch`, `target`
+otherwise), the policy file and whether it exists, and whether Dr. CI renders the status (a served,
+active `drci` entry). The App tokens cover the reviewed repo alone. The review job deletes every
+other repo's policy file before the model runs; a repo without its file gets a canned `NO_LAND`
+(`review_error`) with no model, which the record job records, dismissing as any `NO_LAND` does.
+The record job reads mode, safety and eligibility from its own checkout (`verdict`), never from
+the dispatch.
+
+**Concurrency.** A newer dispatch for the same PR cancels the older run. `pytorch/pytorch` keeps
+the group `greenlight-pr-review-<pr_number>`, chosen only by an empty `repo`; every other repo uses
+`greenlight-pr-review-<repo>:<pr_number>`. GitHub evaluates the group before any job and compares
+group names ignoring case, so a dispatch naming a case variant of another configured repo joins
+that repo's group and cancels its running review before its own jobs refuse the name. Dispatching
+needs `actions: write` on `pytorch/test-infra`, which cancels runs anyway, and the scan dispatches
+the PR again.
 
 ## Caches and the TTL trade-off
 
@@ -227,6 +264,7 @@ repo_scan.py          # one entry's decisions on both entry points: live checks,
 snapshot_cache.py     # the TTL-bounded snapshot of the repos config and each eligibility source, with a per-failure stale policy
 drain.py              # an off repo's drain: dismiss every live greenlight approval, a bounded slice per tick
 review_finish.py      # a review scan's optional work (fan-out, dispatch, label pass, refusals) and its error aggregation
+workflow_target.py    # `greenlight target`: the review workflows' input validation and the values their steps use
 writers.py            # write_permission eligibility: the repo's push-access Users as one synthetic merge rule, and the record-time check
 author_eligibility.py # the record job's live eligibility check for one PR, by the repo's eligibility source
 tick.py               # one tick over every configured repo: Phase A safety work, then Phase B optional work

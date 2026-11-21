@@ -544,8 +544,9 @@ Create the [`GL/*` labels](STATUS_LABELS.md) in `pytorch/pytorch` before merging
 
 ## Reviewer checkout sanitizing
 
-The reviewer workflow (`greenlight-pr-review.yml`) checks the PR's `pytorch/pytorch` tree
-out under `./pytorch`, which is untrusted: a PR could plant AI-assistant instruction files
+The reviewer workflow (`greenlight-pr-review.yml`) checks the reviewed repo's tree out at the
+PR head under `./pytorch` for `pytorch/pytorch` and `./target` for any other repo (REPOS.md,
+"Reviewing a repo's PRs"); below, `./pytorch` stands for either. The checkout is untrusted: a PR could plant AI-assistant instruction files
 that Claude Code auto-loads as steering — its own `CLAUDE.md`, `CLAUDE.local.md`, and
 `.claude/rules`, plus defense-in-depth `AGENTS.md`, `.cursorrules`, and
 `.github/copilot-instructions.md` — and thereby override the reviewer's task. Two layers,
@@ -553,7 +554,7 @@ both before the model runs and neither ever `continue-on-error`, close this off:
 
 - **Sanitize, restore skills only** — `sanitize-untrusted-checkout.sh` strips every such
   instruction file from `./pytorch`, then restores only `.claude/skills/` from a separate
-  sparse checkout of trusted pytorch `main`. The model then runs with none of the PR's
+  sparse checkout of the reviewed repo's trusted `main`. The model then runs with none of the PR's
   steering loadable, so it judges pytorch PRs code-only and does not auto-load pytorch's own
   `CLAUDE.md` conventions as context. A PR's edits to these files still appear in the reviewed
   diff (`/tmp/greenlight-pr.diff`, produced by `gh api` compare) and are reviewed as data. The
@@ -581,7 +582,8 @@ the diff or tree coaxing the model to read a credential and emit it in the verdi
 both are best-effort defense-in-depth, not guarantees:
 
 - **Read confinement** — a `restrict-read.py` PreToolUse hook confines the model's
-  `Read`/`Glob`/`Grep` by `os.path.realpath` to `./pytorch`, the trusted `.claude/skills` and
+  `Read`/`Glob`/`Grep` by `os.path.realpath` to the checkout directory its one argument names
+  (`pytorch` or `target`, written into the settings from the validated input), the trusted `.claude/skills` and
   `.claude/hooks`, and the `/tmp/greenlight-*` scratch files, denying everything else (the OIDC
   credentials under `/proc`, the `$GITHUB_ENV` file, `./pytorch/.git`). `persist-credentials: false`
   on the `./pytorch` checkout additionally keeps the scoped token out of `./pytorch/.git/config`.

@@ -1,8 +1,9 @@
 """Check out the trusted skills tree the sanitize step restores from.
 
 ``materialize_trusted_skills`` makes the second argument of
-``sanitize-untrusted-checkout.sh``: a sparse checkout of pytorch ``main`` whose cone is
-``.claude/skills``. Its git calls go through ``checkout``'s confined helpers.
+``sanitize-untrusted-checkout.sh``: a sparse checkout of the reviewed repo's ``main``
+whose cone is ``.claude/skills``. Its git calls go through ``checkout``'s confined
+helpers.
 """
 
 from __future__ import annotations
@@ -12,8 +13,9 @@ from pathlib import Path
 from torchci.greenlight_replay.checkout import (
     _git,
     _require_url,
+    clone_url,
+    DEFAULT_REPO,
     GitError,
-    PYTORCH_REPO_URL,
 )
 
 
@@ -25,15 +27,15 @@ TRUSTED_SKILLS_SUBPATH = ".claude/skills"
 def materialize_trusted_skills(
     dest: Path,
     *,
-    repo_url: str = PYTORCH_REPO_URL,
+    repo_url: str = clone_url(DEFAULT_REPO),
     ref: str = "main",
 ) -> Path:
-    """Check out pytorch ``main``'s ``.claude/skills`` once, for the sanitize step.
+    """Check out ``repo_url``'s ``main`` ``.claude/skills`` once, for the sanitize step.
 
     ``sanitize-untrusted-checkout.sh`` takes TWO required arguments -- the untrusted
     checkout and a directory to restore trusted skills FROM -- and exits 1 when given one.
-    CI supplies the second from a separate sparse checkout of pytorch main, and this is the
-    local equivalent. The second argument must never point at the policy tree: that would
+    CI supplies the second from a separate sparse checkout of the reviewed repo's main, and
+    this is the local equivalent. The second argument must never point at the policy tree: that would
     copy greenlight's own reviewer skill into the tree being reviewed.
 
     ``.claude/skills`` can be a symlink whose target lies outside the cone. CI's checkout

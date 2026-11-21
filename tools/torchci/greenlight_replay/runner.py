@@ -55,9 +55,11 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from torchci.greenlight_replay.checkout import DEFAULT_REPO
 from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.inputs import ReplayInputs
-from torchci.greenlight_replay.policy import Policy, render_prompt
+from torchci.greenlight_replay.policy import Policy
+from torchci.greenlight_replay.prompt import render_prompt
 from torchci.greenlight_replay.reviewer_env import (
     bedrock_enabled,
     BEDROCK_SWITCH,
@@ -171,13 +173,14 @@ def run_review(
     timeout_s: int = DEFAULT_TIMEOUT_S,
     model: str = DEFAULT_MODEL,
     context_window: int = DEFAULT_CONTEXT_WINDOW,
+    repo: str = DEFAULT_REPO,
 ) -> RunResult:
-    """Review one pull request, retrying once when no usable verdict came back.
+    """Review one pull request of ``repo``, retrying once when no usable verdict came back.
 
     ``workspace`` is what the reviewer is given as ``GITHUB_WORKSPACE`` and as its working
-    directory. ``restrict-read.py``'s entire allowlist is three roots beneath it --
-    ``pytorch``, ``.claude/hooks`` and ``.claude/skills`` -- and NO single component
-    supplies all three. ``WorktreePool`` provides ``pytorch`` and nothing else; the caller
+    directory. ``restrict-read.py``'s entire allowlist is three roots beneath it -- the
+    checkout, ``.claude/hooks`` and ``.claude/skills`` -- and NO single component
+    supplies all three. ``WorktreePool`` provides the checkout and nothing else; the caller
     is responsible for copying the policy tree's ``.claude`` in beside it, per slot, before
     calling this. A workspace missing either half leaves the reviewer unable to read the
     code it is judging, and it is a per-slot directory because concurrent reviews cannot
@@ -211,6 +214,7 @@ def run_review(
                 timeout_s,
                 model,
                 context_window,
+                repo,
             )
         )
         if attempts[-1].outcome not in RETRYABLE:
@@ -283,6 +287,7 @@ def _attempt(
     timeout_s: int,
     model: str,
     context_window: int,
+    repo: str,
 ) -> RunResult:
     run_dir = Path(run_dir)
     # A verdict left by the previous attempt would be read as this attempt's answer.
@@ -290,7 +295,7 @@ def _attempt(
     (run_dir / MCP_CONFIG_FILENAME).write_text(
         json.dumps({"mcpServers": {}}), encoding="utf-8"
     )
-    write_settings(policy, run_dir)
+    write_settings(policy, run_dir, repo)
     command = build_command(
         policy, run_dir, workspace, timeout_s=timeout_s, model=model
     )
@@ -314,7 +319,7 @@ def _attempt(
     )
     started = time.monotonic()
     exit_code, stdout, stderr = _invoke_cli(
-        command, render_prompt(policy, pr_number, head_sha), env, workspace
+        command, render_prompt(policy, pr_number, head_sha, repo), env, workspace
     )
     return classify(
         exit_code,

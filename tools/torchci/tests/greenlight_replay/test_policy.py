@@ -27,7 +27,8 @@ from torchci.greenlight_replay import (
     workflow as workflow_mod,
 )
 from torchci.greenlight_replay.checkout import SCRUBBED_GIT_VARS
-from torchci.greenlight_replay.policy import materialize, Policy, render_prompt
+from torchci.greenlight_replay.policy import materialize
+from torchci.greenlight_replay.prompt import render_prompt
 
 
 CHECKOUT_SEAM = "_checkout"
@@ -359,30 +360,6 @@ class CannedVerdictTest(PolicyTreeTestCase):
         self.assertIn("uses allOf", str(caught.exception))
 
 
-class UnclosedInterpolationTest(unittest.TestCase):
-    """A ``${{`` that never closes must not render verbatim into the prompt."""
-
-    def test_a_single_closing_brace_aborts(self):
-        template = "review PR #${{ github.event.inputs.pr_number }"
-        with self.assertRaises(ValueError) as caught:
-            render_prompt(make_policy(template), 1, "a" * 40)
-        self.assertIn("never closes", str(caught.exception))
-
-    def test_an_opener_at_the_very_end_aborts(self):
-        with self.assertRaises(ValueError):
-            render_prompt(make_policy("review PR ${{"), 1, "a" * 40)
-
-    def test_a_well_formed_template_is_unaffected(self):
-        rendered = render_prompt(make_policy(PROMPT), 7, "e" * 40)
-        self.assertNotIn("${{", rendered)
-
-    def test_a_substituted_value_carrying_an_opener_is_still_allowed(self):
-        # The guard reads the template, not the output: an odd head_sha is not the
-        # policy author's malformed markup.
-        rendered = render_prompt(make_policy(PROMPT), 1, "${{ unclosed")
-        self.assertIn("${{ unclosed", rendered)
-
-
 class ShippedWorkflowTest(unittest.TestCase):
     """This module still fits the workflow it exists to parse."""
 
@@ -400,60 +377,21 @@ class ShippedWorkflowTest(unittest.TestCase):
         self.assertEqual(len(result.review_budget_minutes), 3)
         for minutes in result.review_budget_minutes:
             self.assertGreater(minutes, 0)
-        self.assertIn(policy_mod.PR_NUMBER_EXPR, result.prompt_template)
-        self.assertIn(policy_mod.HEAD_SHA_EXPR, result.prompt_template)
 
     def test_the_shipped_prompt_renders_with_no_interpolation_left(self):
         with mock.patch.object(policy_mod, CHECKOUT_SEAM):
             result = materialize("main", REPO_ROOT)
-        rendered = render_prompt(result, 193118, "a" * 40)
-        self.assertNotIn("${{", rendered)
-        self.assertIn("193118", rendered)
-        self.assertIn("a" * 40, rendered)
-
-
-def make_policy(prompt_template: str) -> Policy:
-    return Policy(
-        root=Path("/nonexistent"),
-        prompt_template=prompt_template,
-        max_diff_lines=2000,
-        max_diff_bytes=500000,
-        review_budget_minutes=(20, 25, 33),
-        too_large_verdict=dict(TOO_LARGE_VERDICT),
-        schema_path=Path("/nonexistent/schema.json"),
-        sanitize_script=Path("/nonexistent/sanitize.sh"),
-        hooks_dir=Path("/nonexistent/hooks"),
-        model="global.anthropic.claude-opus-5",
-        effort="high",
-        tools="Read,Glob,Grep,Write",
-    )
-
-
-class RenderPromptTest(unittest.TestCase):
-    """An interpolation the harness cannot resolve never reaches the model."""
-
-    def test_both_dispatch_inputs_are_substituted(self):
-        rendered = render_prompt(make_policy(PROMPT), 193118, "b" * 40)
-        self.assertEqual(
-            rendered,
-            f"You are reviewing pytorch/pytorch PR #193118\nat commit {'b' * 40}.\n",
-        )
-
-    def test_whitespace_inside_the_braces_does_not_defeat_substitution(self):
-        template = "PR ${{github.event.inputs.pr_number}} at ${{  \n"
-        template += "  github.event.inputs.head_sha  }}"
-        rendered = render_prompt(make_policy(template), 7, "c" * 40)
-        self.assertEqual(rendered, f"PR 7 at {'c' * 40}")
-
-    def test_an_unknown_interpolation_aborts_naming_the_expression(self):
-        template = PROMPT + "run ${{ github.run_id }}"
-        with self.assertRaises(ValueError) as caught:
-            render_prompt(make_policy(template), 1, "d" * 40)
-        self.assertIn("github.run_id", str(caught.exception))
-
-    def test_a_substituted_value_carrying_braces_is_not_rescanned(self):
-        rendered = render_prompt(make_policy(PROMPT), 1, "${{ secrets.GITHUB_TOKEN }}")
-        self.assertIn("${{ secrets.GITHUB_TOKEN }}", rendered)
+        for repo, checkout in (
+            ("pytorch/pytorch", "./pytorch"),
+            ("pytorch/vision", "./target"),
+        ):
+            with self.subTest(repo=repo):
+                rendered = render_prompt(result, 193118, "a" * 40, repo)
+                self.assertNotIn("${{", rendered)
+                self.assertIn("193118", rendered)
+                self.assertIn("a" * 40, rendered)
+                self.assertIn(f"{repo} PR #193118", rendered)
+                self.assertIn(checkout, rendered)
 
 
 class RefspecTest(unittest.TestCase):
