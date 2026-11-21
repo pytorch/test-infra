@@ -254,3 +254,30 @@ def test_success_message_reports_no_skills_to_restore(tmp_path):
     result = _run(str(untrusted), _empty_skills_src(tmp_path))
     assert result.returncode == 0, result.stderr
     assert "no skills to restore" in result.stdout
+
+
+def test_restore_drops_greenlight_review_policy_skill(tmp_path):
+    # GreenLight's policy is read only from the workspace root, trimmed to the reviewed repo's
+    # file; the checkout of pytorch/test-infra must hold no restored copy of every repo's policy.
+    src = tmp_path / "skills_src_test_infra"
+    _write(src / ".claude" / "skills" / "greenlight-review" / "SKILL.md", "policy")
+    _write(src / ".claude" / "skills" / "greenlight-review" / "repos" / "pytorch.md", "pytorch policy")
+    _write(src / ".claude" / "skills" / "ci-metrics" / "SKILL.md", "trusted-skill")
+    untrusted = tmp_path / "target"
+    _populate_untrusted(untrusted)
+    result = _run(str(untrusted), str(src))
+    assert result.returncode == 0, result.stderr
+    assert not os.path.lexists(untrusted / ".claude" / "skills" / "greenlight-review")
+    assert (untrusted / ".claude" / "skills" / "ci-metrics" / "SKILL.md").is_file()
+    assert "trusted skills restored" in result.stdout
+
+
+def test_only_greenlight_review_in_source_reports_no_skills_to_restore(tmp_path):
+    src = tmp_path / "skills_src_policy_only"
+    _write(src / ".claude" / "skills" / "greenlight-review" / "repos" / "pytorch.md", "pytorch policy")
+    untrusted = tmp_path / "target"
+    _write(untrusted / "CLAUDE.md")
+    result = _run(str(untrusted), str(src))
+    assert result.returncode == 0, result.stderr
+    assert not os.path.lexists(untrusted / ".claude" / "skills" / "greenlight-review")
+    assert "no skills to restore" in result.stdout
