@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from github import RateLimitExceededException
 
-from greenlight import drain, merge_authz, quota, repo_scan, review, review_finish, tick
+from greenlight import app_tokens, approval_backing, drain, merge_authz, quota, repo_scan, review, review_finish, tick
 from greenlight.change_feed import Marker
 from greenlight.constants import (
     DISPATCH_REPO,
@@ -20,6 +20,7 @@ from greenlight.constants import (
     TARGET_REPO,
     TICK_DEADLINE,
 )
+from greenlight.gate_rules import GateRules
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, RepoConfig, RepoEntry
 from greenlight.scan_memory import ScanMemory
@@ -28,6 +29,7 @@ from greenlight.state import PRState
 from tests.change_helpers import ListingClient, Pull, fresh
 
 _NOW = datetime(2026, 11, 16, 12, 0, 0)
+_ENFORCED = GateRules(enforced=True)
 _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow")
 _AUDIO = RepoEntry("pytorch/audio", "greenlight", "gate", "merge_rules", "shadow")
 _DATA = RepoEntry("pytorch/data", "greenlight", "gate", "merge_rules", "off")
@@ -35,6 +37,12 @@ _SNAPSHOT = merge_authz.MergeRulesSnapshot(authorized=frozenset({"alice"}), rule
 _SNAPSHOT_ALL = merge_authz.MergeRulesSnapshot(
     authorized=frozenset({"alice"}), rules=(merge_authz.compile_rule("all", ["*"], frozenset({"alice"})),)
 )
+
+
+def _backing_report(
+    rules: GateRules | None = _ENFORCED, errors: tuple[str, ...] = ()
+) -> approval_backing.BackingReport:
+    return approval_backing.BackingReport(rules, 0, 0, 0, 0, 0, 1, 0, 0, (), errors)
 
 
 def _config(
@@ -97,6 +105,7 @@ class _Tick:
         drain_failed: tuple[int, ...] = (),
         phase_b_failed: dict[str, list[int]] | None = None,
         quota_failure: BaseException | None = None,
+        backing: dict[str, approval_backing.BackingReport] | None = None,
     ) -> None:
         self.repo_config = repo_config
         self.wants = wants or {}
@@ -108,6 +117,8 @@ class _Tick:
         self.drain_failed = drain_failed
         self.phase_b_failed = phase_b_failed or {}
         self.quota_failure = quota_failure
+        self.backing = backing or {}
+        self.backing_kwargs: dict[str, dict[str, Any]] = {}
         self.events: list[str] = []
         self.prepare_kwargs: dict[str, dict[str, Any]] = {}
         self.drain_kwargs: dict[str, dict[str, Any]] = {}
@@ -172,6 +183,12 @@ class _Tick:
         self._fail(repo, "drain")
         return drain.DrainReport(1, 0, 0, False, "x", self.drain_failed)
 
+    def _backing(self, config: Any, *, entry: RepoEntry, **kwargs: Any) -> approval_backing.BackingReport:
+        self.events.append(f"backing {entry.repo}")
+        self.backing_kwargs[entry.repo] = {"config": config, **kwargs}
+        self._fail(entry.repo, "backing")
+        return self.backing.get(entry.repo, _backing_report())
+
     def _monotonic(self) -> float:
         return self.clock.pop(0) if len(self.clock) > 1 else self.clock[0]
 
@@ -190,6 +207,7 @@ class _Tick:
             run_prepare=self._prepare,
             run_finish=self._finish,
             run_drain=self._drain,
+            run_backing=self._backing,
             read_quota=self._read_quota,
             monotonic=self._monotonic,
             now=lambda: _NOW,
@@ -208,6 +226,7 @@ def test_phase_a_runs_every_repos_safety_work_before_phase_b_and_the_primary_com
     assert run.events == [
         "config with dispatch",
         "prepare pytorch/pytorch",
+        "backing pytorch/vision",
         "drain pytorch/data",
         "finish pytorch/pytorch",
         "prepare pytorch/vision",
@@ -262,6 +281,116 @@ def test_each_repos_eligibility_is_read_through_its_cache_with_its_token_and_met
     meter = run.prepare_kwargs["pytorch/vision"]["build_github"].keywords["meter"]
     assert built == [("token-pytorch/vision", meter)]
     assert set(run.caches) == {(TARGET_REPO, "merge_rules"), ("pytorch/vision", "write_permission")}
+
+
+def test_a_gate_repos_backing_check_runs_with_its_token_meter_memory_clock_and_the_shared_latch(make_config):
+    run = _Tick(_config(BUILTIN_PYTORCH, _VISION, _DATA))
+
+    run.run(make_config)
+
+    assert set(run.backing_kwargs) == {"pytorch/vision"}
+    kwargs = run.backing_kwargs["pytorch/vision"]
+    assert kwargs["config"].github_token == "token-pytorch/vision"
+    assert kwargs["memory"] is run.memories["pytorch/vision"]
+    assert kwargs["bot_login"] == "bot[bot]"
+    assert kwargs["cancel_event"] is run.prepare_kwargs[TARGET_REPO]["cancel_event"]
+    assert kwargs["build_github"].keywords["meter"].repo == "pytorch/vision"
+    assert kwargs["now"]() == _NOW
+
+
+def test_the_backing_checks_errors_are_the_repos_and_its_phase_b_still_runs(make_config):
+    run = _Tick(
+        _config(BUILTIN_PYTORCH, _VISION),
+        backing={"pytorch/vision": _backing_report(errors=("sweep 3 incomplete after 15 minutes: 4 PRs unread",))},
+    )
+
+    with pytest.raises(RuntimeError) as excinfo:
+        run.run(make_config)
+
+    assert str(excinfo.value) == "pytorch/vision: sweep 3 incomplete after 15 minutes: 4 PRs unread"
+    assert "finish pytorch/vision" in run.events
+
+
+_ACTIVE_VISION = dataclasses.replace(_VISION, mode="active")
+_NOT_ENFORCED = GateRules(enforced=False, problems=("a merge_queue rule applies",))
+
+
+@pytest.mark.parametrize(
+    ("report", "error"),
+    [
+        pytest.param(
+            _backing_report(None, errors=("GreenLight's gate rules on pytorch/vision could not be read: boom",)),
+            "pytorch/vision: GreenLight's gate rules on pytorch/vision could not be read: boom; "
+            "pytorch/vision: no dispatch this tick: the rules could not be read",
+            id="unknown",
+        ),
+        pytest.param(
+            _backing_report(_NOT_ENFORCED),
+            "pytorch/vision: no dispatch this tick: GreenLight's gate is not enforced on pytorch/vision: "
+            "a merge_queue rule applies",
+            id="not-enforced",
+        ),
+    ],
+)
+def test_an_active_gate_repo_without_enforced_rules_gets_no_phase_b_turn(make_config, report, error):
+    run = _Tick(_config(BUILTIN_PYTORCH, _ACTIVE_VISION, _AUDIO), backing={"pytorch/vision": report})
+
+    with pytest.raises(RuntimeError) as excinfo:
+        run.run(make_config, max_dispatches=30)
+
+    assert str(excinfo.value) == error
+    assert "prepare pytorch/vision" not in run.events
+    assert _caps(run) == {TARGET_REPO: 25, "pytorch/audio": 30}
+
+
+def test_a_failed_backing_check_is_the_repos_error_and_refuses_an_active_gate_repo_its_phase_b(make_config):
+    run = _Tick(
+        _config(BUILTIN_PYTORCH, _ACTIVE_VISION),
+        failures={("pytorch/vision", "backing"): ValueError("clickhouse down")},
+    )
+
+    with pytest.raises(RuntimeError) as excinfo:
+        run.run(make_config)
+
+    assert str(excinfo.value).split("; ") == [
+        "pytorch/vision: Phase A (approval backing) failed: clickhouse down",
+        "pytorch/vision: no dispatch this tick: the rules could not be read",
+    ]
+    assert "prepare pytorch/vision" not in run.events
+
+
+@pytest.mark.parametrize("report", [_backing_report(None), _backing_report(_NOT_ENFORCED)])
+def test_a_shadow_gate_repo_runs_phase_b_whatever_its_rules(make_config, report):
+    run = _Tick(_config(BUILTIN_PYTORCH, _VISION), backing={"pytorch/vision": report})
+
+    run.run(make_config)
+
+    assert "finish pytorch/vision" in run.events
+
+
+def test_an_active_gate_repo_with_enforced_rules_runs_phase_b(make_config):
+    run = _Tick(_config(BUILTIN_PYTORCH, _ACTIVE_VISION))
+
+    run.run(make_config)
+
+    assert run.events[-2:] == ["prepare pytorch/vision", "finish pytorch/vision"]
+
+
+def test_a_rate_limit_in_a_backing_check_skips_the_repos_after_it(make_config):
+    run = _Tick(
+        _config(BUILTIN_PYTORCH, _VISION, _AUDIO),
+        failures={("pytorch/vision", "backing"): quota.RateLimitStop("pytorch/vision: latched")},
+    )
+
+    with pytest.raises(RuntimeError) as excinfo:
+        run.run(make_config)
+
+    assert str(excinfo.value).split("; ") == [
+        "pytorch/vision: Phase A (approval backing) stopped: a rate limit stopped this tick's GitHub work",
+        "pytorch/audio: Phase A skipped: a rate limit stopped this tick's GitHub work",
+        f"{TARGET_REPO}: Phase B skipped: a rate limit stopped this tick's GitHub work",
+        "pytorch/vision: Phase B skipped: a rate limit stopped this tick's GitHub work",
+    ]
 
 
 def test_a_non_off_repo_forgets_its_drain_and_an_off_repo_failing_on_a_pr_is_an_error(make_config):
@@ -372,8 +501,13 @@ def test_safety_only_and_refused_entries_are_errors_and_get_no_optional_work(mak
         "pytorch/vision is safety-only: unknown key(s) ['x']",
         "pytorch/audio is refused: mode is missing",
     ]
-    assert run.events == ["config with dispatch", "prepare pytorch/pytorch", "finish pytorch/pytorch (safety only)"]
-    assert run.tokens.asked == [TARGET_REPO]
+    assert run.events == [
+        "config with dispatch",
+        "prepare pytorch/pytorch",
+        "backing pytorch/vision",
+        "finish pytorch/pytorch (safety only)",
+    ]
+    assert run.tokens.asked == [TARGET_REPO, "pytorch/vision"]
 
 
 def test_the_safety_works_failures_of_a_repo_phase_b_did_not_finish_are_reported(make_config):
@@ -518,7 +652,7 @@ def test_the_quota_is_read_at_the_start_before_each_phase_with_work_and_at_the_e
 
     run.run(make_config)
 
-    assert run.quota_reads == 6
+    assert run.quota_reads == 7
     assert [client.token for client in run.clients if client.meter is None] == ["dispatch", "dispatch"]
 
 
@@ -579,70 +713,18 @@ def test_an_off_primary_drains_and_the_others_share_the_whole_cap(make_config):
     assert run.events == [
         "config with dispatch",
         "drain pytorch/pytorch",
+        "backing pytorch/vision",
         "prepare pytorch/vision",
         "finish pytorch/vision",
     ]
     assert _caps(run) == {"pytorch/vision": 30}
 
 
-class _IdentityClient:
-    def __init__(self, data: dict[str, object]) -> None:
-        self.requester = self
-        self.data = data
-        self.closed = 0
-
-    def requestJsonAndCheck(self, verb: str, url: str) -> tuple[dict[str, str], dict[str, object]]:
-        return {}, {**self.data, "url": url}
-
-    def close(self) -> None:
-        self.closed += 1
-
-
-def test_env_tokens_use_the_scan_token_for_every_repo_after_its_live_checks(make_config):
-    built: list[_IdentityClient] = []
-
-    def build(_token: str) -> Any:
-        built.append(_IdentityClient({"full_name": "pytorch/vision", "private": False, "default_branch": "main"}))
-        return built[-1]
-
-    tokens = tick.EnvTokens(make_config(github_token="scan"), build)
-
-    assert tokens.repo_token(_VISION) == "scan"
-    assert tokens.dispatch_token() == "scan"
-    assert tick.EnvTokens(make_config(github_token="scan", dispatch_token="d")).dispatch_token() == "d"
-    assert [client.closed for client in built] == [1]
-
-
-@pytest.mark.parametrize(
-    ("identity", "reason"),
-    [
-        pytest.param({"full_name": "pytorch/Vision"}, "GitHub names it 'pytorch/Vision'", id="case"),
-        pytest.param({"private": True}, "it is private", id="private"),
-        pytest.param({"default_branch": "master"}, "its default branch is 'master'", id="branch"),
-    ],
-)
-def test_env_tokens_refuse_a_repo_failing_a_live_check(make_config, identity, reason):
-    data: dict[str, object] = {"full_name": "pytorch/vision", "private": False, "default_branch": "main", **identity}
-    tokens = tick.EnvTokens(make_config(github_token="scan"), lambda _token: _IdentityClient(data))  # type: ignore[arg-type,return-value]
-
-    with pytest.raises(repo_scan.RepoUnavailable, match=reason):
-        tokens.repo_token(_VISION)
-
-
-def test_env_tokens_need_the_scan_token(make_config):
-    tokens = tick.EnvTokens(make_config(dispatch_token="d"))
-
-    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        tokens.dispatch_token()
-    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        tokens.repo_token(_VISION)
-
-
 def test_a_tick_without_a_scan_token_fails_before_any_github_work(make_config):
     with pytest.raises(RuntimeError) as excinfo:
         tick.run_tick(
             make_config(),
-            tokens=tick.EnvTokens(make_config()),
+            tokens=app_tokens.EnvTokens(make_config()),
             config_cache=SnapshotCache(
                 lambda _client: BUILTIN_CONFIG,
                 label="repos config",
@@ -865,17 +947,21 @@ def test_max_zero_pauses_every_repo_but_each_still_runs_with_limit_zero(make_con
     assert _caps(run) == {TARGET_REPO: 0, "pytorch/vision": 0, "pytorch/audio": 0}
 
 
-def test_a_safety_only_gate_entry_gets_nothing_and_forgets_its_drain(make_config):
+@pytest.mark.parametrize("mode", ["shadow", "active"])
+def test_a_safety_only_gate_entry_gets_its_backing_check_alone_and_forgets_its_drain(make_config, mode):
     memory = ScanMemory()
     memory.off_since(datetime(2026, 1, 1))
-    run = _Tick(_config(BUILTIN_PYTORCH, safety_only=((_VISION, "unknown key(s) ['x']"),)))
+    entry = dataclasses.replace(_VISION, mode=mode)
+    run = _Tick(_config(BUILTIN_PYTORCH, safety_only=((entry, "unknown key(s) ['x']"),)))
     run.memories["pytorch/vision"] = memory
 
     with pytest.raises(RuntimeError, match=r"pytorch/vision is safety-only"):
         run.run(make_config)
 
-    assert run.tokens.asked == [TARGET_REPO]
+    assert run.tokens.asked == [TARGET_REPO, "pytorch/vision"]
+    assert "backing pytorch/vision" in run.events
     assert "prepare pytorch/vision" not in run.events
+    assert run.backing_kwargs["pytorch/vision"]["memory"] is memory
     assert memory.off_since(_NOW) == _NOW
 
 

@@ -1,7 +1,7 @@
 """GitHub pull-request access for the greenlight service.
 
 Builds the GitHub clients, reads the PR-fingerprint inputs, and performs the verdict write
-actions: post an approving review, comment, and dismiss greenlight's own prior approvals.
+actions: post a review pinned to a commit and comment. Greenlight's own approvals live in ``approvals``.
 """
 
 from __future__ import annotations
@@ -19,9 +19,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Mapping
 
     from github import Github
+    from github.Commit import Commit
     from urllib3.util.retry import Retry
 
     from greenlight.github_types import (
+        DismissibleReview,
         ScanClient,
         VerdictClient,
         VerdictPR,
@@ -29,7 +31,6 @@ if TYPE_CHECKING:
         _PRActor,
         _PRComment,
         _PRReview,
-        _VerdictReview,
     )
     from greenlight.quota import RequestMeter
 
@@ -304,18 +305,17 @@ REVIEW_EVENT_APPROVE = "APPROVE"
 REVIEW_EVENT_REQUEST_CHANGES = "REQUEST_CHANGES"
 REVIEW_EVENT_COMMENT = "COMMENT"
 _REVIEW_EVENTS: frozenset[str] = frozenset({REVIEW_EVENT_APPROVE, REVIEW_EVENT_REQUEST_CHANGES, REVIEW_EVENT_COMMENT})
-_REVIEW_STATE_APPROVED = "APPROVED"
-_REVIEW_STATE_COMMENTED = "COMMENTED"
 
 
 def get_pr(client: VerdictClient, repo: str, number: int) -> VerdictPR:
     return client.get_repo(repo).get_pull(number)
 
 
-def post_review(pr: VerdictPR, *, event: str, body: str) -> None:
+def post_review(pr: VerdictPR, *, event: str, body: str, commit: Commit) -> DismissibleReview:
+    """Post a review pinned to ``commit``, so it stands on that commit whatever the PR's head is by then."""
     if event not in _REVIEW_EVENTS:
         raise ValueError(f"unsupported review event {event!r}; expected one of {sorted(_REVIEW_EVENTS)}")
-    pr.create_review(body=body, event=event)
+    return pr.create_review(commit=commit, body=body, event=event)
 
 
 _RUN_MARKER_RE = re.compile(r"<!-- greenlight-run: (\d+) -->")
@@ -361,36 +361,3 @@ def upsert_issue_comment(
         comment.edit(body)
         return
     pr.create_issue_comment(body)
-
-
-def _iter_greenlight_reviews(pr: VerdictPR, bot_login: str) -> Iterator[_VerdictReview]:
-    """Yield every review authored by ``bot_login`` (any state) -- greenlight's own reviews.
-
-    The login is passed in (the greenlight App's ``<slug>[bot]`` account) since an App token
-    cannot call ``get_user``. Null-user and empty-login reviews are skipped; match is case-insensitive.
-    """
-    target = bot_login.lower()
-    for review in pr.get_reviews():
-        user = review.user
-        if user is not None and user.login and user.login.lower() == target:
-            yield review
-
-
-def has_live_greenlight_approval(pr: VerdictPR, *, bot_login: str) -> bool:
-    """Return True iff greenlight's latest non-COMMENTED review on ``pr`` is APPROVED.
-
-    Mirrors trymerge's approver rule (latest non-COMMENTED state per login wins), so a stale
-    APPROVED behind a newer DISMISSED never reads as approved. Assumes ``get_reviews()`` is oldest-first.
-    """
-    states = [r.state for r in _iter_greenlight_reviews(pr, bot_login) if r.state != _REVIEW_STATE_COMMENTED]
-    return bool(states) and states[-1] == _REVIEW_STATE_APPROVED
-
-
-def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
-    """Dismiss every prior APPROVED review authored by ``bot_login`` (see ``_iter_greenlight_reviews``)."""
-    dismissed: list[int] = []
-    for review in _iter_greenlight_reviews(pr, bot_login):
-        if review.state == _REVIEW_STATE_APPROVED:
-            review.dismiss(message)
-            dismissed.append(review.id)
-    return dismissed

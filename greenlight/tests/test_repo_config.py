@@ -112,7 +112,6 @@ def test_unknown_top_level_keys_are_ignored_with_a_warning(caplog):
         pytest.param(_entry("pytorch/vision", mode="<absent>"), "mode is missing", id="missing-field"),
         pytest.param(_entry("pytorch/vision", safety="none"), "safety 'none' is not one of", id="bad-enum"),
         pytest.param(_entry("pytorch/vision", safety="pytorchbot"), "safety: pytorchbot is only for", id="pytorchbot"),
-        pytest.param(_entry("pytorch/vision", mode="active"), "safety: gate cannot be active", id="active-gate"),
     ],
 )
 def test_a_bad_non_primary_entry_is_refused_and_the_rest_still_served(entry, reason):
@@ -153,8 +152,18 @@ def test_a_non_primary_entry_with_an_unknown_key_is_safety_only():
     assert config.lookup("pytorch/vision") == (entry, False)
 
 
+def test_a_non_primary_gate_entry_may_be_active():
+    config = _parse(_entry("pytorch/vision", mode="active"))
+
+    assert config.refused == ()
+    assert config.lookup("pytorch/vision") == (
+        RepoEntry("pytorch/vision", "greenlight", "gate", "merge_rules", "active"),
+        True,
+    )
+
+
 def test_an_unknown_key_never_saves_an_otherwise_refused_entry():
-    config = _parse(_entry("pytorch/vision", mode="active", gate_workflow="x"))
+    config = _parse(_entry("pytorch/vision", safety="pytorchbot", gate_workflow="x"))
 
     assert config.safety_only == ()
     assert [repo for repo, _ in config.refused] == ["pytorch/vision"]

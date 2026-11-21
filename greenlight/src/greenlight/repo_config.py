@@ -75,7 +75,7 @@ _ENUMS: dict[str, tuple[str, ...]] = {
 }
 _PINNED_FIELDS = ("status_comment", "safety", "eligibility")
 _KNOWN_KEYS = frozenset({"repo", *_ENUMS, "change_source", "full_tick_minutes"})
-_REPO_NAME = re.compile(r"pytorch/[A-Za-z0-9._-]+")
+REPO_NAME = re.compile(r"pytorch/[A-Za-z0-9._-]+")
 
 
 class _Loader(yaml.SafeLoader):
@@ -109,6 +109,11 @@ class RepoEntry:
     mode: Mode
     change_source: ChangeSource = "github"
     full_tick_minutes: int = FULL_TICK_MINUTES_DEFAULT
+
+    @property
+    def strict_base(self) -> bool:
+        """Whether the repo takes the strict base rule (``merge_authz.accepts_base_for``): a ``gate`` repo does."""
+        return self.safety == "gate"
 
 
 BUILTIN_PYTORCH = RepoEntry(TARGET_REPO, "drci", "pytorchbot", "merge_rules", "active")
@@ -171,8 +176,6 @@ def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
     problems: list[str] = []
     if raw["safety"] == "pytorchbot" and repo not in PYTORCHBOT_GUARDED_REPOS:
         problems.append(f"safety: pytorchbot is only for {sorted(PYTORCHBOT_GUARDED_REPOS)}")
-    if raw["safety"] == "gate" and raw["mode"] == "active":
-        problems.append("safety: gate cannot be active in this release")
     return problems
 
 
@@ -278,7 +281,7 @@ def _load_document(text: str | bytes) -> list[object]:
 
 def _repo_name(item: object) -> str | None:
     repo = item.get("repo") if isinstance(item, dict) else None
-    return repo if isinstance(repo, str) and _REPO_NAME.fullmatch(repo) else None
+    return repo if isinstance(repo, str) and REPO_NAME.fullmatch(repo) else None
 
 
 def parse(text: str | bytes) -> RepoConfig:

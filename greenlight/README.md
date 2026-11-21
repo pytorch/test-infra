@@ -204,7 +204,10 @@ daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canon
 it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. For
 `LAND`/`NO_LAND`, a `NO_LAND` first dismisses greenlight's prior approval; unless `--shadow`,
 [the record-time eligibility check](TRUSTED_AUTHORS.md) decides shadow next, and a failed check writes
-no row; after the row, a `LAND` approves, or dismisses if shadow, and a non-shadow verdict sets its
+no row; after the row, a `LAND` approves (`land_approval`: pinned to the reviewed head, kept only when
+GreenLight's latest review is an approval there and every live approval is on that head, withdrawn
+when a re-read right after finds the PR moved; [GATE.md](GATE.md)), or dismisses if shadow, and a
+non-shadow verdict sets its
 [`GL/*` label](STATUS_LABELS.md). `CANCELLED` and `FAILED` markers only emit the row. The model's
 message is asked for as a short markdown outline (see "How the verdict message is rendered") and is
 secret-scrubbed at a single point before it fans out to both the emitted row and the posted comment;
@@ -436,7 +439,7 @@ unprefixed `BOT_LOGIN`:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login. Author-scopes the `--pr` recheck-refusal comment, and picks out greenlight's own approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the whole scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs PR write on each scanned repo (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs, plus, unless `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` carries them, Actions: write (`workflow_dispatch`) and Contents: read (`repos.yaml`) on `pytorch/test-infra`, the only use of the optional dispatch token; `verdict` needs PR write (its approval, dismissal and `GL/*` label), plus, for its eligibility check, Contents: read on the repo and Members: read on the `pytorch` org for a `merge_rules` repo, and only Metadata: read (GitHub's collaborator endpoints) for a `write_permission` repo |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs PR write on each scanned repo (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs, plus, unless `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` carries them, Actions: write (`workflow_dispatch`) and Contents: read (`repos.yaml`) on `pytorch/test-infra`, the only use of the optional dispatch token; `verdict` needs PR write (its approval, dismissal and `GL/*` label), plus, for its eligibility check, Contents: read on the repo and Members: read on the `pytorch` org for a `merge_rules` repo, and only Metadata: read (GitHub's collaborator endpoints) for a `write_permission` repo, plus Contents: read on a `gate` repo (its branch, for the rules check, [GATE.md](GATE.md)) |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (e.g. `INFO`, `DEBUG`) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Lock file path guarding against concurrent runs (unset = no lock) |
@@ -733,7 +736,7 @@ All gates must pass before a change is complete.
 src/greenlight/    # the modules the per-repo config, the drain and the tick added: REPOS.md, "Modules"
   __init__.py      # package exports (Config, __version__)
   __main__.py      # `python -m greenlight` entry point
-  cli.py           # CLI parsing (review + verdict + drci-poke subcommands), dispatch, exit codes
+  cli.py           # CLI parsing (review, verdict, drci-poke, target and gate-check subcommands), dispatch, exit codes
   lambda_handler.py # AWS Lambda entry point: load secrets, run one tick over every configured repo via cli.main with App tokens
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # one repo's review scan: prepare (rules, listing, state, revert guard, ineligible revoke); run is prepare, then review_finish.finish; raises on failure
@@ -748,7 +751,7 @@ src/greenlight/    # the modules the per-repo config, the drain and the tick add
   review_gate.py   # detect PRs a human already decided, so the scan skips fingerprint + dispatch
   revert_guard.py  # permanently exclude reverted PRs: revoke greenlight's approval, record the REVERTED row
   ineligible_approvals.py # revoke greenlight's approval on a listed PR that is no longer eligible
-  merge_authz.py   # resolve a repo's merge_rules.yaml: the authorized-login set (the fingerprint comment allowlist) and each rule's approvers and trymerge file patterns; test a PR's base as trymerge does; list a PR's changed files
+  merge_authz.py   # resolve a repo's merge_rules.yaml: the authorized-login set (the fingerprint comment allowlist) and each rule's approvers and trymerge file patterns; test a PR's base as trymerge does, or as a gate repo's rule; list a PR's changed files
   state.py         # read a PR's latest recorded state from misc.greenlight_pr_state (deliberately shadow-unfiltered), and, for the GL/* labels, the non-shadow rows pytorch's land gate reads
   state_emit.py    # build and emit a state row to S3 for replicator ingestion; single source of the row schema and object key
   decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)

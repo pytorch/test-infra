@@ -5,15 +5,25 @@ import gzip
 import json
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, NoReturn, cast
 
 import pytest
 from github import GithubException
 
-from greenlight import comment_format, constants, github_client, repo_config, verdict, verdict_input
+from greenlight import (
+    comment_format,
+    constants,
+    gate_rules,
+    github_client,
+    land_approval,
+    repo_config,
+    verdict,
+    verdict_input,
+)
 
 # has_eligible_author is imported rather than read off verdict: conftest swaps verdict's attribute for
 # a refusing guard in every test, while this name keeps the real function for the fake clients.
+from greenlight.approvals import GREENLIGHT_LOGIN
 from greenlight.author_eligibility import has_eligible_author
 from greenlight.verdict import VerdictRequest
 from greenlight.verdict import _repo_entry as _REAL_REPO_ENTRY
@@ -23,11 +33,13 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
+    from github.Commit import Commit
+
     from greenlight.config import Config
 
 _FIXED = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
 _HASH = "a" * 64
-_BOT = "greenlight-app[bot]"
+_BOT = GREENLIGHT_LOGIN
 _VERSION = "2026-07-30 12:00:00.000"
 _VERSION_COMPACT = "20260730T120000_000"
 _EMIT_ID = "e" * 32
@@ -67,10 +79,11 @@ class _FakeUser:
 
 
 class _FakeReview:
-    def __init__(self, id: int, login: str | None, state: str, rec: _Recorder) -> None:
+    def __init__(self, id: int, login: str | None, state: str, rec: _Recorder, commit_id: str | None = None) -> None:
         self.id = id
         self.user = _FakeUser(login) if login is not None else None
         self.state = state
+        self.commit_id = commit_id
         self._rec = rec
         self.dismissed_with: str | None = None
 
@@ -79,15 +92,26 @@ class _FakeReview:
         self._rec.events.append(f"dismiss:{self.id}")
 
 
+class _FakeCommit:
+    def __init__(self, sha: str) -> None:
+        self.sha = sha
+
+
 class _FakeHead:
     def __init__(self, sha: str, ref: str = "feature") -> None:
         self.sha = sha
         self.ref = ref
 
 
+class _FakeBaseRepo:
+    def __init__(self, default_branch: str) -> None:
+        self.default_branch = default_branch
+
+
 class _FakeRef:
-    def __init__(self, ref: str) -> None:
+    def __init__(self, ref: str, default_branch: str = constants.TARGET_BRANCH) -> None:
         self.ref = ref
+        self.repo = _FakeBaseRepo(default_branch)
 
 
 class _FakeComment:
@@ -131,12 +155,14 @@ class _FakePR:
         self._reviews = reviews or []
         self._issue_comments = issue_comments or []
         self.created_reviews: list[tuple[str, str]] = []
+        self.review_commits: list[str] = []
         self.comments: list[str] = []
 
-    def create_review(self, *, body: str, event: str) -> object:
+    def create_review(self, *, commit: Commit, body: str, event: str) -> _FakeReview:
         self.created_reviews.append((event, body))
+        self.review_commits.append(commit.sha)
         self._rec.events.append(f"review:{event}")
-        return object()
+        return _FakeReview(1000 + len(self.created_reviews), _BOT, "APPROVED", self._rec, commit.sha)
 
     def create_issue_comment(self, body: str) -> object:
         self.comments.append(body)
@@ -165,6 +191,9 @@ class _FakeRepo:
     def get_pull(self, number: int) -> _FakePR:
         self.get_pull_numbers.append(number)
         return self._pr
+
+    def get_commit(self, sha: str) -> Commit:
+        return cast("Commit", _FakeCommit(sha))
 
 
 class _FakeGithub:
@@ -223,8 +252,10 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     )
 
     assert captured["token"] == "tok"
-    assert gh.get_repo_names == ["pytorch/pytorch"]
-    assert repo.get_pull_numbers == [7]
+    # The PR read, the reviewed head's commit, and the re-read after the approval.
+    assert gh.get_repo_names == ["pytorch/pytorch", "pytorch/pytorch", "pytorch/pytorch"]
+    assert repo.get_pull_numbers == [7, 7]
+    assert pr.review_commits == ["headsha"]
     # pytorch/pytorch delegates its status comment to Dr. CI, so only the merge gate acts.
     assert rec.events == ["emit", "review:APPROVE"]
     assert pr.comments == []
@@ -246,7 +277,7 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     assert emit.key == f"greenlight_pr_state/pytorch/pytorch/7/{_VERSION_COMPACT}-{_EMIT_ID}.json.gz"
     event, body = pr.created_reviews[0]
     assert event == "APPROVE"
-    assert body == verdict._LAND_REVIEW_BODY == ""
+    assert body == land_approval.LAND_REVIEW_BODY == ""
 
 
 def test_full_land_on_non_delegating_repo_approves_then_comments(make_config, tmp_path):
@@ -291,7 +322,7 @@ def test_full_no_land_on_delegating_repo_dismisses_without_commenting(make_confi
 
     # The dismissal is the merge gate and must survive the comment gate untouched.
     assert rec.events == ["dismiss:1", "emit"]
-    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert reviews[0].dismissed_with == land_approval.SUPERSEDED_MESSAGE
     assert pr.comments == []
     assert any("skipping upsert" in record.getMessage() for record in caplog.records)
 
@@ -522,7 +553,7 @@ def test_full_no_land_dismisses_then_emits_payload_then_comments(make_config, tm
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert rec.events == ["dismiss:1", "emit", "comment"]
-    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert reviews[0].dismissed_with == land_approval.SUPERSEDED_MESSAGE
     payload = _decode(emit.row_gzip)
     # The stored message is scrubbed of secrets but otherwise verbatim -- not @-defanged like the
     # comment; the row keeps the readable text with only the credential replaced.
@@ -578,7 +609,8 @@ def test_full_land_upserts_existing_marked_comment(make_config, tmp_path):
 
     # LAND approves with the one-liner, then edits its own comment in place (no new create).
     assert rec.events == ["emit", "review:APPROVE", "edit"]
-    assert pr.created_reviews[0] == ("APPROVE", verdict._LAND_REVIEW_BODY)
+    assert pr.created_reviews[0] == ("APPROVE", land_approval.LAND_REVIEW_BODY)
+    assert pr.review_commits == [req.head_sha]
     assert pr.comments == []
     assert comment_format.COMMENT_MARKER in existing.body
     assert f"**{comment_format.LAND_HEADLINE}**" in existing.body
@@ -643,6 +675,7 @@ def test_land_whose_lookup_refuses_the_moved_head_is_shadow_and_approves_nothing
         *,
         eligibility: str,
         author_type: str | None,
+        strict_base: bool,
     ) -> bool:
         return head_sha == pr.head.sha
 
@@ -907,7 +940,7 @@ def test_full_land_approves_with_empty_body(make_config, tmp_path):
 def test_full_land_skips_reapproval_when_already_approved(make_config, tmp_path, caplog):
     rec = _Recorder()
     emit = _FakeEmit(rec)
-    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec, "h")]
     pr = _FakePR("h", rec, reviews=reviews)
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
@@ -916,8 +949,8 @@ def test_full_land_skips_reapproval_when_already_approved(make_config, tmp_path,
     with caplog.at_level(logging.INFO, logger="greenlight"):
         verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    # A live greenlight approval already exists: no second APPROVE review is posted (the prior one is
-    # left intact), yet the canonical comment is still upserted and the skip is logged.
+    # A live greenlight approval already stands on the reviewed head: no second APPROVE review is posted
+    # (the prior one is left intact), yet the canonical comment is still upserted and the skip is logged.
     assert pr.created_reviews == []
     assert reviews[0].dismissed_with is None
     assert rec.events == ["emit", "comment"]
@@ -982,7 +1015,7 @@ class _CommentBoomPR(_FakePR):
 class _ReviewBoomPR(_FakePR):
     """A PR whose approving review always fails, to prove the merge-gate write stays fatal."""
 
-    def create_review(self, *, body: str, event: str) -> object:
+    def create_review(self, *, commit: Commit, body: str, event: str) -> _FakeReview:
         raise RuntimeError("review 5xx")
 
 
@@ -1118,7 +1151,7 @@ def test_shadow_land_dismisses_the_prior_approval_a_demoted_author_still_holds(m
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert rec.events == ["dismiss:1", "emit"]
-    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert reviews[0].dismissed_with == land_approval.SUPERSEDED_MESSAGE
     assert pr.created_reviews == []
     assert _decode(emit.row_gzip)["shadow"] is True
 
@@ -1158,7 +1191,7 @@ def test_shadow_no_land_still_dismisses_prior_approval(make_config, tmp_path):
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert rec.events == ["dismiss:1", "emit"]
-    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert reviews[0].dismissed_with == land_approval.SUPERSEDED_MESSAGE
     assert _decode(emit.row_gzip)["shadow"] is True
 
 
@@ -1205,6 +1238,7 @@ def test_no_land_dismisses_before_a_failing_eligibility_lookup_and_records_nothi
         *,
         eligibility: str,
         author_type: str | None,
+        strict_base: bool,
     ) -> NoReturn:
         rec.events.append("lookup")
         raise RuntimeError("merge rules unreadable")
@@ -1275,7 +1309,7 @@ def test_full_no_land_comment_failure_is_best_effort_and_still_dismisses(make_co
 
     # The dismissal (security action) ran and the row emitted; the failed comment did not raise.
     assert rec.events == ["dismiss:1", "emit"]
-    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert reviews[0].dismissed_with == land_approval.SUPERSEDED_MESSAGE
     assert emit.row_gzip is not None
     assert any("Failed to upsert verdict comment" in record.getMessage() for record in caplog.records)
 
@@ -1735,7 +1769,7 @@ def test_an_authoritative_no_land_leaves_gl_human_as_the_prs_only_greenlight_lab
 def test_a_land_greenlight_had_already_approved_still_gets_its_label(make_config, tmp_path):
     rec = _Recorder()
     emit = _FakeEmit(rec)
-    pr = _RecordingLabelPR("h", rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)])
+    pr = _RecordingLabelPR("h", rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec, "h")])
     gh = _FakeGithub(_FakeRepo(pr))
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
     req = VerdictRequest(
@@ -1942,7 +1976,7 @@ def test_a_failed_label_write_is_logged_and_the_verdict_still_records_and_commen
 ):
     rec = _Recorder()
     emit = _FakeEmit(rec)
-    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec, "h")]
     error = GithubException(502, {"message": "Server Error"})
     pr = _RecordingLabelPR("h", rec, labels, reviews=reviews, label_error=error)
     gh = _FakeGithub(_FakeRepo(pr))
@@ -2343,7 +2377,7 @@ def test_a_shadow_land_dismisses_once_before_an_emit_that_fails(
         )
 
     assert rec.events == ["dismiss:1", "emit"]
-    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert reviews[0].dismissed_with == land_approval.SUPERSEDED_MESSAGE
     assert pr.created_reviews == []
 
 
@@ -2362,3 +2396,198 @@ def test_a_no_land_still_dismisses_once_before_its_emit(make_config, tmp_path, s
     )
 
     assert rec.events == ["dismiss:1", "emit"]
+
+
+class _ClosingClient:
+    def __init__(self, events: list[str]) -> None:
+        self._events = events
+
+    def close(self) -> None:
+        self._events.append("close")
+
+
+def test_a_gate_repo_reads_its_rules_on_a_closed_client_before_the_eligibility_lookup(
+    make_config, tmp_path, monkeypatch
+):
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+
+    def read_rules(client: object, repo: str) -> gate_rules.GateRules:
+        rec.events.append(f"rules:{repo}")
+        return gate_rules.GateRules(enforced=True)
+
+    def lookup(*_args: object, strict_base: bool, **_kwargs: object) -> bool:
+        rec.events.append(f"lookup:strict={strict_base}")
+        return True
+
+    monkeypatch.setattr(verdict, "read_gate_rules", read_rules)
+    monkeypatch.setattr(verdict, "has_eligible_author", lookup)
+    monkeypatch.setattr(github_client, "build_authz_client", lambda token: _ClosingClient(rec.events))
+
+    verdict.run(
+        _land(tmp_path),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    # Nothing slow sits between the lookup's PR read and the approval.
+    assert rec.events == ["rules:pytorch/vision", "close", "lookup:strict=True", "emit", "review:APPROVE", "comment"]
+
+
+def test_a_gate_repo_whose_rules_do_not_enforce_the_gate_is_shadow_with_no_lookup(
+    make_config, tmp_path, eligibility, gate_rules_reader, caplog
+):
+    gate_rules_reader.result = gate_rules.GateRules(enforced=False, problems=("p1", "p2"))
+    rec = _Recorder()
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec, "h")]
+    pr = _FakePR("h", rec, reviews=reviews, author=_TRUSTED_AUTHOR)
+    emit = _FakeEmit(rec)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        verdict.run(
+            _land(tmp_path),
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    # The shadow LAND path dismisses the standing approval and withholds a new one.
+    assert gate_rules_reader.repos == ["pytorch/vision"]
+    assert eligibility.calls == []
+    assert pr.created_reviews == []
+    assert rec.events == ["dismiss:1", "emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+    assert "pytorch/vision does not enforce the gate: p1; p2" in caplog.text
+
+
+@pytest.mark.parametrize("bot_login", ["greenlight-app[bot]", "pytorchgreenlight-staging[bot]"])
+def test_a_gate_repo_land_by_another_account_is_shadow_with_no_rules_read_or_lookup(
+    make_config, tmp_path, eligibility, gate_rules_reader, caplog, bot_login
+):
+    rec = _Recorder()
+    standing = _FakeReview(1, bot_login, "APPROVED", rec, "h")
+    pr = _FakePR("h", rec, reviews=[standing], author=_TRUSTED_AUTHOR)
+    emit = _FakeEmit(rec)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        verdict.run(
+            dataclasses.replace(_land(tmp_path), bot_login=bot_login),
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    # The merge gate and the scan judge GreenLight's own account alone, so another one's approval carries nothing.
+    assert (gate_rules_reader.repos, eligibility.calls, pr.created_reviews) == ([], [], [])
+    assert rec.events == ["dismiss:1", "emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+    assert f"pytorch/vision: --bot-login {bot_login!r} is not {GREENLIGHT_LOGIN}, whom the gate judges" in caplog.text
+
+
+def test_a_pytorchbot_repo_land_takes_any_app_login(make_config, tmp_path, eligibility, gate_rules_reader):
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+    emit = _FakeEmit(rec)
+
+    verdict.run(
+        dataclasses.replace(_land(tmp_path, repo=constants.TARGET_REPO), bot_login="greenlight-app[bot]"),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=emit,
+        now=lambda: _FIXED,
+    )
+
+    assert gate_rules_reader.repos == []
+    assert len(eligibility.calls) == 1
+    assert _decode(emit.row_gzip)["shadow"] is False
+    assert rec.events == ["emit", "review:APPROVE"]
+
+
+def test_a_gate_repo_whose_rules_cannot_be_read_fails_the_command_with_no_row(
+    make_config, tmp_path, eligibility, gate_rules_reader
+):
+    gate_rules_reader.result = GithubException(502, {"message": "Server Error"})
+    rec = _Recorder()
+    pr = _FakePR("h", rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec, "h")], author=_TRUSTED_AUTHOR)
+    emit = _FakeEmit(rec)
+
+    with pytest.raises(GithubException):
+        verdict.run(
+            _land(tmp_path),
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    assert eligibility.calls == []
+    assert rec.events == []
+    assert emit.row_gzip is None
+
+
+@pytest.mark.parametrize(
+    ("repo", "status", "reason", "shadow"),
+    [
+        pytest.param(constants.TARGET_REPO, "LAND", "clean", False, id="pytorch-land"),
+        pytest.param("pytorch/vision", "NO_LAND", "unclear_intent", False, id="gate-no-land"),
+        pytest.param("pytorch/vision", "LAND", "clean", True, id="gate-land-requested-shadow"),
+    ],
+)
+def test_the_rules_are_read_only_for_an_authoritative_land_on_a_gate_repo(
+    make_config, tmp_path, eligibility, gate_rules_reader, repo, status, reason, shadow
+):
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+    request = dataclasses.replace(_land(tmp_path, repo=repo, status=status, reason=reason), shadow=shadow)
+
+    verdict.run(
+        request,
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    assert gate_rules_reader.repos == []
+
+
+@pytest.mark.parametrize(("repo", "strict_base"), [(constants.TARGET_REPO, False), ("pytorch/vision", True)])
+def test_the_lookup_is_handed_the_entrys_base_rule(make_config, tmp_path, eligibility, repo, strict_base):
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+
+    verdict.run(
+        _land(tmp_path, repo=repo),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    assert eligibility.strict_bases == [strict_base]
+
+
+def test_a_re_land_after_a_push_on_pytorch_dismisses_the_old_approval_and_posts_a_pinned_one(make_config, tmp_path):
+    rec = _Recorder()
+    old = _FakeReview(1, _BOT, "APPROVED", rec, "old-head")
+    pr = _FakePR("new-head", rec, reviews=[old])
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo=constants.TARGET_REPO, pr_number=7, head_sha="new-head", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(
+        req,
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    assert old.dismissed_with == land_approval.SUPERSEDED_MESSAGE
+    assert pr.review_commits == ["new-head"]
+    assert rec.events == ["emit", "dismiss:1", "review:APPROVE"]

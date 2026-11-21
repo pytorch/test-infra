@@ -75,7 +75,9 @@ review tables cannot be read by PR number without reading their whole `pull_requ
 narrow columns are read in full; a projection or materialized view keyed by repo and PR number on the
 HUD cluster would bound every read. Each `clickhouse` repo adds a marker query and a freshness query
 of its own (the freshness answer is the same for every repo); one combined marker query and one
-freshness reading per tick are due before several repos use `clickhouse`.
+freshness reading per tick are due before several repos use `clickhouse`. A `safety: gate` repo's
+approval-backing check ([GATE.md](GATE.md)) runs in the scan's safety phase apart from change
+detection, with its own listing and conditional review reads, and logs its own count and time.
 
 **Access.** The scan's ClickHouse user must read the four webhook tables (only the columns
 `change_feed.py` names) and be allowed to set `max_execution_time` (a `readonly=1` profile refuses

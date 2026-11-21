@@ -10,7 +10,7 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from greenlight import drci_poke, repo_config, repo_scan, verdict, workflow_target
+from greenlight import drci_poke, gate_check, repo_config, repo_scan, verdict, workflow_target
 from greenlight.config import Config
 from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 
     from github import Github
 
+    from greenlight.app_tokens import TokenSource
     from greenlight.scan_memory import ScanMemory
-    from greenlight.tick import TokenSource
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Scan the open PRs from the evaluation cohort in --repo (every merge_rules.yaml "
             "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
             "dispatch the review workflow for new or changed PRs whose author is eligible under the "
-            "merge rules: named by a valid rule, whatever files the PR changes, on a base trymerge "
-            "accepts. Requires "
+            "merge rules: named by a valid rule, whatever files the PR changes, on a base the repo's "
+            "rule accepts (on a safety: gate repo, main alone). Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials. The repo must have an "
             "entry in greenlight/repos.yaml, read from pytorch/test-infra's default branch; its mode "
             "decides what the scan does (REPOS.md). PYTORCH_GREENLIGHT_DISPATCH_TOKEN, when set, reads "
@@ -127,7 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "LOCAL USE ONLY: waive the eligibility requirement on the --pr target, reviewing it even "
-            "when no valid merge rule names its author or trymerge refuses its base. Eligibility is still "
+            "when no valid merge rule names its author or its base is not accepted. Eligibility is still "
             "resolved and still decides shadow, so such a PR is reviewed in shadow and never approved "
             "(never exposed as a workflow input)"
         ),
@@ -197,6 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
     drci_parser.add_argument("--pr", type=int, required=True, help="pull-request number")
     drci_parser.add_argument("--log-level", default=None, help="logging level name")
     workflow_target.add_parser(subparsers)
+    gate_check.add_parser(subparsers)
     return parser
 
 
@@ -275,11 +276,11 @@ def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
 def _all_repos_run(
     args: argparse.Namespace, config: Config, bot_login: str, tokens: TokenSource | None
 ) -> Callable[[Config], None]:
-    from greenlight import tick  # lazy: keeps this module importable without PyGithub
+    from greenlight import app_tokens, tick  # lazy: keeps this module importable without PyGithub
 
     return functools.partial(
         tick.run_tick,
-        tokens=tick.EnvTokens(config) if tokens is None else tokens,
+        tokens=app_tokens.EnvTokens(config) if tokens is None else tokens,
         config_cache=_CONFIG_CACHE,
         eligibility_caches=_ELIGIBILITY_CACHES,
         memories=_SCAN_MEMORY,
@@ -300,6 +301,8 @@ def main(argv: Sequence[str] | None = None, *, tokens: TokenSource | None = None
         return _run_drci_poke(args, parser)
     if args.command == "target":
         return workflow_target.run(args)
+    if args.command == "gate-check":
+        return gate_check.run(args)
     try:
         config = _config_from_args(args)
         configure_logging(config.log_level)

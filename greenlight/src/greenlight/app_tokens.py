@@ -1,6 +1,7 @@
-"""The scan's tokens minted from GreenLight's GitHub App installation, one per job and repo (the Lambda).
+"""The scan's token sources (``TokenSource``): the environment's, and GreenLight's GitHub App installation's.
 
-``AppTokens`` is the ``tick.TokenSource`` the ``greenlight-scan`` Lambda runs with. It mints, once per
+``EnvTokens`` serves the CLI's ``review --all-repos`` from the environment's tokens. ``AppTokens`` is the
+``TokenSource`` the ``greenlight-scan`` Lambda runs with, one token per job and repo. It mints, once per
 instance (one per tick), a ``DISPATCH_REPO`` token with ``DISPATCH_TOKEN_PERMISSIONS`` for the repos
 config, the dispatch and the review runs, and a metadata-only token for ``GET /installation/repositories``,
 which reports each repo the installation reaches with its canonical name, private flag and default
@@ -15,7 +16,7 @@ latches on it and stops its GitHub work. ``greenlight-review.yml`` mints the sam
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from greenlight import github_client, repo_scan
 from greenlight.constants import DISPATCH_REPO
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 
     from github import Github, GithubIntegration
 
+    from greenlight.config import Config
     from greenlight.repo_config import RepoConfig, RepoEntry
 
 logger = logging.getLogger(__name__)
@@ -51,8 +53,42 @@ def repo_token_names(repo_config: RepoConfig) -> str:
     return ",".join(entry.repo.partition("/")[2] for entry, _served in repo_scan.scanned_entries(repo_config))
 
 
+class TokenSource(Protocol):
+    def dispatch_token(self) -> str:
+        """The token for the repos config, the dispatch and the review runs, all on ``DISPATCH_REPO``."""
+
+    def repo_token(self, entry: RepoEntry) -> str:
+        """``entry``'s token once its live checks pass; ``RepoUnavailable`` otherwise."""
+
+
+class EnvTokens:
+    """Tokens from the environment: the scan token for every repo, the dispatch token or else the scan token."""
+
+    def __init__(self, config: Config, build_github: Callable[[str], Github] = github_client.build_client) -> None:
+        self._config = config
+        self._build_github = build_github
+
+    def _scan_token(self) -> str:
+        if not self._config.github_token:
+            raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
+        return self._config.github_token
+
+    def dispatch_token(self) -> str:
+        self._scan_token()
+        return self._config.dispatch_or_scan_token
+
+    def repo_token(self, entry: RepoEntry) -> str:
+        token = self._scan_token()
+        client = self._build_github(token)
+        try:
+            repo_scan.check_identity(entry, client)
+        finally:
+            github_client.close_client(client)
+        return token
+
+
 class AppTokens:
-    """``tick.TokenSource`` minted from the App installation ``installation_id`` of ``owner``."""
+    """``TokenSource`` minted from the App installation ``installation_id`` of ``owner``."""
 
     def __init__(
         self,

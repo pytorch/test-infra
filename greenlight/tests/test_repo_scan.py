@@ -9,8 +9,9 @@ from unittest.mock import Mock
 import pytest
 from github import RateLimitExceededException
 
-from greenlight import drain, github_client, merge_authz, quota, repo_scan, writers
+from greenlight import approval_backing, drain, github_client, merge_authz, quota, repo_scan, writers
 from greenlight.constants import TARGET_REPO
+from greenlight.gate_rules import GateRules
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, RepoConfig, RepoEntry
 from greenlight.repo_scan import RepoIdentity
@@ -20,6 +21,13 @@ from greenlight.snapshot_cache import SnapshotCache
 _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "merge_rules", "shadow")
 _SNAPSHOT = merge_authz.MergeRulesSnapshot(authorized=frozenset({"alice"}), rules=())
 _TOKEN = "t"
+_ENFORCED = GateRules(enforced=True)
+
+
+def _backing_report(
+    rules: GateRules | None = _ENFORCED, errors: tuple[str, ...] = ()
+) -> approval_backing.BackingReport:
+    return approval_backing.BackingReport(rules, 0, 0, 0, 0, 0, 1, 0, 0, (), errors)
 
 
 def _identity(repo: str, *, private: bool = False, branch: str = "main") -> RepoIdentity:
@@ -105,11 +113,52 @@ def test_check_identity_passes_a_repo_passing_every_live_check_and_refuses_any_o
         pytest.param(BUILTIN_PYTORCH, False, ("review", False), id="pytorchbot-safety-only"),
         pytest.param(_VISION, True, ("review", True), id="gate-shadow"),
         pytest.param(dataclasses.replace(_VISION, mode="active"), True, ("review", True), id="gate-active"),
-        pytest.param(_VISION, False, ("none", False), id="gate-safety-only"),
+        pytest.param(_VISION, False, ("backing", False), id="gate-safety-only"),
     ],
 )
 def test_repo_work_routes_every_entry(entry, served, work):
     assert repo_scan.repo_work(entry, served=served) == work
+
+
+@pytest.mark.parametrize(
+    ("entry", "backs"),
+    [
+        pytest.param(_VISION, True, id="gate-shadow"),
+        pytest.param(dataclasses.replace(_VISION, mode="active"), True, id="gate-active"),
+        pytest.param(dataclasses.replace(_VISION, mode="off"), False, id="gate-off"),
+        pytest.param(BUILTIN_PYTORCH, False, id="pytorchbot"),
+    ],
+)
+def test_every_gate_entry_but_an_off_one_backs_approvals(entry, backs):
+    assert repo_scan.backs_approvals(entry) is backs
+
+
+_ACTIVE = dataclasses.replace(_VISION, mode="active")
+_NOT_ENFORCED = GateRules(enforced=False, problems=("a merge_queue rule applies", "no pull_request rule"))
+
+
+@pytest.mark.parametrize(
+    ("entry", "report", "refusal"),
+    [
+        pytest.param(_ACTIVE, _backing_report(), None, id="enforced"),
+        pytest.param(
+            _ACTIVE, _backing_report(None), "no dispatch this tick: the rules could not be read", id="unknown"
+        ),
+        pytest.param(_ACTIVE, None, "no dispatch this tick: the rules could not be read", id="no-report"),
+        pytest.param(
+            _ACTIVE,
+            _backing_report(_NOT_ENFORCED),
+            "no dispatch this tick: GreenLight's gate is not enforced on pytorch/vision: "
+            "a merge_queue rule applies; no pull_request rule",
+            id="not-enforced",
+        ),
+        pytest.param(_VISION, _backing_report(_NOT_ENFORCED), None, id="shadow"),
+        pytest.param(_VISION, None, None, id="shadow-no-report"),
+        pytest.param(BUILTIN_PYTORCH, None, None, id="pytorchbot"),
+    ],
+)
+def test_only_an_active_gate_entry_without_enforced_rules_is_refused_a_dispatch(entry, report, refusal):
+    assert repo_scan.dispatch_refusal(entry, report) == refusal
 
 
 def test_the_merge_rules_resolver_reads_the_entrys_own_repo(monkeypatch):
@@ -201,12 +250,20 @@ def _config(
 
 
 class _Scan:
-    def __init__(self, config_fetch: Any, *, identity: RepoIdentity | None = None, failed: tuple[int, ...] = ()):
+    def __init__(
+        self,
+        config_fetch: Any,
+        *,
+        identity: RepoIdentity | None = None,
+        failed: tuple[int, ...] = (),
+        backing: approval_backing.BackingReport | None = None,
+    ):
         self.config_cache = _config_cache(config_fetch)
         self.caches: repo_scan.EligibilityCaches = {}
         self.memories: dict[str, ScanMemory] = {}
         self.review = Mock()
         self.drain = Mock(return_value=drain.DrainReport(1, 0, 0, False, "x", failed))
+        self.backing = Mock(return_value=backing or _backing_report())
         self.identity = identity
         self.clients: list[_Client] = []
         self.tokens: list[str] = []
@@ -237,6 +294,7 @@ class _Scan:
             build_github=self._build,
             run_review=self.review,
             run_drain=self.drain,
+            run_backing=self.backing,
             ref="main",
         )
 
@@ -299,21 +357,96 @@ def test_a_safety_only_repo_runs_only_its_safety_work_then_fails(make_config):
     assert scan.review.call_args.kwargs["entry"] == BUILTIN_PYTORCH
 
 
-def test_a_safety_only_gate_repo_gets_no_work_forgets_its_drain_and_fails(make_config, caplog):
+def test_a_safety_only_gate_repo_gets_its_backing_check_alone_forgets_its_drain_and_fails(make_config):
     scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, safety_only=((_VISION, "unknown key(s) ['x']"),)))
     memory = scan.memories["pytorch/vision"] = ScanMemory()
     memory.off_since(datetime(2026, 1, 1))
 
-    with (
-        caplog.at_level(logging.WARNING, logger="greenlight"),
-        pytest.raises(RuntimeError, match=r"pytorch/vision: safety-only: unknown key\(s\) \['x'\]"),
-    ):
+    with pytest.raises(RuntimeError, match=r"pytorch/vision: safety-only: unknown key\(s\) \['x'\]"):
         scan.run(make_config, "pytorch/vision")
 
     scan.review.assert_not_called()
     scan.drain.assert_not_called()
+    assert scan.backing.call_args.kwargs["memory"] is memory
     assert memory.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
-    assert "a safety-only gate entry has no safety work yet" in caplog.text
+
+
+def test_a_recheck_of_a_safety_only_gate_repo_does_nothing(make_config, caplog):
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, safety_only=((_VISION, "unknown key(s) ['x']"),)))
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError, match="safety-only"):
+        scan.run(make_config, "pytorch/vision", pr=3)
+
+    scan.review.assert_not_called()
+    scan.backing.assert_not_called()
+    assert "pytorch/vision: a safety-only gate entry is not reviewed: --pr does nothing" in caplog.text
+
+
+def test_a_gate_repo_runs_its_backing_check_before_the_review_and_reports_its_errors(make_config):
+    report = _backing_report(_NOT_ENFORCED, errors=("sweep 1 incomplete after 15 minutes: 2 PRs unread",))
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, _VISION), backing=report)
+    order: list[str] = []
+
+    def backing(*_args: object, **_kwargs: object) -> approval_backing.BackingReport:
+        order.append("backing")
+        return report
+
+    scan.backing.side_effect = backing
+    scan.review.side_effect = lambda *_args, **_kwargs: order.append("review")
+
+    with pytest.raises(RuntimeError, match=r"^pytorch/vision: sweep 1 incomplete after 15 minutes: 2 PRs unread$"):
+        scan.run(make_config, "pytorch/vision")
+
+    assert order == ["backing", "review"]
+    args, kwargs = scan.backing.call_args
+    assert args[0].github_token == _TOKEN
+    assert kwargs["entry"] == _VISION
+    assert kwargs["memory"] is scan.memories["pytorch/vision"]
+    assert kwargs["bot_login"] == "bot[bot]"
+    assert kwargs["build_github"] == scan._build
+
+
+@pytest.mark.parametrize(
+    ("report", "reason"),
+    [
+        pytest.param(_backing_report(None, errors=("rules: boom",)), "the rules could not be read", id="unknown"),
+        pytest.param(_backing_report(_NOT_ENFORCED), "GreenLight's gate is not enforced on pytorch/vision", id="off"),
+    ],
+)
+def test_an_active_gate_repo_without_enforced_rules_is_not_reviewed(make_config, report, reason):
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, _ACTIVE), backing=report)
+
+    with pytest.raises(RuntimeError, match=f"no dispatch this tick: {reason}"):
+        scan.run(make_config, "pytorch/vision")
+
+    scan.review.assert_not_called()
+
+
+def test_an_active_gate_repo_with_enforced_rules_is_reviewed(make_config):
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, _ACTIVE))
+
+    scan.run(make_config, "pytorch/vision")
+
+    assert scan.review.call_args.kwargs["entry"] == _ACTIVE
+
+
+def test_a_recheck_of_a_gate_repo_runs_no_backing_check(make_config):
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, _ACTIVE), backing=_backing_report(None))
+
+    scan.run(make_config, "pytorch/vision", pr=4)
+
+    scan.backing.assert_not_called()
+    assert scan.review.call_args.kwargs["pr"] == 4
+
+
+def test_a_pytorchbot_or_off_repo_runs_no_backing_check(make_config):
+    off = dataclasses.replace(_VISION, mode="off")
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, off))
+
+    scan.run(make_config, TARGET_REPO)
+    scan.run(make_config, "pytorch/vision")
+
+    scan.backing.assert_not_called()
 
 
 def test_a_refused_repo_gets_no_work_and_fails_with_its_reason(make_config):

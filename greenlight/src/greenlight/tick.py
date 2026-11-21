@@ -5,13 +5,16 @@ runs two phases over the served and safety-only entries (``repo_scan.scanned_ent
 first), each entry's work given by ``repo_scan.repo_work``:
 
 - **Phase A**, safety work, never stopped by a budget or a floor: a ``pytorchbot`` repo runs
-  ``review.prepare`` (the revert guard and the ineligible revoke), an ``off`` repo its drain slice, a
-  ``gate`` repo nothing yet. A safety-only entry stops here.
+  ``review.prepare`` (the revert guard and the ineligible revoke), an ``off`` repo its drain slice, any
+  other ``gate`` repo its approval-backing check (``approval_backing``), whose errors are the repo's. A
+  safety-only entry stops here.
 - **Phase B**, optional work: the primary finishes its prepared scan under ``QUOTA_FLOOR_PRIMARY``;
   then each other served ``active`` or ``shadow`` repo, in order, prepares and finishes its scan
   within ``OTHER_REPO_TIME_BUDGET`` and ``OTHER_REPO_REQUEST_BUDGET``, under ``QUOTA_FLOOR_OTHERS``, and
   never past ``TICK_DEADLINE`` from the tick's start. A repo whose turn starts past that, or once a
-  positive ``--max`` is used up, gets none.
+  positive ``--max`` is used up, gets none; nor does an ``active`` gate repo whose backing check could
+  not read its branch rules or found GreenLight's gate not enforced (``repo_scan.dispatch_refusal``),
+  which is its error.
 
 A dispatch token that cannot be had is the tick's error: the config is not read, so the tick serves
 only the built-in ``pytorch/pytorch`` entry and runs only its safety work, on its repo token; no other
@@ -35,9 +38,9 @@ import functools
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
-from greenlight import drain, github_client, repo_scan, review, review_finish
+from greenlight import approval_backing, drain, github_client, repo_scan, review, review_finish
 from greenlight.constants import (
     DISPATCH_REPO,
     OTHER_REPO_REQUEST_BUDGET,
@@ -59,6 +62,8 @@ if TYPE_CHECKING:
 
     from github import Github
 
+    from greenlight.app_tokens import TokenSource
+    from greenlight.approval_backing import BackingReport
     from greenlight.config import Config
     from greenlight.quota import RequestMeter
     from greenlight.repo_config import RepoConfig, RepoEntry
@@ -67,40 +72,6 @@ if TYPE_CHECKING:
     from greenlight.snapshot_cache import SnapshotCache
 
 logger = logging.getLogger(__name__)
-
-
-class TokenSource(Protocol):
-    def dispatch_token(self) -> str:
-        """The token for the repos config, the dispatch and the review runs, all on ``DISPATCH_REPO``."""
-
-    def repo_token(self, entry: RepoEntry) -> str:
-        """``entry``'s token once its live checks pass; ``RepoUnavailable`` otherwise."""
-
-
-class EnvTokens:
-    """Tokens from the environment: the scan token for every repo, the dispatch token or else the scan token."""
-
-    def __init__(self, config: Config, build_github: Callable[[str], Github] = github_client.build_client) -> None:
-        self._config = config
-        self._build_github = build_github
-
-    def _scan_token(self) -> str:
-        if not self._config.github_token:
-            raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
-        return self._config.github_token
-
-    def dispatch_token(self) -> str:
-        self._scan_token()
-        return self._config.dispatch_or_scan_token
-
-    def repo_token(self, entry: RepoEntry) -> str:
-        token = self._scan_token()
-        client = self._build_github(token)
-        try:
-            repo_scan.check_identity(entry, client)
-        finally:
-            github_client.close_client(client)
-        return token
 
 
 def _quota_text(reading: tuple[int | None, int | None]) -> str:
@@ -124,6 +95,7 @@ class _Tick:
     run_prepare: Callable[..., PreparedScan | None]
     run_finish: Callable[..., int]
     run_drain: Callable[..., drain.DrainReport]
+    run_backing: Callable[..., BackingReport]
     monotonic: Callable[[], float]
     now: Callable[[], datetime]
     stack: contextlib.ExitStack
@@ -134,6 +106,7 @@ class _Tick:
     repo_tokens: dict[str, str] = field(default_factory=dict)
     prepared: dict[str, PreparedScan] = field(default_factory=dict)
     finished: set[str] = field(default_factory=set)
+    backing: dict[str, BackingReport] = field(default_factory=dict)
 
     def metered(self, meter: RequestMeter) -> Callable[..., Github]:
         return functools.partial(self.build_github, meter=meter)
@@ -185,22 +158,36 @@ class _Tick:
         if (problem := repo_scan.drain_error(report)) is not None:
             self.outcomes.error(entry.repo, problem)
 
+    def back(self, entry: RepoEntry, memory: ScanMemory) -> None:
+        report = self.backing[entry.repo] = self.run_backing(
+            self.repo_config(entry.repo),
+            entry=entry,
+            memory=memory,
+            bot_login=self.bot_login,
+            build_github=self.metered(self.meter.meter(entry.repo)),
+            cancel_event=self.meter.latch,
+            now=self.now,
+        )
+        for error in report.errors:
+            self.outcomes.error(entry.repo, error)
+
     def phase_a(self, entry: RepoEntry, served: bool) -> None:
         repo = entry.repo
         work = repo_scan.repo_work(entry, served=served)
         memory = self.memories.setdefault(repo, ScanMemory())
         if work.kind != "drain":
             memory.clear_drain()
-        if work.kind == "none" or self.outcomes.skipped(repo, "Phase A"):
+        if self.outcomes.skipped(repo, "Phase A"):
             return
         self.outcomes.attempt(repo, "its token", lambda: self.take_token(entry))
         if repo not in self.repo_tokens:
             return
+        self.gauge.refresh()
         if work.kind == "drain":
-            self.gauge.refresh()
             self.outcomes.attempt(repo, "Phase A (drain)", lambda: self.drain(entry, memory))
-        elif entry.safety == "pytorchbot":
-            self.gauge.refresh()
+        elif repo_scan.backs_approvals(entry):
+            self.outcomes.attempt(repo, "Phase A (approval backing)", lambda: self.back(entry, memory))
+        else:
             self.outcomes.attempt(repo, "Phase A (safety work)", lambda: self.prepare(entry, memory, 0))
 
     def phase_b(self, entry: RepoEntry, share: int | None, *, used_up: bool = False) -> int:
@@ -210,6 +197,10 @@ class _Tick:
         """
         repo = entry.repo
         if self.outcomes.skipped(repo, "Phase B"):
+            return 0
+        refusal = repo_scan.dispatch_refusal(entry, self.backing.get(repo))
+        if refusal is not None:
+            self.outcomes.error(repo, refusal)
             return 0
         memory = self.memories[repo]
         full_tick_due = memory.full_tick_due(self.now())
@@ -331,6 +322,7 @@ def run_tick(
     run_prepare: Callable[..., PreparedScan | None] = review.prepare,
     run_finish: Callable[..., int] = review_finish.finish,
     run_drain: Callable[..., drain.DrainReport] = drain.drain,
+    run_backing: Callable[..., BackingReport] = approval_backing.check,
     read_quota: Callable[[Github], tuple[int, int]] = core_quota,
     monotonic: Callable[[], float] = time.monotonic,
     now: Callable[[], datetime] = review._utcnow,
@@ -364,6 +356,7 @@ def run_tick(
             run_prepare=run_prepare,
             run_finish=run_finish,
             run_drain=run_drain,
+            run_backing=run_backing,
             monotonic=monotonic,
             now=now,
             stack=stack,
