@@ -2,16 +2,18 @@
 
 ``.github/workflows/greenlight-pr-review.yml`` *is* the policy under test. Everything
 the CI job hands the model is read back out of it here -- the prompt, the model and
-effort, the tool allowlist, the two diff-size caps, the three review budgets and
-which stack context it collects -- so that a policy pull request which retunes any of
-them is honoured rather than silently replaced by the baseline numbers.
+effort, the tool allowlist, the diff-size caps, the three review budgets and which
+stack context it collects -- so that a policy pull request which retunes any of them
+is honoured rather than silently replaced by the baseline numbers. The readers of the
+remaining steps the replay derives or runs are in :mod:`.workflow_steps`.
 
-Four properties of that reading are load-bearing.
+Five properties of that reading are load-bearing.
 
 **Steps are located by shape, never by index or by ``name``.** The action step is found
-by its ``uses`` prefix and the size gate by its ``id``. A policy pull request is free to
-reorder the review job's steps or retitle them, and either would otherwise select some
-other step's ``with:`` block and run the reviewer on a prompt nobody wrote.
+by its ``uses`` prefix and the size gate by its ``id``, so a reader finds each step
+wherever it sits and whatever it is titled, rather than another step's ``with:`` block.
+Order still matters to the replay as a whole: a change of order changes the registered
+shape (:mod:`.ledger_shape`), which a retitle does not.
 
 **``--allowedTools`` is translated to ``tools``.** Under
 ``anthropics/claude-code-action`` it is the allowlist, but the replay harness invokes
@@ -19,13 +21,20 @@ other step's ``with:`` block and run the reviewer on a prompt nobody wrote.
 imposes no ceiling at all; ``--tools`` is the hard allowlist. Carrying the flag across
 under its own name would hand the untrusted reviewer Bash and Edit.
 
-**A missing diff cap is fatal rather than absent.** The workflow spells the caps as
-string literals and carries a commented-out ``vars.*`` lookup that returns once the
-pinned actionlint is bumped past 1.6.24. Reading that lookup as ``None`` would disable
-the size gate and feed the model a diff it cannot read in full.
+**``claude_args`` carries the three flags and the four tools, and nothing else.** Any
+other flag, an allowlist entry beyond Read, Glob, Grep and Write, or an entry with a
+specifier such as ``Bash(git:*)`` is refused: the replay launches the CLI itself, so a
+flag it does not translate is one the live reviewer runs with and the replay does not.
 
-**A missing review budget is equally fatal, and the budgets live on the job's ``env``
-rather than on a step.** ``budget-reminder.sh`` reads absolute epochs
+**A missing line or byte cap is fatal rather than absent.** The workflow spells the
+caps as string literals, and reading an absent one as ``None`` would disable the size
+gate and feed the model a diff it cannot read in full. The file cap is the exception: a
+size-gate step without ``MAX_DIFF_FILES`` is one CI ran with no file cap, so its replay
+has none.
+
+**A missing review budget is equally fatal, the budgets live on the job's ``env``
+rather than on a step, and they are held to the checks the workflow's "Compute review
+budget deadlines" step makes before it derives any deadline.** ``budget-reminder.sh`` reads absolute epochs
 (``GREENLIGHT_REVIEW_START_EPOCH`` and the three ``*_DEADLINE`` values), which the
 workflow derives from these minutes in a step of its own; given a value that is unset or
 non-numeric the hook exits 0 without emitting anything. A silent hook is not merely
@@ -41,6 +50,7 @@ nothing added here should.
 
 from __future__ import annotations
 
+import re
 import shlex
 from pathlib import Path
 from typing import Any
@@ -60,12 +70,16 @@ __all__ = [
     "ACTION_USES_PREFIX",
     "ALLOWED_TOOLS_FLAG",
     "EFFORT_FLAG",
+    "MAX_BUDGET_DIGITS",
+    "MAX_BUDGET_MINUTES",
     "MAX_DIFF_BYTES_KEY",
+    "MAX_DIFF_FILES_KEY",
     "MAX_DIFF_LINES_KEY",
     "MODEL_FLAG",
     "PROMPT_KEY",
     "REVIEW_BUDGET_KEYS",
     "SIZECHECK_STEP_ID",
+    "TOOL_ALLOWLIST",
     "WORKFLOW_RELPATH",
     "claude_args",
     "diff_caps",
@@ -85,6 +99,7 @@ CLAUDE_ARGS_KEY = "claude_args"
 
 MAX_DIFF_LINES_KEY = "MAX_DIFF_LINES"
 MAX_DIFF_BYTES_KEY = "MAX_DIFF_BYTES"
+MAX_DIFF_FILES_KEY = "MAX_DIFF_FILES"
 
 # Target, soft, hard -- the order the runner unpacks them in, and the order they
 # must stay in: each tier's nudge is chosen by which deadline has passed.
@@ -93,10 +108,20 @@ REVIEW_BUDGET_KEYS = (
     "GREENLIGHT_REVIEW_SOFT_BUDGET_MIN",
     "GREENLIGHT_REVIEW_HARD_BUDGET_MIN",
 )
+# The workflow's deadline step bounds each budget so its shell arithmetic stays sound:
+# `[` fails on digits past int64 and $(( )) silently wraps them.
+MAX_BUDGET_DIGITS = 9
+MAX_BUDGET_MINUTES = 1440
 
 MODEL_FLAG = "--model"
 EFFORT_FLAG = "--effort"
 ALLOWED_TOOLS_FLAG = "--allowedTools"
+_CLAUDE_FLAGS = (MODEL_FLAG, EFFORT_FLAG, ALLOWED_TOOLS_FLAG)
+
+# The tools the replay's ``--tools`` can grant. Each is judged by a hook the policy
+# registers or by --restricted's roots; anything wider is a tool the replay cannot
+# confine the way the live job does.
+TOOL_ALLOWLIST = frozenset({"Read", "Glob", "Grep", "Write"})
 
 _CAP_CONSEQUENCE = (
     "Reading it as absent would disable the size gate and feed the model a diff it "
@@ -134,16 +159,17 @@ def claude_args(document: dict[str, Any], path: Path) -> tuple[str, str, str]:
         raise ValueError(
             f"{path}: the {ACTION_USES_PREFIX} step declares no with.{CLAUDE_ARGS_KEY}"
         )
-    values = _flag_values(shlex.split(raw))
+    values = _flag_values(shlex.split(raw), path)
+    tools = _require_flag(values, ALLOWED_TOOLS_FLAG, path)
     return (
         _require_flag(values, MODEL_FLAG, path),
         _require_flag(values, EFFORT_FLAG, path),
-        _require_flag(values, ALLOWED_TOOLS_FLAG, path),
+        _tool_allowlist(tools, path),
     )
 
 
-def diff_caps(document: dict[str, Any], path: Path) -> tuple[int, int]:
-    """The line cap and the byte cap the size gate declines on."""
+def diff_caps(document: dict[str, Any], path: Path) -> tuple[int, int, int | None]:
+    """The line, byte and file caps the size gate declines on; no file cap is None."""
     step = _only(
         [step for step in _steps(document) if step.get("id") == SIZECHECK_STEP_ID],
         f"step with id: {SIZECHECK_STEP_ID}",
@@ -151,9 +177,15 @@ def diff_caps(document: dict[str, Any], path: Path) -> tuple[int, int]:
     )
     env = step.get("env") or {}
     owner = f"the {SIZECHECK_STEP_ID} step"
+    files = (
+        _uint_env(env, MAX_DIFF_FILES_KEY, path, owner, _CAP_CONSEQUENCE)
+        if MAX_DIFF_FILES_KEY in env
+        else None
+    )
     return (
         _uint_env(env, MAX_DIFF_LINES_KEY, path, owner, _CAP_CONSEQUENCE),
         _uint_env(env, MAX_DIFF_BYTES_KEY, path, owner, _CAP_CONSEQUENCE),
+        files,
     )
 
 
@@ -164,6 +196,10 @@ def review_budgets(document: dict[str, Any], path: Path) -> tuple[int, int, int]
     same reason the action step is found by its ``uses``. A job carrying only some of
     the three still resolves here, so the error names the key that is missing instead
     of reporting the whole job as absent.
+
+    Each is refused as the workflow's deadline step refuses it: more than
+    :data:`MAX_BUDGET_DIGITS` digits or more than :data:`MAX_BUDGET_MINUTES`, a zero
+    target, or a soft budget below the target or a hard one below the soft.
     """
     job = _only(
         [
@@ -175,11 +211,26 @@ def review_budgets(document: dict[str, Any], path: Path) -> tuple[int, int, int]
         path,
     )
     env = job.get("env") or {}
-    target, soft, hard = (
-        _uint_env(env, key, path, "the review job", _BUDGET_CONSEQUENCE)
-        for key in REVIEW_BUDGET_KEYS
-    )
+    target, soft, hard = (_budget(env, key, path) for key in REVIEW_BUDGET_KEYS)
+    if target <= 0:
+        raise ValueError(f"{path}: {REVIEW_BUDGET_KEYS[0]} must be positive")
+    if not target <= soft <= hard:
+        raise ValueError(
+            f"{path}: the review budgets must not decrease from target to soft to "
+            f"hard, got {target}, {soft}, {hard}"
+        )
     return target, soft, hard
+
+
+def _budget(env: dict[str, Any], key: str, path: Path) -> int:
+    """One budget, its length checked before its value, as the deadline step does."""
+    minutes = _uint_env(env, key, path, "the review job", _BUDGET_CONSEQUENCE)
+    if len(str(env[key])) > MAX_BUDGET_DIGITS or minutes > MAX_BUDGET_MINUTES:
+        raise ValueError(
+            f"{path}: {key} is {env[key]!r}, expected at most {MAX_BUDGET_MINUTES} "
+            f"minutes in at most {MAX_BUDGET_DIGITS} digits"
+        )
+    return minutes
 
 
 def stack_context(document: dict[str, Any], path: Path) -> StackContext:
@@ -214,14 +265,13 @@ def _jobs(document: dict[str, Any]) -> list[dict[str, Any]]:
     return [job for job in jobs.values() if isinstance(job, dict)]
 
 
+def _job_steps(job: dict[str, Any]) -> list[dict[str, Any]]:
+    return [step for step in job.get("steps") or [] if isinstance(step, dict)]
+
+
 def _steps(document: dict[str, Any]) -> list[dict[str, Any]]:
     """Every step of every job, so a renamed or split job cannot hide one."""
-    return [
-        step
-        for job in _jobs(document)
-        for step in (job.get("steps") or [])
-        if isinstance(step, dict)
-    ]
+    return [step for job in _jobs(document) for step in _job_steps(job)]
 
 
 def _only(
@@ -234,8 +284,8 @@ def _only(
     return candidates[0]
 
 
-def _action_with(document: dict[str, Any], path: Path) -> dict[str, Any]:
-    step = _only(
+def _action_step(document: dict[str, Any], path: Path) -> dict[str, Any]:
+    return _only(
         [
             step
             for step in _steps(document)
@@ -244,23 +294,37 @@ def _action_with(document: dict[str, Any], path: Path) -> dict[str, Any]:
         f"step with uses: {ACTION_USES_PREFIX}",
         path,
     )
-    return step.get("with") or {}
 
 
-def _flag_values(tokens: list[str]) -> dict[str, str]:
-    """``--flag value`` and ``--flag=value`` pairs; a bare flag carries no value."""
-    # Split the "=" spelling apart first, so one pairing rule covers both forms.
+def _action_with(document: dict[str, Any], path: Path) -> dict[str, Any]:
+    return _action_step(document, path).get("with") or {}
+
+
+def _flag_values(tokens: list[str], path: Path) -> dict[str, str]:
+    """``--flag value`` and ``--flag=value`` pairs, refusing anything else.
+
+    Every token must be one of the three flags followed by its value, each flag at most
+    once: a positional word, a bare flag or another flag is something the live action
+    would pass to the CLI and this replay would not.
+    """
     flat: list[str] = []
     for token in tokens:
         name, separator, inline = token.partition("=")
         flat.extend([name, inline] if separator and name.startswith("--") else [token])
-    return {
-        token: flat[index + 1]
-        for index, token in enumerate(flat)
-        if token.startswith("--")
-        and index + 1 < len(flat)
-        and not flat[index + 1].startswith("--")
-    }
+    values: dict[str, str] = {}
+    for index in range(0, len(flat), 2):
+        flag = flat[index]
+        if flag not in _CLAUDE_FLAGS:
+            raise ValueError(
+                f"{path}: {CLAUDE_ARGS_KEY} carries {flag!r}; the replay reproduces "
+                f"only {', '.join(_CLAUDE_FLAGS)}"
+            )
+        if flag in values:
+            raise ValueError(f"{path}: {CLAUDE_ARGS_KEY} carries {flag} twice")
+        if index + 1 >= len(flat) or flat[index + 1].startswith("--"):
+            raise ValueError(f"{path}: {CLAUDE_ARGS_KEY} carries {flag} with no value")
+        values[flag] = flat[index + 1]
+    return values
 
 
 def _require_flag(values: dict[str, str], flag: str, path: Path) -> str:
@@ -271,6 +335,22 @@ def _require_flag(values: dict[str, str], flag: str, path: Path) -> str:
             "unstated model, effort or tool allowlist is not replaying the policy."
         )
     return value
+
+
+def _tool_allowlist(value: str, path: Path) -> str:
+    """The allowlist as ``--tools`` takes it, holding only :data:`TOOL_ALLOWLIST` names.
+
+    The CLI splits the list on commas and whitespace. An entry with a specifier, such
+    as ``Bash(git:*)``, is not one of the names, so it is refused like any other.
+    """
+    entries = [entry for entry in re.split(r"[,\s]+", value) if entry]
+    wider = [entry for entry in entries if entry not in TOOL_ALLOWLIST]
+    if wider or not entries:
+        raise ValueError(
+            f"{path}: {ALLOWED_TOOLS_FLAG} is {value!r}; the replay grants only "
+            f"{', '.join(sorted(TOOL_ALLOWLIST))}, each without a specifier"
+        )
+    return ",".join(entries)
 
 
 def _uint_env(

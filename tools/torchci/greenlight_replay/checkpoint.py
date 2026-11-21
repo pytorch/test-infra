@@ -11,7 +11,8 @@ re-running it and can still say what the whole sweep cost.
 finished.** ``append_checkpoint`` is the only caller of ``replay_cells``, so
 there is one place a ``RunResult`` becomes cells; a second path rendering a live
 result straight into a row would be where the ``harness:`` convention and the
-recovered-verdict rule quietly stopped applying to half the file.
+rule that a failed run carries no decision quietly stopped applying to half the
+file.
 
 **A line records the input its verdict was computed from, and ``--resume`` will
 not reuse one that disagrees with the row in front of it.** A pull request number

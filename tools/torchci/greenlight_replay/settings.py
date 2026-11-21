@@ -1,102 +1,245 @@
-"""Compose the ``--settings`` layer the reviewer runs under.
+"""Derive the reviewer's hook settings from the policy's workflow, and compose its ``--settings``.
 
-The replay's whole claim is that it exercises the policy PR's reviewer, so the hooks come
-from the policy tree rather than from a copy kept here: a PR that changes ``restrict-read.py``
-or the pacing reminder is then actually under test. Only one hook is the harness's own, the
-per-run path remap, and it is registered last.
+The review job writes ``.claude/settings.local.json`` from a quoted heredoc, and that
+file is what registers the reviewer's sandboxes. The replay reads the same heredoc out of
+the arm's workflow (:mod:`.workflow_steps`), substitutes the checkout ``greenlight target``
+named for ``__GREENLIGHT_CHECKOUT__`` as the job's ``sed`` does, and refuses what it
+cannot reproduce: keys other than ``hooks`` and ``claudeMdExcludes``, an event outside the
+five it knows, a hook that is not a command, a PreToolUse or PostToolUse command that runs
+no ``.claude/hooks`` script, sandboxes not registered on the tools they confine, and
+SessionStart or InstructionsLoaded commands other than the two that leave the detector its
+sentinel and manifest. Whether each registered script is there to run is
+:func:`missing_hooks`' question, asked once before a sweep spends anything.
 
-Two hooks the workflow registers are deliberately absent, and both absences are load-bearing
-rather than oversights.
+What the reviewer runs under is that layer with three changes:
 
-``validate-on-stop.sh`` is NOT registered. It hardcodes ``/tmp/greenlight-verdict.json`` and
-takes no override -- unlike ``budget-reminder.sh``, which honours
-``GREENLIGHT_REVIEW_VERDICT_FILE`` -- so under the per-run path remap it would watch a file
-the reviewer never writes and refuse every stop. Each run would then loop until the CLI gave
-up, at full price, and produce nothing. Its job is refusing a stop without a valid verdict,
-and the runner does that instead by validating against the policy's schema and retrying once.
+* Each command runs its script from the materialized policy tree by absolute, shell-quoted
+  path, outside the reviewer's workspace. The CLI runs hook commands through a shell, so
+  an unquoted space would split one path into two words; nothing rejects that command,
+  and a hook that cannot exec does not deny, so the sandbox it provides drops out.
+* ``Stop`` is dropped. ``validate-on-stop.sh`` hardcodes ``/tmp/greenlight-verdict.json``,
+  which the per-run remap moves into the run directory, so it would watch a file the
+  reviewer never writes and refuse every stop. Whether a verdict is recorded is decided
+  after the session instead, by the record path's own checks.
+* The harness's remap hook is appended to PreToolUse, last. Every PreToolUse hook is
+  handed the ORIGINAL tool input, so the policy's sandboxes judge the un-remapped
+  ``/tmp/greenlight-*`` paths they permit and the rewrite is applied afterwards.
 
-The instruction-loading detector's ``SessionStart`` and ``InstructionsLoaded`` hooks are also
-absent. They exist to leave a manifest and a sentinel for a later CI step to assert on, and
-there is no such step here; the sanitize pass they check still runs.
+``outputStyle`` comes from the action step's ``with.settings``. ``reviewer_env`` sets
+``RUNNER_TEMP`` to the run directory, so the detector's two hooks write there.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import shlex
-from pathlib import Path
-from typing import Any
+from collections.abc import Mapping
+from pathlib import Path, PurePosixPath
+from typing import Any, TYPE_CHECKING
 
-from torchci.greenlight_replay.checkout import checkout_dirname, DEFAULT_REPO
 from torchci.greenlight_replay.hooks import remap
-from torchci.greenlight_replay.policy import Policy
+from torchci.greenlight_replay.workflow_steps import MANIFEST_COMMAND, SENTINEL_COMMAND
+
+
+if TYPE_CHECKING:
+    from torchci.greenlight_replay.policy import Policy
 
 
 __all__ = [
-    "BUDGET_HOOK_TIMEOUT_S",
+    "CHECKOUT_PLACEHOLDER",
+    "DROPPED_EVENTS",
+    "HOOK_EVENTS",
     "REMAP_MATCHER",
     "SETTINGS_FILENAME",
     "MissingHookError",
     "assert_hooks_present",
+    "derive_hook_settings",
     "missing_hooks",
     "write_settings",
 ]
 
 
 class MissingHookError(RuntimeError):
-    """A hook script the settings layer registers is not there to run."""
+    """A hook script the settings layer registers is missing or cannot be executed."""
 
 
 SETTINGS_FILENAME = "settings.json"
+CHECKOUT_PLACEHOLDER = "__GREENLIGHT_CHECKOUT__"
+HOOKS_PREFIX = ".claude/hooks/"
+PYTHON = "python3"
 
-# Pinned rather than left to the CLI default, which is measured in minutes: a hung pacing
-# reminder would spend the very budget it exists to protect, once per tool call.
-BUDGET_HOOK_TIMEOUT_S = 5
+HOOK_EVENTS = (
+    "PreToolUse",
+    "PostToolUse",
+    "Stop",
+    "SessionStart",
+    "InstructionsLoaded",
+)
+DROPPED_EVENTS = frozenset({"Stop"})
+SETTINGS_KEYS = frozenset({"hooks", "claudeMdExcludes"})
 
-# The reviewer's output style in CI. Named here because it travels with the hooks: both
-# reach the reviewer through this one file.
-OUTPUT_STYLE = "Concise"
+# The only commands these two events may run: they leave what the detector asserts on.
+EVENT_COMMANDS = {
+    "SessionStart": SENTINEL_COMMAND,
+    "InstructionsLoaded": MANIFEST_COMMAND,
+}
 
-# Matches restrict-read.py's own coverage. Read and Write are the tools that name the
-# skill's scratch paths directly; Glob and Grep are here because the read sandbox
-# admits any /tmp/greenlight-* search path, which would otherwise reach the SHARED /tmp
-# rather than this run's directory.
+# Each sandbox and the tools its matcher must cover, the matcher split on "|".
+REQUIRED_SANDBOXES = (
+    (".claude/hooks/greenlight/restrict-write.sh", frozenset({"Write", "Edit"})),
+    (".claude/hooks/greenlight/restrict-read.py", frozenset({"Read", "Glob", "Grep"})),
+)
+
+# Matches restrict-read.py's own coverage plus Write. Read and Write name the skill's
+# scratch paths directly; Glob and Grep are here because the read sandbox admits any
+# /tmp/greenlight-* search path, which would otherwise reach the SHARED /tmp rather than
+# this run's directory.
 REMAP_MATCHER = "Read|Write|Glob|Grep"
 
 
-def _script(path: Path, *args: str, interpreter: str = "") -> str:
-    """A hook command line, shell-quoted, its arguments too.
+def derive_hook_settings(text: str, checkout: str, source: Path) -> dict[str, Any]:
+    """The workflow's hook settings for ``checkout``, refused unless reproducible."""
+    try:
+        settings = json.loads(text.replace(CHECKOUT_PLACEHOLDER, checkout))
+    except ValueError as exc:
+        raise ValueError(f"{source}: the hook settings are not JSON: {exc}") from exc
+    if (
+        not isinstance(settings, dict)
+        or not isinstance(settings.get("hooks"), dict)
+        or set(settings) - SETTINGS_KEYS
+    ):
+        raise ValueError(
+            f"{source}: the hook settings must hold a hooks object and nothing but "
+            f"{', '.join(sorted(SETTINGS_KEYS))}"
+        )
+    excludes = settings.get("claudeMdExcludes", [])
+    if not isinstance(excludes, list) or not all(isinstance(x, str) for x in excludes):
+        raise ValueError(f"{source}: claudeMdExcludes is not a list of strings")
+    for event, entries in settings["hooks"].items():
+        if event not in HOOK_EVENTS:
+            raise ValueError(
+                f"{source}: the replay does not reproduce hook event {event}"
+            )
+        for hook in _hooks_of(entries, event, source):
+            _check_command(event, hook["command"], source)
+    for script, tools in REQUIRED_SANDBOXES:
+        if not _registered(settings["hooks"].get("PreToolUse", []), script, tools):
+            raise ValueError(
+                f"{source}: {script} is not registered on a PreToolUse matcher covering "
+                f"{', '.join(sorted(tools))}"
+            )
+    return settings
 
-    The CLI runs these through a shell, so a workdir containing a space would otherwise
-    split one path into two words. Nothing rejects the resulting command: a hook that
-    cannot exec does not deny, so ALL THREE PreToolUse hooks would drop out silently --
-    the read sandbox, the write sandbox, and the per-run path remap together. Losing the
-    remap alone turns a parallel sweep into every reviewer sharing one diff and one
-    verdict file.
+
+def _hooks_of(entries: Any, event: str, source: Path) -> list[Mapping[str, Any]]:
+    if not isinstance(entries, list):
+        raise ValueError(f"{source}: the {event} hooks are not a list")
+    hooks: list[Mapping[str, Any]] = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
+            raise ValueError(f"{source}: a {event} entry holds no hooks list")
+        if not isinstance(entry.get("matcher", ""), str):
+            raise ValueError(f"{source}: a {event} matcher is not a string")
+        for hook in entry["hooks"]:
+            if (
+                not isinstance(hook, dict)
+                or hook.get("type") != "command"
+                or not isinstance(hook.get("command"), str)
+            ):
+                raise ValueError(f"{source}: a {event} hook is not a command: {hook!r}")
+            hooks.append(hook)
+    return hooks
+
+
+def _check_command(event: str, command: str, source: Path) -> None:
+    expected = EVENT_COMMANDS.get(event)
+    if expected is not None:
+        if command != expected:
+            raise ValueError(
+                f"{source}: the {event} hook runs {command!r}; the replay reproduces "
+                f"only {expected!r}"
+            )
+        return
+    if _hook_script(command) is None:
+        raise ValueError(
+            f"{source}: the {event} hook {command!r} runs no {HOOKS_PREFIX} script as a "
+            "plain command line the replay can relocate"
+        )
+
+
+def _hook_script(command: str) -> tuple[str | None, str, list[str]] | None:
+    """``(interpreter, script, args)`` for ``[python3] .claude/hooks/<path> [args]``.
+
+    Only a command line that round-trips through ``shlex`` qualifies: anything with
+    shell syntax in it could not be rebuilt around a relocated path unchanged.
     """
-    quoted = shlex.join([str(path), *args])
-    return f"{interpreter} {quoted}" if interpreter else quoted
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return None
+    if not argv or shlex.join(argv) != command:
+        return None
+    index = 1 if argv[0] == PYTHON else 0
+    if len(argv) <= index or not argv[index].startswith(HOOKS_PREFIX):
+        return None
+    if ".." in PurePosixPath(argv[index]).parts:
+        return None
+    return (argv[0] if index else None), argv[index], argv[index + 1 :]
 
 
-def _hook_scripts(policy: Policy) -> list[Path]:
-    hooks = policy.hooks_dir
-    return [
-        hooks / "restrict-write.sh",
-        hooks / "restrict-read.py",
-        hooks / "budget-reminder.sh",
-        Path(remap.__file__).resolve(),
+def _registered(
+    entries: list[Mapping[str, Any]], script: str, tools: frozenset[str]
+) -> bool:
+    return any(
+        set(str(entry.get("matcher", "")).split("|")) >= tools
+        and any(
+            (_hook_script(hook["command"]) or (None, None, None))[1] == script
+            for hook in entry["hooks"]
+        )
+        for entry in entries
+    )
+
+
+def _registered_events(policy: Policy) -> dict[str, list[Mapping[str, Any]]]:
+    return {
+        event: entries
+        for event, entries in policy.hook_settings["hooks"].items()
+        if event not in DROPPED_EVENTS
+    }
+
+
+def _script_path(policy: Policy, script: str) -> Path:
+    return Path(os.path.abspath(Path(policy.root) / script))
+
+
+def _hook_scripts(policy: Policy) -> list[tuple[Path, bool]]:
+    """Each script the settings layer registers, and whether it is run directly."""
+    scripts = [
+        (_script_path(policy, parsed[1]), parsed[0] is None)
+        for entries in _registered_events(policy).values()
+        for entry in entries
+        for hook in entry["hooks"]
+        if (parsed := _hook_script(hook["command"])) is not None
     ]
+    return [*scripts, (Path(remap.__file__).resolve(), False)]
 
 
 def missing_hooks(policy: Policy) -> list[Path]:
-    """Hook scripts the settings layer would register that are not on disk.
+    """Hook scripts the settings layer would register that could not run.
 
-    Checked once at sweep startup rather than per run, because the failure it guards is a
-    property of the policy tree and identical for every pull request. It has to be checked
-    somewhere: a hook that cannot exec does not deny, so a missing script silently removes
-    a sandbox rather than failing, and the quoting above is only half the defence.
+    Missing, or run directly and not executable; through ``python3`` a script only has
+    to exist. Checked once at sweep startup rather than per run, because the failure it
+    guards is a property of the policy tree and identical for every pull request. It
+    has to be checked somewhere: a hook that cannot exec does not deny, so such a script
+    silently removes a sandbox rather than failing, and the quoting is only half the
+    defence.
     """
-    return [script for script in _hook_scripts(policy) if not script.is_file()]
+    return [
+        script
+        for script, direct in _hook_scripts(policy)
+        if not script.is_file() or (direct and not os.access(script, os.X_OK))
+    ]
 
 
 def assert_hooks_present(policy: Policy) -> None:
@@ -104,60 +247,41 @@ def assert_hooks_present(policy: Policy) -> None:
     missing = missing_hooks(policy)
     if missing:
         raise MissingHookError(
-            "hook scripts are missing, so the sandbox they provide would silently not "
-            f"load: {', '.join(str(path) for path in missing)}"
+            "hook scripts are missing or not executable, so the sandbox they provide "
+            f"would silently not load: {', '.join(str(path) for path in missing)}"
         )
 
 
-def _matcher(
-    matcher: str, command: str, *, timeout: int | None = None
-) -> dict[str, Any]:
-    hook: dict[str, Any] = {"type": "command", "command": command}
-    if timeout is not None:
-        hook["timeout"] = timeout
-    return {"matcher": matcher, "hooks": [hook]}
-
-
-def write_settings(policy: Policy, run_dir: Path, repo: str = DEFAULT_REPO) -> Path:
-    """Write the settings file for one run and return its path.
-
-    The remap is registered alongside the production sandboxes rather than replacing them:
-    every PreToolUse hook is handed the ORIGINAL tool input, so ``restrict-read.py`` and
-    ``restrict-write.sh`` go on judging the un-remapped ``/tmp/greenlight-*`` paths they
-    already permit, and the rewrite is applied afterwards.
-
-    ``restrict-read.py`` is handed ``repo``'s checkout directory as its one argument, as
-    the workflow hands it. A policy whose script predates the argument ignores it and
-    serves ``pytorch``, which is that policy's only checkout.
-    """
-    hooks = policy.hooks_dir
-    settings = {
-        "hooks": {
-            "PreToolUse": [
-                _matcher("Write|Edit", _script(hooks / "restrict-write.sh")),
-                _matcher(
-                    "Read|Glob|Grep",
-                    _script(
-                        hooks / "restrict-read.py",
-                        checkout_dirname(repo),
-                        interpreter="python3",
-                    ),
-                ),
-                _matcher(
-                    REMAP_MATCHER,
-                    _script(Path(remap.__file__).resolve(), interpreter="python3"),
-                ),
-            ],
-            "PostToolUse": [
-                _matcher(
-                    "*",
-                    _script(hooks / "budget-reminder.sh"),
-                    timeout=BUDGET_HOOK_TIMEOUT_S,
-                ),
-            ],
-        },
-        "outputStyle": OUTPUT_STYLE,
+def _relocated(policy: Policy, hook: Mapping[str, Any]) -> dict[str, Any]:
+    parsed = _hook_script(hook["command"])
+    if parsed is None:
+        return dict(hook)
+    interpreter, script, args = parsed
+    argv = [str(_script_path(policy, script)), *args]
+    return {
+        **hook,
+        "command": shlex.join([interpreter, *argv] if interpreter else argv),
     }
+
+
+def write_settings(policy: Policy, run_dir: Path) -> Path:
+    """Write the settings file for one run and return its path."""
+    hooks = {
+        event: [
+            {**entry, "hooks": [_relocated(policy, hook) for hook in entry["hooks"]]}
+            for entry in entries
+        ]
+        for event, entries in _registered_events(policy).items()
+    }
+    remapper = shlex.join([PYTHON, str(Path(remap.__file__).resolve())])
+    hooks.setdefault("PreToolUse", []).append(
+        {"matcher": REMAP_MATCHER, "hooks": [{"type": "command", "command": remapper}]}
+    )
+    settings: dict[str, Any] = {"hooks": hooks}
+    if "claudeMdExcludes" in policy.hook_settings:
+        settings["claudeMdExcludes"] = policy.hook_settings["claudeMdExcludes"]
+    if policy.output_style is not None:
+        settings["outputStyle"] = policy.output_style
     path = Path(run_dir) / SETTINGS_FILENAME
     path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
     return path

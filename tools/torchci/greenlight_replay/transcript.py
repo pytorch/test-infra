@@ -24,6 +24,13 @@ The ordering in ``classify`` is load-bearing: each check would be misread as suc
 one after it. An empty run has no ``modelUsage``, so it has to be recognised before the
 model assertion, which would otherwise report it as a downgrade.
 
+A verdict counts only as the live job would let it count. The session must have ended in
+a ``success`` result that is not an error, as ``claude-code-action`` requires before the
+step passes; the instruction-loading detector must pass after any session that started;
+and the verdict file must pass the record path's own checks, which the caller supplies as
+``accept``. A verdict recovered from the turn record, or a file left by a failed session,
+is kept on the result as a diagnostic and never becomes the policy's verdict.
+
 Both output shapes are accepted. ``--output-format json`` alone emits a single result
 object; only ``--verbose`` emits the top-level array that carries the turn record, and
 without that array a budget trip has nothing to recover from.
@@ -35,64 +42,75 @@ import dataclasses
 import enum
 import json
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from torchci.greenlight_replay.verdict import (
     read_verdict,
     recover_verdict,
-    schema_support_violation,
     verdict_fields,
     verdict_path,
-    verdict_violation,
 )
+
+
+if TYPE_CHECKING:
+    from torchci.greenlight_replay.detector import DetectorFailure
 
 
 logger = logging.getLogger(__name__)
 
-# ``verdict_violation`` under its former private name, for policy.py, which validates the
-# canned too-large verdict against the same schema the reviewer's answers are held to.
-_schema_violation = verdict_violation
-
 __all__ = [
     "RETRYABLE",
+    "Acceptor",
+    "Detector",
     "Outcome",
     "RunResult",
     "classify",
     "merge_attempts",
     "read_verdict",
     "recover_verdict",
-    "schema_support_violation",
+    "session_started",
     "verdict_fields",
     "verdict_path",
-    "verdict_violation",
 ]
+
+# The record path's checks on a verdict file: the processed verdict, or why it is refused.
+Acceptor = Callable[[Path], "tuple[dict[str, str] | None, str | None]"]
+# The detector, run after a session that started: a DetectorFailure, or None.
+Detector = Callable[[], "DetectorFailure | None"]
 
 # GNU timeout reports 124 when it had to terminate the command, and the shell's 128+SIGKILL
 # when the -k grace period elapsed too.
 _TIMEOUT_EXIT_CODES = frozenset({124, 137})
+
+_SUCCESS_SUBTYPE = "success"
 
 
 class Outcome(enum.Enum):
     """How one reviewer invocation ended, in the caller's terms rather than the CLI's."""
 
     SUCCESS = "success"
-    SCHEMA_INVALID = "schema_invalid"
+    REJECTED = "rejected"
     NO_VERDICT = "no_verdict"
     TIMEOUT = "timeout"
     BUDGET_TRIP = "budget_trip"
     API_ERROR = "api_error"
     EMPTY_RUN = "empty_run"
+    ARM_CHECK_FAILED = "arm_check_failed"
+    HOOKS_NOT_LOADED = "hooks_not_loaded"
+    UNTRUSTED_INSTRUCTIONS = "untrusted_instructions"
     TOO_LARGE = "too_large"
+    NO_POLICY = "no_policy"
 
 
 # Retrying is an estimator decision, not an error-handling one. CI draws ONE verdict per
 # pull request; a harness that draws twice and keeps the last is last-of-two, which against
 # this reviewer's measured 18.3% self-disagreement is a visibly different distribution from
 # the one the tool exists to compare against. So a second draw is taken only where there is
-# no answer to keep at all. SCHEMA_INVALID is deliberately NOT here: the model did answer,
-# and re-rolling a verdict the harness merely disliked is exactly the biased second draw.
+# no answer to keep at all; CI records such a run FAILED, which greenlight's scan
+# re-dispatches. REJECTED is deliberately NOT here: the model did answer, and re-rolling a
+# verdict the record path refused is exactly the biased second draw.
 RETRYABLE = frozenset({Outcome.NO_VERDICT})
 
 
@@ -100,10 +118,11 @@ RETRYABLE = frozenset({Outcome.NO_VERDICT})
 class RunResult:
     """One pull request's replay outcome, including what it cost when it produced nothing.
 
-    ``status`` is populated whenever a verdict was obtained, which includes a
-    ``BUDGET_TRIP`` whose verdict was recovered from the turn record: a trip carrying a
-    ``status`` is work that was paid for and kept, not a loss. ``cost_usd``, ``duration_s``
-    and ``num_turns`` are summed across attempts, because a retried PR is billed twice.
+    ``status``, ``reason`` and ``message`` are the policy's verdict under ``SUCCESS`` and
+    the canned outcomes. Under any other outcome they are diagnostics: whatever the
+    session left in its verdict file or its turn record, which the live job would not
+    have recorded. ``cost_usd``, ``duration_s`` and ``num_turns`` are summed across
+    attempts, because a retried PR is billed twice.
     """
 
     outcome: Outcome
@@ -141,22 +160,25 @@ def classify(
     stderr: str,
     *,
     run_dir: Path,
-    schema: Mapping[str, Any],
     model: str,
     context_window: int,
     duration_s: float,
+    detect: Detector,
+    accept: Acceptor,
 ) -> RunResult:
     """Turn one invocation's exit code and output into an outcome the caller can act on.
 
-    Raises ``ValueError`` when ``schema`` uses constructs this module cannot interpret.
-    That is a fault in the harness or in the policy's schema file, not in the reviewer's
-    answer, and it would be identical on every pull request -- returning it as a retryable
-    outcome would re-run and re-bill a whole sweep to reach the same refusal twice. Callers
-    check it once with ``schema_support_violation`` before spending anything.
+    ``detect`` runs once the session is known to have started, or would otherwise be
+    accepted, as the live job runs its detector whenever the model ran; a failure there
+    is the outcome whatever else the session did: ``HOOKS_NOT_LOADED`` when the hooks
+    left no sentinel, ``UNTRUSTED_INSTRUCTIONS`` when they ran and an instruction file
+    loaded from the checkout. Any other session with no sign of having started keeps
+    its own outcome. ``accept`` runs only on a verdict file a successful session left.
+
+    Either call raising -- the policy's code past its timeout, an interpreter missing,
+    output that is not what it should be -- is ``ARM_CHECK_FAILED``, carrying what the
+    session cost, so a paid run is still recorded rather than lost with the exception.
     """
-    unsupported = schema_support_violation(schema)
-    if unsupported is not None:
-        raise ValueError(unsupported)
     if exit_code in _TIMEOUT_EXIT_CODES:
         return RunResult(
             outcome=Outcome.TIMEOUT,
@@ -164,6 +186,64 @@ def classify(
             error=f"timeout killed the reviewer (exit {exit_code}): {stderr.strip()[-400:]}",
         )
     envelope = _decode(stdout)
+    session = _session_outcome(
+        envelope, exit_code, stdout, stderr, run_dir, model, context_window, duration_s
+    )
+    if session_started(envelope) or session.outcome is Outcome.SUCCESS:
+        try:
+            failure = detect()
+        except Exception as exc:
+            return _arm_check_failed(session, "the detector", exc)
+        if failure is not None:
+            return dataclasses.replace(
+                session,
+                outcome=Outcome.UNTRUSTED_INSTRUCTIONS
+                if failure.hooks_ran
+                else Outcome.HOOKS_NOT_LOADED,
+                error=failure.message,
+            )
+    if session.outcome is not Outcome.SUCCESS:
+        return session
+    try:
+        verdict, rejection = accept(verdict_path(run_dir))
+    except Exception as exc:
+        return _arm_check_failed(session, "the record checks", exc)
+    if verdict is None:
+        return dataclasses.replace(session, outcome=Outcome.REJECTED, error=rejection)
+    return dataclasses.replace(session, **verdict_fields(verdict))
+
+
+def _arm_check_failed(session: RunResult, check: str, exc: Exception) -> RunResult:
+    logger.error("%s could not run: %s", check, exc, exc_info=True)
+    return dataclasses.replace(
+        session,
+        outcome=Outcome.ARM_CHECK_FAILED,
+        error=f"{check} could not run: {type(exc).__name__}: {exc}"[:400],
+    )
+
+
+def session_started(envelope: Sequence[Mapping[str, Any]]) -> bool:
+    """Whether the turn record opens a session: a ``system`` element of subtype ``init``."""
+    return any(
+        element.get("type") == "system" and element.get("subtype") == "init"
+        for element in envelope
+    )
+
+
+def _session_outcome(
+    envelope: list[dict[str, Any]],
+    exit_code: int,
+    stdout: str,
+    stderr: str,
+    run_dir: Path,
+    model: str,
+    context_window: int,
+    duration_s: float,
+) -> RunResult:
+    """How the session ended, before the detector and the record path's checks.
+
+    ``SUCCESS`` here means only that the session succeeded and left a verdict file.
+    """
     result = _result_element(envelope)
     if result is None:
         return RunResult(
@@ -201,37 +281,36 @@ def classify(
     violation = _model_violation(usage, model, context_window)
     if violation is not None:
         return RunResult(outcome=Outcome.API_ERROR, error=violation, **base)
+    left = verdict_fields(read_verdict(run_dir) or recover_verdict(envelope, run_dir))
     if "result" not in result and "structured_output" not in result:
-        verdict = read_verdict(run_dir) or recover_verdict(envelope, run_dir)
         return RunResult(
             outcome=Outcome.BUDGET_TRIP,
             error="the reviewer's budget tripped; it was billed in full",
-            **verdict_fields(verdict),
+            **left,
             **base,
         )
-    if result.get("is_error") or result.get("api_error_status"):
+    if (
+        result.get("is_error")
+        or result.get("api_error_status")
+        or result.get("subtype") != _SUCCESS_SUBTYPE
+    ):
         return RunResult(
             outcome=Outcome.API_ERROR,
-            error=json.dumps(result.get("errors") or result.get("result"))[:400],
+            error=(
+                f"the session ended {result.get('subtype')!r}: "
+                + json.dumps(result.get("errors") or result.get("result"))[:400]
+            ),
+            **left,
             **base,
         )
-
-    verdict = read_verdict(run_dir) or recover_verdict(envelope, run_dir)
-    if verdict is None:
+    if not verdict_path(run_dir).is_file():
         return RunResult(
             outcome=Outcome.NO_VERDICT,
-            error=f"no verdict at {verdict_path(run_dir)} and none in the turn record",
+            error=f"no verdict at {verdict_path(run_dir)}",
+            **left,
             **base,
         )
-    invalid = verdict_violation(schema, verdict)
-    if invalid is not None:
-        return RunResult(
-            outcome=Outcome.SCHEMA_INVALID,
-            error=invalid,
-            **verdict_fields(verdict),
-            **base,
-        )
-    return RunResult(outcome=Outcome.SUCCESS, **verdict_fields(verdict), **base)
+    return RunResult(outcome=Outcome.SUCCESS, **left, **base)
 
 
 def _decode(stdout: str) -> list[dict[str, Any]]:

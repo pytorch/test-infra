@@ -3,7 +3,9 @@
 A replay is only a replay if the reviewer runs under the policy of the pull request
 being evaluated rather than under whatever happens to be checked out on the operator's
 disk. This module fetches that pull request's tree, reads the workflow inside it via
-:mod:`.workflow`, and presents the result as one :class:`Policy`.
+:mod:`.workflow` and :mod:`.workflow_steps`, resolves the reviewed repo's target with
+the tree's own ``greenlight target`` (:mod:`.arm_code`), holds every canned verdict to
+the tree's own record checks, and presents the result as one :class:`Policy`.
 
 **The tree comes from ``refs/pull/<N>/head``, never ``refs/pull/<N>/merge``.** GitHub
 deletes the merge ref when a pull request closes -- verified on 2026-09-18 against
@@ -13,11 +15,11 @@ replay pinned to a ref that is deleted or silently rebased underneath it reprodu
 nothing.
 
 **The destination is emptied before it is unpacked into, so materializing is
-repeatable.** The tree doubles as the reviewer's workspace root, so anything nested
-under it is reachable by the model -- a run directory kept there would expose other
-pull requests' diffs and verdicts. Extraction overlays rather than replaces, so
-without the clearing step a file the new policy deleted would survive from an older
-run and be read as part of the policy under test. Clearing rather than refusing is
+repeatable.** Every slot's ``.claude`` is copied from the tree and the hooks run
+from it, so whatever it holds is part of the policy under test. Extraction overlays
+rather than replaces, so without the clearing step a file the new policy deleted
+would survive from an older run and be read as part of the policy under test.
+Clearing rather than refusing is
 also what lets ``--resume``, and any second run against the same policy, work.
 
 Why the workflow is read by shape rather than by position, and why every value it
@@ -26,7 +28,6 @@ carries is required rather than defaulted, is recorded in :mod:`.workflow`.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
@@ -35,18 +36,21 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from torchci.greenlight_decisions.loc import _REPO_PATTERN
-from torchci.greenlight_replay.checkout import SCRUBBED_GIT_VARS
-from torchci.greenlight_replay.stack_step import StackContext
-from torchci.greenlight_replay.verdict import (
-    schema_support_violation,
-    verdict_violation,
+from torchci.greenlight_replay.arm_code import (
+    canned_verdict,
+    no_policy_verdict,
+    resolve_target,
+    Target,
 )
+from torchci.greenlight_replay.checkout import SCRUBBED_GIT_VARS
+from torchci.greenlight_replay.ledger import require_registered
+from torchci.greenlight_replay.settings import derive_hook_settings
+from torchci.greenlight_replay.stack_step import StackContext
 from torchci.greenlight_replay.workflow import (
     claude_args,
     diff_caps,
@@ -56,6 +60,16 @@ from torchci.greenlight_replay.workflow import (
     stack_context,
     WORKFLOW_RELPATH,
 )
+from torchci.greenlight_replay.workflow_steps import (
+    action_output_style,
+    action_timeout_minutes,
+    DETECTOR_RELPATH,
+    detector_untrusted_dirname,
+    hook_settings_text,
+    no_policy_program,
+    record_step,
+    RecordStep,
+)
 
 
 __all__ = [
@@ -64,6 +78,7 @@ __all__ = [
     "HOOKS_RELPATH",
     "Policy",
     "StackContext",
+    "Target",
     "WORKFLOW_RELPATH",
     "materialize",
     "refspec",
@@ -74,7 +89,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_POLICY_REPO = "pytorch/test-infra"
 
 HOOKS_RELPATH = ".claude/hooks/greenlight"
-SCHEMA_FILENAME = "verdict-schema.json"
 SANITIZE_FILENAME = "sanitize-untrusted-checkout.sh"
 TOO_LARGE_FILENAME = "too-large-verdict.json"
 
@@ -91,16 +105,30 @@ _GIT_TIMEOUT_SECONDS = 600
 class Policy:
     """What one materialized test-infra tree says the reviewer must run under.
 
-    ``root`` doubles as the reviewer's workspace root, so the hook scripts under
-    ``hooks_dir`` resolve against it exactly as they do against ``GITHUB_WORKSPACE``
-    in CI.
+    ``root`` is the tree; each slot's ``.claude`` is copied from it, and the hook
+    commands run its scripts by absolute path, outside the reviewer's workspace.
 
     ``model`` and ``effort`` are verbatim workflow values -- ``model`` is a Bedrock
     inference profile, which the caller has to map to whatever backend it invokes.
 
     ``review_budget_minutes`` is ``(target, soft, hard)``. They are minutes because
     that is how the workflow states them; ``budget-reminder.sh`` reads absolute epochs,
-    which the caller derives from these against its own start time.
+    which the caller derives from these against its own start time. ``timeout_s`` is
+    the action step's ``timeout-minutes``, each review's wall clock.
+
+    ``max_diff_files`` is None when the size gate has no file cap.
+
+    ``hook_settings`` is the workflow's hook settings for ``target``'s checkout, as
+    :func:`.settings.derive_hook_settings` validated them; ``output_style`` is the
+    action step's, None without one.
+
+    ``target`` is what the tree's ``greenlight target`` names for the reviewed repo.
+    ``record_step`` is the record job's verdict validation and its shell,
+    ``detector_script`` and ``detector_dirname`` the detector and the workspace
+    directory it holds no instruction file may load from.
+
+    ``too_large_verdict`` and ``no_policy_verdict`` are the canned verdicts as the record
+    path processes them; ``no_policy_verdict`` is None unless ``target`` has no policy.
 
     ``stack_context`` says which stack context each replay gets: the one the workflow's
     stack step collects, by the :mod:`.stack_step` pin it digests to, and none without
@@ -111,22 +139,36 @@ class Policy:
     prompt_template: str
     max_diff_lines: int
     max_diff_bytes: int
+    max_diff_files: int | None
     review_budget_minutes: tuple[int, int, int]
+    timeout_s: int
     too_large_verdict: dict[str, str]
-    schema_path: Path
+    no_policy_verdict: dict[str, str] | None
     sanitize_script: Path
-    hooks_dir: Path
+    hook_settings: dict[str, Any]
+    output_style: str | None
     model: str
     effort: str
     tools: str
+    target: Target
+    record_step: RecordStep
+    detector_script: Path
+    detector_dirname: str
     stack_context: StackContext = StackContext.NONE
 
 
-def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> Policy:
+def materialize(
+    ref: str,
+    workdir: Path,
+    *,
+    reviewed_repo: str,
+    repo: str = DEFAULT_POLICY_REPO,
+) -> Policy:
     """Check ``repo`` out at ``ref`` into ``workdir`` and read the policy in it.
 
     ``ref`` is either a bare pull request number, which resolves to that PR's head
-    ref, or any ref name or commit SHA the remote will serve.
+    ref, or any ref name or commit SHA the remote will serve. ``reviewed_repo`` is
+    the repo whose pull requests are replayed, resolved by the tree's own target step.
 
     ``workdir`` becomes the tree root. Whatever it already held is removed first,
     so calling this twice with the same arguments is safe and yields the same
@@ -140,18 +182,17 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
 
     workflow_path = root / WORKFLOW_RELPATH
     document = load(workflow_path)
+    require_registered(document, root, workflow_path)
     model, effort, tools = claude_args(document, workflow_path)
-    max_lines, max_bytes = diff_caps(document, workflow_path)
+    max_lines, max_bytes, max_files = diff_caps(document, workflow_path)
     hooks_dir = root / HOOKS_RELPATH
-    schema_path = _require_file(hooks_dir / SCHEMA_FILENAME)
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    # Once per sweep, before anything is spent. An unsupported keyword is a property
-    # of the policy, identical for every pull request in the corpus, so discovering it
-    # per review would fail and retry the whole run for one unreadable schema.
-    # verdict_violation assumes this has passed and judges answers, never the schema.
-    unsupported = schema_support_violation(schema)
-    if unsupported:
-        raise ValueError(f"{schema_path}: {unsupported}")
+    # Once per sweep, before anything is spent: every one of these is a property of
+    # the policy, identical for every pull request in the corpus.
+    target = resolve_target(root, reviewed_repo)
+    hook_settings = derive_hook_settings(
+        hook_settings_text(document, workflow_path), target.checkout, workflow_path
+    )
+    recorded = record_step(document, workflow_path)
     context = stack_context(document, workflow_path)
     logger.info("stack context is %s for %s", context.value, ref)
 
@@ -160,14 +201,29 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
         prompt_template=prompt(document, workflow_path),
         max_diff_lines=max_lines,
         max_diff_bytes=max_bytes,
+        max_diff_files=max_files,
         review_budget_minutes=review_budgets(document, workflow_path),
-        too_large_verdict=_too_large_verdict(hooks_dir / TOO_LARGE_FILENAME, schema),
-        schema_path=schema_path,
+        timeout_s=action_timeout_minutes(document, workflow_path) * 60,
+        too_large_verdict=canned_verdict(
+            root, recorded, _require_file(hooks_dir / TOO_LARGE_FILENAME), target
+        ),
+        no_policy_verdict=None
+        if target.policy_present
+        else no_policy_verdict(
+            root, recorded, no_policy_program(document, workflow_path), target
+        ),
         sanitize_script=_require_file(hooks_dir / SANITIZE_FILENAME),
-        hooks_dir=hooks_dir,
+        hook_settings=hook_settings,
+        output_style=action_output_style(document, workflow_path),
         model=model,
         effort=effort,
         tools=tools,
+        target=target,
+        record_step=recorded,
+        detector_script=_require_file(root / DETECTOR_RELPATH),
+        detector_dirname=detector_untrusted_dirname(
+            document, workflow_path, target.checkout
+        ),
         stack_context=context,
     )
 
@@ -311,27 +367,6 @@ def _git(argv: list[str], *, cwd: Path, ceiling: Path) -> None:
             f"{shlex.join(['git', *argv])} exited {completed.returncode}: "
             f"{stderr[:400]}"
         )
-
-
-def _too_large_verdict(path: Path, schema: Mapping[str, Any]) -> dict[str, str]:
-    """The canned decline, read from the tree and held to the tree's own schema.
-
-    Validated rather than merely shape-checked because this verdict is emitted with no
-    model ever running, so nothing downstream re-checks it. A policy PR that mistyped
-    ``status`` would have every oversized pull request land a blank ``new_decision`` --
-    the emit layer drops a status outside LAND/NO_LAND -- and nothing would say why.
-
-    The schema comes from the materialized tree, so a policy PR that widens the reason
-    enum widens what its own canned verdict may say.
-    """
-    _require_file(path)
-    verdict = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(verdict, dict):
-        raise ValueError(f"{path} did not parse as an object")
-    violation = verdict_violation(schema, verdict)
-    if violation:
-        raise ValueError(f"{path}: {violation}")
-    return dict(verdict)
 
 
 def _require_file(path: Path) -> Path:

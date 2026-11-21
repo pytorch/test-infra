@@ -3,21 +3,15 @@
 The prompt is the ``with.prompt`` of the workflow's review step, read verbatim by
 :mod:`.workflow`, and it names the pull request through GitHub Actions expressions.
 Two spellings are resolved: the dispatch inputs a policy reviewing pytorch/pytorch
-alone uses, and the outputs of the workflow's ``target`` step a repo-aware policy uses.
-Both stay, so a replay can run either side of a policy change that moves from one to
-the other.
+alone uses, and the outputs of the workflow's ``target`` step a repo-aware policy uses,
+taken from what the policy's own ``greenlight target`` named. Both stay, so a replay can
+run either side of a policy change that moves from one to the other.
 """
 
 from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING
-
-from torchci.greenlight_replay.checkout import (
-    checkout_dirname,
-    DEFAULT_REPO,
-    require_repo,
-)
 
 
 if TYPE_CHECKING:
@@ -45,9 +39,7 @@ _INTERPOLATION = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
 _INTERPOLATION_OPEN = re.compile(r"\$\{\{")
 
 
-def render_prompt(
-    policy: Policy, pr_number: int, head_sha: str, repo: str = DEFAULT_REPO
-) -> str:
+def render_prompt(policy: Policy, pr_number: int, head_sha: str) -> str:
     """Resolve the interpolations naming the reviewed pull request and its checkout.
 
     Any other ``${{ ... }}`` aborts. An unresolved interpolation is not a crash, it is
@@ -58,10 +50,10 @@ def render_prompt(
     substitutions = {
         PR_NUMBER_EXPR: str(pr_number),
         HEAD_SHA_EXPR: head_sha,
-        REPO_EXPR: require_repo(repo),
+        REPO_EXPR: policy.target.repo,
         TARGET_PR_EXPR: str(pr_number),
         TARGET_HEAD_SHA_EXPR: head_sha,
-        CHECKOUT_EXPR: checkout_dirname(repo),
+        CHECKOUT_EXPR: policy.target.checkout,
     }
     unresolved: list[str] = []
 

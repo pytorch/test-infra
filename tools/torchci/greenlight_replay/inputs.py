@@ -2,8 +2,8 @@
 
 CI hands the model a unified diff at ``/tmp/greenlight-pr.diff`` and, when it can be
 fetched, a small metadata document at ``/tmp/greenlight-pr.json``. This module rebuilds
-both from GitHub for a pull request the reviewer has already judged once, and applies
-the policy's size gate to the diff exactly as the workflow's ``sizecheck`` step does.
+both from GitHub for a pull request the reviewer has already judged once, and hands the
+diff to the policy's size gate (:mod:`.size_gate`).
 For a ghstack PR, :mod:`.stack` reads the body back to the cutoff the comments are
 filtered to, and rebuilds the stack context under a policy that collects it, as it does
 a GitHub stack's under a step that covers those.
@@ -60,6 +60,7 @@ from torchci.greenlight_decisions.loc import _REPO_PATTERN, _SHA_PATTERN
 from torchci.greenlight_decisions.rows import to_utc_naive
 from torchci.greenlight_replay import gh_answers
 from torchci.greenlight_replay.policy import GIT_REF_PATTERN, Policy, StackContext
+from torchci.greenlight_replay.size_gate import apply_size_gate
 from torchci.greenlight_replay.stack import clear_stack, read_back
 
 
@@ -105,8 +106,9 @@ class ReplayInputs:
     """Where one pull request's reviewer inputs landed, and what the gate made of them.
 
     ``metadata_path`` is ``None`` when the metadata could not be fetched, written or
-    shaped. ``diff_lines`` and ``diff_bytes`` are reported whether or not the gate
-    tripped, so a run's log says how far under or over the caps each PR sat.
+    shaped. ``diff_lines``, ``diff_bytes`` and ``diff_files`` are reported whether or
+    not the gate tripped, so a run's log says how far under or over the caps each PR
+    sat.
 
     ``stack_path`` is the stack JSON when one was written, with the sibling diffs in
     the directory beside it, and ``None`` whenever CI would have written none.
@@ -118,6 +120,7 @@ class ReplayInputs:
     diff_bytes: int
     too_large: bool
     stack_path: Path | None = None
+    diff_files: int = 0
 
 
 def build_inputs(
@@ -153,26 +156,11 @@ def build_inputs(
     diff_path = run_dir / DIFF_FILENAME
     diff_path.write_bytes(diff)
 
-    # `wc -l` counts newlines rather than lines, so a diff whose final line is
-    # unterminated counts one lower than it reads. The gate has to agree with CI on
-    # that, not merely on the caps.
-    diff_lines = diff.count(b"\n")
-    diff_bytes = len(diff)
-    too_large = diff_lines > policy.max_diff_lines or diff_bytes > policy.max_diff_bytes
-    logger.info(
-        "%s#%s diff is %d lines / %d bytes (caps: %d lines, %d bytes); %s",
-        repo,
-        pr_number,
-        diff_lines,
-        diff_bytes,
-        policy.max_diff_lines,
-        policy.max_diff_bytes,
-        "declining automatically" if too_large else "proceeding with review",
-    )
+    gate = apply_size_gate(diff, policy, f"{repo}#{pr_number}")
 
     payload = _fetch_pr(repo, pr_number)
     body_at_cutoff, stack_path = None, None
-    if not too_large:
+    if not gate.too_large:
         body_at_cutoff, stack_path = read_back(
             repo,
             pr_number,
@@ -188,10 +176,11 @@ def build_inputs(
     return ReplayInputs(
         diff_path=diff_path,
         metadata_path=metadata_path,
-        diff_lines=diff_lines,
-        diff_bytes=diff_bytes,
-        too_large=too_large,
+        diff_lines=gate.lines,
+        diff_bytes=gate.bytes,
+        too_large=gate.too_large,
         stack_path=stack_path,
+        diff_files=gate.files,
     )
 
 

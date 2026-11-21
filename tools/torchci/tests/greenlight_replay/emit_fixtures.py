@@ -53,13 +53,17 @@ CANNED_TOO_LARGE_MESSAGE = (
 
 class Outcome(Enum):
     SUCCESS = "success"
-    SCHEMA_INVALID = "schema_invalid"
+    REJECTED = "rejected"
     NO_VERDICT = "no_verdict"
     TIMEOUT = "timeout"
     BUDGET_TRIP = "budget_trip"
     API_ERROR = "api_error"
     EMPTY_RUN = "empty_run"
+    ARM_CHECK_FAILED = "arm_check_failed"
+    HOOKS_NOT_LOADED = "hooks_not_loaded"
+    UNTRUSTED_INSTRUCTIONS = "untrusted_instructions"
     TOO_LARGE = "too_large"
+    NO_POLICY = "no_policy"
 
 
 FAILED_OUTCOMES = tuple(
