@@ -312,6 +312,7 @@ describe("GET /api/openapi.json", () => {
       "/api/releases/{version}",
       "/api/releases/{version}/artifacts",
       "/api/releases/{version}/config",
+      "/api/releases/{version}/crcr",
       "/api/releases/{version}/milestone",
     ]);
     for (const [path, item] of pathsTagged(document, "releases")) {

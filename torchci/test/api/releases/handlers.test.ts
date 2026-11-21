@@ -1,5 +1,6 @@
 import { GET as getArtifacts } from "app/api/releases/[version]/artifacts/route";
 import { GET as getConfig } from "app/api/releases/[version]/config/route";
+import { GET as getCrcr } from "app/api/releases/[version]/crcr/route";
 import { GET as getMilestone } from "app/api/releases/[version]/milestone/route";
 import { GET as getBoard } from "app/api/releases/[version]/route";
 import { GET as getIndex } from "app/api/releases/route";
@@ -9,6 +10,7 @@ import {
   ArtifactPageSchema,
   ReleaseBoardSchema,
   ReleaseConfigSchema,
+  ReleaseCrcrSchema,
   ReleaseIndexSchema,
   ReleaseMilestoneItemsSchema,
 } from "lib/api/releases/types";
@@ -529,11 +531,365 @@ describe("GET /api/releases/{version}/milestone", () => {
   });
 });
 
+describe("GET /api/releases/{version}/crcr", () => {
+  function repoResult(extra: Record<string, unknown> = {}) {
+    return {
+      repo: "vllm-project/vllm",
+      level: "L2",
+      rc: "rc9",
+      result: "failed",
+      summary: "3 of 212 jobs failed",
+      failing_jobs: [
+        {
+          name: "Compile Unit Tests",
+          url: "https://github.com/vllm-project/vllm/actions/runs/1/job/2",
+        },
+      ],
+      owner: "vLLM CI oncall",
+      run_url: "https://github.com/vllm-project/vllm/actions/runs/1",
+      finished_at: "2026-10-29T10:12:00Z",
+      ...extra,
+    };
+  }
+
+  function answerCrcr(row: { rc: string; details: string } | null) {
+    query.mockImplementation(async (sql: string) =>
+      sql.includes("check_type = 'crcr_summary'")
+        ? row === null
+          ? []
+          : [row]
+        : [stateRow("2.16.0", "1.2")]
+    );
+  }
+
+  const passed = (repo: string, extra: Record<string, unknown> = {}) =>
+    repoResult({
+      repo,
+      result: "passed",
+      summary: "212 of 212 jobs passed",
+      failing_jobs: [],
+      ...extra,
+    });
+
+  test("answers the newest release candidate's results, failed repos first, with counts", async () => {
+    answerCrcr({
+      rc: "rc9",
+      details: JSON.stringify({
+        repos: [
+          passed("sgl-project/sglang"),
+          repoResult(),
+          passed("Ascend/pytorch"),
+        ],
+      }),
+    });
+    const { status, body, headers } = await callRoute(
+      getCrcr,
+      "/api/releases/{version}/crcr",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(ReleaseCrcrSchema.parse(body)).toEqual(body);
+    expect(body.rc).toBe("rc9");
+    expect(body.summary).toEqual({
+      repos: 3,
+      passing: 2,
+      failing: 1,
+      no_result: 0,
+    });
+    expect(body.repos.map((r: any) => r.repo)).toEqual([
+      "vllm-project/vllm",
+      "Ascend/pytorch",
+      "sgl-project/sglang",
+    ]);
+    expect(body.repos[0]).toMatchObject({
+      level: "L2",
+      rc: "rc9",
+      result: "failed",
+      summary: "3 of 212 jobs failed",
+      failing_jobs: [
+        {
+          name: "Compile Unit Tests",
+          url: "https://github.com/vllm-project/vllm/actions/runs/1/job/2",
+        },
+      ],
+      owner: "vLLM CI oncall",
+      finished_at: "2026-10-29T10:12:00Z",
+      hud_url: null,
+    });
+    expect(headers.get("Cache-Control")).toMatch(/^public, /);
+    const crcrCall = query.mock.calls.find(([sql]) =>
+      sql.includes("check_type = 'crcr_summary'")
+    );
+    expect(crcrCall?.[1]).toEqual({ release: "2.16.0" });
+  });
+
+  test("keeps what the repo did not report as null", async () => {
+    answerCrcr({
+      rc: "rc9",
+      details: JSON.stringify({
+        repos: [
+          repoResult({
+            owner: null,
+            run_url: null,
+            failing_jobs: [{ name: "Compile Unit Tests", url: null }],
+          }),
+        ],
+      }),
+    });
+    const { status, body } = await callRoute(
+      getCrcr,
+      "/api/releases/{version}/crcr",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(ReleaseCrcrSchema.parse(body)).toEqual(body);
+    expect(body.repos[0]).toMatchObject({
+      owner: null,
+      run_url: null,
+      failing_jobs: [{ name: "Compile Unit Tests", url: null }],
+    });
+  });
+
+  test("lists an opted-in repo with no result, after the failed repos and before the passed", async () => {
+    const silent = (repo: string) =>
+      repoResult({
+        repo,
+        result: "no_result",
+        summary: "No result reported for rc9",
+        failing_jobs: [],
+        run_url: null,
+        finished_at: null,
+      });
+    answerCrcr({
+      rc: "rc9",
+      details: JSON.stringify({
+        repos: [
+          passed("sgl-project/sglang"),
+          silent("Ascend/pytorch"),
+          repoResult(),
+          silent("AMD/rocm"),
+        ],
+      }),
+    });
+    const { status, body } = await callRoute(
+      getCrcr,
+      "/api/releases/{version}/crcr",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(ReleaseCrcrSchema.parse(body)).toEqual(body);
+    expect(body.summary).toEqual({
+      repos: 4,
+      passing: 1,
+      failing: 1,
+      no_result: 2,
+    });
+    expect(body.repos.map((r: any) => [r.repo, r.result])).toEqual([
+      ["vllm-project/vllm", "failed"],
+      ["AMD/rocm", "no_result"],
+      ["Ascend/pytorch", "no_result"],
+      ["sgl-project/sglang", "passed"],
+    ]);
+    expect(body.repos[2]).toMatchObject({
+      level: "L2",
+      rc: "rc9",
+      result: "no_result",
+      summary: "No result reported for rc9",
+      failing_jobs: [],
+      run_url: null,
+      finished_at: null,
+      hud_url: null,
+    });
+  });
+
+  test("a release candidate no repo has reported for yet has an rc and no repos", async () => {
+    answerCrcr({ rc: "rc10", details: "" });
+    const { status, body } = await callRoute(
+      getCrcr,
+      "/api/releases/{version}/crcr",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(ReleaseCrcrSchema.parse(body)).toEqual(body);
+    expect(body).toEqual({
+      rc: "rc10",
+      summary: { repos: 0, passing: 0, failing: 0, no_result: 0 },
+      repos: [],
+    });
+  });
+
+  test("a release with no recorded results answers a null rc and zero counts, not a 404", async () => {
+    answerCrcr(null);
+    const { status, body } = await callRoute(
+      getCrcr,
+      "/api/releases/{version}/crcr",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(ReleaseCrcrSchema.parse(body)).toEqual(body);
+    expect(body).toEqual({
+      rc: null,
+      summary: { repos: 0, passing: 0, failing: 0, no_result: 0 },
+      repos: [],
+    });
+  });
+
+  test("an unknown release is a 404 and a bad version, or a parameter, a 400", async () => {
+    const unknown = await callRoute(getCrcr, "/api/releases/{version}/crcr", {
+      version: "2.99.0",
+    });
+    expect(unknown.status).toBe(404);
+    expect(unknown.body).toEqual({
+      error: "The portal has no release 2.99.0",
+      code: "not_found",
+    });
+    for (const q of [{ version: "latest" }, { version: "2.16.0", rc: "rc9" }]) {
+      const { status, body } = await callRoute(
+        getCrcr,
+        "/api/releases/{version}/crcr",
+        q
+      );
+      expect({ q, status, code: body.code }).toEqual({
+        q,
+        status: 400,
+        code: "invalid_parameters",
+      });
+    }
+  });
+
+  test("does not expose malformed collector details", async () => {
+    const error = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    for (const details of [
+      "not JSON",
+      JSON.stringify({ repos: [repoResult({ result: "running" })] }),
+      JSON.stringify({ repos: [repoResult({ repo: "../../admin" })] }),
+      JSON.stringify({ repos: [repoResult({ level: "L1" })] }),
+    ]) {
+      answerCrcr({ rc: "rc9", details });
+      const { status, body } = await callRoute(
+        getCrcr,
+        "/api/releases/{version}/crcr",
+        { version: "2.16.0" }
+      );
+      expect({ details, status, code: body.code }).toEqual({
+        details,
+        status: 500,
+        code: "internal_error",
+      });
+      expect(JSON.stringify(body)).not.toContain("admin");
+      expect(JSON.stringify(body)).not.toContain("not JSON");
+    }
+    error.mockRestore();
+  });
+
+  test("repos of the row's own release candidate, each listed once, are served", async () => {
+    answerCrcr({
+      rc: "rc10",
+      details: JSON.stringify({
+        repos: [
+          repoResult({ rc: "rc10" }),
+          passed("Ascend/pytorch", { rc: "rc10" }),
+        ],
+      }),
+    });
+    const { status, body } = await callRoute(
+      getCrcr,
+      "/api/releases/{version}/crcr",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(body.rc).toBe("rc10");
+    expect(body.summary.repos).toBe(2);
+  });
+
+  test("rejects details that contradict the contract instead of showing them as current", async () => {
+    const error = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const cases: { name: string; rc: string; repos: unknown[]; log: string }[] =
+      [
+        {
+          name: "every repo is of an older release candidate",
+          rc: "rc10",
+          repos: [repoResult({ rc: "rc9" })],
+          log: "another release candidate",
+        },
+        {
+          name: "one repo is of an older release candidate",
+          rc: "rc10",
+          repos: [
+            repoResult({ rc: "rc10" }),
+            passed("sgl-project/sglang", { rc: "rc9" }),
+          ],
+          log: "another release candidate",
+        },
+        {
+          name: "a repo of a newer release candidate than the row's",
+          rc: "rc9",
+          repos: [repoResult({ rc: "rc10" })],
+          log: "another release candidate",
+        },
+        {
+          name: "a repo listed twice",
+          rc: "rc9",
+          repos: [repoResult(), repoResult({ result: "passed" })],
+          log: "invalid details",
+        },
+        {
+          name: "a repo listed twice, in another case",
+          rc: "rc9",
+          repos: [passed("Ascend/pytorch"), passed("ascend/pytorch")],
+          log: "invalid details",
+        },
+      ];
+    for (const { name, rc, repos, log } of cases) {
+      error.mockClear();
+      answerCrcr({ rc, details: JSON.stringify({ repos }) });
+      const { status, body } = await callRoute(
+        getCrcr,
+        "/api/releases/{version}/crcr",
+        { version: "2.16.0" }
+      );
+      expect({ name, status, code: body.code }).toEqual({
+        name,
+        status: 500,
+        code: "internal_error",
+      });
+      // The 500 is for the reason under test, not for some other failure.
+      expect({ name, logged: String(error.mock.calls[0]?.[1]) }).toEqual({
+        name,
+        logged: expect.stringContaining(log),
+      });
+    }
+    error.mockRestore();
+  });
+
+  test("a failed query is a 500 that gives nothing away", async () => {
+    const error = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    query.mockRejectedValue(
+      new Error("connection refused: clickhouse.internal:8443")
+    );
+    const { status, body } = await callRoute(
+      getCrcr,
+      "/api/releases/{version}/crcr",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(500);
+    expect(JSON.stringify(body)).not.toContain("clickhouse.internal");
+    error.mockRestore();
+  });
+});
+
 describe("public access", () => {
   test("none of the endpoints asks for a credential or the GitHub gate", async () => {
     const authorize = jest.spyOn(githubAuth, "authorizeGithubToken");
     query.mockImplementation(async (sql: string) =>
-      sql.includes("check_type = 'milestone_outstanding_items'")
+      sql.includes("check_type = 'milestone_outstanding_items'") ||
+      sql.includes("check_type = 'crcr_summary'")
         ? []
         : [stateRow("2.16.0", "1.1")]
     );
@@ -547,6 +903,9 @@ describe("public access", () => {
         version: "2.16.0",
       }),
       callRoute(getMilestone, "/api/releases/{version}/milestone", {
+        version: "2.16.0",
+      }),
+      callRoute(getCrcr, "/api/releases/{version}/crcr", {
         version: "2.16.0",
       }),
     ];
