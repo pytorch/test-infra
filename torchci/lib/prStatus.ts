@@ -251,12 +251,8 @@ function getPrStatusStageMessage(state: PrStatusState): string {
     case "inProgress":
       return (
         "## PR Status: in progress\n\n" +
-        (state.hasChangesRequested
-          ? "A maintainer requested changes. Please address their feedback " +
-            "before the PR returns to maintainer review.\n\n"
-          : "") +
-        "To become ready for review, please address automated review on " +
-        "your PR either with a code/PR description change. If a review " +
+        "Please address review feedback on your PR either with a " +
+        "code/PR description change. If a review " +
         "comment is irrelevant, react with 👎 on that specific comment to " +
         "reject it, and leave a short reply explaining why. The change " +
         "must pass any running CI and existing failures must be classified " +
