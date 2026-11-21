@@ -167,8 +167,7 @@ named `libtorch-*` are libtorch, and the other jobs are wheel builds. The step i
 category has jobs and none of them failed, and blocked otherwise (the evidence says which
 category failed, and `details` lists the failed jobs); it stays in progress only while the newest
 runs are going and nothing has failed yet. The newest row of the step is what the board
-shows, so each day's result replaces the earlier ones. Only pytorch is read, not the domain
-libraries.
+shows, so each day's result replaces the earlier ones. Only pytorch is read.
 
 `viable_strict_lag` is checked by the same script. It reads the head commits of `branch`
 (viable/strict) and `base` (main) of `repo` and takes the difference of their commit times: the
@@ -285,9 +284,7 @@ without torchvision or torchaudio, so they are written down. `versions` itself i
 optional: a release whose versions are not decided yet leaves it out, and the resolved
 config then has `null` for all three. Only these three names are allowed, and a version
 is `X.Y.Z`. The resolved config and the release API carry them as `versions`. No step
-uses them yet: today's checks for the domain libraries (1.9, 2.2) still look for
-`release/{minor}` and `v{version}-{rc}` in torchvision and torchaudio, which do not exist
-for a release whose libraries have their own version numbers.
+uses them yet.
 
 ## Changing the process
 

@@ -133,7 +133,7 @@ export function ReleaseRcChip({ rc }: { rc: string | null }) {
 
 export function ReleaseEvidenceCell({ evidence }: { evidence: Evidence }) {
   if (evidence === null) {
-    return <Typography color="text.secondary">Not checked</Typography>;
+    return <Typography color="text.secondary">Not completed</Typography>;
   }
 
   if (!isSafeReleaseUrl(evidence.url)) {
