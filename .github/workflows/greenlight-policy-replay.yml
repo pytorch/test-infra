@@ -1,13 +1,15 @@
 name: GreenLight policy replay
 
 # Replays past GreenLight reviews under the policy before and after a pull request (PR) and comments the
-# comparison on the PR. A push changing the policy (the skill, its hooks, the review workflow) or the
-# replay machinery (this workflow, its scripts, the replay harness and the decisions export it runs)
-# starts it; plan compares only when the branch's open PR itself changes one of them, and a PR
-# changing only the machinery runs the same policy in both arms. Every job runs code from the pushed
-# commit's history (this workflow, its scripts, tools/, both arms' policy). Jobs naming `bedrock` deploy
-# the pushed branch, so its deployment branch policy, and who may push the branches it admits, decide
-# which code runs with the Bedrock role; gate names it first, so a PR from another branch fails there.
+# comparison on the PR. A push changing the policy (the skill and its pytorch/pytorch repository file,
+# its hooks, the review workflow; the replayed reviews are pytorch/pytorch's, so other repository files
+# are left out) or the replay machinery (this workflow, its scripts, the replay harness and the
+# decisions export it runs) starts it; plan compares only when the branch's open PR itself changes one
+# of them, and a PR changing only the machinery runs the same policy in both arms. Every job runs code
+# from the pushed commit's history (this workflow, its scripts, tools/, both arms' policy). Jobs naming
+# `bedrock` deploy the pushed branch, so its deployment branch policy, and who may push the branches it
+# admits, decide which code runs with the Bedrock role; gate names it first, so a PR from another branch
+# fails there.
 #
 # Both arms are pinned by SHA, the base arm to the merge base so later policy on main is not credited to
 # the PR. collect draws the sample and records both arms' GitHub reads once, and each replay job reads
@@ -22,6 +24,8 @@ on:
     branches-ignore: [main]
     paths:
       - .claude/skills/greenlight-review/**
+      - '!.claude/skills/greenlight-review/repos/**'
+      - .claude/skills/greenlight-review/repos/pytorch.md
       - .claude/hooks/greenlight/**
       - .github/workflows/greenlight-pr-review.yml
       - .github/workflows/greenlight-policy-replay.yml
@@ -88,7 +92,8 @@ jobs:
           # with the pushed commit, so a PR object that lags the push affects neither. These paths mirror on.push.paths, which cannot read env.
           # The compare API lists at most 300 files, dropping the paths that sort last, so a full list without a trigger path proves nothing.
           comparison=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base_ref...$HEAD_SHA")
-          changes=$(jq -r 'if [.files[]? | .filename, (.previous_filename // empty)] | any(startswith(".claude/skills/greenlight-review/")
+          changes=$(jq -r 'if [.files[]? | .filename, (.previous_filename // empty)] | any((startswith(".claude/skills/greenlight-review/")
+            and ((startswith(".claude/skills/greenlight-review/repos/") | not) or . == ".claude/skills/greenlight-review/repos/pytorch.md"))
             or startswith(".claude/hooks/greenlight/") or . == ".github/workflows/greenlight-pr-review.yml"
             or . == ".github/workflows/greenlight-policy-replay.yml"
             or test("^\\.github/scripts/greenlight_policy_replay_[^/]*\\.sh$") or startswith("tools/torchci/greenlight_replay/")
