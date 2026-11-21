@@ -10,7 +10,7 @@ its changes can't be reviewed due to `merge_rules.yaml` restrictions, or are too
 the PR is oversized. Either line also replaces a greenlight verdict on an older commit, but never
 one on the PR's current head; in every other case — an eligible author's PR that is not oversized,
 a draft, an author no rule names, a failed check — an outdated verdict stays. Eligibility comes from
-the merge rules and the PR's base, and an ineligible author is what `--allow-untrusted-author` calls
+the repo's eligibility source (its merge rules, or write permission) and the PR's base, and an ineligible author is what `--allow-untrusted-author` calls
 untrusted: that local-only flag reviews such a PR anyway, in shadow. This document covers who is
 eligible, onboarding and offboarding, and the risks this design accepts.
 
@@ -23,6 +23,15 @@ A PR is authoritative only when a rule in its repo's `merge_rules.yaml` names it
 to their members, and approver membership is exact-case against the author's login as GitHub
 reports it. Whether the changes need a human is the review's call; the size gate in
 `greenlight-pr-review.yml` declines a diff over 2000 lines or 200 files with a canned `NO_LAND`.
+
+A repo whose `repos.yaml` entry says `eligibility: write_permission` ([REPOS.md](REPOS.md)) has no
+merge rules to read: its writers stand in for them (`writers.py`). The scan lists every collaborator
+with push access, of any affiliation, keeps only User accounts (never a Bot or an App), and treats
+them as one valid rule with no paths, so the cohort, the fingerprint's comment filter, the
+human-decided skip and `cohort.assess_rules` work as above. The verdict asks GitHub for the author's
+own permission (one call): it must be `admin` or `write`, which includes `maintain`, and the PR's
+author must be a User account; `cohort.assess_rules` then applies the bot and greenlight exclusions.
+Write permission is broader than any merge rule, and that breadth is accepted.
 
 A rule with any pattern trymerge rejects — a brace, parenthesis, bracket or backslash, or patterns
 that do not compile as a regex — is logged and qualifies nobody (`merge_authz.MergeRule.valid`).
@@ -40,19 +49,20 @@ Where it is checked:
 - **The `--pr` gate** (`authz_gates.admit_target`) runs the same check on the PR it fetches. A
   refused target is never fingerprinted or dispatched, but one with an author login still goes
   through the revert guard.
-- **The verdict** (`verdict.has_eligible_author`) runs the check again for every `LAND` or `NO_LAND`
-  recorded without `--shadow`: once a valid rule names the author, one fresh read of the PR must
+- **The verdict** (`author_eligibility.has_eligible_author`) runs the check again for every `LAND` or
+  `NO_LAND` recorded without `--shadow`: once the author qualifies, one fresh read of the PR must
   find the reviewed head on a base trymerge accepts. Any failure fails the command before the row is
   written.
 
 All three log their answer with a reason that names no rule, team or file: the scan and the `--pr`
 gate `PR #<n> by <login>: <reason>` for every PR they check (`PR #<n> by <login>: base not accepted`
 and `--pr <n> by <login>: trymerge refuses its base` for a refused base), the verdict
-`merge-rule eligibility on <repo>#<n>: author '<login>' is eligible` or
-`... is not eligible: <reason>`. Besides `eligible`, a reason is one of `no author`,
-`excluded (bot or greenlight)` and `no merge rule names '<login>' in exact case` (followed by
-`; a rule names '<Variant>'` when a valid rule names a case variant); the verdict adds `head moved`
-and `base not accepted`. The scan's lines are in the `greenlight-scan` Lambda's CloudWatch logs;
+`merge-rule eligibility on <repo>#<n>: author '<login>' is eligible` (`write-permission eligibility`
+on a write_permission repo) or `... is not eligible: <reason>`. Besides `eligible`, a reason is one
+of `no author`, `excluded (bot or greenlight)` and `no merge rule names '<login>' in exact case`
+(followed by `; a rule names '<Variant>'` when a valid rule names a case variant); the verdict adds
+`head moved` and `base not accepted`, and on a write_permission repo
+`account type '<type>' is not 'User'` and `no write permission`, which never names the level. The scan's lines are in the `greenlight-scan` Lambda's CloudWatch logs;
 for one PR, a `pytorch/test-infra` writer can dispatch `greenlight-review.yml` with its `pr` input
 and read the run's log.
 
@@ -62,9 +72,10 @@ all shadow therefore also gets a non-shadow `REVERTED` row and a Dr. CI poke.
 
 ## Onboarding and offboarding
 
-Both are a `merge_rules.yaml` change in the repo, with no greenlight deploy. The scan resolves the
-rules afresh once its cached copy, kept between scans in one process (the Lambda's and a `--loop`
-daemon's), is older than `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`, and the verdict on every run.
+Both are a `merge_rules.yaml` change in the repo, or on a write_permission repo a change to who
+can push to it, with no greenlight deploy. The scan resolves the source afresh once its cached copy,
+kept between scans in one process (the Lambda's and a `--loop` daemon's), is older than
+`PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`, and the verdict on every run.
 A login gains authority only where a rule names it in its exact GitHub casing, and the per-PR reason
 catches a miscased entry.
 

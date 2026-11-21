@@ -125,16 +125,17 @@ reclaimed sooner.
 Two independent questions, both answered in `cohort.py`.
 
 **Who is evaluated** is the *evaluation cohort*: `cohort.evaluation_cohort(authorized_logins)` —
-every `approved_by` login in `pytorch/pytorch`'s `merge_rules.yaml` (taken across all rules
-regardless of changed paths, team refs expanded to members via `merge_authz`), minus bots and
-minus greenlight's own App. That set is the listing scan's match rule. greenlight is excluded
-explicitly: `merge_rules.yaml` names bare logins, so its entry resolves to `pytorchgreenlight`,
-which is not bot-shaped and would otherwise put greenlight in its own cohort reviewing its own
-PRs.
+every `approved_by` login in the repo's `merge_rules.yaml` (across all rules regardless of changed
+paths, team refs expanded to members via `merge_authz`), or on a `write_permission` repo every User
+account with push access (`writers`), minus bots and minus greenlight's own App. That set is the
+listing scan's match rule. greenlight is excluded explicitly: `merge_rules.yaml` names bare logins,
+so its entry resolves to `pytorchgreenlight`, which is not bot-shaped and would otherwise put
+greenlight in its own cohort reviewing its own PRs.
 
 **Whose verdict carries authority** is decided per PR ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)): a
-valid merge rule must name the author, whatever files the PR changes, on a base trymerge accepts by
-branch name: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk is `main`.
+valid merge rule (or, on a `write_permission` repo, write access) must qualify the author, whatever
+files the PR changes, on a base trymerge accepts by branch name: `main`, a ghstack PR's, or a
+GitHub-native stack's whose trunk is `main`.
 The listing scan fingerprints and dispatches only such eligible PRs, and applies that cut to the
 *fingerprint candidates*, after the revert guard and the state read, not to the listing. Every other
 listed PR is therefore still state-read and still reaches `revert_guard` — so it still loses a
@@ -442,7 +443,7 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard cap on runtime (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon mode) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
-| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches each repo's resolved `merge_rules.yaml` snapshot — the authorized-login set and the rules its eligibility checks read — before refetching, across scans in one process (a warm Lambda included); a transient failure serves it for at most three TTLs, a broken or missing file fails the repo's scan at once. The verdict is outside this cache and re-reads the rules for each `LAND`/`NO_LAND` recorded without `--shadow` |
+| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches each repo's resolved eligibility snapshot (its `merge_rules.yaml`, or its writers on a `write_permission` repo) — the authorized-login set and the rules its eligibility checks read — before refetching, across scans in one process (a warm Lambda included); a transient failure serves it for at most three TTLs, a broken or missing source fails the repo's scan at once. The verdict is outside this cache and re-reads the source for each `LAND`/`NO_LAND` recorded without `--shadow` |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check; a fast tick's walk stops at the same edge |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |

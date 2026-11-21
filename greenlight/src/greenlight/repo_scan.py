@@ -14,10 +14,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn
 
-from greenlight import drain, github_client, merge_authz, review
+from greenlight import drain, github_client, merge_authz, review, writers
 from greenlight.constants import TARGET_BRANCH
 from greenlight.guards import IterationTimeout
-from greenlight.repo_config import BUILTIN_CONFIG, WRITE_PERMISSION_UNSUPPORTED, is_primary
+from greenlight.repo_config import BUILTIN_CONFIG, is_primary
 from greenlight.scan_memory import ScanMemory
 from greenlight.snapshot_cache import SnapshotCache
 
@@ -66,14 +66,15 @@ def identity_problem(entry: RepoEntry, identity: RepoIdentity) -> str | None:
     return None
 
 
-def _write_permission_unsupported(_client: Github) -> MergeRulesSnapshot:
-    raise ValueError(WRITE_PERMISSION_UNSUPPORTED)
-
-
 def eligibility_resolver(entry: RepoEntry) -> Callable[[Github], MergeRulesSnapshot]:
-    """The fetch of ``entry``'s eligibility source."""
+    """The fetch of ``entry``'s eligibility source: its merge rules, or its writers as one rule."""
     if entry.eligibility == "write_permission":
-        return _write_permission_unsupported
+
+        def resolve_writers(client: Github) -> MergeRulesSnapshot:
+            return writers.resolve_writers(client, entry.repo)
+
+        resolve_writers.__name__ = f"writers of {entry.repo}"
+        return resolve_writers
 
     def resolve(client: Github) -> MergeRulesSnapshot:
         return merge_authz.resolve_merge_rules(client, entry.repo)

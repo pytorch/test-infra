@@ -19,7 +19,9 @@ repos:
   (`greenlight_guard.py`); `gate` is for repos without pytorchbot.
 - `eligibility`: whose PRs carry authority. `merge_rules` reads the repo's own
   `.github/merge_rules.yaml`; a missing or broken file fails that repo's scan, never falling back
-  to anything else. This release rejects `write_permission` when it has to resolve it.
+  to anything else. `write_permission` counts every User account with push access to the repo
+  (`writers.py`); a listing with none fails that repo's scan. Both are described in
+  [TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md).
 - `mode`: see "Modes" below.
 
 `repos` is a list so the loader sees duplicates. Every value is read as a string: a bare `off` is
@@ -120,7 +122,8 @@ failure (a GitHub 5xx, a network error or timeout) serves the last eligibility s
 three TTLs; a broken or missing source, or a rate limit, fails the repo's scan at once. `--pr`
 rechecks share the caches but never the tick memory.
 
-So a change to `merge_rules.yaml` reaches the scan within the TTL rather than on the next tick. The
-record job's eligibility check reads the rules live, so no new approval follows a removal. The
+So a change to `merge_rules.yaml`, or to who can push to a write_permission repo, reaches the scan
+within the TTL rather than on the next tick. The record job's eligibility check reads the rules, or
+the author's permission, live, so no new approval follows a removal. The
 ineligible revoke reaches only listed PRs, and the listing keeps cohort authors only, so an author
 who leaves the cohort keeps an approval already given until it is dismissed by hand.
