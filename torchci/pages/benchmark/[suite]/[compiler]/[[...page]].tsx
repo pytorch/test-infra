@@ -17,6 +17,7 @@ import {
   DISPLAY_NAMES_TO_WORKFLOW_NAMES,
   DTYPES,
 } from "components/benchmark/compilers/common";
+import { CompileTimeBreakdownPanel } from "components/benchmark/compilers/CompileTimeBreakdownPanel";
 import { GraphPanel } from "components/benchmark/compilers/ModelGraphPanel";
 import { ModelPanel } from "components/benchmark/compilers/ModelPanel";
 import {
@@ -140,6 +141,16 @@ function Report({
       >
         <BenchmarkLogs workflowId={lData[0].workflow_id} />
       </CommitPanel>
+      {dashboard !== "torchao" && (
+        <CompileTimeBreakdownPanel
+          queryParams={queryParams}
+          granularity={granularity}
+          suite={suite}
+          compiler={compiler}
+          model={model}
+          branch={lBranchAndCommit.branch}
+        />
+      )}
       <GraphPanel
         queryName={queryName}
         queryParams={queryParams}
