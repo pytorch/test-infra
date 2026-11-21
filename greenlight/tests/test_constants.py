@@ -203,14 +203,18 @@ def test_normalize_repo_does_not_repair_whitespace_around_the_separator():
     # closed. Pinned on both sides: repairing it here alone would suppress greenlight's comment
     # on a key the HUD's own gate still misses.
     assert constants.normalize_repo("  pytorch  /  pytorch  ") == "pytorch  /  pytorch"
-    assert constants.delegates_status_comment_to_drci("  pytorch  /  pytorch  ") is False
+    assert constants.normalize_repo("  pytorch  /  pytorch  ") not in constants.DRCI_STATUS_COMMENT_REPOS
 
 
 @pytest.mark.parametrize("repo", ["pytorch/pytorch", "PyTorch/PyTorch", "  pytorch/pytorch  "])
-def test_delegates_status_comment_to_drci_accepts_target_repo(repo):
-    assert constants.delegates_status_comment_to_drci(repo) is True
+def test_drci_status_comment_repos_match_the_target_repo_in_any_case(repo):
+    assert constants.normalize_repo(repo) in constants.DRCI_STATUS_COMMENT_REPOS
 
 
 @pytest.mark.parametrize("repo", ["pytorch/vision", "pytorch/test-infra", "", "pytorch", "pytorch/pytorch-fork"])
-def test_delegates_status_comment_to_drci_rejects_other_repos(repo):
-    assert constants.delegates_status_comment_to_drci(repo) is False
+def test_drci_status_comment_repos_exclude_other_repos(repo):
+    assert constants.normalize_repo(repo) not in constants.DRCI_STATUS_COMMENT_REPOS
+
+
+def test_pytorchbot_guarded_repos_is_only_the_target_repo():
+    assert frozenset({constants.TARGET_REPO}) == constants.PYTORCHBOT_GUARDED_REPOS

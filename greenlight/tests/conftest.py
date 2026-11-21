@@ -4,8 +4,9 @@ import os
 
 import pytest
 
-from greenlight import guards, verdict
+from greenlight import guards, repo_config, verdict
 from greenlight.config import Config
+from greenlight.constants import DRCI_STATUS_COMMENT_REPOS, normalize_repo
 
 
 @pytest.fixture(autouse=True)
@@ -35,9 +36,13 @@ class _FakeEligibility:
     def __init__(self, authors: frozenset[str]) -> None:
         self.authors = authors
         self.calls: list[tuple[str, str, int, str, str | None]] = []
+        self.eligibilities: list[str] = []
 
-    def __call__(self, token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> bool:
+    def __call__(
+        self, token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: str
+    ) -> bool:
         self.calls.append((token, repo, pr_number, head_sha, author))
+        self.eligibilities.append(eligibility)
         return author in self.authors
 
 
@@ -54,6 +59,40 @@ def set_eligible(monkeypatch):
         return fake
 
     return _install
+
+
+def _served_active_entry(repo: str) -> repo_config.RepoEntry:
+    drci = normalize_repo(repo) in DRCI_STATUS_COMMENT_REPOS
+    return repo_config.RepoEntry(
+        repo,
+        status_comment="drci" if drci else "greenlight",
+        safety="pytorchbot" if drci else "gate",
+        eligibility="merge_rules",
+        mode="active",
+    )
+
+
+@pytest.fixture(autouse=True)
+def set_repo_entry(monkeypatch):
+    """Answer ``verdict``'s repos.yaml lookup without the job checkout's file.
+
+    By default every repo is served and active, its status comment Dr. CI's exactly for the repos the
+    HUD renders. ``set_repo_entry(repo, entry, served=...)`` overrides one repo, and ``entry=None``
+    makes it absent.
+    """
+    overrides: dict[str, tuple[repo_config.RepoEntry, bool] | None] = {}
+
+    def lookup(repo: str) -> tuple[repo_config.RepoEntry, bool] | None:
+        if repo in overrides:
+            return overrides[repo]
+        return _served_active_entry(repo), True
+
+    monkeypatch.setattr(verdict, "_repo_entry", lookup)
+
+    def _set(repo: str, entry: repo_config.RepoEntry | None, *, served: bool = True) -> None:
+        overrides[repo] = None if entry is None else (entry, served)
+
+    return _set
 
 
 @pytest.fixture(autouse=True)

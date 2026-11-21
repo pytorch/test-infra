@@ -65,4 +65,7 @@ jobs:
       - name: Type-check
         run: just typecheck
       - name: Test
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GREENLIGHT_LIVE_CONFIG_CHECK: "1"
         run: just test

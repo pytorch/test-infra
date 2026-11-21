@@ -10,11 +10,12 @@ from typing import TYPE_CHECKING, NoReturn
 import pytest
 from github import GithubException, UnknownObjectException
 
-from greenlight import comment_format, constants, github_client, verdict, verdict_input
+from greenlight import comment_format, constants, github_client, repo_config, verdict, verdict_input
 
 # has_eligible_author is imported rather than read off the module: conftest swaps the module attribute
 # for a refusing guard in every test, while this name keeps the real function for the fake clients.
 from greenlight.verdict import VerdictRequest, has_eligible_author
+from greenlight.verdict import _repo_entry as _REAL_REPO_ENTRY
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -630,7 +631,7 @@ def test_land_whose_lookup_refuses_the_moved_head_is_shadow_and_approves_nothing
 
     # Stands in for the lookup, which answers only while the live head is the one it was handed.
     def eligible_on_the_live_head_only(
-        token: str, repo: str, pr_number: int, head_sha: str, author: str | None
+        token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: str
     ) -> bool:
         return head_sha == pr.head.sha
 
@@ -1184,7 +1185,9 @@ def test_no_land_dismisses_before_a_failing_eligibility_lookup_and_records_nothi
         repo="pytorch/vision", pr_number=59, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
     )
 
-    def failing_lookup(token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> NoReturn:
+    def failing_lookup(
+        token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: str
+    ) -> NoReturn:
         rec.events.append("lookup")
         raise RuntimeError("merge rules unreadable")
 
@@ -1219,8 +1222,8 @@ def test_marker_ignores_pr_author_and_honours_requested_shadow(make_config, requ
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     # The comment path fetched the PR, so an untrusted author was right there to be read -- and the
-    # stamped value still follows the request rather than the author.
-    assert rec.events == ["emit", "comment"]
+    # stamped value still follows the request rather than the author. A shadow marker posts no comment.
+    assert rec.events == (["emit"] if requested_shadow else ["emit", "comment"])
     assert _decode(emit.row_gzip)["shadow"] is requested_shadow
 
 
@@ -2046,7 +2049,7 @@ class _FakeRulesClient:
 def eligible(monkeypatch):
     def check(client: _FakeRulesClient, author: str | None) -> bool:
         monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
-        return has_eligible_author("tok", constants.TARGET_REPO, 7, _REVIEWED, author)
+        return has_eligible_author("tok", constants.TARGET_REPO, 7, _REVIEWED, author, eligibility="merge_rules")
 
     return check
 
@@ -2178,3 +2181,159 @@ def test_a_record_time_pr_read_failure_fails_the_verdict_and_writes_no_row(make_
     assert client.pull_reads == 1
     assert emit.row_gzip is None
     assert rec.events == []
+
+
+def _vision_entry(**fields: str) -> repo_config.RepoEntry:
+    base = {"status_comment": "greenlight", "safety": "gate", "eligibility": "merge_rules", "mode": "active"}
+    return repo_config.RepoEntry("pytorch/vision", **{**base, **fields})  # type: ignore[arg-type]
+
+
+def _land(
+    tmp_path: Path, *, repo: str = "pytorch/vision", status: str = "LAND", reason: str = "clean"
+) -> VerdictRequest:
+    vf = _write_verdict(tmp_path, status=status, reason=reason, message="LGTM")
+    return VerdictRequest(repo=repo, pr_number=70, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+
+@pytest.mark.parametrize(
+    ("entry", "served"),
+    [
+        pytest.param(_vision_entry(mode="shadow"), True, id="shadow-mode"),
+        pytest.param(_vision_entry(mode="off"), True, id="off-mode"),
+        pytest.param(_vision_entry(), False, id="safety-only"),
+    ],
+)
+def test_land_on_a_repo_not_served_and_active_is_shadow_with_no_lookup_and_no_comment(
+    make_config, tmp_path, set_repo_entry, eligibility, entry, served
+):
+    set_repo_entry("pytorch/vision", entry, served=served)
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+
+    verdict.run(
+        _land(tmp_path),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=emit,
+        now=lambda: _FIXED,
+    )
+
+    assert pr.created_reviews == []
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+    assert eligibility.calls == []
+
+
+def test_land_on_an_active_repo_resolves_its_configured_eligibility(make_config, tmp_path, eligibility):
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+
+    verdict.run(
+        _land(tmp_path),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    assert eligibility.calls == [("tok", "pytorch/vision", 70, "h", _TRUSTED_AUTHOR)]
+    assert eligibility.eligibilities == ["merge_rules"]
+    assert rec.events == ["emit", "review:APPROVE", "comment"]
+
+
+def test_land_on_a_repo_with_no_valid_entry_fails_before_any_github_call(make_config, tmp_path, set_repo_entry):
+    set_repo_entry("pytorch/vision", None)
+    emit = _FakeEmit(_Recorder())
+
+    with pytest.raises(ValueError, match="pytorch/vision has no valid entry"):
+        verdict.run(
+            _land(tmp_path),
+            make_config(github_token="tok"),
+            build_github=_boom_build_github,
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    assert emit.row_gzip is None
+
+
+def test_no_land_on_a_repo_with_no_valid_entry_dismisses_first_then_fails(make_config, tmp_path, set_repo_entry):
+    set_repo_entry("pytorch/vision", None)
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)])
+
+    with pytest.raises(ValueError, match="pytorch/vision has no valid entry"):
+        verdict.run(
+            _land(tmp_path, status="NO_LAND", reason="unclear_intent"),
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    assert rec.events == ["dismiss:1"]
+    assert emit.row_gzip is None
+
+
+def test_marker_on_a_repo_with_no_valid_entry_fails_with_no_row(make_config, set_repo_entry):
+    set_repo_entry("pytorch/vision", None)
+    emit = _FakeEmit(_Recorder())
+    req = VerdictRequest(repo="pytorch/vision", pr_number=71, head_sha="h", status="CANCELLED")
+
+    with pytest.raises(ValueError, match="no valid entry"):
+        verdict.run(
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED
+        )
+
+    assert emit.row_gzip is None
+
+
+@pytest.mark.parametrize(
+    ("entry", "served"),
+    [
+        pytest.param(_vision_entry(mode="shadow"), True, id="shadow-mode"),
+        pytest.param(_vision_entry(), False, id="safety-only"),
+    ],
+)
+def test_marker_on_a_repo_not_served_and_active_is_shadow_and_posts_no_comment(
+    make_config, set_repo_entry, entry, served
+):
+    set_repo_entry("pytorch/vision", entry, served=served)
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    req = VerdictRequest(repo="pytorch/vision", pr_number=72, head_sha="h", status="AI_REVIEW_STARTED", bot_login=_BOT)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=_boom_build_github, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+
+
+def test_a_drci_entry_never_gets_greenlights_own_comment(make_config, tmp_path, set_repo_entry):
+    set_repo_entry("pytorch/vision", _vision_entry(status_comment="drci"))
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+
+    verdict.run(
+        _land(tmp_path),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    assert rec.events == ["emit", "review:APPROVE"]
+
+
+def test_has_eligible_author_refuses_write_permission_eligibility(monkeypatch):
+    monkeypatch.setattr(github_client, "build_authz_client", _boom_build_github)
+
+    with pytest.raises(ValueError, match="write_permission eligibility is not supported by this release"):
+        has_eligible_author("tok", "pytorch/vision", 7, _REVIEWED, "alice", eligibility="write_permission")
+
+
+def test_the_default_entry_lookup_reads_the_local_repos_yaml():
+    assert _REAL_REPO_ENTRY(constants.TARGET_REPO) == (repo_config.BUILTIN_PYTORCH, True)
+    assert _REAL_REPO_ENTRY("pytorch/no-such-repo") is None

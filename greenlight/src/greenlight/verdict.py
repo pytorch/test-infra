@@ -14,7 +14,9 @@ and NO_LAND upsert one canonical verdict comment -- edited in place across runs,
 marker and restricted to greenlight's own account (``bot_login``); LAND additionally posts an
 approving review unless the verdict is shadow or greenlight already holds a live approval on the PR,
 and NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
-A LAND or NO_LAND is shadow when ``--shadow`` is passed or ``has_eligible_author`` finds no valid
+A LAND or NO_LAND is shadow when ``--shadow`` is passed, the repo's entry in the job's own
+``repos.yaml`` (``repo_config.load_local``) is safety-only or not ``active``, or
+``has_eligible_author`` finds no valid
 merge rule naming its author, or finds the PR off the reviewed head or on a base trymerge refuses;
 a failed check fails the command before the row is written, after a NO_LAND has already dismissed. A
 shadow verdict carries no authority, and that is absolute rather than forward-looking: no approving
@@ -31,11 +33,12 @@ and, when a ``bot_login`` and token are both present, best-effort upsert that sa
 to show the run as in-progress (AI_REVIEW_STARTED) or not-completed (CANCELLED / FAILED). The
 command never writes to ClickHouse directly.
 
-Every comment upsert above is suppressed on the repos in ``constants.DRCI_STATUS_COMMENT_REPOS``,
-where Dr. CI renders the same state from the emitted row and the ``drci-poke`` command refreshes
-that render instead. Everywhere else greenlight posts the comment itself, so no PR is left with a
-recorded verdict and no visible status. The row emit, the LAND approving review, and the NO_LAND
-dismissal are unaffected on every repo.
+A repo with no valid entry there fails the command with no row (a NO_LAND still dismisses first).
+Every comment upsert above is skipped for a shadow row or marker, and on the repos whose entry's
+``status_comment`` is ``drci``, where Dr. CI renders the same state from the emitted row and the
+``drci-poke`` command refreshes that render instead. Everywhere else greenlight posts the comment
+itself, so no PR is left with a recorded verdict and no visible status. The row emit, the LAND
+approving review, and the NO_LAND dismissal are unaffected on every repo.
 """
 
 from __future__ import annotations
@@ -52,6 +55,7 @@ from greenlight import (
     github_client,
     merge_authz,
     redact,
+    repo_config,
     state_emit,
     verdict_input,
     verdict_labels,
@@ -63,6 +67,7 @@ if TYPE_CHECKING:
 
     from greenlight.config import Config
     from greenlight.github_types import VerdictClient, VerdictPR
+    from greenlight.repo_config import Eligibility, RepoEntry
 
 
 __all__ = ["ALLOWED_REASONS", "VERDICT_STATUSES", "VerdictRequest", "run"]
@@ -139,18 +144,35 @@ def _default_emit(row_gzip: bytes, key: str) -> None:
         fh.write(key)
 
 
+def _repo_entry(repo: str) -> tuple[RepoEntry, bool] | None:
+    """``repo``'s entry in the job's own checkout of repos.yaml and whether it is served, or None."""
+    return repo_config.load_local().lookup(repo)
+
+
+def _require_entry(repo: str, found: tuple[RepoEntry, bool] | None) -> tuple[RepoEntry, bool]:
+    if found is None:
+        raise ValueError(f"{repo} has no valid entry in greenlight/repos.yaml; no row is recorded")
+    return found
+
+
+def _authoritative(request: VerdictRequest, entry: RepoEntry, served: bool) -> bool:
+    return not request.shadow and served and entry.mode == "active"
+
+
 def _best_effort_upsert(
     request: VerdictRequest,
     config: Config,
     body: str,
     *,
+    entry: RepoEntry,
+    shadow: bool,
     build_github: Callable[[str], VerdictClient],
     pr: VerdictPR | None = None,
 ) -> None:
     """Upsert the canonical verdict comment as a best-effort, cosmetic write.
 
-    Skipped entirely on the repos Dr. CI renders (``constants.delegates_status_comment_to_drci``),
-    because Dr. CI shows the same state from the emitted row and the ``drci-poke`` command
+    Skipped for a ``shadow`` row or marker, and on a repo whose entry's ``status_comment`` is
+    ``drci``, because Dr. CI shows the same state from the emitted row and the ``drci-poke`` command
     refreshes that render instead.
 
     The emitted row is authoritative; the comment is cosmetic. A raise here would fail the CLI
@@ -159,8 +181,11 @@ def _best_effort_upsert(
     action (the LAND review / NO_LAND dismiss); otherwise the client and PR are fetched here so a
     transient fetch failure is swallowed too.
     """
-    if constants.delegates_status_comment_to_drci(request.repo):
+    if entry.status_comment == "drci":
         logger.info("Dr. CI renders the status comment on %s; skipping upsert", request.repo)
+        return
+    if shadow:
+        logger.info("shadow row on %s#%d; skipping the status comment", request.repo, request.pr_number)
         return
     try:
         if pr is None:
@@ -194,15 +219,17 @@ def _run_marker(
     if request.dry_run:
         logger.info("[dry-run] would emit %s marker payload for %s#%d", status, request.repo, request.pr_number)
         return
-    # Markers take request.shadow verbatim and never look the author up. Both jobs that reach here
-    # mint the App token with continue-on-error, so a lookup can fail, and fail-closed derivation
-    # would hide a trusted author's in-flight marker from the merge gate -- a WAIT, then a DENY.
-    key = _emit_payload(request, status, "", "", shadow=request.shadow, now=now, emit=emit, new_emit_id=new_emit_id)
+    # Markers take request.shadow and the repo's entry and never look the author up. Both jobs that
+    # reach here mint the App token with continue-on-error, so a lookup can fail, and fail-closed
+    # derivation would hide a trusted author's in-flight marker from the merge gate -- a WAIT, then a DENY.
+    entry, served = _require_entry(request.repo, _repo_entry(request.repo))
+    shadow = not _authoritative(request, entry, served)
+    key = _emit_payload(request, status, "", "", shadow=shadow, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s marker payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     if not request.bot_login:
         return
     body = comment_format.marker_body(status, request.agent_job_url or request.eval_job_url, request.run_id)
-    _best_effort_upsert(request, config, body, build_github=build_github)
+    _best_effort_upsert(request, config, body, entry=entry, shadow=shadow, build_github=build_github)
 
 
 def _dismiss_prior_approvals(request: VerdictRequest, pr: VerdictPR) -> None:
@@ -217,16 +244,21 @@ def _dismiss_prior_approvals(request: VerdictRequest, pr: VerdictPR) -> None:
         logger.info("no prior greenlight approval to dismiss on %s#%d", request.repo, request.pr_number)
 
 
-def has_eligible_author(token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> bool:
-    """True when a valid merge rule names ``author`` and the PR is still as reviewed. Every failure raises.
+def has_eligible_author(
+    token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: Eligibility
+) -> bool:
+    """True when ``repo``'s merge rules name ``author`` and the PR is still as reviewed. Every failure raises.
 
-    ``cohort.assess_rules`` decides on the author. One fresh read of the PR must then find its head still
-    at ``head_sha``, the reviewed commit, on a base ``merge_authz.accepts_base`` accepts, so a PR reviewed
-    for its native stack on main must still be in one. A push to the base branch is not caught.
+    Any ``eligibility`` but ``merge_rules`` raises: this release supports no other. ``cohort.assess_rules``
+    decides on the author. One fresh read of the PR must then find its head still at ``head_sha``, the
+    reviewed commit, on a base ``merge_authz.accepts_base`` accepts, so a PR reviewed for its native stack
+    on main must still be in one. A push to the base branch is not caught.
     """
+    if eligibility != "merge_rules":
+        raise ValueError(repo_config.WRITE_PERMISSION_UNSUPPORTED)
     client = github_client.build_authz_client(token)
     try:
-        rule, reason = cohort.assess_rules(author, merge_authz.resolve_merge_rules(client).rules)
+        rule, reason = cohort.assess_rules(author, merge_authz.resolve_merge_rules(client, repo).rules)
         if rule is not None:
             pull = client.get_repo(repo).get_pull(pr_number)
             if pull.head.sha != head_sha:
@@ -271,19 +303,25 @@ def _run_full(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to post a verdict")
+    found = _repo_entry(request.repo)
+    if status != STATUS_NO_LAND:
+        _require_entry(request.repo, found)
     client = build_github(token)
     pr = github_client.get_pr(client, request.repo, request.pr_number)
     author = pr.user.login if pr.user is not None else None
     if status == STATUS_NO_LAND:
-        # A NO_LAND dismisses whatever the lookup below answers, so it goes first: a lookup that fails
+        # A NO_LAND dismisses whatever the lookups below answer, so it goes first: a lookup that fails
         # must not leave greenlight's approval standing on a PR the review just rejected.
         _dismiss_prior_approvals(request, pr)
+    entry, served = _require_entry(request.repo, found)
     # OR, never AND: the caller's value and this one are derived independently, so a disagreement
     # means the approval was withheld. Stamping the row non-shadow anyway would render a LAND in
     # Dr. CI and offer the merge gate an authorization that no review backs. The short circuit also
-    # keeps a shadow request from resolving eligibility at all. The lookup is handed the reviewed
-    # head, not the live one.
-    shadow = request.shadow or not has_eligible_author(token, request.repo, request.pr_number, request.head_sha, author)
+    # keeps a shadow request, or a repo not served and active, from resolving eligibility at all. The
+    # lookup is handed the reviewed head, not the live one.
+    shadow = not _authoritative(request, entry, served) or not has_eligible_author(
+        token, request.repo, request.pr_number, request.head_sha, author, eligibility=entry.eligibility
+    )
     key = _emit_payload(request, status, reason, message, shadow=shadow, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     job_url = request.agent_job_url or request.eval_job_url
@@ -316,7 +354,7 @@ def _run_full(
             logger.info("approved %s#%d", request.repo, request.pr_number)
     if not shadow:
         verdict_labels.label_verdict(pr, status, reviewed_head=request.head_sha, number=request.pr_number)
-    _best_effort_upsert(request, config, body, build_github=build_github, pr=pr)
+    _best_effort_upsert(request, config, body, entry=entry, shadow=shadow, build_github=build_github, pr=pr)
 
 
 def run(

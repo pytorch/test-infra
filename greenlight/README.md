@@ -23,7 +23,7 @@ just setup      # uv sync -> create .venv with deps
 ## Usage
 
 PyTorch Green Light has three subcommands. `review` scans the open PRs from the evaluation
-cohort in `pytorch/pytorch` (see "Who is evaluated, and whose verdict carries authority"
+cohort in one repo `repos.yaml` serves ([REPOS.md](REPOS.md); see "Who is evaluated, and whose verdict carries authority"
 below) and, for each one, computes its fingerprint
 (`eval_hash`), reads the PR's latest recorded state from ClickHouse
 `misc.greenlight_pr_state`, and dispatches the reviewer workflow
@@ -364,17 +364,17 @@ either side stops routing both formats.
 ### Who posts the status comment
 
 Every status the `verdict` command records — reviewing, did-not-complete, LAND, NO_LAND —
-goes into one canonical greenlight comment, upserted in place, unless Dr. CI is showing that
-state instead. Delegating it to Dr. CI takes one condition: the repo must be in
-`constants.DRCI_STATUS_COMMENT_REPOS` (today only `pytorch/pytorch`). Then the upsert is skipped
+goes into one canonical greenlight comment, upserted in place, unless the row is shadow or Dr. CI
+shows that state instead: the repo's `repos.yaml` entry says `status_comment: drci` (today only
+`pytorch/pytorch`; allowed only in `constants.DRCI_STATUS_COMMENT_REPOS`). Then the upsert is skipped
 entirely, because Dr. CI already renders the same state from the emitted row inside its own
 comment and two comments saying the same thing is worse than one. The `LAND` approving review
 and the `NO_LAND` dismissal are the merge gate and are unaffected on every repo. Only the status
 comment is delegated: the scan's `@greenlight recheck` refusal (its own marker, see "Rechecking
 a PR") is still posted by greenlight on every repo, `pytorch/pytorch` included.
 
-The two surfaces are wired by separate allowlists that must agree: greenlight suppresses on
-`constants.DRCI_STATUS_COMMENT_REPOS`, and the HUD renders on `GREENLIGHT_REPOS`
+The two surfaces are wired by separate allowlists that must agree: greenlight suppresses on the
+`drci` entries of `repos.yaml`, held to `constants.DRCI_STATUS_COMMENT_REPOS`, and the HUD renders on `GREENLIGHT_REPOS`
 (`torchci/lib/greenlight/greenlightConfig.ts`). A repo in the first but not the second is
 auto-approved by the merge gate with its status shown nowhere, so add and remove repos in both
 at once; `greenlight/tests/test_render_sync.py` fails when the two lists drift apart.
@@ -442,7 +442,7 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard cap on runtime (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon mode) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
-| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches a resolved `merge_rules.yaml` snapshot — the authorized-login set and the rules its eligibility checks read — before refetching. The verdict is outside this cache and re-reads the rules for each `LAND`/`NO_LAND` recorded without `--shadow` |
+| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches each repo's resolved `merge_rules.yaml` snapshot — the authorized-login set and the rules its eligibility checks read — before refetching, across scans in one process (a warm Lambda included); a transient failure serves it for at most three TTLs, a broken or missing file fails the repo's scan at once. The verdict is outside this cache and re-reads the rules for each `LAND`/`NO_LAND` recorded without `--shadow` |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check; a fast tick's walk stops at the same edge |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
@@ -482,7 +482,7 @@ password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The
 hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
 under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead. A warm execution
-environment keeps the scan's tick memory, kept fingerprints included, between invocations, so the
+environment keeps the scan's tick memory (kept fingerprints, an `off` repo's drain) and caches between invocations, so the
 Lambda alternates full and fast ticks; a CLI one-shot always lists in full (see Usage). The scan's
 GitHub token must be able to list the repository's issues (`GET /repos/{owner}/{repo}/issues`,
 through public read access or the Issues: read permission); if it cannot, every fast tick fails
@@ -626,7 +626,7 @@ criterion it never examined counts as one — and LAND if only nits remain.
 Works today: the CLI runs the `review` phase once (cron-like) or as a `--loop` daemon, with a
 single-instance lock, a per-iteration soft timeout plus a hard watchdog, backoff on failure, and
 clean signal shutdown — all built and tested. `review` scans the open PRs from the evaluation cohort
-in `pytorch/pytorch`, computes each PR's fingerprint (`eval_hash`), reads the PR's latest recorded
+in a configured repo, computes each PR's fingerprint (`eval_hash`), reads the PR's latest recorded
 state from `misc.greenlight_pr_state`, and dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`) for eligible PRs that are new or changed. It
 lists every open PR on a full tick, and on the fast ticks in between only the recently updated ones
@@ -637,7 +637,7 @@ review, records the `REVERTED` row unless it is already the PR's latest row, and
 either changed. The exclusion survives removal of the label, and `@greenlight recheck` is not exempt
 (it is skipped silently). A listed ineligible PR inside the review window and not labelled `Stale`,
 whose latest recorded row is a `LAND`, has greenlight's approval dismissed, with nothing recorded or
-dispatched. Both paths write to `pytorch/pytorch`, so `review` needs PR write and the App's
+dispatched. Both paths write to the scanned repo, so `review` needs PR write and the App's
 `BOT_LOGIN`. Draft PRs are dropped from the listing scan entirely — never fingerprinted or
 dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still reviews a draft. PRs
 whose `updated_at` is older than the review window (`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`,

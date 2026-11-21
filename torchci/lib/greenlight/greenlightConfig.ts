@@ -9,9 +9,10 @@ function normalizeRepoFullName(fullName: string): string {
 }
 
 // Repos whose greenlight state is rendered into the Dr.CI comment. The greenlight
-// service only ever evaluates TARGET_REPO (greenlight/src/greenlight/constants.py);
-// this list controls the read-back side independently of it. Folded at construction,
-// so a mixed-case entry cannot silently never match.
+// service evaluates the repos in greenlight/repos.yaml and posts no comment of its
+// own for its status_comment: drci entries; this list must equal those entries and
+// DRCI_STATUS_COMMENT_REPOS (greenlight/tests/test_render_sync.py). Folded at
+// construction, so a mixed-case entry cannot silently never match.
 export const GREENLIGHT_REPOS: string[] = ["pytorch/pytorch"].map(
   normalizeRepoFullName
 );

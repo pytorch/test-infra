@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Protocol
 
-from greenlight import constants
 from greenlight.guards import IterationTimeout
 from greenlight.scan_runner import _staleness_key_for_state
 from greenlight.state import next_run_id
@@ -24,11 +23,11 @@ if TYPE_CHECKING:
     from greenlight.scan_runner import _Candidate
 
     class DispatchFn(Protocol):
-        # Everything but shadow is positional-only so injected test doubles needn't match the
-        # parameter names; shadow is keyword-only and has no default, so no caller can dispatch a
-        # review without stating which cohort the PR belongs to.
+        # Everything but shadow and repo is positional-only so injected test doubles needn't match the
+        # parameter names; shadow and repo are keyword-only with no default, so no caller can dispatch a
+        # review without stating which cohort and repo the PR belongs to.
         def __call__(
-            self, client: Github, pr_number: int, head_sha: str, eval_hash: str, ref: str, /, *, shadow: bool
+            self, client: Github, pr_number: int, head_sha: str, eval_hash: str, ref: str, /, *, shadow: bool, repo: str
         ) -> None: ...
 
 
@@ -36,14 +35,19 @@ logger = logging.getLogger(__name__)
 
 
 def _emit_dispatch_marker(
-    candidate: _Candidate, emit_dispatched: Callable[..., None], poke: Callable[[int], None], *, shadow: bool
+    candidate: _Candidate,
+    emit_dispatched: Callable[..., None],
+    poke: Callable[[int], None],
+    *,
+    repo: str,
+    shadow: bool,
 ) -> None:
     # The workflow was already fired, so an emit failure is logged and swallowed: a missing marker
     # self-heals (next scan re-dispatches, the reviewer's per-PR concurrency group cancels the dup),
     # and must not fail the scan or block dispatching the remaining candidates.
     try:
         emit_dispatched(
-            repo=constants.TARGET_REPO,
+            repo=repo,
             pr_number=candidate.pr_number,
             head_sha=candidate.head_sha,
             eval_hash=candidate.eval_hash,
@@ -73,6 +77,7 @@ def _dispatch_pending(
     client: Github,
     pending: list[_Candidate],
     *,
+    repo: str,
     ref: str,
     max_dispatches: int | None,
     dispatch: DispatchFn,
@@ -88,7 +93,9 @@ def _dispatch_pending(
         # can never disagree about which cohort this PR is in.
         shadow = shadow_for_pr(candidate.pr_number)
         try:
-            dispatch(client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref, shadow=shadow)
+            dispatch(
+                client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref, shadow=shadow, repo=repo
+            )
         except IterationTimeout:
             raise
         except Exception as exc:
@@ -96,7 +103,7 @@ def _dispatch_pending(
             dispatch_failed.append(candidate.pr_number)
             continue
         logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
-        _emit_dispatch_marker(candidate, emit_dispatched, poke, shadow=shadow)
+        _emit_dispatch_marker(candidate, emit_dispatched, poke, repo=repo, shadow=shadow)
     for candidate in ordered[limit:]:
         logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
     return dispatch_failed

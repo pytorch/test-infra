@@ -187,10 +187,12 @@ class _Scan:
     fetched: list[int] = field(default_factory=list)
     prs: dict[int, _FakePR] = field(default_factory=dict)
     clock_reads: int = 0
+    repo: str = TARGET_REPO
 
     def run(self) -> None:
         verdict_labels.label_listed_prs(
             verdict_labels.LabelPass(
+                repo=self.repo,
                 fetch_pr=self._fetch,
                 reverted=self.reverted,
                 recent=self.recent,
@@ -623,6 +625,14 @@ def test_the_pass_reads_the_rows_of_its_reverted_recent_and_stale_skipped_prs_in
     scan.run()
 
     assert scan.reads == [(TARGET_REPO, [3, 5, 7, 9])]
+
+
+def test_the_pass_reads_the_rows_of_the_scanned_repo():
+    scan = _Scan(labels={5: []}, recent=[5], eligible=[5], repo="pytorch/vision")
+
+    scan.run()
+
+    assert scan.reads == [("pytorch/vision", [5])]
 
 
 def test_an_idle_pr_keeps_its_labels_whatever_its_rows_say():

@@ -1,10 +1,12 @@
 """Whose evaluation in one scan carries authority, judged from the merge rules and the listing alone.
 
 ``eligible_rule`` asks ``cohort.assess_rules`` about one PR and logs the answer. ``Authority``
-answers ``shadow_for_pr`` for one pass from what the listing already holds, so it makes no GitHub
-call: a listed PR is shadow unless a valid merge rule names its author and the listing did not show
-a base trymerge refuses. It also answers the stamp for a REVERTED row, the one row that denies, keeping it visible on
-every recorded PR.
+answers for one pass from what the listing already holds, so it makes no GitHub call: a listed PR is
+eligible when a valid merge rule names its author and the listing did not show a base trymerge
+refuses. ``eligible`` picks who is fingerprinted and whose approval the ineligible revoke covers;
+``shadow`` is the stamp, which a repo in shadow mode (``forced_shadow``) puts on every PR. It also
+answers the stamp for a REVERTED row, the one row that denies, keeping it visible on every recorded
+PR.
 """
 
 from __future__ import annotations
@@ -42,11 +44,11 @@ def eligible_rule(number: int, login: str | None, rules: Sequence[EligibilityRul
 
 
 class Authority:
-    """The scan's ``shadow_for_pr``: a PR is shadow unless its author is eligible for it.
+    """The scan's eligibility and ``shadow_for_pr``: a PR is shadow when forced or when its author is not eligible.
 
     ``authors`` maps each listed PR to its author, except a PR listed on a base trymerge refuses
-    (``pr_listing.candidate_numbers``); a number outside it is shadow. ``target`` seeds the ``--pr``
-    gate's answer, which is never re-judged. Each PR is judged at most once per pass.
+    (``pr_listing.candidate_numbers``); a number outside it is not eligible. ``target`` seeds the
+    ``--pr`` gate's answer, which is never re-judged. Each PR is judged at most once per pass.
     """
 
     def __init__(
@@ -56,8 +58,10 @@ class Authority:
         authors: Mapping[int, str | None],
         recorded: Collection[int],
         target: Target | None = None,
+        forced_shadow: bool = False,
     ) -> None:
         self._rules = rules
+        self._forced_shadow = forced_shadow
         self._authors = dict(authors)
         self._recorded = recorded
         self._memo: dict[int, bool] = {}
@@ -65,15 +69,15 @@ class Authority:
             self._authors[target.number] = target.author
             self._memo[target.number] = target.shadow
 
-    def shadow(self, number: int) -> bool:
+    def eligible(self, number: int) -> bool:
         memoized = self._memo.get(number)
-        if memoized is not None:
-            return memoized
-        if number not in self._authors:
-            return True
-        answer = eligible_rule(number, self._authors[number], self._rules) is None
-        self._memo[number] = answer
-        return answer
+        if memoized is None:
+            memoized = number not in self._authors or eligible_rule(number, self._authors[number], self._rules) is None
+            self._memo[number] = memoized
+        return not memoized
+
+    def shadow(self, number: int) -> bool:
+        return self._forced_shadow or not self.eligible(number)
 
     def reverted_shadow(self, number: int) -> bool:
         """``shadow`` for a REVERTED row, which stays visible on every recorded PR.

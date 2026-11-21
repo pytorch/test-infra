@@ -1,0 +1,7 @@
+# The repos GreenLight serves and how. Format, validation and modes: REPOS.md.
+repos:
+  - repo: pytorch/pytorch
+    status_comment: drci  # drci | greenlight
+    safety: pytorchbot  # pytorchbot | gate
+    eligibility: merge_rules  # merge_rules | write_permission
+    mode: active  # shadow | active | off

@@ -42,8 +42,11 @@ def _authority(
     *,
     recorded: frozenset[int] = frozenset(),
     target: authority.Target | None = None,
+    forced_shadow: bool = False,
 ) -> authority.Authority:
-    return authority.Authority(rules=_RULES, authors=authors, recorded=recorded, target=target)
+    return authority.Authority(
+        rules=_RULES, authors=authors, recorded=recorded, target=target, forced_shadow=forced_shadow
+    )
 
 
 def test_authority_is_shadow_unless_a_valid_rule_names_the_listed_author():
@@ -75,3 +78,20 @@ def test_a_recorded_prs_reverted_row_is_never_shadow():
     assert judge.reverted_shadow(1) is False
     assert judge.reverted_shadow(2) is True
     assert judge.reverted_shadow(3) is False
+
+
+def test_eligible_is_the_converse_of_shadow_when_nothing_forces_it():
+    judge = _authority(
+        {1: _CATCH_ALL_AUTHOR, 2: "mallory"}, target=authority.Target(9, _CATCH_ALL_AUTHOR, shadow=False)
+    )
+
+    assert [judge.eligible(number) for number in (1, 2, 3, 9)] == [True, False, False, True]
+
+
+def test_a_forced_shadow_stamps_every_pr_shadow_but_keeps_eligibility():
+    judge = _authority({1: _CATCH_ALL_AUTHOR, 2: "mallory"}, recorded=frozenset({1, 2}), forced_shadow=True)
+
+    assert [judge.eligible(number) for number in (1, 2)] == [True, False]
+    assert [judge.shadow(number) for number in (1, 2)] == [True, True]
+    # A REVERTED row can only deny, so it stays visible on a recorded PR even in shadow mode.
+    assert [judge.reverted_shadow(number) for number in (1, 2, 3)] == [False, False, True]
