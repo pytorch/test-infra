@@ -1065,6 +1065,13 @@
       "dynamo"
     ]
   ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_avoid_modular_indexing_xpu (__main__.AvoidModularIndexingGPUTests)": [
+    "206088",
+    "https://github.com/pytorch/pytorch/issues/206088",
+    [
+      "xpu"
+    ]
+  ],
   "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsXPU)": [
     "200421",
     "https://github.com/pytorch/pytorch/issues/200421",
