@@ -9,6 +9,7 @@ from tools.scripts.generate_binary_build_matrix import (
     OSDC_RUNNERS,
     parse_version,
     ROCM_ARCHES_DICT,
+    ROCM_ARCHES_NO_GETTING_STARTED,
     validation_runner,
 )
 
@@ -475,14 +476,16 @@ class GenerateBuildMatrixTest(TestCase):
             "7.14",
         )
 
-    def test_getting_started_ships_newest_rocm_per_channel(self):
+    def test_getting_started_ships_newest_advertised_rocm_per_channel(self):
         for channel in ("nightly", "test", "release"):
             versions = self._rocm_versions(channel, "true")
-            self.assertEqual(
-                versions,
-                {max(ROCM_ARCHES_DICT[channel], key=parse_version)},
-                channel,
-            )
+            advertised = [
+                v
+                for v in ROCM_ARCHES_DICT[channel]
+                if v not in ROCM_ARCHES_NO_GETTING_STARTED
+            ]
+            self.assertEqual(versions, {max(advertised, key=parse_version)}, channel)
+            self.assertFalse(versions & set(ROCM_ARCHES_NO_GETTING_STARTED), channel)
 
     def test_builds_keep_every_rocm(self):
         for channel in ("nightly", "test", "release"):
