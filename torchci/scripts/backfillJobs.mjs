@@ -227,7 +227,8 @@ const queuedJobs = await queryClickhouse(
     SELECT
         j.id as id,
         j.run_id as run_id,
-        j.dynamoKey as dynamoKey
+        j.dynamoKey as dynamoKey,
+        j.started_at as started_at
     FROM
         workflow_job j final
     WHERE
@@ -254,6 +255,8 @@ FROM
 WHERE
     w.status != 'completed'
     AND w.id in (select run_id from pending_jobs)
+ORDER BY
+    j.started_at ASC
 LIMIT
     200`,
   {}
