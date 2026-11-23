@@ -114,6 +114,10 @@ function NavBar() {
       name: "AI Suppression Quality",
       href: "/metrics/ai_suppression",
     },
+    {
+      name: "Module Triage",
+      href: "/triage/modules",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,

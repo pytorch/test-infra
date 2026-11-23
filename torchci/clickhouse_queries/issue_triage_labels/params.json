@@ -1,0 +1,27 @@
+{
+  "params": {
+    "ancestors": "Array(String)",
+    "descendants": "Array(String)",
+    "startDate": "String"
+  },
+  "tests": [
+    {
+      "ancestors": [],
+      "descendants": [],
+      "startDate": "2026-10-02"
+    },
+    {
+      "ancestors": [
+        "oncall: pt2",
+        "oncall: pt2",
+        "module: dynamo"
+      ],
+      "descendants": [
+        "module: dynamo",
+        "module: tvm",
+        "module: tvm"
+      ],
+      "startDate": "1970-01-01"
+    }
+  ]
+}
