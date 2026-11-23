@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import main, TestCase
 from unittest.mock import patch
 
@@ -12,12 +13,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from datetime import datetime, timezone
 
+import analytics.github_analyze as github_analyze  # noqa: E402
 from analytics.github_analyze import (  # noqa: E402
     find_release_only_changes_prs,
+    github_ref_exists,
+    github_ref_step_rows,
     GitRepo,
     milestone_issue_statuses,
     milestone_pr_step_rows,
     milestone_step_rows,
+    release_candidate_names,
     release_in_preparation,
     release_only_changes_step_rows,
     releases_in_flight,
@@ -161,6 +166,232 @@ class ReleasesInFlight(TestCase):
             releases_just_shipped(GitRepo(self.tmp.name, "origin"), ["2.15.0"]),
             [],
         )
+
+
+class GithubRefSteps(TestCase):
+    CONFIG = {
+        "branch": "release/2.16",
+        "steps": [
+            {
+                "id": "1.8",
+                "check": {
+                    "type": "github_ref_exists",
+                    "repos": ["pytorch/pytorch"],
+                    "ref": "{branch}",
+                    "kind": "branch",
+                },
+            },
+            {
+                "id": "2.1",
+                "rc_scoped": True,
+                "check": {
+                    "type": "github_ref_exists",
+                    "repos": ["pytorch/pytorch", "pytorch/test-infra"],
+                    "ref": "v{version}-{rc}",
+                    "kind": "tag",
+                },
+            },
+            {
+                "id": "4.5",
+                "check": {
+                    "type": "github_ref_exists",
+                    "repos": ["pytorch/pytorch"],
+                    "ref": "v{version}",
+                    "kind": "tag",
+                },
+            },
+        ],
+    }
+
+    def rows(self, candidates, refs, config=None, seen=None, candidate_calls=None):
+        config = config or self.CONFIG
+
+        def exists(repo, kind, ref):
+            if seen is not None:
+                seen.append((repo, kind, ref))
+            return (repo, kind, ref) in refs
+
+        def candidates_for(repo, release):
+            if candidate_calls is not None:
+                candidate_calls.append((repo, release))
+            return candidates
+
+        return github_ref_step_rows(
+            "2.16.0",
+            config,
+            candidates_for,
+            exists,
+            ("pytorch/pytorch", "branch", "release/2.16") in refs,
+            ("pytorch/pytorch", "tag", "v2.16.0") in refs,
+            "0" * 40,
+            "1-1",
+            "https://github.com/pytorch/test-infra/actions/runs/1",
+            datetime(2026, 11, 21, tzinfo=timezone.utc),
+        )
+
+    def test_existing_branch_and_tag_are_done(self):
+        rows = self.rows(
+            ["rc1"],
+            {
+                ("pytorch/pytorch", "branch", "release/2.16"),
+                ("pytorch/pytorch", "tag", "v2.16.0-rc1"),
+                ("pytorch/test-infra", "tag", "v2.16.0-rc1"),
+                ("pytorch/pytorch", "tag", "v2.16.0"),
+            },
+        )
+        self.assertEqual(
+            [(row["step_id"], row["rc"], row["status"]) for row in rows],
+            [("1.8", "", "done"), ("2.1", "rc1", "done"), ("4.5", "", "done")],
+        )
+        self.assertEqual(
+            rows[0]["evidence_url"],
+            "https://github.com/pytorch/pytorch/tree/release/2.16",
+        )
+
+    def test_missing_ref_keeps_the_step_todo_and_lists_every_missing_repo(self):
+        (row,) = [row for row in self.rows(["rc1"], set()) if row["step_id"] == "2.1"]
+        self.assertEqual(row["status"], "todo")
+        self.assertIn("pytorch/pytorch, pytorch/test-infra", row["evidence_text"])
+        self.assertEqual(
+            json.loads(row["details"])["refs"],
+            [
+                {
+                    "repo": "pytorch/pytorch",
+                    "ref": "v2.16.0-rc1",
+                    "kind": "tag",
+                    "exists": False,
+                },
+                {
+                    "repo": "pytorch/test-infra",
+                    "ref": "v2.16.0-rc1",
+                    "kind": "tag",
+                    "exists": False,
+                },
+            ],
+        )
+
+    def test_each_release_candidate_has_its_own_row(self):
+        rows = [
+            row
+            for row in self.rows(["rc1", "rc2", "rc10"], set())
+            if row["step_id"] == "2.1"
+        ]
+        self.assertEqual([row["rc"] for row in rows], ["rc1", "rc2", "rc10"])
+
+    def test_candidate_names_are_sorted_numerically(self):
+        refs = [
+            {"ref": "refs/tags/v2.16.0-rc10"},
+            {"ref": "refs/tags/v2.16.0-rc2"},
+            {"ref": "refs/tags/v2.16.0-rc1"},
+            {"ref": "refs/tags/v2.16.0-rc1-test"},
+        ]
+        with patch("analytics.github_analyze.fetch_json", return_value=refs):
+            self.assertEqual(
+                release_candidate_names("pytorch/pytorch", "2.16.0"),
+                ["rc1", "rc2", "rc10"],
+            )
+
+    def test_branch_ref_uses_the_github_heads_endpoint(self):
+        with patch("analytics.github_analyze.fetch_json", return_value={}) as fetch:
+            self.assertTrue(
+                github_ref_exists("pytorch/pytorch", "branch", "release/2.16")
+            )
+        self.assertEqual(
+            fetch.call_args.args[0],
+            "https://api.github.com/repos/pytorch/pytorch/git/ref/heads/release/2.16",
+        )
+
+    def test_window_does_not_check_a_ref_before_it_opens(self):
+        config = {
+            "branch": "release/2.16",
+            "steps": [
+                {
+                    "id": "2.13",
+                    "window": {"opens": "branch_cut"},
+                    "check": {
+                        "type": "github_ref_exists",
+                        "repos": ["pytorch/pytorch"],
+                        "ref": "v{version}-rc1",
+                        "kind": "tag",
+                    },
+                }
+            ],
+        }
+        seen = []
+        (row,) = self.rows([], set(), config, seen)
+        self.assertEqual(row["status"], "todo")
+        self.assertEqual(json.loads(row["details"]), {"window": "before"})
+        self.assertEqual(seen, [])
+
+    def test_rc_window_does_not_discover_candidates_before_it_opens(self):
+        config = {
+            "branch": "release/2.16",
+            "steps": [
+                {
+                    "id": "2.13",
+                    "rc_scoped": True,
+                    "window": {"opens": "branch_cut"},
+                    "check": {
+                        "type": "github_ref_exists",
+                        "repos": ["pytorch/pytorch"],
+                        "ref": "v{version}-{rc}",
+                        "kind": "tag",
+                    },
+                }
+            ],
+        }
+        candidate_calls = []
+        self.assertEqual(
+            self.rows(["rc1"], set(), config, candidate_calls=candidate_calls), []
+        )
+        self.assertEqual(candidate_calls, [])
+
+    def test_window_marks_a_step_done_after_it_closes(self):
+        config = {
+            "branch": "release/2.16",
+            "steps": [
+                {
+                    "id": "2.13",
+                    "window": {"closes": "ga"},
+                    "check": {
+                        "type": "github_ref_exists",
+                        "repos": ["pytorch/pytorch"],
+                        "ref": "release-notes",
+                        "kind": "branch",
+                    },
+                }
+            ],
+        }
+        (row,) = self.rows([], {("pytorch/pytorch", "tag", "v2.16.0")}, config)
+        self.assertEqual(row["status"], "done")
+        self.assertEqual(json.loads(row["details"]), {"window": "after"})
+
+
+class GithubRefCli(TestCase):
+    def test_release_scans_github_ref_steps_without_a_milestone_operation(self):
+        args = SimpleNamespace(
+            remote="origin",
+            repo_path="/tmp/test-infra",
+            in_flight=False,
+            analyze_stacks=False,
+            analyze_missing_reverts_from_branch=False,
+            write_to_clickhouse=False,
+            release="2.15.0",
+            release_only_changes=False,
+            missing_in_branch=False,
+            missing_in_release=False,
+        )
+        with (
+            patch.object(github_analyze, "parse_arguments", return_value=args),
+            patch.object(github_analyze, "record_github_ref_steps") as record,
+            patch.object(github_analyze, "GitRepo") as repo,
+        ):
+            github_analyze.main()
+        repo.assert_not_called()
+        release, config, write = record.call_args.args
+        self.assertEqual(release, "2.15.0")
+        self.assertFalse(write)
+        self.assertEqual(config["branch"], "release/2.15")
 
 
 class _Commit:
