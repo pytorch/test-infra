@@ -351,6 +351,10 @@ def gh_get_milestone_issues(
     return fetch_multipage_json(url, {"milestone": milestone_idx, "state": state})
 
 
+def gh_get_issue(repo: str, number: int) -> Dict[str, Any]:
+    return fetch_json(f"https://api.github.com/repos/{repo}/issues/{number}")
+
+
 def gh_get_ref_statuses(org: str, project: str, ref: str) -> Dict[str, Any]:
     url = f"https://api.github.com/repos/{org}/{project}/commits/{ref}/status"
     params = {"page": 1, "per_page": 100}
@@ -834,6 +838,153 @@ def write_step_summary(
         f.write("\n".join(lines) + "\n\n")
 
 
+def _issue_number(link: Any) -> Optional[int]:
+    if isinstance(link, dict) and isinstance(link.get("number"), int):
+        return link["number"]
+    if isinstance(link, int):
+        return link
+    if isinstance(link, str):
+        match = re.fullmatch(
+            r"(?:https://github\.com/[^/]+/[^/]+/issues/)?(\d+)/?", link
+        )
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def issue_step_window_state(
+    step: Dict[str, Any], branch_cut: bool, released: bool
+) -> Optional[str]:
+    window = step.get("window", {})
+    if window.get("opens") == "branch_cut" and not branch_cut:
+        return "before"
+    if window.get("closes") == "ga" and released:
+        return "after"
+    return None
+
+
+def github_issue_state_step_rows(
+    release: str,
+    config: Dict[str, Any],
+    issues: Dict[str, Optional[Dict[str, Any]]],
+    branch_cut: bool,
+    released: bool,
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """The rows for release portal steps that observe tracker and validation issues."""
+    rows = []
+    for step in config["steps"]:
+        check = step["check"]
+        if check["type"] != "github_issue_state":
+            continue
+        issue_key = check["issue"].strip("{}")
+        issue = issues.get(issue_key)
+        window_state = issue_step_window_state(step, branch_cut, released)
+        if window_state == "before":
+            status = "todo"
+            evidence = "waiting for the release branch to be cut"
+            evidence_url = ""
+            details: Dict[str, Any] = {"window": "before"}
+        elif window_state == "after":
+            status = "done"
+            evidence = f"window closed when v{release} was tagged"
+            evidence_url = issue["html_url"] if issue else ""
+            details = {"window": "after"}
+        elif issue is None:
+            status = "todo"
+            evidence = f"{issue_key.replace('_', ' ')} not found"
+            evidence_url = ""
+            details = {"issue": None, "expected": check["expect"]}
+        else:
+            state = issue["state"]
+            expected = check["expect"]
+            accepted_after_release = (
+                released and expected == "open" and state == "closed"
+            )
+            status = (
+                "done" if state == expected or accepted_after_release else "in_progress"
+            )
+            evidence = f"#{issue['number']} is {state}"
+            if accepted_after_release:
+                evidence = f"Release tag v{release} exists; {evidence}"
+            evidence_url = issue["html_url"]
+            details = {
+                "issue": {
+                    "number": issue["number"],
+                    "title": issue["title"],
+                    "state": state,
+                },
+                "expected": expected,
+                "released": released,
+            }
+        if step.get("depends_on"):
+            details["depends_on"] = step["depends_on"]
+        rows.append(
+            {
+                "release": release,
+                "step_id": step["id"],
+                "rc": "",
+                "status": status,
+                "blocking": 0,
+                "evidence_text": evidence,
+                "evidence_url": evidence_url,
+                "check_type": "github_issue_state",
+                "source": "collector",
+                "run_id": run_id,
+                "run_url": run_url,
+                "config_sha": config_sha,
+                "details": json.dumps(details),
+                "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            }
+        )
+    return rows
+
+
+def record_github_issue_state_steps(
+    repo: GitRepo, release: str, config: Dict[str, Any], write: bool
+) -> None:
+    """Record configured tracker and validation issue states for a release."""
+    steps = [
+        step
+        for step in config["steps"]
+        if step["check"]["type"] == "github_issue_state"
+    ]
+    if not steps:
+        return
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from torchci.release_portal_config import discover_issue_links
+
+    links = discover_issue_links(config)
+    issues: Dict[str, Optional[Dict[str, Any]]] = {}
+    for step in steps:
+        check = step["check"]
+        issue_key = check["issue"].strip("{}")
+        if issue_key not in issues:
+            number = _issue_number(links.get(issue_key))
+            issues[issue_key] = (
+                gh_get_issue(check["repo"], number) if number is not None else None
+            )
+    rows = github_issue_state_step_rows(
+        release,
+        config,
+        issues,
+        repo.ref_exists(config["branch"]),
+        repo.tag_exists(f"v{release}"),
+        os.environ.get("GITHUB_SHA", "0" * 40),
+        *workflow_run_info(),
+        datetime.now(timezone.utc),
+    )
+    for row in rows:
+        print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
+    if write and rows:
+        insert_clickhouse_rows("misc.release_event", rows)
+        print(f"Inserted {len(rows)} rows into misc.release_event")
+    write_step_summary(f"{release}: GitHub issues", rows, write)
+
+
 def record_milestone_steps(
     repo: GitRepo,
     release: str,
@@ -1013,7 +1164,9 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
             milestone_idx = next(
                 int(m["number"]) for m in milestones if m.get("title") == release
             )
-            scans = []
+            scans = [
+                lambda: record_github_issue_state_steps(repo, release, config, write)
+            ]
             # The reverts matter from the branch cut until the release: the release's step
             # has the same window (opens: branch_cut, closes: ga).
             if repo.ref_exists(config["branch"]) and not repo.tag_exists(f"v{release}"):
@@ -1577,6 +1730,12 @@ def parse_arguments():
         "and print the state of the portal steps that check it. --write-to-clickhouse "
         "records them in misc.release_event",
     )
+    parser.add_argument(
+        "--github-issue-state",
+        action="store_true",
+        help="With --release, print the tracker and validation issue step states. "
+        "--write-to-clickhouse records them in misc.release_event",
+    )
     parser.add_argument("--date", type=lambda d: datetime.strptime(d, "%Y-%m-%d"))
     parser.add_argument("--issue-num", type=int)
     return parser.parse_args()
@@ -1619,6 +1778,9 @@ def main():
     if args.release_only_changes and not args.release:
         print("Error: --release is required with --release-only-changes")
         sys.exit(1)
+    if args.github_issue_state and not args.release:
+        print("Error: --release is required with --github-issue-state")
+        sys.exit(1)
     if args.release:
         # The release portal config says which steps check the milestone, the release
         # branch to check it against and, by default, the milestone's title.
@@ -1629,6 +1791,11 @@ def main():
         if args.release_only_changes:
             record_release_only_changes_steps(
                 args.release, config, args.write_to_clickhouse
+            )
+            return
+        if args.github_issue_state:
+            record_github_issue_state_steps(
+                repo, args.release, config, args.write_to_clickhouse
             )
             return
         args.branch = args.branch or config["branch"]

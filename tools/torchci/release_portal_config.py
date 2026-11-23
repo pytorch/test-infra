@@ -878,6 +878,25 @@ def _link(found: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     }
 
 
+def discover_issue_links(
+    resolved: Dict[str, Any], search=search_issues
+) -> Dict[str, Any]:
+    """The tracker and validation issue links for a resolved release."""
+    version, release_type = resolved["release"], resolved["type"]
+    found: Dict[str, Any] = {}
+    for kind in ("tracker_issue", "validation_issue"):
+        link = resolved["links"][kind]
+        if link is None:
+            rule = resolved["discovery"][kind]
+            link = _link(
+                match_issue(
+                    search(rule["repo"], rule["query"]), rule, version, release_type
+                )
+            )
+        found[kind] = link
+    return found
+
+
 def discover_links(
     resolved: Dict[str, Any], milestones=fetch_milestones, search=search_issues
 ) -> Dict[str, Any]:
@@ -887,7 +906,7 @@ def discover_links(
     resolved["discovery"]; one that finds nothing is None. `milestones` and `search`
     fetch from GitHub and are parameters so that tests can supply data.
     """
-    version, release_type = resolved["release"], resolved["type"]
+    version = resolved["release"]
     rules = resolved["discovery"]
     found: Dict[str, Any] = dict(resolved["links"])
     if found["milestone"] is None:
@@ -895,14 +914,7 @@ def discover_links(
         found["milestone"] = _link(
             match_milestone(milestones(rule["repo"]), rule, version)
         )
-    for kind in ("tracker_issue", "validation_issue"):
-        if found[kind] is None:
-            rule = rules[kind]
-            found[kind] = _link(
-                match_issue(
-                    search(rule["repo"], rule["query"]), rule, version, release_type
-                )
-            )
+    found.update(discover_issue_links(resolved, search))
     return found
 
 
