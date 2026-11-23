@@ -37,93 +37,46 @@ export async function queryClickhouse(query, params) {
   return await res.json();
 }
 
-const privateKey = Buffer.from(process.env.PRIVATE_KEY, "base64").toString();
-const app = new App({ appId: process.env.APP_ID, privateKey });
-
-// Jobs come from every repo, possibly in several orgs, and each org has its own
-// installation of the app. One client per owner; repos the app cannot reach
-// are remembered so they are skipped without asking again.
+// One client per org, since each org has its own installation of the app.
+// null when the app is not installed there.
 const octokits = new Map();
-const unreachableRepos = new Set();
 
 async function getOctokit(owner, repo) {
-  if (octokits.has(owner)) {
-    return octokits.get(owner);
+  if (!octokits.has(owner)) {
+    octokits.set(owner, await createOctokit(owner, repo));
   }
-  if (unreachableRepos.has(`${owner}/${repo}`)) {
-    return null;
-  }
+  return octokits.get(owner);
+}
+
+async function createOctokit(owner, repo) {
+  let privateKey = process.env.PRIVATE_KEY;
+  privateKey = Buffer.from(privateKey, "base64").toString();
+  const app = new App({
+    appId: process.env.APP_ID,
+    privateKey,
+  });
+  let installation;
   try {
-    const installation = await app.octokit.request(
+    installation = await app.octokit.request(
       "GET /repos/{owner}/{repo}/installation",
       { owner, repo }
     );
-    const octokit = new Octokit({
-      authStrategy: createAppAuth,
-      auth: {
-        appId: process.env.APP_ID,
-        privateKey,
-        installationId: installation.data.id,
-      },
-    });
-    octokits.set(owner, octokit);
-    return octokit;
   } catch (error) {
     console.log(`App is not installed for ${owner}/${repo}: ${error}`);
-    unreachableRepos.add(`${owner}/${repo}`);
     return null;
   }
-}
 
-// A job 404 only means the job is gone if the repo itself is visible to us.
-const visibleRepos = new Map();
-
-async function isRepoVisible(octokit, owner, repo) {
-  const key = `${owner}/${repo}`;
-  if (!visibleRepos.has(key)) {
-    try {
-      await octokit.rest.repos.get({ owner, repo });
-      visibleRepos.set(key, true);
-    } catch (error) {
-      console.log(`Cannot read repo ${key}: ${error}`);
-      visibleRepos.set(key, false);
-    }
-  }
-  return visibleRepos.get(key);
+  return new Octokit({
+    authStrategy: createAppAuth,
+    auth: {
+      appId: process.env.APP_ID,
+      privateKey,
+      installationId: installation.data.id,
+    },
+  });
 }
 
 const dClient = getDynamoClient();
-const table = "torchci-workflow-job";
-
-// GitHub no longer has this job, usually because its run was deleted, so the
-// final webhook will never come. Without this the job stays 'queued' in
-// ClickHouse and sits on the HUD queue panels for a week. Mark it completed
-// with no conclusion (we do not know how it ended) and stop backfilling it.
-async function markJobGone(id, dynamo_key) {
-  const rows = await queryClickhouse(
-    `SELECT * FROM workflow_job j final
-     WHERE j.dynamoKey = {dynamo_key: String} and j.id = {id: Int64}`,
-    { dynamo_key, id }
-  );
-
-  if (rows.length === 0) {
-    console.log(`No entry found in CH for job id ${id}`);
-    return;
-  }
-
-  const thing = {
-    TableName: table,
-    Item: {
-      ...rows[0],
-      status: "completed",
-      data_quality: "gone",
-      backfill: false,
-    },
-  };
-  console.log(`Job ${id} is gone from GitHub, marking it completed:`);
-  console.log(thing);
-  await dClient.put(thing);
-}
 
 async function backfillWorkflowJob(
   id,
@@ -132,51 +85,74 @@ async function backfillWorkflowJob(
   dynamo_key,
   skipBackfill
 ) {
-  console.log(`Checking job ${id} in ${owner}/${repo_name}`);
+  console.log(`Checking job ${id}`);
+
+  const table = "torchci-workflow-job";
 
   const octokit = await getOctokit(owner, repo_name);
   if (octokit === null) {
     return;
   }
 
-  let job;
   try {
-    job = (
-      await octokit.rest.actions.getJobForWorkflowRun({
-        owner: owner,
-        repo: repo_name,
-        job_id: id,
-      })
-    ).data;
-  } catch (error) {
-    if (
-      error.status === 404 &&
-      (await isRepoVisible(octokit, owner, repo_name))
-    ) {
-      await markJobGone(id, dynamo_key);
-    } else {
-      // Rate limits and outages are transient, so leave the job to be retried
-      // on the next run.
-      console.log(`Failed to fetch job ${id}, will retry: ${error}`);
+    let job = await octokit.rest.actions.getJobForWorkflowRun({
+      owner: owner,
+      repo: repo_name,
+      job_id: id,
+    });
+    job = job.data;
+
+    if (skipBackfill(job)) {
+      console.log(`Skipping backfill for job ${id}`);
+      return;
     }
+
+    const payload = job;
+
+    const thing = {
+      TableName: table,
+      Item: {
+        dynamoKey: dynamo_key,
+        ...payload,
+      },
+    };
+    console.log(`Writing job ${id} to DynamoDB`);
+    console.log(thing);
+    await dClient.put(thing);
+  } catch (error) {
+    console.log(`Failed to find job id ${id}: ${error}`);
+    console.log(`Marking job id ${id} as incomplete`);
+    console.log(`Querying dynamo entry for job id ${id}`);
+
+    let rows = await queryClickhouse(
+      `SELECT * FROM workflow_job j final WHERE j.dynamoKey = '${dynamo_key}' and j.id = ${id}`,
+      {}
+    );
+
+    if (rows.length === 0) {
+      console.log(`No entry found in CH for job id ${id}`);
+      return;
+    }
+
+    const result = rows[0];
+
+    console.log(`Writing job ${id} to DynamoDB:`);
+    const thing = {
+      TableName: table,
+      Item: {
+        ...result,
+        // A 404 means GitHub no longer has the job (its run was deleted), so
+        // the final webhook will never come. Mark it completed so it stops
+        // showing as queued.
+        ...(error.status === 404 ? { status: "completed" } : {}),
+        data_quality: "incomplete",
+        backfill: false,
+      },
+    };
+    console.log(thing);
+    await dClient.put(thing);
     return;
   }
-
-  if (skipBackfill(job)) {
-    console.log(`Skipping backfill for job ${id}`);
-    return;
-  }
-
-  const thing = {
-    TableName: table,
-    Item: {
-      dynamoKey: dynamo_key,
-      ...job,
-    },
-  };
-  console.log(`Writing job ${id} to DynamoDB`);
-  console.log(thing);
-  await dClient.put(thing);
 }
 
 console.log("::group::Backfilling jobs without a conclusion...");
@@ -245,16 +221,13 @@ console.log("::endgroup::");
 
 console.log("::group::Backfilling queued jobs...");
 // Also try to backfill queued jobs specifically, with a tighter time bound.
-// This is so our queue time stats are as accurate as possible. Oldest first,
-// because those are the ones most likely to have lost their final webhook and
-// the ones that distort the queue panels most.
+// This is so our queue time stats are as accurate as possible.
 const queuedJobs = await queryClickhouse(
   `with pending_jobs as (
     SELECT
         j.id as id,
         j.run_id as run_id,
-        j.dynamoKey as dynamoKey,
-        j.started_at as started_at
+        j.dynamoKey as dynamoKey
     FROM
         workflow_job j final
     WHERE
@@ -281,8 +254,6 @@ FROM
 WHERE
     w.status != 'completed'
     AND w.id in (select run_id from pending_jobs)
-ORDER BY
-    j.started_at ASC
 LIMIT
     200`,
   {}
