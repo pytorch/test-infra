@@ -96,6 +96,13 @@
       "xpu"
     ]
   ],
+  "test_blockwise_mxfp8_special_scales_M_31_xpu (__main__.TestFP8MatmulDeviceXPU)": [
+    "206263",
+    "https://github.com/pytorch/pytorch/issues/206263",
+    [
+      "xpu"
+    ]
+  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
