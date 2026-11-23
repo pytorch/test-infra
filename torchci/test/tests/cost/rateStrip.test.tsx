@@ -22,6 +22,7 @@ import {
   parseRatesFiles,
   periodTotals,
 } from "lib/tests/cost/ratePeriods";
+import { RATES_FILE_URL } from "lib/tests/cost/rates";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -219,19 +220,24 @@ describe("the rates control", () => {
 
   test("asks for files, names a loaded set, and says what went wrong inline", () => {
     const empty = renderToStaticMarkup(<RatesControl {...props} />);
-    expect(words(empty)).toBe("Add rates… Format");
+    expect(words(empty)).toBe("Download rates Add rates… Format");
     expect(empty).toMatch(/<input[^>]*multiple/);
     expect(empty).toMatch(/accept="application\/json,.json"/);
+    // The download is a plain link out; HUD never fetches the file.
+    const link = empty.match(/<a [^>]*>/)?.[0] ?? "";
+    expect(link).toContain(`href="${RATES_FILE_URL}"`);
+    expect(link).toContain('target="_blank"');
+    expect(link).toContain('rel="noopener noreferrer"');
     const loaded = renderToStaticMarkup(
       <RatesControl {...props} rates={weekly} />
     );
     expect(words(loaded)).toBe(
-      "rates_FAKE_weekly.json · 4 weekly periods Format"
+      "Download rates rates_FAKE_weekly.json · 4 weekly periods Format"
     );
     expect(loaded).toContain('aria-label="Clear the rates"');
     expect(
       words(renderToStaticMarkup(<RatesControl {...props} dragging />))
-    ).toBe("Drop rates files to load Format");
+    ).toBe("Download rates Drop rates files to load Format");
     expect(
       words(renderToStaticMarkup(<RatesControl {...props} error="Bad." />))
     ).toContain("Couldn't read the rates files. Bad. Dismiss");
@@ -246,7 +252,9 @@ describe("the rates control", () => {
 
   test("nothing opens by itself: no format, tour or tip in the first render", () => {
     const text = words(renderToStaticMarkup(<RatesControl {...props} />));
-    expect(text).not.toMatch(/rate sets by period|Download|stay in this tab/);
+    expect(text).not.toMatch(
+      /rate sets by period|Download the internal|stay in this tab/
+    );
   });
 
   test("the format's examples are a pair of files the page reads", () => {

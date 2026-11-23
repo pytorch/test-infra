@@ -1,4 +1,5 @@
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import {
@@ -53,10 +54,11 @@ function chipLines(rates: RatesSet): string[] {
   ];
 }
 
-// The title row's rates control: "Add rates…" until a
-// rates.json (and its rates.meta.json) is loaded, then a chip naming it with
-// ✕; a Format popover; one inline error line; "Drop rates files to load"
-// while files are dragged over the page (the page owns the drop). No edits.
+// The title row's rates control: a link to download the internal rates
+// file; "Add rates…" until a rates.json (and its rates.meta.json) is loaded,
+// then a chip naming it with ✕; a Format popover; one inline error line;
+// "Drop rates files to load" while files are dragged over the page (the page
+// owns the drop). No edits.
 export default function RatesControl({
   rates,
   error,
@@ -89,6 +91,26 @@ export default function RatesControl({
     "&:hover": { backgroundColor: headerBandHoverColor(theme) },
     "&.Mui-focusVisible": headerKeyFocusRing(theme),
   } as const;
+
+  // A plain link: the browser downloads the file, which then comes in as
+  // any other does. HUD never fetches it; it opens only for Meta employees.
+  const download = (
+    <Tooltip
+      describeChild
+      enterDelay={500}
+      title="Needs access to the internal rates file. Opens in a new tab."
+    >
+      <ButtonBase
+        href={RATES_FILE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ ...pressable, flex: "none" }}
+      >
+        <DownloadRoundedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+        Download rates
+      </ButtonBase>
+    </Tooltip>
+  );
 
   let main;
   if (dragging) {
@@ -217,6 +239,7 @@ export default function RatesControl({
           maxWidth: "100%",
         }}
       >
+        {download}
         {main}
         <ButtonBase
           disableRipple
