@@ -214,6 +214,10 @@ class ActionLogger:
                     .result_rows
                 )
         for sha, workflows, signal_keys in rows:
+            # commit_sha is FixedString(40), which clickhouse-connect reads as
+            # bytes; callers look up by str.
+            if isinstance(sha, bytes):
+                sha = sha.decode("ascii")
             # Same row semantics as has(workflows, wf) / has(source_signal_keys, key)
             for wf in set(workflows):
                 counts[(sha, wf)] += 1

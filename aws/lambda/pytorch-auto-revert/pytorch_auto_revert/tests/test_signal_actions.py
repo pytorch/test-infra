@@ -1556,8 +1556,42 @@ class TestDispatchAdvisorsMethod(unittest.TestCase):
 
         self.assertEqual(len(result), cap + 3)
 
+    @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_capped_commit_skipped_with_real_driver_row_types(self, mock_gh, mock_ch):
+        # commit_sha is FixedString(40): clickhouse-connect returns it as bytes.
+        sha = "02e06c70" + "0" * 32
+        cap = SignalActionProcessor.ADVISOR_CAP_PER_WORKFLOW_COMMIT
+        client = mock_ch.return_value.client
+        client.query.return_value.result_rows = [
+            (sha.encode(), ["trunk"], [f"old{i}"]) for i in range(cap)
+        ]
+        proc = SignalActionProcessor()
+        proc._logger = ActionLogger()
+        proc._find_pr_by_sha = Mock(return_value=None)
+        pairs = [
+            self._make_signal_with_advisor(key=f"s{i}", commit=sha) for i in range(50)
+        ]
+
+        result = proc.dispatch_advisors(pairs, self._ctx(AdvisorAction.RUN))
+
+        self.assertEqual(result, [])
+        self.assertEqual(client.query.call_count, 1)
+        client.insert.assert_not_called()
+
 
 class TestAdvisorDispatchIndex(unittest.TestCase):
+    @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
+    def test_decodes_fixedstring_commit_sha_bytes(self, mock_ch):
+        mock_ch.return_value.client.query.return_value.result_rows = [
+            (b"sha1", ["trunk"], ["a"]),
+        ]
+        counts, keys = ActionLogger().advisor_dispatch_index(
+            repo="pytorch/pytorch", commit_shas=["sha1"]
+        )
+        self.assertEqual(dict(counts), {("sha1", "trunk"): 1})
+        self.assertEqual(keys, {("sha1", "a")})
+
     @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
     def test_aggregates_rows_like_per_signal_queries(self, mock_ch):
         mock_ch.return_value.client.query.return_value.result_rows = [
