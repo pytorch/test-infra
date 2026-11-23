@@ -24,6 +24,7 @@ from analytics.github_analyze import (  # noqa: E402
     release_only_changes_step_rows,
     releases_in_flight,
     releases_just_shipped,
+    recently_shipped_releases,
     revert_step_rows,
     write_step_summary,
 )
@@ -164,6 +165,11 @@ class ReleasesInFlight(TestCase):
             releases_just_shipped(GitRepo(self.tmp.name, "origin"), ["2.15.0"]),
             [],
         )
+
+    def test_a_shipped_release_is_found_after_its_milestone_closes(self):
+        self.branch("release/2.15", "main", "2.15.0a0")
+        self.tag("v2.15.0")
+        self.assertEqual(recently_shipped_releases(self.repo()), ["2.15.0"])
 
 
 class _Commit:
@@ -584,6 +590,28 @@ class GithubIssueStateCli(TestCase):
         record.assert_called_once()
         called_repo, release, config, write = record.call_args.args
         self.assertIs(called_repo, repo.return_value)
+        self.assertEqual(release, "2.15.0")
+        self.assertEqual(config["branch"], "release/2.15")
+        self.assertFalse(write)
+
+
+class GithubIssueStateInFlight(TestCase):
+    def test_closed_milestones_keep_post_release_issue_state_current(self):
+        with (
+            patch("analytics.github_analyze.gh_get_milestones", return_value=[]),
+            patch("analytics.github_analyze.releases_in_flight", return_value=[]),
+            patch("analytics.github_analyze.releases_just_shipped", return_value=[]),
+            patch(
+                "analytics.github_analyze.recently_shipped_releases",
+                return_value=["2.15.0"],
+            ),
+            patch(
+                "analytics.github_analyze.record_github_issue_state_steps"
+            ) as record,
+        ):
+            self.assertTrue(github_analyze.analyze_releases_in_flight(object(), False))
+
+        _, release, config, write = record.call_args.args
         self.assertEqual(release, "2.15.0")
         self.assertEqual(config["branch"], "release/2.15")
         self.assertFalse(write)

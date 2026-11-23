@@ -1133,6 +1133,29 @@ def releases_just_shipped(
     return releases
 
 
+def recently_shipped_releases(repo: GitRepo, release_lines: int = 3) -> List[str]:
+    """The latest shipped release on each active release line, newest first."""
+    text = repo.show_file("main", "version.txt")
+    match = re.match(r"(\d+)\.(\d+)\.", text.strip()) if text else None
+    if not match:
+        return []
+    major, minor = (int(part) for part in match.groups())
+    releases: List[str] = []
+    for back in range(release_lines):
+        if minor - back < 0:
+            break
+        ref = "main" if back == 0 else f"release/{major}.{minor - back}"
+        prepared = release_in_preparation(repo, ref)
+        if not prepared:
+            continue
+        line, next_patch = prepared.rsplit(".", 1)
+        patch = int(next_patch) - 1
+        release = f"{line}.{patch}"
+        if patch >= 0 and repo.tag_exists(f"v{release}"):
+            releases.append(release)
+    return releases
+
+
 def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
     """
     For each release in flight that has a release portal config file: list the reverts
@@ -1150,6 +1173,11 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
     shipped = releases_just_shipped(repo, open_milestones)
     print(f"Shipped, milestone still open: {', '.join(shipped) if shipped else 'none'}")
     releases += [release for release in shipped if release not in releases]
+    recent_shipped = recently_shipped_releases(repo)
+    print(
+        "Latest shipped releases: "
+        f"{', '.join(recent_shipped) if recent_shipped else 'none'}"
+    )
     ok = True
     for release in releases:
         print(f"::group::{release}")
@@ -1189,6 +1217,25 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
                 except Exception as err:
                     print(f"::error::{release}: {err}")
                     ok = False
+        except Exception as err:
+            print(f"::error::{release}: {err}")
+            ok = False
+        finally:
+            print("::endgroup::")
+    for release in recent_shipped:
+        if release in releases:
+            continue
+        print(f"::group::{release}: post-release issue state")
+        try:
+            if not (RELEASES_DIR / f"{release}.yml").exists():
+                print(
+                    f"::warning::{release} is shipped but has no "
+                    f"release/portal/config/releases/{release}.yml: skipped"
+                )
+                continue
+            record_github_issue_state_steps(
+                repo, release, load_resolved(release), write
+            )
         except Exception as err:
             print(f"::error::{release}: {err}")
             ok = False
