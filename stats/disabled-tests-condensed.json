@@ -291,6 +291,13 @@
       "xpu"
     ]
   ],
+  "test_conv_bias_no_extra_cast_for_fp32 (__main__.CudaReproTests)": [
+    "202330",
+    "https://github.com/pytorch/pytorch/issues/202330",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv_bias_rounds_before_log_softmax_bfloat16_emulate_precision_casts_False_conv_offset_-100 (__main__.CudaReproTests)": [
     "202393",
     "https://github.com/pytorch/pytorch/issues/202393",
@@ -1434,6 +1441,13 @@
   "test_sdpa_dynamic_shapes_xpu (__main__.ReproTestsDeviceXPU)": [
     "203902",
     "https://github.com/pytorch/pytorch/issues/203902",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sdpa_rewriter_stacked_layers_with_mask_gpu (__main__.SDPAPatternRewriterGpuTests)": [
+    "198997",
+    "https://github.com/pytorch/pytorch/issues/198997",
     [
       "xpu"
     ]
