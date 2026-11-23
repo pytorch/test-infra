@@ -12,23 +12,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from datetime import datetime, timezone
 
+import analytics.github_analyze as github_analyze  # noqa: E402
 from analytics.github_analyze import (  # noqa: E402
     find_release_only_changes_prs,
-    GitRepo,
     github_issue_state_step_rows,
+    GitRepo,
     milestone_issue_statuses,
     milestone_pr_step_rows,
     milestone_step_rows,
+    recently_shipped_releases,
     record_github_issue_state_steps,
     release_in_preparation,
     release_only_changes_step_rows,
     releases_in_flight,
     releases_just_shipped,
-    recently_shipped_releases,
     revert_step_rows,
     write_step_summary,
 )
-import analytics.github_analyze as github_analyze  # noqa: E402
 
 
 def git(path, *args):
@@ -474,9 +474,7 @@ class GithubIssueStateSteps(TestCase):
             by_step["1.6"]["evidence_url"],
             "https://github.com/pytorch/pytorch/issues/199813",
         )
-        self.assertEqual(
-            json.loads(by_step["2.7"]["details"])["depends_on"], ["2.1"]
-        )
+        self.assertEqual(json.loads(by_step["2.7"]["details"])["depends_on"], ["2.1"])
 
     def test_missing_issue_is_todo(self):
         rows = self.rows(
@@ -605,9 +603,7 @@ class GithubIssueStateInFlight(TestCase):
                 "analytics.github_analyze.recently_shipped_releases",
                 return_value=["2.15.0"],
             ),
-            patch(
-                "analytics.github_analyze.record_github_issue_state_steps"
-            ) as record,
+            patch("analytics.github_analyze.record_github_issue_state_steps") as record,
         ):
             self.assertTrue(github_analyze.analyze_releases_in_flight(object(), False))
 
