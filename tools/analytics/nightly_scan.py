@@ -54,6 +54,7 @@ from github_analyze import (  # noqa: E402
 CHECK_TYPE = "nightly_binaries"
 VIABLE_STRICT_CHECK_TYPE = "viable_strict_lag"
 RC_CHECK_TYPE = "rc_binaries"
+WORKFLOW_RUN_CHECK_TYPE = "github_workflow_run"
 DOCKER_WORKFLOW = ".github/workflows/docker-release.yml"
 # The workflows that build the binaries, on the nightly branch and on a release candidate tag
 # (a tag also starts others, like the builds of the manywheel docker images, which are not
@@ -62,6 +63,8 @@ BINARY_WORKFLOW = re.compile(r"^\.github/workflows/generated-.*binary.*\.yml$")
 CATEGORIES = ("wheel", "libtorch", "docker")
 # A job that ended in one of these is not a failure.
 GREEN = ("success", "skipped", "neutral")
+WORKFLOW_GREEN = ("success", "neutral")
+WORKFLOW_IGNORED = ("cancelled", "skipped")
 RUNS_PER_PAGE = 100
 # GitHub answers 502 after ~10s for a page of 100 jobs of a run with many attempts (the
 # linux-binary-manywheel nightly: 112 jobs, 228 with the earlier attempts), every time;
@@ -372,35 +375,222 @@ def run_jobs(repo: str, run: Dict[str, Any]) -> List[Dict[str, Any]]:
         page += 1
 
 
-def latest_rc(repo: str, version: str) -> Optional[Tuple[str, str, str]]:
-    """The newest release candidate tag of a release: (rc1, v2.15.0-rc1, commit sha)."""
+def release_candidates(repo: str, version: str) -> List[Tuple[str, str, str]]:
+    """The release candidate tags of a release, in candidate-number order."""
     pattern = re.compile(rf"refs/tags/v{re.escape(version)}-rc(\d+)")
     found = []
     for ref in github_get(f"repos/{repo}/git/matching-refs/tags/v{version}-rc"):
         match = pattern.fullmatch(ref["ref"])
         if match:
             found.append((int(match[1]), ref))
-    if not found:
-        return None
-    number, ref = max(found, key=lambda f: f[0])
-    sha = ref["object"]["sha"]
-    if ref["object"]["type"] == "tag":  # an annotated tag points at the commit
-        sha = github_get(f"repos/{repo}/git/tags/{sha}")["object"]["sha"]
-    return f"rc{number}", f"v{version}-rc{number}", sha
+    candidates = []
+    for number, ref in sorted(found):
+        sha = ref["object"]["sha"]
+        if ref["object"]["type"] == "tag":  # an annotated tag points at the commit
+            sha = github_get(f"repos/{repo}/git/tags/{sha}")["object"]["sha"]
+        candidates.append((f"rc{number}", f"v{version}-rc{number}", sha))
+    return candidates
 
 
-def rc_runs(repo: str, tag: str, sha: str) -> List[Dict[str, Any]]:
-    """The binary build runs the push of a release candidate tag started."""
+def latest_rc(repo: str, version: str) -> Optional[Tuple[str, str, str]]:
+    """The newest release candidate tag of a release: (rc1, v2.15.0-rc1, commit sha)."""
+    candidates = release_candidates(repo, version)
+    return candidates[-1] if candidates else None
+
+
+def tag_push_runs(repo: str, tag: str, sha: str) -> List[Dict[str, Any]]:
+    """The workflow runs the push of a release candidate tag started."""
     found = github_get(
         f"repos/{repo}/actions/runs?head_sha={sha}&per_page={RUNS_PER_PAGE}"
     )
     return [
         r
         for r in found["workflow_runs"]
-        if r["event"] == "push"
-        and r["head_branch"] == tag
-        and (r["path"] == DOCKER_WORKFLOW or BINARY_WORKFLOW.match(r["path"]))
+        if r["event"] == "push" and r["head_branch"] == tag
     ]
+
+
+def rc_runs(repo: str, tag: str, sha: str) -> List[Dict[str, Any]]:
+    """The binary build runs the push of a release candidate tag started."""
+    return [
+        run
+        for run in tag_push_runs(repo, tag, sha)
+        if run["path"] == DOCKER_WORKFLOW or BINARY_WORKFLOW.match(run["path"])
+    ]
+
+
+def workflow_runs(repo: str, workflow: str, branch: str) -> List[Dict[str, Any]]:
+    """The completed runs of one workflow on a branch, newest first."""
+    runs: List[Dict[str, Any]] = []
+    page = 1
+    while True:
+        found = github_get(
+            f"repos/{repo}/actions/workflows/{quote(workflow, safe='')}/runs?branch="
+            f"{quote(branch, safe='')}&status=completed&per_page={RUNS_PER_PAGE}"
+            f"&page={page}"
+        )["workflow_runs"]
+        runs.extend(found)
+        if len(found) < RUNS_PER_PAGE:
+            return runs
+        page += 1
+
+
+def resolved_workflow_check(check: Dict[str, Any], branch: str) -> Dict[str, Any]:
+    """Fill the release-branch reference used by a workflow collector check."""
+    return {**check, "ref": check["ref"].replace("{branch}", branch)}
+
+
+def run_started_at(run: Dict[str, Any]) -> datetime:
+    return parse_time(run.get("run_started_at") or run["created_at"])
+
+
+def binary_runs_finished_at(
+    runs: List[Dict[str, Any]], result: Tuple[str, str, str, Dict[str, Any]]
+) -> Optional[datetime]:
+    """When a candidate's green binary builds finished, if they have."""
+    if result[0] != "done" or not runs:
+        return None
+    completed: List[str] = []
+    for run in runs:
+        updated_at = run.get("updated_at")
+        if not isinstance(updated_at, str):
+            return None
+        completed.append(updated_at)
+    return max(parse_time(value) for value in completed)
+
+
+def workflow_run_result(
+    check: Dict[str, Any],
+    runs: List[Dict[str, Any]],
+    after: Optional[datetime] = None,
+    before: Optional[datetime] = None,
+) -> Tuple[str, str, str, Dict[str, Any]]:
+    """The latest completed, non-cancelled workflow run in an optional time range."""
+    qualifying = []
+    for run in runs:
+        if run.get("status") != "completed":
+            continue
+        started = run_started_at(run)
+        if (after is not None and started <= after) or (
+            before is not None and started >= before
+        ):
+            continue
+        if run.get("conclusion") in WORKFLOW_IGNORED:
+            continue
+        qualifying.append((started, run))
+
+    details: Dict[str, Any] = {
+        "repo": check["repo"],
+        "workflow": check["workflow"],
+        "ref": check["ref"],
+    }
+    if after is not None:
+        details["after"] = after.isoformat()
+    if before is not None:
+        details["before"] = before.isoformat()
+    if not qualifying:
+        requirement = ""
+        if after is not None:
+            requirement = f" after {after.isoformat()}"
+        return (
+            "todo",
+            f"no qualifying {check['workflow']} run on {check['ref']}{requirement}",
+            "",
+            details,
+        )
+
+    _, run = max(qualifying, key=lambda item: item[0])
+    conclusion = run.get("conclusion") or "unknown"
+    details.update(
+        run_id=run["id"],
+        conclusion=conclusion,
+        started_at=(run.get("run_started_at") or run["created_at"]),
+        head_sha=run.get("head_sha", ""),
+        event=run.get("event", ""),
+    )
+    evidence = f"{check['workflow']} run {run['id']} on {check['ref']} {conclusion}"
+    return (
+        "done" if conclusion in WORKFLOW_GREEN else "blocked",
+        evidence,
+        run.get("html_url", ""),
+        details,
+    )
+
+
+def workflow_step_rows(
+    release: str,
+    config: Dict[str, Any],
+    candidates: List[Dict[str, Any]],
+    runs_for: Callable[[Dict[str, Any]], List[Dict[str, Any]]],
+    branch_cut: bool,
+    released: bool,
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """Rows for the RC-scoped workflow checks in the release portal."""
+    rows = []
+    for step in config["steps"]:
+        check = step["check"]
+        if check["type"] != WORKFLOW_RUN_CHECK_TYPE:
+            continue
+        for index, candidate in enumerate(candidates):
+            window = step.get("window", {})
+            if window.get("opens") == "branch_cut" and not branch_cut:
+                result = (
+                    "todo",
+                    "waiting for the release branch to be cut",
+                    "",
+                    {"window": "before"},
+                )
+            elif window.get("closes") == "ga" and released:
+                result = (
+                    "done",
+                    f"window closed when v{release} was tagged",
+                    "",
+                    {"window": "after"},
+                )
+            else:
+                after = None
+                before = None
+                if check["workflow"] == "validate-binaries.yml":
+                    after = candidate["binaries_finished_at"]
+                    if index + 1 < len(candidates):
+                        # A run during the next candidate's binary build still belongs here.
+                        before = candidates[index + 1]["binaries_finished_at"]
+                    if after is None:
+                        result = (
+                            "todo",
+                            f"waiting for green binaries of {candidate['tag']}",
+                            "",
+                            {"binaries": "not_ready"},
+                        )
+                    else:
+                        result = workflow_run_result(
+                            check, runs_for(check), after, before
+                        )
+                else:
+                    result = workflow_run_result(check, runs_for(check))
+            status, evidence, url, details = result
+            details = dict(details)
+            details["rc"] = candidate["rc"]
+            if step.get("depends_on"):
+                details["depends_on"] = step["depends_on"]
+            rows.append(
+                step_row(
+                    release,
+                    step["id"],
+                    WORKFLOW_RUN_CHECK_TYPE,
+                    (status, evidence, url, details),
+                    config_sha,
+                    run_id,
+                    run_url,
+                    observed_at,
+                    candidate["rc"],
+                )
+            )
+    return rows
 
 
 def rc_step_rows(
@@ -498,12 +688,38 @@ def scan_release(
     config = load_resolved(release)
     types = {s["check"]["type"] for s in config["steps"]}
     before_cut = bool(types & {CHECK_TYPE, VIABLE_STRICT_CHECK_TYPE})
-    if not (before_cut or RC_CHECK_TYPE in types):
-        print(f"{release} has no nightly, viable/strict or release candidate step")
+    workflow_steps = [
+        {
+            **step,
+            "check": resolved_workflow_check(step["check"], config["branch"]),
+        }
+        for step in config["steps"]
+        if step["check"]["type"] == WORKFLOW_RUN_CHECK_TYPE
+    ]
+    workflow_checks = bool(workflow_steps)
+    workflow_needs_branch_cut = any(
+        step.get("window", {}).get("opens") == "branch_cut" for step in workflow_steps
+    )
+    workflow_needs_ga = any(
+        step.get("window", {}).get("closes") == "ga" for step in workflow_steps
+    )
+    if not (before_cut or RC_CHECK_TYPE in types or workflow_checks):
+        print(
+            f"{release} has no nightly, viable/strict, release candidate or workflow step"
+        )
         return True
-    if before_cut and branch_exists("pytorch/pytorch", config["branch"]):
+    branch_cut = (
+        branch_exists("pytorch/pytorch", config["branch"])
+        if before_cut or workflow_needs_branch_cut
+        else False
+    )
+    if before_cut and branch_cut:
         print(f"{release}: {config['branch']} is cut, the last nightly result stands")
         before_cut = False
+    released = workflow_needs_ga and (
+        github_get(f"repos/pytorch/pytorch/git/ref/tags/v{release}", allow_404=True)
+        is not None
+    )
 
     def result_for(repo: str, branch: str) -> Tuple[str, str, str, Dict[str, Any]]:
         # the nightly is the same for every release: read it once
@@ -530,24 +746,59 @@ def scan_release(
             )
         return lag_results[key]
 
+    candidate_cache: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+
+    def candidates_for(repo: str, version: str) -> List[Dict[str, Any]]:
+        key = (repo, version)
+        if key in candidate_cache:
+            return candidate_cache[key]
+        candidates = []
+        for rc, tag, sha in release_candidates(repo, version):
+            tag_runs = tag_push_runs(repo, tag, sha)
+            binary_runs = [
+                run
+                for run in tag_runs
+                if run["path"] == DOCKER_WORKFLOW or BINARY_WORKFLOW.match(run["path"])
+            ]
+            result = nightly_result(
+                repo,
+                tag,
+                binary_runs,
+                lambda run: run_jobs(repo, run),
+                f"https://hud.pytorch.org/hud/{repo}/"
+                f"{quote(config['branch'], safe='')}/1?per_page=50",
+            )
+            result[3]["rc"] = rc
+            candidates.append(
+                {
+                    "rc": rc,
+                    "tag": tag,
+                    "result": result,
+                    "binaries_finished_at": binary_runs_finished_at(
+                        binary_runs, result
+                    ),
+                }
+            )
+        candidate_cache[key] = candidates
+        return candidates
+
     def rc_for(
         repo: str, version: str
     ) -> Optional[Tuple[str, Tuple[str, str, str, Dict[str, Any]]]]:
-        found = latest_rc(repo, version)
-        if found is None:
+        candidates = candidates_for(repo, version)
+        if not candidates:
             print(f"{release}: no release candidate tag yet")
             return None
-        rc, tag, sha = found
-        result = nightly_result(
-            repo,
-            tag,
-            rc_runs(repo, tag, sha),
-            lambda run: run_jobs(repo, run),
-            f"https://hud.pytorch.org/hud/{repo}/"
-            f"{quote(config['branch'], safe='')}/1?per_page=50",
-        )
-        result[3]["rc"] = rc
-        return rc, result
+        latest = candidates[-1]
+        return latest["rc"], latest["result"]
+
+    workflow_cache: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
+
+    def workflow_runs_for(check: Dict[str, Any]) -> List[Dict[str, Any]]:
+        key = (check["repo"], check["workflow"], check["ref"])
+        if key not in workflow_cache:
+            workflow_cache[key] = workflow_runs(*key)
+        return workflow_cache[key]
 
     run_id, run_url = workflow_run_info()
     common = (
@@ -562,6 +813,17 @@ def scan_release(
             release, config, result_for, *common
         ) + viable_strict_step_rows(release, config, viable_strict_for, *common)
     rows += rc_step_rows(release, config, rc_for, *common)
+    if workflow_checks:
+        workflow_config = {**config, "steps": workflow_steps}
+        rows += workflow_step_rows(
+            release,
+            workflow_config,
+            candidates_for("pytorch/pytorch", release),
+            workflow_runs_for,
+            branch_cut,
+            released,
+            *common,
+        )
     summary_rows.extend(rows)
     for row in rows:
         rc = f" {row['rc']}" if row["rc"] else ""
@@ -612,7 +874,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         finally:
             print("::endgroup::")
     write_step_summary(
-        "Nightly binaries, viable/strict and release candidate binaries",
+        "Nightly binaries, viable/strict, release candidate binaries and workflow runs",
         summary_rows,
         args.write_to_clickhouse,
         failed_job_lines(summary_rows),
