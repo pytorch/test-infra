@@ -14,13 +14,6 @@
       "rocm"
     ]
   ],
-  "test_adaptive_avg_pooling_backward_fails_xpu (__main__.TestPoolingNNDeviceXPU)": [
-    "203839",
-    "https://github.com/pytorch/pytorch/issues/203839",
-    [
-      "xpu"
-    ]
-  ],
   "test_aliasing (__main__.ForeachTests)": [
     "205642",
     "https://github.com/pytorch/pytorch/issues/205642",
@@ -1581,83 +1574,6 @@
   "test_sparse_add_xpu_float64 (__main__.TestSparseCSRDeviceXPU)": [
     "205482",
     "https://github.com/pytorch/pytorch/issues/205482",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_bfloat16 (__main__.TestSparseXPU)": [
-    "204889",
-    "https://github.com/pytorch/pytorch/issues/204889",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_complex128 (__main__.TestSparseXPU)": [
-    "204911",
-    "https://github.com/pytorch/pytorch/issues/204911",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_complex64 (__main__.TestSparseXPU)": [
-    "205023",
-    "https://github.com/pytorch/pytorch/issues/205023",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_float16 (__main__.TestSparseXPU)": [
-    "205207",
-    "https://github.com/pytorch/pytorch/issues/205207",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_float32 (__main__.TestSparseXPU)": [
-    "205265",
-    "https://github.com/pytorch/pytorch/issues/205265",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_float64 (__main__.TestSparseXPU)": [
-    "205321",
-    "https://github.com/pytorch/pytorch/issues/205321",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_int16 (__main__.TestSparseXPU)": [
-    "205414",
-    "https://github.com/pytorch/pytorch/issues/205414",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_int32 (__main__.TestSparseXPU)": [
-    "205480",
-    "https://github.com/pytorch/pytorch/issues/205480",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_int64 (__main__.TestSparseXPU)": [
-    "205590",
-    "https://github.com/pytorch/pytorch/issues/205590",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_int8 (__main__.TestSparseXPU)": [
-    "205673",
-    "https://github.com/pytorch/pytorch/issues/205673",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_sparse_mul_xpu_uint8 (__main__.TestSparseXPU)": [
-    "205761",
-    "https://github.com/pytorch/pytorch/issues/205761",
     [
       "xpu"
     ]
