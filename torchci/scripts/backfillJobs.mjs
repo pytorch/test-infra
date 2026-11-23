@@ -37,17 +37,34 @@ export async function queryClickhouse(query, params) {
   return await res.json();
 }
 
+// One client per org, since each org has its own installation of the app.
+// null when the app is not installed there.
+const octokits = new Map();
+
 async function getOctokit(owner, repo) {
+  if (!octokits.has(owner)) {
+    octokits.set(owner, await createOctokit(owner, repo));
+  }
+  return octokits.get(owner);
+}
+
+async function createOctokit(owner, repo) {
   let privateKey = process.env.PRIVATE_KEY;
   privateKey = Buffer.from(privateKey, "base64").toString();
   const app = new App({
     appId: process.env.APP_ID,
     privateKey,
   });
-  const installation = await app.octokit.request(
-    "GET /repos/{owner}/{repo}/installation",
-    { owner, repo }
-  );
+  let installation;
+  try {
+    installation = await app.octokit.request(
+      "GET /repos/{owner}/{repo}/installation",
+      { owner, repo }
+    );
+  } catch (error) {
+    console.log(`App is not installed for ${owner}/${repo}: ${error}`);
+    return null;
+  }
 
   return new Octokit({
     authStrategy: createAppAuth,
@@ -60,7 +77,6 @@ async function getOctokit(owner, repo) {
 }
 
 const dClient = getDynamoClient();
-const octokit = await getOctokit("pytorch", "pytorch");
 
 async function backfillWorkflowJob(
   id,
@@ -72,6 +88,11 @@ async function backfillWorkflowJob(
   console.log(`Checking job ${id}`);
 
   const table = "torchci-workflow-job";
+
+  const octokit = await getOctokit(owner, repo_name);
+  if (octokit === null) {
+    return;
+  }
 
   try {
     let job = await octokit.rest.actions.getJobForWorkflowRun({
@@ -120,6 +141,10 @@ async function backfillWorkflowJob(
       TableName: table,
       Item: {
         ...result,
+        // A 404 means GitHub no longer has the job (its run was deleted), so
+        // the final webhook will never come. Mark it completed so it stops
+        // showing as queued.
+        ...(error.status === 404 ? { status: "completed" } : {}),
         data_quality: "incomplete",
         backfill: false,
       },
@@ -172,7 +197,6 @@ WHERE
         from
             pending_jobs
     )
-    and w.repository. 'name' = 'pytorch'
   `,
   {}
 );
@@ -203,7 +227,8 @@ const queuedJobs = await queryClickhouse(
     SELECT
         j.id as id,
         j.run_id as run_id,
-        j.dynamoKey as dynamoKey
+        j.dynamoKey as dynamoKey,
+        j.started_at as started_at
     FROM
         workflow_job j final
     WHERE
@@ -229,8 +254,9 @@ FROM
     INNER JOIN pending_jobs j on j.run_id = w.id
 WHERE
     w.status != 'completed'
-    AND w.repository. 'name' = 'pytorch'
     AND w.id in (select run_id from pending_jobs)
+ORDER BY
+    j.started_at ASC
 LIMIT
     200`,
   {}
