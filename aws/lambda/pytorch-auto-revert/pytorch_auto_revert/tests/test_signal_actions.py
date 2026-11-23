@@ -550,6 +550,58 @@ class FakeLoggerWithAdvisorDedup(FakeLogger):
     ) -> int:
         return self._advisor_count
 
+    def advisor_dispatch_index(self, *, repo: str, commit_shas):
+        from collections import defaultdict
+
+        return defaultdict(int), set()
+
+
+class FakeAdvisorStore(FakeLogger):
+    """Advisor rows held in memory; all advisor reads derive from them.
+
+    Rows are (commit_sha, workflows, signal_keys) for non-dry-run events, like
+    misc.autorevert_events_v2. insert_event appends non-dry-run advisor rows.
+    """
+
+    def __init__(self, rows=()):
+        super().__init__()
+        self.rows = [(s, tuple(w), tuple(k)) for s, w, k in rows]
+        self.per_signal_queries = 0
+        self.index_queries = 0
+
+    def prior_advisor_exists(self, *, repo, commit_sha, signal_key) -> bool:
+        self.per_signal_queries += 1
+        return any(s == commit_sha and signal_key in k for s, _, k in self.rows)
+
+    def advisor_count_for_commit(self, *, repo, commit_sha, workflow) -> int:
+        self.per_signal_queries += 1
+        return sum(1 for s, w, _ in self.rows if s == commit_sha and workflow in w)
+
+    def advisor_dispatch_index(self, *, repo, commit_shas):
+        from collections import defaultdict
+
+        self.index_queries += 1
+        shas = set(commit_shas)
+        counts, keys = defaultdict(int), set()
+        for s, w, k in self.rows:
+            if s in shas:
+                for wf in set(w):
+                    counts[(s, wf)] += 1
+                for key in k:
+                    keys.add((s, key))
+        return counts, keys
+
+    def insert_event(self, **kwargs) -> None:
+        super().insert_event(**kwargs)
+        if kwargs["action"] == "advisor" and not kwargs["dry_run"]:
+            self.rows.append(
+                (
+                    kwargs["commit_sha"],
+                    tuple(kwargs["workflows"]),
+                    tuple(kwargs["source_signal_keys"]),
+                )
+            )
+
 
 class TestExecuteAdvisor(unittest.TestCase):
     """Tests for SignalActionProcessor.execute_advisor."""
@@ -1420,6 +1472,154 @@ class TestDispatchAdvisorsMethod(unittest.TestCase):
         self.assertEqual(d["commit_sha"], "abc123")
         self.assertEqual(d["workflow_name"], "trunk")
         self.assertEqual(d["mode"], "log")
+
+    def _ctx(self, action):
+        return RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=action,
+        )
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_capped_commit_makes_no_per_signal_queries(self, mock_gh):
+        # pytorch-gha-infra#1635: ~1000 signals on a commit already at the cap
+        # must not cost two ClickHouse queries each.
+        cap = SignalActionProcessor.ADVISOR_CAP_PER_WORKFLOW_COMMIT
+        store = FakeAdvisorStore(
+            rows=[("sha1", ["trunk"], [f"old{i}"]) for i in range(cap)]
+        )
+        proc = SignalActionProcessor()
+        proc._logger = store
+        proc._find_pr_by_sha = Mock(return_value=None)
+        pairs = [self._make_signal_with_advisor(key=f"s{i}") for i in range(1000)]
+
+        result = proc.dispatch_advisors(pairs, self._ctx(AdvisorAction.RUN))
+
+        self.assertEqual(result, [])
+        self.assertEqual(store.index_queries, 1)
+        self.assertEqual(store.per_signal_queries, 0)
+        self.assertEqual(store.insert_calls, [])
+
+    @patch("pytorch_auto_revert.signal_actions.proper_workflow_create_dispatch")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_cap_counts_dispatches_made_in_this_run(self, mock_gh, mock_dispatch):
+        cap = SignalActionProcessor.ADVISOR_CAP_PER_WORKFLOW_COMMIT
+        store = FakeAdvisorStore(
+            rows=[("sha1", ["trunk"], [f"old{i}"]) for i in range(cap - 2)]
+        )
+        proc = SignalActionProcessor()
+        proc._logger = store
+        proc._find_pr_by_sha = Mock(return_value=None)
+        pairs = [self._make_signal_with_advisor(key=f"s{i}") for i in range(50)]
+
+        result = proc.dispatch_advisors(pairs, self._ctx(AdvisorAction.RUN))
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(mock_dispatch.call_count, 2)
+        # execute_advisor re-checks only the signals that passed the pre-check
+        self.assertEqual(store.per_signal_queries, 4)
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_skips_signal_already_dispatched_for_commit(self, mock_gh):
+        store = FakeAdvisorStore(rows=[("sha1", ["trunk"], ["dup"])])
+        proc = SignalActionProcessor()
+        proc._logger = store
+        proc._find_pr_by_sha = Mock(return_value=None)
+        dup = self._make_signal_with_advisor(key="dup")
+        new = self._make_signal_with_advisor(key="new")
+        other_commit = self._make_signal_with_advisor(key="dup", commit="sha2")
+
+        result = proc.dispatch_advisors(
+            [dup, new, other_commit], self._ctx(AdvisorAction.LOG)
+        )
+
+        self.assertEqual(
+            sorted((d["commit_sha"], d["signal_key"]) for d in result),
+            [("sha1", "trunk:new"), ("sha2", "trunk:dup")],
+        )
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_log_mode_rows_do_not_count_toward_cap(self, mock_gh):
+        # LOG mode writes dry_run=1 rows, which the cap query never counted.
+        proc = SignalActionProcessor()
+        proc._logger = FakeAdvisorStore()
+        proc._find_pr_by_sha = Mock(return_value=None)
+        cap = SignalActionProcessor.ADVISOR_CAP_PER_WORKFLOW_COMMIT
+        pairs = [self._make_signal_with_advisor(key=f"s{i}") for i in range(cap + 3)]
+
+        result = proc.dispatch_advisors(pairs, self._ctx(AdvisorAction.LOG))
+
+        self.assertEqual(len(result), cap + 3)
+
+    @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_capped_commit_skipped_with_real_driver_row_types(self, mock_gh, mock_ch):
+        # commit_sha is FixedString(40): clickhouse-connect returns it as bytes.
+        sha = "02e06c70" + "0" * 32
+        cap = SignalActionProcessor.ADVISOR_CAP_PER_WORKFLOW_COMMIT
+        client = mock_ch.return_value.client
+        client.query.return_value.result_rows = [
+            (sha.encode(), ["trunk"], [f"old{i}"]) for i in range(cap)
+        ]
+        proc = SignalActionProcessor()
+        proc._logger = ActionLogger()
+        proc._find_pr_by_sha = Mock(return_value=None)
+        pairs = [
+            self._make_signal_with_advisor(key=f"s{i}", commit=sha) for i in range(50)
+        ]
+
+        result = proc.dispatch_advisors(pairs, self._ctx(AdvisorAction.RUN))
+
+        self.assertEqual(result, [])
+        self.assertEqual(client.query.call_count, 1)
+        client.insert.assert_not_called()
+
+
+class TestAdvisorDispatchIndex(unittest.TestCase):
+    @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
+    def test_decodes_fixedstring_commit_sha_bytes(self, mock_ch):
+        mock_ch.return_value.client.query.return_value.result_rows = [
+            (b"sha1", ["trunk"], ["a"]),
+        ]
+        counts, keys = ActionLogger().advisor_dispatch_index(
+            repo="pytorch/pytorch", commit_shas=["sha1"]
+        )
+        self.assertEqual(dict(counts), {("sha1", "trunk"): 1})
+        self.assertEqual(keys, {("sha1", "a")})
+
+    @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
+    def test_aggregates_rows_like_per_signal_queries(self, mock_ch):
+        mock_ch.return_value.client.query.return_value.result_rows = [
+            ("sha1", ["trunk"], ["a"]),
+            ("sha1", ["trunk", "trunk"], ["b", "c"]),
+            ("sha1", ["pull"], ["a"]),
+            ("sha2", ["trunk"], ["d"]),
+        ]
+        counts, keys = ActionLogger().advisor_dispatch_index(
+            repo="pytorch/pytorch", commit_shas=["sha1", "sha2", "sha1"]
+        )
+        self.assertEqual(counts[("sha1", "trunk")], 2)
+        self.assertEqual(counts[("sha1", "pull")], 1)
+        self.assertEqual(counts[("sha2", "trunk")], 1)
+        self.assertEqual(counts[("sha3", "trunk")], 0)
+        self.assertEqual(
+            keys, {("sha1", "a"), ("sha1", "b"), ("sha1", "c"), ("sha2", "d")}
+        )
+        params = mock_ch.return_value.client.query.call_args[0][1]
+        self.assertEqual(params["shas"], ["sha1", "sha2"])
+
+    @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
+    def test_no_commits_skips_query(self, mock_ch):
+        counts, keys = ActionLogger().advisor_dispatch_index(
+            repo="pytorch/pytorch", commit_shas=[]
+        )
+        self.assertEqual((dict(counts), keys), ({}, set()))
+        mock_ch.return_value.client.query.assert_not_called()
 
 
 class TestAttachAdvisorVerdicts(unittest.TestCase):

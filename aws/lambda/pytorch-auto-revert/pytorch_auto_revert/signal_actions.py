@@ -184,6 +184,47 @@ class ActionLogger:
                     return int(res.result_rows[0][0])
                 return 0
 
+    def advisor_dispatch_index(
+        self, *, repo: str, commit_shas: Iterable[str]
+    ) -> Tuple[Dict[Tuple[str, str], int], set[Tuple[str, str]]]:
+        """Batch form of advisor_count_for_commit + prior_advisor_exists.
+
+        One query for all commits. Returns:
+        - counts: (commit_sha, workflow) -> non-dry-run advisor dispatches
+        - keys: {(commit_sha, signal_key)} already dispatched
+        """
+        shas = sorted(set(commit_shas))
+        counts: Dict[Tuple[str, str], int] = defaultdict(int)
+        keys: set[Tuple[str, str]] = set()
+        if not shas:
+            return counts, keys
+        q = (
+            "SELECT commit_sha, workflows, source_signal_keys "
+            "FROM misc.autorevert_events_v2 "
+            "WHERE repo = {repo:String} AND action = 'advisor' "
+            "AND commit_sha IN {shas:Array(String)} "
+            "AND dry_run = 0"
+        )
+        rows: list = []
+        for attempt in RetryWithBackoff():
+            with attempt:
+                rows = (
+                    CHCliFactory()
+                    .client.query(q, {"repo": repo, "shas": shas})
+                    .result_rows
+                )
+        for sha, workflows, signal_keys in rows:
+            # commit_sha is FixedString(40), which clickhouse-connect reads as
+            # bytes; callers look up by str.
+            if isinstance(sha, bytes):
+                sha = sha.decode("ascii")
+            # Same row semantics as has(workflows, wf) / has(source_signal_keys, key)
+            for wf in set(workflows):
+                counts[(sha, wf)] += 1
+            for key in signal_keys:
+                keys.add((sha, key))
+        return counts, keys
+
     @dataclass(frozen=True)
     class RestartStats:
         total_restarts: int = 0
@@ -301,6 +342,9 @@ class SignalActionProcessor:
     - Enforce ClickHouse-based dedup/caps
     - Dispatch restarts and log actions to v2 table
     """
+
+    # Max advisor dispatches per (workflow, commit) to limit cost
+    ADVISOR_CAP_PER_WORKFLOW_COMMIT = 8
 
     def __init__(self) -> None:
         self._logger = ActionLogger()
@@ -587,9 +631,31 @@ class SignalActionProcessor:
 
         random.shuffle(eligible)
 
+        # Load dedup + cap state for all suspect commits in one query, so a commit
+        # that is already at its cap costs no per-signal ClickHouse round trips.
+        # execute_advisor() still re-checks both before inserting.
+        counts, prior_keys = self._logger.advisor_dispatch_index(
+            repo=ctx.repo_full_name,
+            commit_shas=(advisor.suspect_commit for _, advisor in eligible),
+        )
+        dry_run = not ctx.advisor_action.side_effects
+        skipped_prior = 0
+        skipped_cap: Dict[Tuple[str, str], int] = defaultdict(int)
+
         dispatches: List[Dict[str, str]] = []
         for sig, advisor in eligible:
+            sha = advisor.suspect_commit
+            if (sha, sig.key) in prior_keys:
+                skipped_prior += 1
+                continue
+            if counts[(sha, sig.workflow_name)] >= self.ADVISOR_CAP_PER_WORKFLOW_COMMIT:
+                skipped_cap[(sha, sig.workflow_name)] += 1
+                continue
             if self.execute_advisor(signal=sig, dispatch_advisor=advisor, ctx=ctx):
+                if not dry_run:
+                    # Mirror the inserted row (dry-run rows are not counted)
+                    counts[(sha, sig.workflow_name)] += 1
+                    prior_keys.add((sha, sig.key))
                 dispatches.append(
                     {
                         "signal_key": f"{sig.workflow_name}:{sig.key}",
@@ -598,6 +664,19 @@ class SignalActionProcessor:
                         "mode": str(ctx.advisor_action),
                     }
                 )
+        if skipped_prior:
+            logging.info(
+                "[v2] advisor: skipped %d signal(s) already dispatched", skipped_prior
+            )
+        for (sha, wf), n in skipped_cap.items():
+            logging.info(
+                "[v2] advisor for sha %s wf=%s: cap reached (%d/%d), skipped %d signal(s)",
+                sha[:8],
+                wf,
+                counts[(sha, wf)],
+                self.ADVISOR_CAP_PER_WORKFLOW_COMMIT,
+                n,
+            )
         logging.info("[v2] Dispatched %d advisor(s)", len(dispatches))
         return dispatches
 
@@ -632,20 +711,18 @@ class SignalActionProcessor:
             )
             return False
 
-        # Cap: max 8 advisor dispatches per (workflow, commit) to limit cost
-        ADVISOR_CAP_PER_WORKFLOW_COMMIT = 8
         count = self._logger.advisor_count_for_commit(
             repo=ctx.repo_full_name,
             commit_sha=commit_sha,
             workflow=signal.workflow_name,
         )
-        if count >= ADVISOR_CAP_PER_WORKFLOW_COMMIT:
+        if count >= self.ADVISOR_CAP_PER_WORKFLOW_COMMIT:
             logging.info(
                 "[v2][action] advisor for sha %s wf=%s: cap reached (%d/%d)",
                 commit_sha[:8],
                 signal.workflow_name,
                 count,
-                ADVISOR_CAP_PER_WORKFLOW_COMMIT,
+                self.ADVISOR_CAP_PER_WORKFLOW_COMMIT,
             )
             return False
 
