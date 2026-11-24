@@ -15,7 +15,6 @@ import {
   dataDays,
   lengthText,
   rangeText,
-  shownRange,
   type Side,
 } from "lib/tests/cost/select";
 
@@ -153,17 +152,12 @@ export default function PickRow(props: PickRowProps) {
         label="Bars shown"
         display={`Last ${show} ${UNIT[rollup]}`}
         value={String(show)}
-        options={options.map((o) => {
-          const before =
-            ctx.firstDay !== null &&
-            shownRange(rollup, o, ctx.end).from < ctx.firstDay;
-          return {
-            value: String(o),
-            label: `Last ${o} ${UNIT[rollup]}${
-              o === DEFAULT_SHOW[rollup] ? " (default)" : ""
-            }${before ? " · longer than the data" : ""}`,
-          };
-        })}
+        options={options.map((o) => ({
+          value: String(o),
+          label: `Last ${o} ${UNIT[rollup]}${
+            o === DEFAULT_SHOW[rollup] ? " (default)" : ""
+          }`,
+        }))}
         onChange={(v) => props.onShow(Number(v))}
       />
     </Box>
