@@ -68,7 +68,8 @@ class ConfigRecord:
 
     ``kind`` is None before any read; ``text``, ``etag`` and ``size`` are the last file read (``kind``
     ``file``), ``reason`` why the last read was not a usable file (``invalid``), ``read_at`` when it was
-    read. ``valid_text`` is the last text that parsed valid. ``served`` says the repo was served and its
+    read, ``attempted_at`` when a read was last sent, whether it succeeded or not. ``valid_text`` is the
+    last text that parsed valid. ``served`` says the repo was served and its
     approvals not yet drained since; ``work_since`` when its current run of ticks with work began;
     ``reported`` the problem the planner last reported for it.
     """
@@ -78,6 +79,7 @@ class ConfigRecord:
     etag: str | None = None
     size: int | None = None
     read_at: float | None = None
+    attempted_at: float | None = None
     reason: str | None = None
     valid_text: str | None = None
     served: bool = False
@@ -91,6 +93,7 @@ _CONFIG_ATTRIBUTES: dict[str, str] = {
     "etag": "cfg_etag",
     "size": "cfg_size",
     "read_at": "cfg_read_at",
+    "attempted_at": "cfg_attempted_at",
     "reason": "cfg_reason",
     "valid_text": "cfg_valid_text",
     "served": "served",
@@ -164,6 +167,7 @@ def repo_item(repo: str, attributes: Mapping[str, Value]) -> RepoItem:
         etag=_text(attributes.get("cfg_etag")),
         size=None if size is None else int(size),
         read_at=_number(attributes.get("cfg_read_at")),
+        attempted_at=_number(attributes.get("cfg_attempted_at")),
         reason=_text(attributes.get("cfg_reason")),
         valid_text=_text(attributes.get("cfg_valid_text")),
         served=attributes.get("served") is True,

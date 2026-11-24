@@ -28,8 +28,9 @@ Each tick, in this order:
    the latch says, so its safety work never waits on a worker.
 3. It reads the shared latch again, then lists the repos the App installation reaches
    (`GET /installation/repositories`), mints `contents: read` tokens for the public, unarchived
-   ones, and for every listed or stored repo but `pytorch/pytorch`, the one whose config was read
-   longest ago first, revalidates its config through the config cache, decides its settings,
+   ones, and for every listed or stored repo but `pytorch/pytorch`, the one whose config read was
+   last tried longest ago first (so a repo whose read keeps failing or hanging goes behind the
+   others), revalidates its config through the config cache, decides its settings,
    checks the listing's report of it (the exact canonical name, public, not archived, default
    branch `main`), and stores the updated config record before any worker can read it. A private or
    archived repo's file is not read; one with no stored config is only reported.
@@ -41,12 +42,14 @@ Each tick, in this order:
 6. One outcome line per repo, the shared latch extended by any rate limit this invocation met, and
    one error naming every problem, which fails the invocation.
 
-Steps 3 and 4 start no repo's config read and no invoke `FANOUT_BUDGET` (45 s) after the fan-out
-started, so its discovery never eats into `pytorch/pytorch`'s Phase B, whose deadline stays
-`WORKER_DEADLINE` after the invocation started: the repos not reached are `deferred`, and their
-configs, now read longest ago, go first on the next tick. Steps 3 and 4 are skipped when the store
-failed, the shared latch holds (at the start or when read again in step 3), or this invocation met a
-rate limit; step 5 then is too. Step 5 is
+Step 3 starts no repo's config read `FANOUT_BUDGET` (45 s) after the fan-out started, so its
+discovery never eats into `pytorch/pytorch`'s Phase B, whose deadline stays `WORKER_DEADLINE` after
+the invocation started; step 4 still invokes every repo step 3 planned, since an invoke is a cheap
+asynchronous call. The repos not read are `deferred`, and the next tick reads them before the ones
+read this tick; a deferred repo whose stored record says it has work is still held to the stale-run
+check (below). Steps 3 and 4 are skipped when the store failed, the shared latch holds (at the
+start or when read again in step 3) or cannot be read again, or this invocation met a rate limit;
+step 5 then is too. Step 5 is
 also held back when the installation listing does not list `pytorch/pytorch` or its report of it
 fails a check. A listing that fails skips every other repo for the tick.
 
@@ -82,10 +85,12 @@ never starts waits for the next tick's plan.
 
 A Phase B cut short is the repo's error when its full tick was due, and a warning on a fast tick,
 its PRs waiting for the next one. A repo with optional work marks its full tick done only when its
-Phase B's listing and fingerprint fan-out finished without a rate limit: a Phase B cut short or held
-back (the latch, a listing refusal, no dispatch token) leaves it due, so it shows every tick until
-it fits. A safety-only repo marks it when its safety work met no rate limit. The fingerprint
-results a stopped fan-out already stored are kept. The PRs its Phase B failed on before a cut or a
+Phase B's listing, fingerprint fan-out and dispatch finished without a stop (a cut or a rate limit;
+a PR whose dispatch failed on its own does not count): a Phase B cut short or held back (the latch,
+a listing refusal, no dispatch token) leaves it due, so it shows every tick until it fits. A Phase B
+that returns with the latch set is a rate-limit stop. A safety-only repo marks it when its safety
+work met no rate limit. A stopped fan-out keeps the fingerprint results it already stored and the
+earlier ones of the PRs it never looked up. The PRs its Phase B failed on before a cut or a
 rate limit stopped it are always its error. Without the dispatch token (its mint failed) a repo runs
 Phase A only, and the failed mint is its error.
 
@@ -117,8 +122,8 @@ in-process one with the same semantics. Items are keyed by the string attribute 
   memory of another version starts cold); the last tick a run completed and when (`last_tick`,
   `last_completed_at`); whether its drain is complete (`drain_complete`); and its config cache
   (`cfg_*`: the last file read with its ETag and size, when it was last read or revalidated, why
-  the last read was not a usable file, the last valid text, plus `served`, `work_since` and
-  `reported`).
+  the last read was not a usable file, the last valid text, when a read was last tried, plus
+  `served`, `work_since` and `reported`).
 - `eligibility#<repo>#<eligibility>#<minimum_role>`: the repo's eligibility snapshot (its merge
   rules, or its minimum role's holders) and when it was fetched, refetched once older than
   `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` (600 s); a transient failure serves it for at most
@@ -134,7 +139,9 @@ and a worker's memory and lease never clobber each other; reads are consistent. 
 **Store errors.** A failure reading the latch when the planner starts, taking `pytorch/pytorch`'s
 lease or reading its item leaves the planner running its Phase A on a cold memory, skipping its
 Phase B and the fan-out, saving no memory (a lease taken is still released) and failing; a later
-read of the latch, or its publication before the invocation ends, is only logged. A failure listing the stored repos
+failed read of the latch stops the invocation's optional work and the other repos' work as a latch
+that holds would, and fails the invocation; a failure publishing the latch is only logged. A failure
+listing the stored repos
 skips the fan-out; one storing a repo's config record gives that repo no worker this tick; one
 saving a memory, or a lease lost before the save, is the repo's error. An eligibility snapshot that
 cannot be loaded is fetched instead.
@@ -145,7 +152,8 @@ cannot be loaded is fetched instead.
 `If-None-Match` on the stored ETag, so an unchanged file costs a 304 and no quota. A file found
 absent (a 404) is asked again only `CONFIG_ABSENT_TTL` (600 s) later, so a new file is picked up
 within about ten minutes. A directory, a file over 8192 bytes, or one that is not UTF-8 text, is
-invalid; any other failed read keeps the stored record and says why (unreadable); a rate limit,
+invalid; any other failed read keeps the stored record, but for when a read was last tried, and
+says why (unreadable); a rate limit,
 judged as PyGithub judges one (its status, headers and body, so a 403 saying "secondary rate limit"
 counts), sets the latch. The CLI's scan reads through the same `revalidate` and `decide` over its
 in-process store.
@@ -191,7 +199,9 @@ shared latch at its start, again before each Phase B, before a dispatch and befo
 fan-out, and every `QUOTA_REFRESH_REQUESTS` (25) of its requests outside `pytorch/pytorch`'s Phase
 A; a shared latch that holds sets its own. So a rate limit one invocation meets stops the others'
 optional work and the other repos' work at their next request, never `pytorch/pytorch`'s Phase A. A
-store failure on these reads and writes is logged, and the invocation goes on with its own latch.
+store failure on a later read of the shared latch stops them the same way (with no wait to publish)
+and fails the invocation, naming the failure; one publishing it is logged, and the invocation goes
+on with its own latch.
 
 **Isolation.** `pytorch/pytorch` runs in the planner and every other repo in its own worker
 invocation. Within one, a repo's stop is checked before each request and each retry, but cannot
@@ -229,12 +239,13 @@ waits at most the 60 s event age, and is then dropped; the next tick plans again
 The planner logs one line per repo, `greenlight repo outcome: <repo> <outcome> [<detail>]`, at INFO
 without a detail and WARNING with one. The outcomes are `served`, `safety-only`, `draining`,
 `drained` (an `off` repo whose drain is complete: no worker), `invoked` (a worker was started),
-`busy` (its lease is held), `deferred` (the fan-out's budget ran out first), `cut`, `skipped`,
-`failed`, `refused`, `absent` and `unreachable`. `pytorch/pytorch`'s says what its Phase B did:
-`served` when it ran, `cut` when a stop or a rate limit cut it short, `failed`, or `safety-only`
-with why it did not run. A repo with work whose last completed run and the start of its current
-run of ticks with work are both older than `STALE_RUN_TICKS` (3) ticks fails the planner: its
-workers are not finishing. Every failed invocation, planner or worker, shows in the function's error
+`busy` (its lease is held), `deferred` (the fan-out's budget ran out before its read), `cut`,
+`skipped`, `failed`, `refused`, `absent` and `unreachable`. `pytorch/pytorch`'s says what its Phase B
+did: `served` when it ran, `cut` when a stop or a rate limit cut it short, `failed`, or
+`safety-only` with why it did not run. A repo with work, or a deferred one whose stored record says
+it has work, whose last completed run and the start of its current run of ticks with work are both
+older than `STALE_RUN_TICKS` (3) ticks fails the planner: its workers are not finishing, or it is not
+reached. Every failed invocation, planner or worker, shows in the function's error
 metric, with its error naming each repo's problems.
 
 ## Environment

@@ -2,9 +2,11 @@
 
 ``revalidate`` reads ``REPO_CONFIG_PATH`` through the contents API with ``If-None-Match`` on the stored
 etag, so an unchanged file costs a 304 and no body; a file found absent (a 404) is asked again only
-``CONFIG_ABSENT_TTL`` later. ``read_at`` is the last read or revalidation. What
+``CONFIG_ABSENT_TTL`` later. ``read_at`` is the last read or revalidation, ``attempted_at`` the last read
+sent, failed or not (the planner reads the other repos' files in that order, the oldest first). What
 ``config_contents.contents_answer`` refuses (a directory, a file over ``CONFIG_MAX_BYTES``, one that is not
-UTF-8 text) is invalid. Any other failed read leaves the record as it was and says why (unreadable); a rate
+UTF-8 text) is invalid. Any other failed read leaves the record as it was, its ``attempted_at`` aside, and
+says why (unreadable); a rate
 limit, judged as PyGithub judges one (``_response_error``: status, headers and body), is re-raised.
 
 The scan Lambda's planner and the CLI's single-repo scan (``repo_scan``) both read a repo's config
@@ -83,6 +85,7 @@ def revalidate(record: ConfigRecord, client: Github, repo: str, *, now: float) -
     absent_for = None if record.read_at is None else now - record.read_at
     if record.kind == "absent" and absent_for is not None and 0 <= absent_for < CONFIG_ABSENT_TTL.total_seconds():
         return record, None
+    record = dataclasses.replace(record, attempted_at=now)
     headers = {"If-None-Match": record.etag} if record.etag else None
     try:
         status, response_headers, body = client.requester.requestJson("GET", config_url(repo), headers=headers)

@@ -99,10 +99,11 @@ def test_a_config_write_replaces_the_config_cache_and_nothing_else():
     record = ConfigRecord(kind="file", text="mode: shadow\n", etag='"e"', size=13, read_at=2.0, served=True)
 
     store.write_config(_REPO, record)
-    store.write_config(_REPO, ConfigRecord(kind="absent", read_at=3.0, valid_text="x", work_since=1.0, reported="p"))
+    second = ConfigRecord(kind="absent", read_at=3.0, attempted_at=4.0, valid_text="x", work_since=1.0, reported="p")
+    store.write_config(_REPO, second)
 
     item = store.read_repo(_REPO)
-    assert item.config == ConfigRecord(kind="absent", read_at=3.0, valid_text="x", work_since=1.0, reported="p")
+    assert item.config == second
     assert (item.lease_owner, item.memory, item.last_tick) == ("a", b"memory", "t1")
     assert "cfg_text" not in store.items[f"repo#{_REPO}"]
 

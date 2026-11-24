@@ -19,7 +19,8 @@ Its event is only ``{"greenlight_worker": {"repo": ..., "tick": ..., "dispatch_c
    met, releases the lease, and raises when the repo had errors.
 
 A store failure fails the worker before any GitHub work. Its latch follows the shared one while it runs
-(``latch``).
+(``latch``): a later read of the shared latch that fails stops its work as a latch that holds would, and
+fails the worker.
 """
 
 from __future__ import annotations

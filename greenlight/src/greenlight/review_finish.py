@@ -14,10 +14,12 @@ without a rate limit, and whose dispatch hits none, relabels the PRs it listed t
 by the recency filter or Stale-skipped. ``optional=False`` (a safety-only repo) skips all of the
 optional work and raises only the safety work's errors; a full tick whose safety work met no rate limit
 still counts as the last full tick, so a safety-only repo is not listed in full on every tick, unless the
-caller says its optional work did not finish (``marks_full_tick=False``). The fingerprint results the
-fan-out stored are kept in the scan memory even when a stop (``quota.RepoBudgetExceeded``,
-``quota.RateLimitStop``) ends it. The shared rate-limit latch is read again before the dispatch
-(``latch.recheck``).
+caller says its optional work did not finish (``marks_full_tick=False``). A listing tick counts as the
+last full tick once its fan-out and dispatch ended without a stop (``quota.RepoBudgetExceeded``,
+``quota.RateLimitStop``, or a rate limit they latched); a PR whose dispatch failed on its own does not hold
+it back. The fingerprint results the fan-out stored are kept in the scan memory even when a stop ends it,
+with the earlier results of the PRs it never looked up (``FingerprintCache.commit``). The shared rate-limit
+latch is read again before the dispatch (``latch.recheck``).
 """
 
 from __future__ import annotations
@@ -221,11 +223,13 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
             now=scan.evaluated_at,
         )
     )
+    stopped = True
     try:
         pending = _fan_out(scan, client_pool, worker_count, abandoned, skips, cache)
+        stopped = scan.cancel_event.is_set()
     finally:
         if cache is not None:
-            cache.commit()
+            cache.commit(partial=stopped)
     latch.recheck(scan.cancel_event)
     dispatch_failed: list[int] = []
     if scan.cancel_event.is_set():
@@ -241,9 +245,6 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
             len(pending),
         )
     else:
-        # Marked before the per-PR failures below can raise: one failing PR must not hold every
-        # later tick to a full listing.
-        _mark_full_tick(scan)
         dispatch_failed = scan_dispatch._dispatch_pending(
             _dispatch_client(scan) if pending else scan.client,
             pending,
@@ -256,6 +257,10 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
             shadow_for_pr=scan.authority.shadow,
             cancel_event=scan.cancel_event,
         )
+        # Marked before finish raises for the per-PR dispatch failures: one failing PR must not hold every
+        # later tick to a full listing. A stop (raised, or a rate limit the dispatch latched) leaves it due.
+        if not scan.cancel_event.is_set():
+            _mark_full_tick(scan)
         if scan.pr is None:
             scan.label_prs(
                 verdict_labels.LabelPass(

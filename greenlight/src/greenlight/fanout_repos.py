@@ -2,21 +2,23 @@
 
 ``FanOut.run`` lists the repos the GitHub App installation reaches (``app_tokens.AppTokens.installation``),
 mints the ``contents: read`` tokens of the public, unarchived ones, and goes through each listed or stored
-repo but the primary, the one whose config was read longest ago first: it revalidates the repo's config
-file (``config_cache.revalidate``; a private or archived repo's is not read, and one with no stored config
-is only reported), decides its settings (``config_cache.decide``), refuses an entry the listing fails
+repo but the primary, the one whose config read was last tried longest ago first (``attempted_at``, so a
+repo whose read keeps failing goes behind the others): it revalidates the repo's config file
+(``config_cache.revalidate``; a private or archived repo's is not read, and one with no stored config is
+only reported), decides its settings (``config_cache.decide``), refuses an entry the listing fails
 (``repo_scan.identity_problem``), and stores the updated config record before any worker can read it. A
 repo with work (``repo_scan.has_work``: an ``off`` repo whose drain is complete has none) is a candidate.
 Each candidate whose lease is free gets one worker, at most ``max_workers`` running at once, the repos
 whose last completed run is oldest first, each with an equal share of ``OTHERS_DISPATCH_POOL`` (at least
 one, at most ``OTHER_REPO_MAX_DISPATCHES``; none while ``--max`` is zero or below). The fan-out starts no
-repo and no invoke ``FANOUT_BUDGET`` after it started: the repos it did not reach are deferred, and their
-configs, read longest ago, go first on the next tick.
+config read ``FANOUT_BUDGET`` after it started, and still invokes every candidate it planned: the repos it
+did not read are deferred, and are read next tick before the ones read this tick.
 
 Every repo gets one outcome (``Line``). These fail the planner: a failed listing or token, a failed
-invoke, more candidates than ``max_workers``, a candidate whose last completed run (or the start of its
-run of ticks with work) is older than ``STALE_RUN_TICKS`` ticks, a store failure, and a config problem on
-the tick it first appears or changes (``ConfigRecord.reported``), or on every tick for a persistent one.
+invoke, more candidates than ``max_workers``, a candidate, or a deferred repo with stored work
+(``ConfigRecord.work_since``), whose last completed run (or the start of its run of ticks with work) is
+older than ``STALE_RUN_TICKS`` ticks, a store failure, and a config problem on the tick it first appears
+or changes (``ConfigRecord.reported``), or on every tick for a persistent one.
 A rate limit sets the latch: the repos not yet read get no work.
 """
 
@@ -53,7 +55,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 INSTALLATION = "the GitHub App installation"
-DEFERRED = f"the fan-out's {FANOUT_BUDGET.total_seconds():g} s budget ran out; it goes first next tick"
+DEFERRED = (
+    f"the fan-out's {FANOUT_BUDGET.total_seconds():g} s budget ran out before its config read; "
+    "next tick reads it before the repos read this tick"
+)
 
 
 @dataclass
@@ -139,12 +144,18 @@ class FanOut:
         names = {identity.full_name for identity in listing.values()} | set(stored)
         items = {name: stored.get(name) or RepoItem(name) for name in names if not is_primary(name)}
         candidates: list[_Candidate] = []
-        for repo in sorted(items, key=lambda name: (items[name].config.read_at or float("-inf"), name)):
+        deferred: list[RepoItem] = []
+        for repo in sorted(items, key=lambda name: (items[name].config.attempted_at or float("-inf"), name)):
             if self._out_of_time():
                 self.lines[repo] = Line("deferred", DEFERRED)
+                deferred.append(items[repo])
             elif candidate := self._plan(repo, listing.get(repo.lower()), items[repo], tokens):
                 candidates.append(candidate)
         self._invoke(candidates)
+        now = self._now()
+        for item in deferred:
+            if item.config.work_since is not None:
+                self._stale(item, item.config.work_since, now)
         return listing
 
     def skip(self, stored: Mapping[str, RepoItem], why: str) -> None:
@@ -222,13 +233,13 @@ class FanOut:
         self.lines[repo] = Line("draining" if work.kind == "drain" else "served", problem)
         return _Candidate(repo, item, entry, work, work_since)
 
-    def _stale(self, candidate: _Candidate, now: float) -> None:
-        since = [at for at in (candidate.item.last_completed_at, candidate.work_since) if at is not None]
+    def _stale(self, item: RepoItem, work_since: float | None, now: float) -> None:
+        since = [at for at in (item.last_completed_at, work_since) if at is not None]
         limit = STALE_RUN_TICKS * TICK_INTERVAL.total_seconds()
         if since and now - max(since) > limit:
             problem = f"its last completed run is older than {STALE_RUN_TICKS} ticks"
-            self.invocation.outcomes.error(candidate.repo, problem)
-            self._settle(candidate.repo, self.lines[candidate.repo].outcome, problem)
+            self.invocation.outcomes.error(item.repo, problem)
+            self._settle(item.repo, self.lines[item.repo].outcome, problem)
 
     def _invoke(self, candidates: list[_Candidate]) -> None:
         now = self._now()
@@ -252,12 +263,9 @@ class FanOut:
         for candidate in free[len(chosen) :]:
             self._settle(candidate.repo, "skipped", "no free worker this tick")
         for candidate in chosen:
-            if self._out_of_time():
-                self._settle(candidate.repo, "deferred", DEFERRED)
-            else:
-                self._start(candidate, cap if candidate.work.optional else 0)
+            self._start(candidate, cap if candidate.work.optional else 0)
         for candidate in candidates:
-            self._stale(candidate, now)
+            self._stale(candidate.item, candidate.work_since, now)
 
     def _start(self, candidate: _Candidate, cap: int) -> None:
         try:

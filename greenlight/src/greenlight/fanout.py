@@ -15,7 +15,8 @@
    naming every problem.
 
 The invocation's latch follows the shared one while it runs (``latch``), so a rate limit another invocation
-meets stops the fan-out and pytorch/pytorch's Phase B, never its Phase A. A store failure reading the latch,
+meets stops the fan-out and pytorch/pytorch's Phase B, never its Phase A; so does a later read of the shared
+latch that fails, which fails the planner. A store failure reading the latch at the start,
 taking pytorch/pytorch's lease or reading its item leaves the planner running its Phase A on a cold memory,
 skipping its Phase B and the fan-out, saving no memory (a lease taken is still released), and failing. Its
 lease busy (another planner still runs it) is a problem: that tick runs nothing for it.

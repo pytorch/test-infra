@@ -51,7 +51,7 @@ class _Client:
 
 def _named(kwargs: dict[str, Any], expression: str) -> str:
     """``expression`` with its placeholders replaced by the attribute names and values they stand for."""
-    for placeholder, name in kwargs.get("ExpressionAttributeNames", {}).items():
+    for placeholder, name in sorted(kwargs.get("ExpressionAttributeNames", {}).items(), reverse=True):
         expression = expression.replace(placeholder, name)
     for placeholder, value in sorted(kwargs.get("ExpressionAttributeValues", {}).items(), reverse=True):
         expression = expression.replace(placeholder, repr(next(iter(value.values()))))
@@ -118,7 +118,7 @@ def test_a_config_write_sets_what_it_has_and_removes_the_rest():
     update = _named(params, params["UpdateExpression"])
     assert update.startswith("SET cfg_kind = 'file', cfg_text = 'mode: off\\n', cfg_etag = '\"e\"', cfg_size = '10'")
     assert "served = True" in update
-    assert update.endswith("REMOVE cfg_reason, cfg_valid_text, work_since, reported")
+    assert update.endswith("REMOVE cfg_attempted_at, cfg_reason, cfg_valid_text, work_since, reported")
 
 
 def test_a_lease_is_a_write_conditioned_on_no_live_lease():

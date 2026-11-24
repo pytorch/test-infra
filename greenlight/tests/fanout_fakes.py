@@ -49,7 +49,12 @@ class Requester:
     ) -> tuple[int, dict[str, Any], str]:
         repo = url.removeprefix("/repos/").removesuffix(f"/contents/{REPO_CONFIG_PATH}")
         self.world.reads.append((repo, headers))
-        self.world.monotonic[0] += self.world.read_seconds
+        delay = self.world.read_delays.get(repo)
+        if delay is None:
+            self.world.monotonic[0] += self.world.read_seconds
+        else:
+            self.world.monotonic[0] += delay
+            self.world.clock[0] += delay
         answer = self.world.files.get(repo, ABSENT)
         if isinstance(answer, BaseException):
             raise answer
@@ -156,7 +161,11 @@ class Store(InProcessStore):
 
 @dataclass
 class World:
-    """Everything the fakes answer from, and what they saw."""
+    """Everything the fakes answer from, and what they saw.
+
+    Every config read takes ``read_seconds`` on the monotonic clock alone; a repo ``read_delays`` names takes
+    its delay on both clocks.
+    """
 
     listing: list[RepoIdentity] = field(default_factory=lambda: [identity(TARGET_REPO)])
     identities: dict[str, RepoIdentity] = field(default_factory=dict)
@@ -167,6 +176,7 @@ class World:
     clock: list[float] = field(default_factory=lambda: [START])
     monotonic: list[float] = field(default_factory=lambda: [0.0])
     read_seconds: float = 0.0
+    read_delays: dict[str, float] = field(default_factory=dict)
     events: list[str] = field(default_factory=list)
     reads: list[tuple[str, dict[str, str] | None]] = field(default_factory=list)
     clients: list[Client] = field(default_factory=list)

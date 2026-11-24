@@ -21,7 +21,8 @@ starts. ``RepoRun.close`` raises, as the repo's error, the safety work's failure
 did not finish, and logs the repo's request counts per phase with the installation's quota. Only a run
 with no optional work marks its full tick done there (when its safety work met no rate limit): a run whose
 Phase B was cut short or held back (``hold``, the latch, no dispatch token) leaves it due. How Phase B
-ended (``phase_b_outcome``) or why it did not run (``held``) is kept for the planner's outcome line.
+ended (``phase_b_outcome``; one that returned with the latch set is a rate-limit stop) or why it did not
+run (``held``) is kept for the planner's outcome line.
 """
 
 from __future__ import annotations
@@ -232,6 +233,9 @@ class RepoRun:
             invocation.seams.run_finish(prepared, optional=True)
 
         outcome = outcomes.attempt(self.repo, "Phase B", work, full_tick_due=full_tick_due)
+        if outcome == "done" and invocation.meter.latch.is_set():
+            outcomes.error(self.repo, f"Phase B stopped: {RATE_LIMITED}")
+            outcome = "rate limit"
         self.phase_b_outcome = outcome
         if outcome in ("done", "failed"):
             self.finished = True

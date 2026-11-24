@@ -61,7 +61,13 @@ def test_a_file_read_stores_its_text_etag_size_and_time_and_keeps_the_planners_f
 
     assert unreadable is None
     assert updated == ConfigRecord(
-        kind="file", text=_SHADOW, etag='W/"e1"', size=len(_SHADOW), read_at=1000.0, **_PLANNER_FIELDS
+        kind="file",
+        text=_SHADOW,
+        etag='W/"e1"',
+        size=len(_SHADOW),
+        read_at=1000.0,
+        attempted_at=1000.0,
+        **_PLANNER_FIELDS,
     )
     assert client.requester.calls == [("GET", _URL, None)]
 
@@ -71,7 +77,7 @@ def test_a_stored_file_is_revalidated_with_its_etag_and_a_304_changes_only_when_
 
     updated, unreadable, client = _read(record, (304, {}, ""), now=70.0)
 
-    assert (updated, unreadable) == (dataclasses.replace(record, read_at=70.0), None)
+    assert (updated, unreadable) == (dataclasses.replace(record, read_at=70.0, attempted_at=70.0), None)
     assert client.requester.calls == [("GET", _URL, {"If-None-Match": '"e1"'})]
 
 
@@ -81,7 +87,7 @@ def test_a_404_records_the_file_absent_and_forgets_the_file_read():
     updated, unreadable, _client = _read(record, (404, {}, '{"message": "Not Found"}'), now=50.0)
 
     assert unreadable is None
-    assert updated == ConfigRecord(kind="absent", read_at=50.0, **_PLANNER_FIELDS)
+    assert updated == ConfigRecord(kind="absent", read_at=50.0, attempted_at=50.0, **_PLANNER_FIELDS)
 
 
 def test_an_absent_file_is_asked_again_only_after_its_ttl():
@@ -130,13 +136,13 @@ def test_a_file_that_cannot_be_a_config_is_recorded_invalid_with_its_reason(body
         pytest.param(GithubException(502, {"message": "bad gateway"}), "GithubException", id="exception"),
     ],
 )
-def test_any_other_failed_read_leaves_the_record_and_says_why(caplog, answer, reason):
-    record = ConfigRecord(kind="file", text=_SHADOW, etag='"e1"')
+def test_any_other_failed_read_leaves_the_record_but_its_attempt_and_says_why(caplog, answer, reason):
+    record = ConfigRecord(kind="file", text=_SHADOW, etag='"e1"', read_at=5.0)
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         updated, unreadable, _client = _read(record, answer)
 
-    assert updated is record
+    assert updated == dataclasses.replace(record, attempted_at=1000.0)
     assert unreadable is not None
     assert reason in unreadable
     assert all(entry.exc_info for entry in caplog.records if "cannot read" in entry.getMessage())

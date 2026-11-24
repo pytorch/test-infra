@@ -411,3 +411,35 @@ def test_a_rate_limit_another_invocation_meets_during_pytorchs_phase_a_holds_bac
     assert planner.lines["pytorch/vision"] == fanout_repos.Line("skipped", RATE_LIMITED)
     assert planner.lines[TARGET_REPO] == fanout_repos.Line("safety-only", f"no Phase B: {RATE_LIMITED}")
     assert world.store.read_latch(START) == START + 200
+
+
+def test_a_failed_read_of_the_shared_latch_after_a_good_one_holds_back_the_rest_but_never_pytorchs_phase_a(
+    make_config,
+):
+    world = World(
+        listing=[identity(TARGET_REPO), identity("pytorch/vision")], files={"pytorch/vision": file_answer(SHADOW)}
+    )
+    world.store.write_config("pytorch/vision", ConfigRecord(kind="file", text=SHADOW, served=True))
+    real_prepare = world.prepare
+
+    def prepare(config: Any, *, entry: Any, max_dispatches: int | None, **kwargs: Any) -> Any:
+        world.store.failing = {"read_latch"}
+        meter = kwargs["build_github"].keywords["meter"]
+        for _ in range(3 * QUOTA_REFRESH_REQUESTS):
+            meter.before_request()
+            meter.count()
+        return real_prepare(config, entry=entry, max_dispatches=max_dispatches, **kwargs)
+
+    world.prepare = prepare  # type: ignore[method-assign]
+    planner = _planner(world, make_config)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        planner.run()
+
+    assert str(excinfo.value) == "the state store failed reading the shared rate-limit latch: read_latch refused"
+    assert "listing" not in world.events
+    assert world.invoked == []
+    assert planner.lines["pytorch/vision"] == fanout_repos.Line("skipped", RATE_LIMITED)
+    assert planner.lines[TARGET_REPO] == fanout_repos.Line("safety-only", f"no Phase B: {RATE_LIMITED}")
+    assert "ratelimit" not in world.store.items
+    assert world.store.read_repo(TARGET_REPO).last_tick == _TICK

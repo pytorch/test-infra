@@ -10,7 +10,10 @@ With a ``SharedLatch`` (the scan Lambda's), the latch publishes each later wait 
 it is set, so the other invocations see it at once, and reads the store's latch again when asked
 (``recheck``, before each optional phase and before a dispatch) and once ``QUOTA_REFRESH_REQUESTS`` of the
 invocation's requests were counted since the last read (``poll``). A shared latch that holds sets this
-one. A store failure on either is logged, and the invocation goes on with its own latch.
+one. A store failure publishing is logged, and the invocation goes on with its own latch. A store failure
+reading sets this latch as a shared latch that holds would, so the invocation's optional work and the
+other repos' work stop, but with no wait to publish: ``unreadable`` says why it is set, for the
+invocation's errors.
 """
 
 from __future__ import annotations
@@ -63,17 +66,14 @@ def rate_limit_headers(exc: BaseException) -> Mapping[str, str] | None:
 
 @dataclass(frozen=True)
 class SharedLatch:
-    """The state store's latch, shared by every invocation of the installation; its failures are logged."""
+    """The state store's latch, shared by every invocation of the installation; a failure publishing is logged."""
 
     store: StateStore
     clock: Callable[[], float]
 
     def read(self) -> float | None:
-        try:
-            return self.store.read_latch(self.clock())
-        except StoreError:
-            logger.error("cannot read the shared rate-limit latch; this invocation goes on with its own", exc_info=True)
-            return None
+        """Until when the shared latch holds, None when it does not; ``StoreError`` when it cannot be read."""
+        return self.store.read_latch(self.clock())
 
     def publish(self, until: float) -> None:
         try:
@@ -103,13 +103,20 @@ class RateLimitLatch(threading.Event):
         self._count = count
         self._lock = threading.Lock()
         self._until: float | None = None
+        self._unreadable: str | None = None
         self._read_at = 0
 
     @property
     def until(self) -> float | None:
-        """Until when the rate limits that set the latch asked to wait, the latest; None while it is not set."""
+        """Until when the rate limits that set the latch asked to wait, the latest; None while none set it."""
         with self._lock:
             return self._until
+
+    @property
+    def unreadable(self) -> str | None:
+        """Why the shared latch could not be read, when a failed read set this one; None otherwise."""
+        with self._lock:
+            return self._unreadable
 
     def set(self) -> None:
         """Set the latch for a rate limit whose wait is unknown: ``RATE_LIMIT_DEFAULT_WAIT``."""
@@ -145,7 +152,18 @@ class RateLimitLatch(threading.Event):
             if not due(count):
                 return
             self._read_at = count
-        until = self._shared.read()
+        try:
+            until = self._shared.read()
+        except StoreError as exc:
+            logger.error(
+                "cannot read the shared rate-limit latch; this invocation stops its optional work and the other "
+                "repos' work",
+                exc_info=True,
+            )
+            with self._lock:
+                self._unreadable = f"the state store failed reading the shared rate-limit latch: {exc}"
+            super().set()
+            return
         if until is not None:
             logger.warning(
                 "the shared rate-limit latch holds until %s; this invocation stops its GitHub work", epoch_text(until)

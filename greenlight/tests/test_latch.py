@@ -135,17 +135,25 @@ def test_a_recheck_sets_the_latch_from_a_shared_latch_that_holds_without_publish
     assert store.reads == 2
 
 
-def test_a_failure_reading_the_shared_latch_is_logged_and_the_invocation_goes_on(caplog):
+def test_a_failed_read_of_the_shared_latch_after_a_good_one_sets_the_latch_with_no_wait_to_publish(caplog):
     store = _Store()
-    store.failing = {"read_latch"}
-    found = _latch(store)
+    count = [0]
+    found = _latch(store, count)
 
-    with caplog.at_level(logging.ERROR, logger="greenlight"):
-        found.recheck()
-
+    found.recheck()
     assert not found.is_set()
+    store.failing = {"read_latch"}
+    count[0] = QUOTA_REFRESH_REQUESTS
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        found.poll()
+
+    assert found.is_set()
+    assert found.until is None
+    assert found.unreadable == "the state store failed reading the shared rate-limit latch: read_latch refused"
     [record] = [record for record in caplog.records if "cannot read the shared rate-limit latch" in record.message]
     assert record.exc_info
+    found.recheck()
+    assert store.reads == 2
 
 
 def test_a_poll_reads_the_shared_latch_once_every_refresh_interval_of_requests():

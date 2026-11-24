@@ -55,7 +55,7 @@ that verdict on `pytorch/pytorch` (both below), and `check-config` validates a r
 Which open PRs a listing scan reads depends on the tick. A **full tick** lists every open PR. It
 runs on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
 `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed —
-one whose listing and fingerprint fan-out finished without a rate-limit abort, even if a PR then
+one whose listing, fan-out and dispatch finished with no rate limit or budget stop, even if a PR then
 failed. A clock that steps back past the start of
 the last full tick counts as due. Every scan in between is a **fast tick**: it walks
 the open PRs most recently updated first, stops at the review window's edge, and adds every open PR

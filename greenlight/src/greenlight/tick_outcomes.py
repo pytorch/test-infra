@@ -7,7 +7,8 @@ and aborts the invocation; anything else is logged with its traceback and become
 cut or a missed turn is the repo's error when its full tick was due, and a warning otherwise; the PRs a
 repo's Phase B failed on before a cut or a rate limit stopped it are always its error, whether or not its
 full tick was due (``failed_before``). A latch set by work that absorbed the rate limit, with nothing
-after it to skip, is still named in the errors (``name_the_rate_limit``).
+after it to skip, is still named in the errors, and so is a failed read of the shared latch that set it
+(``name_the_rate_limit``).
 """
 
 from __future__ import annotations
@@ -75,8 +76,13 @@ class Outcomes:
             self.error(repo, f"Phase B failed on {len(found)} PR(s) before it stopped: {found}")
 
     def name_the_rate_limit(self) -> None:
-        """Record the rate limit as an error when the latch is set and no error names it yet."""
-        if self.tick.latch.is_set() and not any(RATE_LIMITED in error for error in self.errors):
+        """Record, when no error names it yet, why the latch is set: a failed read of the shared latch, a rate
+        limit, or both."""
+        latch = self.tick.latch
+        unreadable = latch.unreadable
+        if unreadable is not None and not any(unreadable in error for error in self.errors):
+            self.problem(unreadable)
+        if latch.until is not None and not any(RATE_LIMITED in error for error in self.errors):
             logger.error("%s", RATE_LIMITED)
             self.errors.append(RATE_LIMITED)
 

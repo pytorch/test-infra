@@ -158,24 +158,30 @@ def test_a_full_tick_never_reads_the_cache_but_refreshes_it():
     assert _tick(memory).lookup(1) == refreshed
 
 
-def test_a_commit_keeps_only_the_results_its_tick_reused_or_stored():
+def _three(memory: ScanMemory, *, reuse: bool = True) -> FingerprintCache:
+    """A tick that listed PRs 1 to 3, each at head ``h<n>``."""
+    return FingerprintCache(
+        memory,
+        reuse=reuse,
+        authorized_logins=_LOGINS,
+        updated_at=dict.fromkeys((1, 2, 3), _UPDATED),
+        head_sha={1: "h1", 2: "h2", 3: "h3"},
+        now=_STARTED,
+    )
+
+
+def _three_cached() -> ScanMemory:
     memory = ScanMemory()
-
-    def tick(*, reuse: bool) -> FingerprintCache:
-        return FingerprintCache(
-            memory,
-            reuse=reuse,
-            authorized_logins=_LOGINS,
-            updated_at=dict.fromkeys((1, 2, 3), _UPDATED),
-            head_sha={1: "h1", 2: "h2", 3: "h3"},
-            now=_STARTED,
-        )
-
-    seed = tick(reuse=False)
+    seed = _three(memory, reuse=False)
     for number in (1, 2, 3):
         seed.store(number, (f"h{number}", "a" * 64))
     seed.commit()
-    current = tick(reuse=True)
+    return memory
+
+
+def test_a_commit_keeps_only_the_results_its_tick_reused_or_stored():
+    memory = _three_cached()
+    current = _three(memory)
 
     # PR1 is reused, PR2 is fingerprinted afresh, and PR3 is not evaluated this tick.
     assert current.lookup(1) == ("h1", "a" * 64)
@@ -183,10 +189,26 @@ def test_a_commit_keeps_only_the_results_its_tick_reused_or_stored():
     current.store(2, ("h2", "b" * 64))
     current.commit()
 
-    after = tick(reuse=True)
+    after = _three(memory)
     assert after.lookup(1) == ("h1", "a" * 64)
     assert after.lookup(2) == ("h2", "b" * 64)
     assert after.lookup(3) is None
+
+
+def test_a_partial_commit_also_keeps_the_earlier_results_of_the_prs_its_tick_never_looked_up():
+    memory = _three_cached()
+    current = _three(memory)
+
+    # PR1 is reused, PR2 is looked up but its fresh fingerprint never comes, and PR3 is never looked up.
+    current.lookup(1)
+    current.keep(1)
+    current.lookup(2)
+    current.commit(partial=True)
+
+    after = _three(memory)
+    assert after.lookup(1) == ("h1", "a" * 64)
+    assert after.lookup(2) is None
+    assert after.lookup(3) == ("h3", "a" * 64)
 
 
 def test_a_tick_that_never_commits_leaves_the_cache_as_it_was():

@@ -432,7 +432,19 @@ def test_an_iteration_timeout_invoking_a_worker_propagates(make_config):
         _tick(world, make_config)
 
 
-def test_slow_config_reads_defer_the_repos_past_the_fan_outs_budget_and_they_go_first_next_tick(make_config):
+def _invoked(world: World) -> list[str]:
+    return [event["greenlight_worker"]["repo"] for event in world.invoked]
+
+
+def _next_tick(world: World, tick: int) -> None:
+    world.reads.clear()
+    world.invoked.clear()
+    world.clock[0] = START + tick * TICK_INTERVAL.total_seconds()
+
+
+def test_slow_config_reads_still_start_every_planned_worker_and_the_deferred_repo_is_read_first_next_tick(
+    make_config,
+):
     repos = ["pytorch/audio", "pytorch/data", "pytorch/text", "pytorch/vision"]
     world = _world(*(identity(repo) for repo in repos), files=dict.fromkeys(repos, file_answer(SHADOW)))
     world.read_seconds = FANOUT_BUDGET.total_seconds() * 4 / 9
@@ -440,18 +452,74 @@ def test_slow_config_reads_defer_the_repos_past_the_fan_outs_budget_and_they_go_
     first = _tick(world, make_config)
 
     assert [repo for repo, _headers in world.reads] == [TARGET_REPO, *repos[:3]]
+    assert _invoked(world) == repos[:3]
     assert first.lines["pytorch/vision"] == fanout_repos.Line("deferred", fanout_repos.DEFERRED)
-    assert all(first.lines[repo].outcome == "deferred" for repo in repos)
-    assert world.invoked == []
     assert first.lines[TARGET_REPO].outcome == "served"
     assert f"finish {TARGET_REPO} optional=True max=30" in world.events
     assert _failure(first) is None
 
-    world.reads.clear()
-    world.clock[0] = START + TICK_INTERVAL.total_seconds()
-    _tick(world, make_config)
+    _next_tick(world, 1)
+    second = _tick(world, make_config)
 
     assert [repo for repo, _headers in world.reads] == ["pytorch/vision", *repos[:2]]
+    assert sorted(_invoked(world)) == ["pytorch/audio", "pytorch/data", "pytorch/vision"]
+    assert second.lines["pytorch/text"].outcome == "deferred"
+
+    _next_tick(world, 2)
+    third = _tick(world, make_config)
+
+    assert [repo for repo, _headers in world.reads] == ["pytorch/text", *repos[:2]]
+    assert len(world.invoked) == 3
+    assert _failure(third) is None
+
+
+def test_a_repo_whose_read_hangs_goes_behind_the_others_so_they_still_get_workers(make_config):
+    repos = ["pytorch/audio", "pytorch/hang", "pytorch/vision"]
+    world = _world(*(identity(repo) for repo in repos), files=dict.fromkeys(repos, file_answer(SHADOW)))
+    world.files["pytorch/hang"] = ConnectionError("read timed out")
+    world.read_delays.update({"pytorch/audio": 1.0, "pytorch/hang": 46.0, "pytorch/vision": 1.0})
+    attempted = {"pytorch/audio": START - 100, "pytorch/hang": START - 600, "pytorch/vision": START - 100}
+    for repo, attempted_at in attempted.items():
+        world.store.write_config(
+            repo, ConfigRecord(kind="file", text=SHADOW, valid_text=SHADOW, served=True, attempted_at=attempted_at)
+        )
+
+    first = _tick(world, make_config)
+
+    assert [repo for repo, _headers in world.reads] == [TARGET_REPO, "pytorch/hang"]
+    assert _invoked(world) == ["pytorch/hang"]
+    assert first.lines["pytorch/audio"].outcome == "deferred"
+    assert world.store.read_repo("pytorch/hang").config.attempted_at == START
+    assert world.store.read_repo("pytorch/audio").config.attempted_at == START - 100
+
+    for tick in (1, 2):
+        _next_tick(world, tick)
+        _tick(world, make_config)
+
+        assert [repo for repo, _headers in world.reads] == ["pytorch/audio", "pytorch/vision", "pytorch/hang"]
+        assert sorted(_invoked(world)) == repos
+
+
+def test_a_repo_with_stored_work_deferred_past_the_stale_limit_fails_the_tick(make_config):
+    world = _world()
+    _with_work(world, "pytorch/a")
+    world.read_seconds = FANOUT_BUDGET.total_seconds()
+    for repo, work_since in (("pytorch/b", START - _STALE - 1), ("pytorch/c", START - _STALE), ("pytorch/d", None)):
+        _with_work(world, repo)
+        world.store.write_config(
+            repo,
+            ConfigRecord(kind="file", text=SHADOW, valid_text=SHADOW, served=True, work_since=work_since),
+        )
+
+    planner = _tick(world, make_config)
+
+    failure = _failure(planner) or ""
+    stale = f"its last completed run is older than {STALE_RUN_TICKS} ticks"
+    assert planner.lines["pytorch/b"] == fanout_repos.Line("deferred", f"{fanout_repos.DEFERRED}; {stale}")
+    assert f"pytorch/b: {stale}" in failure
+    assert "pytorch/c" not in failure
+    assert planner.lines["pytorch/d"] == fanout_repos.Line("deferred", fanout_repos.DEFERRED)
+    assert _invoked(world) == ["pytorch/a"]
 
 
 def test_a_fan_out_inside_its_budget_reads_every_repo_and_invokes_their_workers(make_config):

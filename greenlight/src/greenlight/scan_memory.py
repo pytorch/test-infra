@@ -157,7 +157,8 @@ class FingerprintCache:
     tick's fingerprints filter comments by; ``updated_at`` and ``head_sha`` are the listing's, and
     ``now`` is the clock read after the listing. A result is reused only while the PR's listed
     ``updated_at`` and head and the approver set are those it was stored under. ``commit`` leaves the
-    memory holding only the results this tick reused or ``store`` kept.
+    memory holding only the results this tick reused or ``store`` kept; a ``partial`` commit (a stopped
+    fan-out) also keeps the earlier results of the PRs the tick never looked up.
     """
 
     def __init__(
@@ -177,10 +178,12 @@ class FingerprintCache:
         self._head_sha = head_sha
         self._now = now
         self._kept: dict[int, _Entry] = {}
+        self._looked_up: set[int] = set()
         self._reused = 0
         self._fetched = 0
 
     def lookup(self, number: int) -> FingerprintResult | None:
+        self._looked_up.add(number)
         entry = self._previous.get(number)
         if entry is None or entry.key != self._key(number):
             return None
@@ -206,8 +209,13 @@ class FingerprintCache:
             return
         self._kept[number] = _Entry(key, result)
 
-    def commit(self) -> None:
-        self._memory._fingerprints = self._kept
+    def commit(self, *, partial: bool = False) -> None:
+        untouched = (
+            {number: entry for number, entry in self._previous.items() if number not in self._looked_up}
+            if partial
+            else {}
+        )
+        self._memory._fingerprints = untouched | self._kept
         logger.info("fingerprints: %d reused from the cache, %d fetched fresh", self._reused, self._fetched)
 
     def _key(self, number: int) -> _Key | None:

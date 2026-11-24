@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from github import GithubException, RateLimitExceededException
 
-from greenlight import drain, merge_authz, quota, review_finish, tick
+from greenlight import drain, fanout_repos, merge_authz, quota, review_finish, tick
 from greenlight.constants import (
     OTHER_REPO_REQUEST_BUDGET,
     QUOTA_FLOOR_OTHERS,
@@ -19,11 +19,13 @@ from greenlight.constants import (
     TARGET_REPO,
     WORKER_DEADLINE,
 )
+from greenlight.fanout import primary_line
 from greenlight.guards import IterationTimeout
+from greenlight.latch import SharedLatch
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_gate import HUMAN_APPROVED, ReviewSkip
 from greenlight.scan_memory import ScanMemory
-from greenlight.state_store import InProcessStore
+from greenlight.state_store import InProcessStore, StoreError
 from greenlight.tick_outcomes import RATE_LIMITED, Outcomes
 from tests.test_review_finish import prepared_scan
 
@@ -437,6 +439,7 @@ def _real_finish_run(
     served: bool = True,
     fingerprint: Any = None,
     dispatch_token: str | None = "dispatch",  # noqa: S107
+    store: InProcessStore | None = None,
 ) -> tick.RepoRun:
     """A run whose Phase B finishes through the real ``review_finish.finish`` on a real ``PreparedScan``."""
 
@@ -456,7 +459,7 @@ def _real_finish_run(
         )
 
     seams = dataclasses.replace(_Fakes().seams(), run_prepare=prepare, run_finish=review_finish.finish)
-    invocation = tick.Invocation(stack, seams)
+    invocation = tick.Invocation(stack, seams, store)
     return tick.RepoRun(
         invocation,
         tick.run_config(make_config(), "repo-token", dispatch_token),
@@ -511,6 +514,25 @@ def test_a_phase_b_stopped_by_the_latch_leaves_the_full_tick_due(make_config):
         run.close()
 
     assert run.held == RATE_LIMITED
+    assert run.memory.full_tick_due(_NOW + timedelta(minutes=1))
+
+
+def test_a_phase_b_that_returns_with_the_latch_set_is_a_rate_limit_stop(make_config):
+    store = InProcessStore()
+
+    def fingerprint(*_args: Any) -> tuple[str, str]:
+        store.extend_latch(1300.0, 1000.0)
+        return ("h" * 40, "a" * 64)
+
+    with contextlib.ExitStack() as stack:
+        run = _real_finish_run(stack, make_config, BUILTIN_PYTORCH, fingerprint=fingerprint, store=store)
+        run.phase_a()
+        run.phase_b()
+        run.close()
+
+    assert run.phase_b_outcome == "rate limit"
+    assert primary_line(run) == fanout_repos.Line("cut", f"Phase B stopped: {RATE_LIMITED}")
+    assert run.invocation.outcomes.errors == [f"{TARGET_REPO}: Phase B stopped: {RATE_LIMITED}"]
     assert run.memory.full_tick_due(_NOW + timedelta(minutes=1))
 
 
@@ -582,3 +604,58 @@ def test_the_next_optional_request_after_another_invocation_latches_is_refused(m
             meter.before_request()
 
     assert vision.invocation.meter.latch.until == 1300.0
+
+
+class _LatchStore(InProcessStore):
+    """An ``InProcessStore`` that counts latch reads and fails them once ``failing`` is set."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.failing = False
+        self.reads = 0
+
+    def read_latch(self, now: float) -> float | None:
+        self.reads += 1
+        if self.failing:
+            raise StoreError("read_latch refused")
+        return super().read_latch(now)
+
+
+_UNREADABLE = "the state store failed reading the shared rate-limit latch: read_latch refused"
+
+
+def test_a_failed_read_of_the_shared_latch_stops_the_others_optional_work_but_never_pytorchs_phase_a(make_config):
+    store = _LatchStore()
+    with contextlib.ExitStack() as stack:
+        vision = _shared_run(stack, make_config, store, _VISION, _Fakes())
+        primary = _shared_run(stack, make_config, store, BUILTIN_PYTORCH, _Fakes())
+        vision.invocation.meter.latch.recheck()
+        store.failing = True
+
+        pytorch_meter = primary.invocation.meter.meter(TARGET_REPO)
+        for _ in range(3 * QUOTA_REFRESH_REQUESTS):
+            pytorch_meter.before_request()
+            pytorch_meter.count()
+        assert store.reads == 1
+
+        vision.phase_b()
+    vision.invocation.outcomes.name_the_rate_limit()
+
+    assert vision.held == RATE_LIMITED
+    assert vision.invocation.meter.latch.until is None
+    assert vision.invocation.outcomes.errors == [f"pytorch/vision: Phase B skipped: {RATE_LIMITED}", _UNREADABLE]
+
+
+def test_a_latch_set_by_a_failed_read_of_the_shared_one_is_named_by_that_failure():
+    store = _LatchStore()
+    store.failing = True
+    meter = quota.TickMeter(lambda: 1000.0, SharedLatch(store, lambda: 1000.0))
+    outcomes = Outcomes(meter)
+
+    meter.latch.recheck()
+    outcomes.name_the_rate_limit()
+    assert outcomes.errors == [_UNREADABLE]
+    meter.latch.note({"retry-after": "60"})
+    outcomes.name_the_rate_limit()
+
+    assert outcomes.errors == [_UNREADABLE, RATE_LIMITED]

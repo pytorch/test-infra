@@ -14,7 +14,7 @@ from greenlight.authority import Authority
 from greenlight.latch import RateLimitLatch, SharedLatch
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_finish import PreparedScan
-from greenlight.scan_memory import ScanMemory
+from greenlight.scan_memory import FingerprintCache, ScanMemory
 from greenlight.state import PRState
 from greenlight.state_store import InProcessStore
 
@@ -320,6 +320,72 @@ def test_fingerprint_results_already_stored_survive_a_stop_that_ends_the_fan_out
     assert set(memory._fingerprints) == {1}
     assert dispatched == []
     assert memory.full_tick_due(_NOW + timedelta(minutes=1))
+
+
+@pytest.mark.parametrize(
+    ("finished", "kept"),
+    [pytest.param(False, {1, 3}, id="stopped"), pytest.param(True, {1, 2}, id="finished")],
+)
+def test_a_stopped_fast_tick_keeps_the_earlier_results_of_the_prs_it_never_looked_up(finished, kept):
+    quiet = _NOW - timedelta(minutes=10)
+    memory = ScanMemory()
+    seed = FingerprintCache(
+        memory,
+        reuse=False,
+        authorized_logins=frozenset({"alice"}),
+        updated_at=dict.fromkeys((1, 2, 3), quiet),
+        head_sha=dict.fromkeys((1, 2, 3), "h" * 40),
+        now=_NOW,
+    )
+    for number in (1, 2, 3):
+        seed.store(number, ("h" * 40, _HASH))
+    seed.commit()
+
+    def fingerprint(_client, _repo, number, _authorized, _skip):
+        if not finished:
+            raise quota.RepoBudgetExceeded("pytorch/pytorch: past its deadline")
+        return ("h" * 40, _HASH)
+
+    # PR1 is settled from the cache, PR2 was updated since its result was stored, PR3 is not listed this tick.
+    prepared, _dispatched = _dispatching(
+        fingerprint=fingerprint,
+        memory=memory,
+        full_tick=False,
+        fingerprint_numbers=[1, 2],
+        updated_at_by_number={1: quiet, 2: quiet + timedelta(minutes=1)},
+        head_sha_by_number=dict.fromkeys((1, 2), "h" * 40),
+        states={
+            1: PRState(pr_number=1, status="LAND", eval_hash=_HASH, head_sha="h" * 40, version=_NOW, run_id=1),
+        },
+    )
+
+    with contextlib.suppress(quota.RepoBudgetExceeded), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert set(memory._fingerprints) == kept
+
+
+@pytest.mark.parametrize(
+    ("failure", "raised", "marked"),
+    [
+        pytest.param(RuntimeError("dispatch down"), RuntimeError, True, id="one-pr-failed"),
+        pytest.param(GithubException(429, {"message": "secondary rate limit"}), RuntimeError, False, id="rate-limit"),
+        pytest.param(
+            quota.RepoBudgetExceeded("pytorch/pytorch: past its deadline"), quota.RepoBudgetExceeded, False, id="cut"
+        ),
+    ],
+)
+def test_a_full_tick_is_marked_after_its_dispatch_unless_a_stop_ended_it(failure, raised, marked):
+    def dispatch(*_args, **_kwargs):
+        raise failure
+
+    memory = ScanMemory()
+    prepared, _dispatched = _dispatching(dispatch=dispatch, memory=memory)
+
+    with pytest.raises(raised), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert memory.full_tick_due(_NOW + timedelta(minutes=1)) is not marked
 
 
 def test_a_shared_latch_set_meanwhile_is_read_before_the_dispatch_and_holds_it_back():
