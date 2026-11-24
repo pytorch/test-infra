@@ -55,6 +55,14 @@
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
   ],
+  "trunk / linux-jammy-aarch64-cuda13.2-py3.12-gcc13-sm100 / test (smoke_b200)": [
+    "huydhn",
+    "206498",
+    "https://github.com/pytorch/pytorch/issues/206498",
+    "trunk",
+    "linux-jammy-aarch64-cuda13.2-py3.12-gcc13-sm100",
+    "test (smoke_b200)"
+  ],
   "trunk-rocm-sandbox / linux-noble-rocm-py3.11-mi350 / test": [
     "jithunnair-amd",
     "167616",
