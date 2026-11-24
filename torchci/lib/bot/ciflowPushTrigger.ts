@@ -381,10 +381,8 @@ async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
       continue;
     }
 
-    // This run proves only that its own commit was approved. If the PR head
-    // has moved since, e.g. a new unapproved commit was pushed while this run
-    // was going, do not tag the new head. Its own workflow_run will tag it once
-    // a maintainer approves it.
+    // Tag the commit this run was for. If the PR head has moved on since,
+    // leave it to the workflow_run of the newer commit.
     const headSha = prData.data.head.sha;
     if (headSha !== payload.workflow_run.head_sha) {
       context.log.info(

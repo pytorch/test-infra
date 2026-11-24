@@ -701,9 +701,8 @@ describe("Push trigger integration tests", () => {
   });
 
   test("workflow_run does not tag a newer PR head than the run's commit", async () => {
-    // A maintainer approved commit A. While A's run was going, the author
-    // pushed commit B, which is still waiting for approval. When A's run
-    // completes, the tag must not be created on B.
+    // The PR head moved to a newer commit while this run was going. The tag
+    // sync is left to the newer commit's own workflow_run.
     const approvedSha = "aaaaaaa";
     const newHeadSha = "bbbbbbb";
     const prNum = 42;
