@@ -1,10 +1,10 @@
 import type { DrillQuery, TrendsQuery } from "lib/api/tests/cost/contracts";
-import { COST_PAGE_RETIRED_PARAMETERS } from "lib/api/tests/cost/pageV2";
+import { COST_PAGE_RETIRED_PARAMETERS } from "lib/api/tests/cost/page";
 import {
   type CostQuery,
   costUrlParams,
   resolveCostQuery,
-} from "lib/tests/cost/queryV2";
+} from "lib/tests/cost/query";
 import { mergedUrlQuery } from "lib/tests/url";
 import Router from "next/router";
 
@@ -63,8 +63,8 @@ export function applyPatch(base: CostQuery, patch: CostQueryPatch): CostQuery {
 // another. It pushes a history entry when any merged patch asked to (the
 // workflow scope), else replaces; always shallow, never scrolling, and it
 // never drops a name for being absent from an answer. Retired parameters
-// (split_by) and an older link's owner and machine, which the trail now
-// says, leave the URL with the first write.
+// (split_by, cells, only) and an older link's owner and machine, which the
+// trail now says, leave the URL with the first write.
 export function costUrlWriter(router: CostRouter): CostUrlWriter {
   let pending: { patch: CostQueryPatch; push: boolean } | null = null;
   let inFlight: { query: CostQuery } | null = null;

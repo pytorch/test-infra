@@ -130,7 +130,6 @@ export interface Folded {
   end: Day;
   shown: DayRange; // the Show window
   window: DayRange | null; // what is drawn: from the first bar with data (null: none)
-  clipped: boolean; // the data-start rule cut the window's left
   dataStart: Day | null;
   bars: Bar[];
   cells: DayCells;
@@ -222,7 +221,6 @@ export function foldBars(
     end: ctx.end,
     shown,
     window,
-    clipped: window !== null && window.from > shown.from,
     dataStart: ctx.firstDay,
     bars,
     cells,
@@ -231,15 +229,6 @@ export function foldBars(
     barCells,
     barOffsets,
   };
-}
-
-// The bar holding a day, or -1.
-export function barAt(folded: Folded, day: Day): number {
-  const { bars } = folded;
-  for (let i = 0; i < bars.length; i++) {
-    if (day >= bars[i].start && day <= bars[i].last) return i;
-  }
-  return -1;
 }
 
 // "4 of 7 days" for a bar with fewer days with data than calendar days (the

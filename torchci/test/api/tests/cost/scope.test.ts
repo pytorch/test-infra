@@ -96,6 +96,30 @@ describe("the scope SQL", () => {
     );
   });
 
+  test("day pieces ($) change only piece_from; week pieces (hours) stay the default", () => {
+    const WEEK_PIECE = `greatest(toMonday(day), toStartOfMonth(day),
+        if(side = 0, {a_from: Date}, {b_from: Date})) AS piece_from`;
+    const FILE = [...PAIR, { dim: "f" as const, value: "test/test_ops.py" }];
+    for (const [trail, by] of [
+      [[], "o"],
+      [[], "m"],
+      [PAIR, "f"],
+      [FILE, "lane"],
+      [PAIR, "label"],
+    ] as const) {
+      const week = scopeQuery("sides", trail, by);
+      expect(scopeQuery("sides", trail, by, "week")).toBe(week);
+      expect(week).toContain(WEEK_PIECE);
+      expect(scopeQuery("sides", trail, by, "day")).toBe(
+        week.replace(WEEK_PIECE, "day AS piece_from")
+      );
+    }
+    // A range's days have no pieces.
+    expect(scopeQuery("days", PAIR, "f", "day")).toBe(
+      scopeQuery("days", PAIR, "f")
+    );
+  });
+
   test("reads each day's latest computation, in the workflow scope, never by trigger", () => {
     for (const sql of [
       scopeQuery("sides", PAIR, "f"),
@@ -138,6 +162,35 @@ describe("compactScope", () => {
       to: "2026-11-18",
     });
     expect(pieceOf(1, "2026-11-12", B).to).toBe("2026-11-15");
+  });
+
+  test("a day piece is its one day, across week and month ends alike", () => {
+    for (const day of ["2026-10-31", "2026-11-12", "2026-11-15"]) {
+      expect(pieceOf(1, day, B, "day")).toEqual({
+        side: 1,
+        from: day,
+        to: day,
+      });
+    }
+    const rows = ["2026-11-12", "2026-11-13", "2026-11-16"].map((piece) => ({
+      side: 1,
+      piece,
+      child: "a.py",
+      label: "x",
+      runner_hours: 1,
+      main_runner_hours: 0,
+    }));
+    const out = compactScope("o", A, B, rows, [], "day");
+    expect(out.pieces).toEqual([
+      { side: 1, from: "2026-11-12", to: "2026-11-12" },
+      { side: 1, from: "2026-11-13", to: "2026-11-13" },
+      { side: 1, from: "2026-11-16", to: "2026-11-16" },
+    ]);
+    expect(out.cells).toEqual([
+      [1, 0, 0, 0, 1, 0],
+      [1, 1, 0, 0, 1, 0],
+      [1, 2, 0, 0, 1, 0],
+    ]);
   });
 
   test("children and labels most hours first; cells and test hours as sorted index tuples; sides from the days", () => {
@@ -282,6 +335,7 @@ describe("getCostScope", () => {
       trail: decodeTrail("o:inductor"),
       by: "m" as const,
       workflow: ["pull", "trunk"],
+      piece: "week" as const,
     };
     const answer = await getCostScope(params);
     expect(query.mock.calls.map((c) => c[2])).toEqual([
@@ -325,6 +379,49 @@ describe("getCostScope", () => {
         "m"
       )
     );
+    expect(answer.piece).toBe("week");
+    expect(answer.pieces).toEqual([
+      { side: 0, from: "2026-11-05", to: "2026-11-08" },
+      { side: 1, from: "2026-11-12", to: "2026-11-15" },
+    ]);
+  });
+
+  test("piece day asks day pieces and answers them, echoing piece=day", async () => {
+    const query = jest
+      .spyOn(clickhouse, "queryClickhouse")
+      .mockImplementation(async (_sql, _params, id) =>
+        id === "tests_cost_scope"
+          ? [
+              {
+                side: 1,
+                piece: "2026-11-13",
+                child: "inductor",
+                label: "linux.2xlarge",
+                runner_hours: 2,
+                main_runner_hours: 1,
+              },
+            ]
+          : []
+      );
+    const params = {
+      repo: "pytorch/pytorch",
+      a: "2026-11-05..2026-11-11",
+      b: "2026-11-12..2026-11-18",
+      trail: [],
+      by: "o" as const,
+      workflow: [],
+      piece: "day" as const,
+    };
+    const answer = await getCostScope(params);
+    expect(query.mock.calls[0][0]).toBe(scopeQuery("sides", [], "o", "day"));
+    expect(answer.piece).toBe("day");
+    expect(answer.pieces).toEqual([
+      { side: 1, from: "2026-11-13", to: "2026-11-13" },
+    ]);
+    expect(CostScopeSchema.parse(answer)).toEqual(answer);
+    const url = costScopeUrl("pytorch/pytorch", [], A, B, [], "o", "day");
+    expect(url).toContain("&piece=day");
+    expect(scopeEcho(answer)).toBe(url);
   });
 });
 
@@ -356,14 +453,19 @@ describe("app/api/tests/cost/scope", () => {
     { ...ok, a: "2025-01-01..2026-11-18" },
     { ...ok, b: undefined },
     { ...ok, rates: "{}" },
-  ])("rejects a bad trail, by or range before querying %j", async (query) => {
-    const scope = jest.spyOn(clickhouse, "queryClickhouse");
-    const res = await get(query);
-    expect(res.status).toBe(400);
-    expect(res.body.code).toBe("invalid_parameters");
-    expect(ErrorResponseSchema.parse(res.body)).toEqual(res.body);
-    expect(scope).not.toHaveBeenCalled();
-  });
+    { ...ok, piece: "month" },
+    { ...ok, piece: "2026-11-12" },
+  ])(
+    "rejects a bad trail, by, range or piece before querying %j",
+    async (query) => {
+      const scope = jest.spyOn(clickhouse, "queryClickhouse");
+      const res = await get(query);
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("invalid_parameters");
+      expect(ErrorResponseSchema.parse(res.body)).toEqual(res.body);
+      expect(scope).not.toHaveBeenCalled();
+    }
+  );
 
   test("answers the root for an empty trail, cached privately for ten minutes, echoing the URL", async () => {
     jest.spyOn(clickhouse, "queryClickhouse").mockResolvedValue([]);
@@ -379,6 +481,22 @@ describe("app/api/tests/cost/scope", () => {
     expect(res.body.workflows).toEqual(["pull", "trunk"]);
     expect(scopeEcho(res.body)).toBe(
       costScopeUrl("pytorch/pytorch", ["pull", "trunk"], A, B, [], "o")
+    );
+    // Hours ask no piece: week pieces, a URL without piece.
+    expect(res.body.piece).toBe("week");
+    expect(scopeEcho(res.body)).not.toContain("piece");
+  });
+
+  test("piece=day: day pieces in the SQL, echoed", async () => {
+    const query = jest
+      .spyOn(clickhouse, "queryClickhouse")
+      .mockResolvedValue([]);
+    const res = await get({ ...ok, trail: "", by: "o", piece: "day" });
+    expect(res.status).toBe(200);
+    expect(res.body.piece).toBe("day");
+    expect(query.mock.calls[0][0]).toBe(scopeQuery("sides", [], "o", "day"));
+    expect(scopeEcho(res.body)).toBe(
+      costScopeUrl("pytorch/pytorch", [], A, B, [], "o", "day")
     );
   });
 

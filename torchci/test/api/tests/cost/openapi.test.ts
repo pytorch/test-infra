@@ -70,7 +70,7 @@ describe("cost OpenAPI", () => {
   });
 });
 
-describe("cost V2 OpenAPI", () => {
+describe("drill, bars, banner and cases OpenAPI", () => {
   const document = buildOpenApiDocument();
   const schemas = document.components.schemas as Record<string, any>;
   const op = (path: string) => (document.paths[path] as any).get;
@@ -79,7 +79,7 @@ describe("cost V2 OpenAPI", () => {
     [
       "/api/tests/cost/scope",
       "getTestsCostScope",
-      ["repo", "a", "b", "trail", "by", "workflow"],
+      ["repo", "a", "b", "trail", "by", "workflow", "piece"],
       "CostScope",
       false,
     ],

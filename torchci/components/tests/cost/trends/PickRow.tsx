@@ -13,7 +13,6 @@ import {
 import {
   calendarDays,
   dataDays,
-  dayLabel,
   lengthText,
   rangeText,
   shownRange,
@@ -162,7 +161,7 @@ export default function PickRow(props: PickRowProps) {
             value: String(o),
             label: `Last ${o} ${UNIT[rollup]}${
               o === DEFAULT_SHOW[rollup] ? " (default)" : ""
-            }${before ? ` · data from ${dayLabel(ctx.firstDay!)}` : ""}`,
+            }${before ? " · longer than the data" : ""}`,
           };
         })}
         onChange={(v) => props.onShow(Number(v))}

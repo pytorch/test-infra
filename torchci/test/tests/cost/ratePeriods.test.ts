@@ -404,6 +404,46 @@ describe("pricing each day by its period", () => {
     expect(rateOf(parseRates('{"a": 0}', "z.json"), "a")).toBe(0);
   });
 
+  test("every boundary: each side takes its own period's rate, and the two differ", () => {
+    // The FAKE file changes every label's rate at every boundary, so a day
+    // priced with its neighbour's period (final, provisional or borrowed)
+    // fails here.
+    const periods = weeklyJson.periods as {
+      valid_from: string;
+      valid_through: string;
+      rates: Record<string, number>;
+    }[];
+    let checked = 0;
+    for (let i = 1; i < periods.length; i++) {
+      const [before, after] = [periods[i - 1], periods[i]];
+      expect(addDays(before.valid_through, 1)).toBe(after.valid_from);
+      expect(pricer.dayKind(after.valid_from)).toBe(
+        i === 3 ? "provisional" : "final"
+      );
+      for (const label of Object.keys(after.rates)) {
+        if (!(label in before.rates)) continue;
+        expect(before.rates[label]).not.toBe(after.rates[label]);
+        expect(pricer.rate(label, before.valid_through)).toBe(
+          before.rates[label]
+        );
+        expect(pricer.rate(label, after.valid_from)).toBe(after.rates[label]);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(100);
+    // The borrowed days after the file take its last period's rate, not
+    // the one before it.
+    for (const label of Object.keys(periods[3].rates)) {
+      expect(pricer.dayKind("2026-11-16")).toBe("borrowed");
+      expect(pricer.rate(label, "2026-11-16")).toBe(periods[3].rates[label]);
+      if (label in periods[2].rates) {
+        expect(pricer.rate(label, "2026-11-16")).not.toBe(
+          periods[2].rates[label]
+        );
+      }
+    }
+  });
+
   test("current period, strict: only the slot holding yesterday borrows the last period", () => {
     // Ends Sun Nov 15: Nov 16–18 borrowed from Nov 9–15 (provisional).
     expect(pricer.segments({ from: "2026-11-09", to: "2026-11-18" })).toEqual([
@@ -478,6 +518,41 @@ describe("pricing each day by its period", () => {
     });
   });
 
+  test("a split last week: slots keep the last period's length, so only the slot holding yesterday borrows", () => {
+    // Nov 9–15 split by a hole on Nov 11: the last period is Nov 12–15, so the
+    // slots after it are 4 days long (Nov 16–19, Nov 20–23).
+    const w = weeklyJson.periods;
+    const split = parseRatesFiles([
+      {
+        name: "split.json",
+        text: JSON.stringify({
+          ...weeklyJson,
+          periods: [
+            ...w.slice(0, 3),
+            { ...w[3], valid_through: "2026-11-10" },
+            { ...w[3], valid_from: "2026-11-12" },
+          ],
+        }),
+      },
+    ]);
+    expect(currentPeriod(split, "2026-11-23")).toEqual({
+      from: "2026-11-20",
+      to: "2026-11-22",
+      period: 4,
+    });
+    expect(
+      makePricer(split, "2026-11-23")
+        .segments({ from: "2026-11-09", to: "2026-11-22" })
+        .map((s) => [s.from, s.to, s.kind])
+    ).toEqual([
+      ["2026-11-09", "2026-11-10", "final"],
+      ["2026-11-11", "2026-11-11", "gap"],
+      ["2026-11-12", "2026-11-15", "final"],
+      ["2026-11-16", "2026-11-19", "gap"],
+      ["2026-11-20", "2026-11-22", "borrowed"],
+    ]);
+  });
+
   test("piece: exact inside a week, ≈ across a mid-week boundary, weighting only the days passed", () => {
     const inWeek = pricer.piece(LABEL, days("2026-11-03", "2026-11-07"));
     expect(inWeek).toEqual({
@@ -531,6 +606,64 @@ describe("pricing each day by its period", () => {
       exact: true,
       borrowed: false,
     });
+  });
+
+  test("piece: a rate period starting mid-week; day pieces sum to each day's hours at its rate, a week piece doesn't", () => {
+    // Nov 9–15 cut into Nov 9–10 and Nov 12–15 (rates doubled), Nov 11 a
+    // hole, as a file whose periods start on any day.
+    const last = weeklyJson.periods[3];
+    const doubled = Object.fromEntries(
+      Object.entries(last.rates as Record<string, number>).map(([k, r]) => [
+        k,
+        r * 2,
+      ])
+    );
+    const midWeek = makePricer(
+      parseRatesFiles([
+        {
+          name: "rates_FAKE_hole.json",
+          text: JSON.stringify({
+            ...weeklyJson,
+            periods: [
+              ...weeklyJson.periods.slice(0, 3),
+              { ...last, valid_through: "2026-11-10" },
+              { ...last, valid_from: "2026-11-12", rates: doubled },
+            ],
+          }),
+        },
+      ]),
+      TODAY
+    );
+    const week = days("2026-11-09", "2026-11-15");
+    const hours = [100, 100, 100, 10, 10, 10, 10];
+    const perDay = week.reduce(
+      (t, d, i) => t + hours[i] * (midWeek.rate(LABEL, d) ?? 0),
+      0
+    );
+    expect(perDay).toBeCloseTo(200 * rateIn(3) + 40 * 2 * rateIn(3), 10);
+    // Day pieces: each exact, and h·priced·rate adds up to the per-day $.
+    let byDay = 0;
+    week.forEach((d, i) => {
+      const p = midWeek.piece(LABEL, [d]);
+      expect(p.exact).toBe(true);
+      if (p.rate !== null) byDay += hours[i] * p.priced * p.rate;
+    });
+    expect(byDay).toBeCloseTo(perDay, 10);
+    expect(midWeek.piece(LABEL, ["2026-11-11"])).toEqual({
+      rate: null,
+      priced: 0,
+      exact: true,
+      borrowed: false,
+    });
+    // One week piece: the mean of its priced days' rates, inexact, off.
+    const p = midWeek.piece(LABEL, week);
+    expect(p.exact).toBe(false);
+    expect(p.priced).toBeCloseTo(6 / 7, 10);
+    expect(p.rate).toBeCloseTo((2 * rateIn(3) + 4 * 2 * rateIn(3)) / 6, 10);
+    const total = hours.reduce((t, h) => t + h, 0);
+    expect(
+      Math.abs(total * p.priced * (p.rate as number) - perDay)
+    ).toBeGreaterThan(perDay * 0.2);
   });
 
   test("$ per day divides by priced days; $ per commit by the pushes of priced days only", () => {

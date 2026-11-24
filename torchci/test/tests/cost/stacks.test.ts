@@ -1,5 +1,5 @@
 // The bars' stacks (lib/tests/cost/stacks.ts): the owner stack from trend.json
-// sums to the old trendSeries totals (hours, per commit and $), keys keep a
+// sums to each day's cells (hours, per commit and $), keys keep a
 // fixed order, and each /series scope (the live series answers beside this
 // file) stacks by machine, owner or one leaf series whose children add up to
 // the day's total; a hovered drill row is lit at the baseline.
@@ -13,7 +13,7 @@ import {
 } from "lib/api/tests/cost/contracts";
 import { CostTrendSchema } from "lib/api/tests/cost/types";
 import { foldBars, seriesDayCells, trendDayCells } from "lib/tests/cost/fold";
-import { parseRates, rateOf } from "lib/tests/cost/rates";
+import { parseRates, rateOf, type RatesFile } from "lib/tests/cost/rates";
 import { prepareRunnerHours } from "lib/tests/cost/runnerHours";
 import { shownRange, trendContext } from "lib/tests/cost/select";
 import {
@@ -22,7 +22,6 @@ import {
   type StackOptions,
   trendStacks,
 } from "lib/tests/cost/stacks";
-import { prepareTrend, trendSeries } from "lib/tests/cost/trend";
 import ANSWER_JSON from "./answer.json";
 import RATES_JSON from "./rates.json";
 import SERIES_MACHINE from "./series_machine.json";
@@ -34,12 +33,32 @@ const answer = CostTrendSchema.parse(TREND_JSON);
 const ctx = trendContext(answer);
 const shown = shownRange("day", 42, ctx.end);
 const fold = foldBars(trendDayCells(answer), "day", shown, ctx);
-const prepared = prepareTrend(answer);
-// prepareTrend starts at the first period with data (Oct 22, the 29th day).
-const offset = answer.periods.indexOf(prepared.periods[0]);
 const rates = parseRates(JSON.stringify(RATES_JSON), "rates.json");
 const runnerHours = prepareRunnerHours(ANSWER_JSON as never);
 const colored = runnerHours.colored.map((m) => runnerHours.machines[m]);
+
+// Each day's totals from trend.json's cells alone: its runner-hours, or per
+// commit its push:main runner-hours over its pushes; with rates, in $ with
+// the hours of labels without a rate apart.
+function cellTotals(per: "day" | "commit", r: RatesFile | null = null) {
+  const value = answer.periods.map(() => 0);
+  const unpriced = answer.periods.map(() => 0);
+  for (const [p, , l, h, main] of answer.cells) {
+    const hours = per === "day" ? h : main;
+    const rate = r === null ? 1 : rateOf(r, answer.labels[l]);
+    if (rate === null) unpriced[p] += hours;
+    else value[p] += hours * rate;
+  }
+  if (per === "commit") {
+    answer.periods.forEach((day, p) => {
+      const d = answer.daily.days.indexOf(day);
+      const pushes = d < 0 ? 0 : answer.daily.pushes[d];
+      value[p] = pushes > 0 ? value[p] / pushes : 0;
+      unpriced[p] = pushes > 0 ? unpriced[p] / pushes : 0;
+    });
+  }
+  return { value, unpriced };
+}
 
 const ROOT: BarsScope = {
   trail: [],
@@ -101,26 +120,25 @@ describe("the owner stack (owner root, /trend)", () => {
   });
 
   it.each(["day", "commit"] as const)(
-    "sums to the old trendSeries totals per %s",
+    "sums to each day's cells per %s",
     (per) => {
       const st = trendStacks(fold, opts({ per }));
-      const old = trendSeries(prepared, null, new Set(), per);
+      const want = cellTotals(per);
+      expect(fold.bars.map((b) => b.start)).toEqual(answer.periods);
       fold.bars.forEach((_, i) => {
-        const j = i - offset;
-        expect(st.total[i]).toBeCloseTo(j < 0 ? 0 : old.value[j], 9);
+        expect(st.total[i]).toBeCloseTo(want.value[i], 9);
       });
     }
   );
 
-  it("sums to the old $ totals at one rate set", () => {
+  it("sums to each day's cells in $ at one rate set", () => {
     const pricer = stubPricer((label) => rateOf(rates, label));
     const st = trendStacks(fold, opts({ unit: "usd", pricer }));
-    const old = trendSeries(prepared, rates, new Set(), "day");
+    const want = cellTotals("day", rates);
     expect(st.unit).toBe("usd");
     fold.bars.forEach((_, i) => {
-      const j = i - offset;
-      expect(st.total[i]).toBeCloseTo(j < 0 ? 0 : old.value[j], 9);
-      expect(st.unpriced[i]).toBeCloseTo(j < 0 ? 0 : old.unpriced[j], 9);
+      expect(st.total[i]).toBeCloseTo(want.value[i], 9);
+      expect(st.unpriced[i]).toBeCloseTo(want.unpriced[i], 9);
     });
   });
 

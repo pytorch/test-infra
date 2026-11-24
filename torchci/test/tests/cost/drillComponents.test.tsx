@@ -30,11 +30,11 @@ import {
   type Pricer,
   type Rollup,
   type ScopeBy,
-  type TrendContext,
   type Unit,
 } from "lib/api/tests/cost/contracts";
 import {
   amount,
+  arrowText,
   changeMetric,
   changeScale,
   halfScale,
@@ -61,13 +61,6 @@ const REPO = "pytorch/pytorch";
 const A = { from: "2026-11-05", to: "2026-11-11" };
 const B = { from: "2026-11-12", to: "2026-11-18" };
 const compare: Compare = { rollup: "day", a: A, b: B, preset: null };
-const context: TrendContext = {
-  end: "2026-11-19",
-  firstDay: "2026-10-29",
-  lastFull: "2026-11-18",
-  days: new Set(),
-  filling: new Set(),
-};
 const IND: Pill = { dim: "o", value: "inductor" };
 const AVX: Pill = { dim: "m", value: "Linux x86_64 avx512" };
 const FLEX: Pill = { dim: "f", value: "test/inductor/test_flex_attention.py" };
@@ -76,6 +69,11 @@ const scope = (trail: Pill[], by: ScopeBy) =>
   costScopeUrl(REPO, [], A, B, trail, by);
 const FALLBACK: Record<string, unknown> = {
   [scope([], "o")]: ROOT,
+  // In $ the drill asks for day pieces; the root's numbers stand in.
+  [costScopeUrl(REPO, [], A, B, [], "o", "day")]: {
+    ...(ROOT as object),
+    piece: "day",
+  },
   [scope([], "m")]: { ...(OWNER as object), trail: [], by: "m" },
   [scope([IND], "m")]: OWNER,
   [scope([IND, AVX], "f")]: PAIR,
@@ -126,7 +124,6 @@ function Inner({
     repo: REPO,
     workflows: [],
     compare,
-    context,
     query,
     onQueryChange,
     per: pricing.per ?? "day",
@@ -394,8 +391,52 @@ describe("drill components (SSR)", () => {
         );
         // B's title says how its last days were priced.
         expect(html).toMatch(/title="Nov 12–18\n≈ priced with Nov 9–15 rates/);
+        // The other per marks the same sides ≈.
+        const t = levelView(root, { unit: "usd", per, pricer }).total;
+        expect(t.approxB).toBe(true);
+        expect(w).toContain(
+          `${per === "day" ? "Per commit" : "Per day"} ${arrowText(
+            "usd",
+            t.other.a,
+            t.other.b,
+            t.approxA,
+            t.approxB
+          )}`
+        );
+        expect(w).toMatch(/Per (commit|day) \S+ → ≈/);
       }
     }
+  });
+
+  test("/scope asks for day pieces only in $; nothing of the rates file", () => {
+    const pricer = makePricer(
+      parseRatesFiles([
+        {
+          name: "rates_FAKE_weekly.json",
+          text: readFileSync(join(__dirname, "rates_FAKE_weekly.json"), "utf8"),
+        },
+      ]),
+      "2026-11-19"
+    );
+    const urls = (pricing: Pricing, patch: Partial<DrillQuery> = {}) => {
+      let model: DrillModel | null = null;
+      render(patch, (d) => ((model = d), null), pricing);
+      const m = model as unknown as DrillModel;
+      return [m.canvas.url, ...m.levels.map((l) => l.url)];
+    };
+    const day = costScopeUrl(REPO, [], A, B, [], "o", "day");
+    expect(urls({})).toEqual([scope([], "o")]);
+    expect(urls({ pricer })).toEqual([scope([], "o")]);
+    // $ without rates reads as hours.
+    expect(urls({ unit: "usd" })).toEqual([scope([], "o")]);
+    expect(urls({ unit: "usd", pricer })).toEqual([day]);
+    expect(day).toBe(`${scope([], "o")}&piece=day`);
+    // Every level of the trail alike.
+    expect(urls({ unit: "usd", pricer }, { trail: [IND, AVX] })).toEqual([
+      costScopeUrl(REPO, [], A, B, [IND, AVX], "f", "day"),
+      costScopeUrl(REPO, [], A, B, [], "o", "day"),
+      costScopeUrl(REPO, [], A, B, [IND], "m", "day"),
+    ]);
   });
 
   test("a header row of column names that sort; the bar colours in a legend", () => {

@@ -39,6 +39,7 @@ import {
   outsideSplit,
   partWhat,
   pctLabel,
+  segmentLabels,
   type StripPart,
   type StripSegment,
   testDays,
@@ -78,8 +79,8 @@ const FILLS: Record<
 
 const STRIP_HEIGHT = 20;
 const BRACKET_HEIGHT = 16;
-// A label's width at 12px semibold, so a segment drops the name, then the
-// share, before either clips. Server markup uses a rough per-character
+// A label's width at 12px semibold, so a segment's label steps down
+// (segmentLabels) before it clips. Server markup uses a rough per-character
 // width; once mounted, the browser measures the text in the theme's font.
 const labelWidth = (text: string) => Math.ceil(text.length * 6.1);
 let measureCtx: CanvasRenderingContext2D | null | undefined;
@@ -554,11 +555,7 @@ export function CoverageStripView({
                 }}
               >
                 <FitLabel
-                  texts={
-                    pending === null
-                      ? [`${s.name} · ${pctLabel(s)}`, pctLabel(s)]
-                      : [s.name]
-                  }
+                  texts={segmentLabels(s, pending !== null)}
                   pad={12}
                   measure={measure}
                 />

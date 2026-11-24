@@ -41,7 +41,6 @@ const PAGE_ROUTES = [
   "/api/tests/commit/{sha}/summary",
   "/api/tests/cost",
   "/api/tests/cost/cases",
-  "/api/tests/cost/changes",
   "/api/tests/cost/coverage",
   "/api/tests/cost/coverage/jobs",
   "/api/tests/cost/scope",

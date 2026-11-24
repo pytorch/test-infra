@@ -8,7 +8,6 @@ import {
   daysIn,
   type Dim,
   type DrillQuery,
-  NO_TEST_REPORTS,
   type Per,
   type Pill,
   type Pricer,
@@ -26,7 +25,6 @@ import { fineAmountLabel } from "lib/tests/cost/query";
 import { pricedDays, pricingNotes } from "lib/tests/cost/ratePeriods";
 import { isBucket, ownerLabel } from "lib/tests/cost/runnerHours";
 import { niceTicks } from "lib/tests/cost/ticks";
-import { deltaLabel } from "lib/tests/cost/trend";
 import { configToken, environmentTokens } from "lib/tests/environment";
 import type { NameFilter, TestsFacet } from "lib/tests/facets";
 
@@ -422,8 +420,9 @@ export function sideDivisors(
 }
 
 // Every child's figures on both sides, plus the total, each cell priced with
-// its piece's rate: $ = h·priced·rate, never averaged across
-// rate periods.
+// its piece's rate: $ = h·priced·rate. In $ the drill asks for day pieces, so
+// a rate is its day's, as the chart prices it; a week piece spanning two rate
+// periods gets their mean, marked ≈.
 export interface LevelFigures {
   children: [Figures, Figures][];
   total: [Figures, Figures];
@@ -989,20 +988,30 @@ export function changeText(row: Pick<DrillRow, "a" | "b">): string {
 export function amount(unit: Unit, v: number): string {
   return fineAmountLabel(costUnit(unit), v);
 }
+// "▲ +2 h", "▼ −$0.25", and "▼ <0.1 h" for a sliver.
 export function deltaText(unit: Unit, v: number | null): string {
   if (v === null) return "";
   if (Math.abs(v) < 1e-9) return "±0";
-  return deltaLabel(v, (x) => amount(unit, x));
+  const size = amount(unit, Math.abs(v));
+  const sign = size.startsWith("<") ? "" : v > 0 ? "+" : "−";
+  return `${v > 0 ? "▲" : "▼"} ${sign}${size}`;
 }
-export function valueText(unit: Unit, v: number | null): string {
-  return v === null ? "–" : amount(unit, v);
+// A side's figure, "≈" first when its rates are inexact or borrowed.
+export function valueText(
+  unit: Unit,
+  v: number | null,
+  approx = false
+): string {
+  return v === null ? "–" : `${approx ? "≈" : ""}${amount(unit, v)}`;
 }
 export function arrowText(
   unit: Unit,
   a: number | null,
-  b: number | null
+  b: number | null,
+  approxA = false,
+  approxB = false
 ): string {
-  return `${valueText(unit, a)} → ${valueText(unit, b)}`;
+  return `${valueText(unit, a, approxA)} → ${valueText(unit, b, approxB)}`;
 }
 export function perWord(per: Per, rollup: Rollup = "day"): string {
   return per === "day" ? rollupWord(rollup) : "per commit";
@@ -1192,7 +1201,7 @@ export function changeSentence(opts: {
   return out;
 }
 
-// ── Page facts: V1's headline numbers ──
+// ── Page facts: the headline numbers ──
 // The facts row under the page's title, for the repository and workflow
 // scope, whatever the trail, A/B and per are: the last FACTS_DAYS whole days
 // with data of the root trend's daily cells (from January 1), fewer while
@@ -1201,7 +1210,8 @@ export function changeSentence(opts: {
 // attributed to owners the share of their hours with a named owner. In $
 // each day is priced at its own rate period and divides by the priced days:
 // ≈ when a day borrows rates or not every day is priced, "no
-// rates" when none is.
+// rates" when none is; hours on labels without a rate count $0, and each
+// figure keeps their share.
 export const FACTS_DAYS = 28;
 
 // The root trend's daily series. days: days with data, ascending (the
@@ -1231,20 +1241,22 @@ export function recentDays(daily: DailySeries): Day[] {
   return daily.days.filter((d) => !filling.has(d)).slice(-FACTS_DAYS);
 }
 
-// "Last 28 days, Oct 22 – Nov 18", "Last day, Nov 18"; null without days.
+// "Last 28 days", "Last day"; null without days. The dates are left to
+// Per day's title.
 export function windowText(days: readonly Day[]): string | null {
   const n = days.length;
   if (n === 0) return null;
-  const range = rangeText({ from: days[0], to: days[n - 1] });
-  return `Last ${n === 1 ? "day" : `${n} days`}, ${range}`;
+  return `Last ${n === 1 ? "day" : `${n} days`}`;
 }
 
 // A figure over the window: null reads as blank ("no data", "no rates",
-// "–"); priced: $ from fewer priced days than days.
+// "–"); priced: $ from fewer priced days than days; unpriced: in $, the
+// share of its hours on labels without a rate ($0), null in hours.
 export interface WindowFigure {
   value: number | null;
   approx: boolean;
   priced: { days: number; of: number } | null;
+  unpriced: number | null;
   blank: string;
 }
 export interface PageFacts {
@@ -1277,32 +1289,56 @@ export function pageFacts(
   });
   let sum = 0;
   let mainSum = 0;
+  // The counted days' hours, all and on pushes to main, and those of them
+  // on labels without a rate.
+  const hours = { all: 0, main: 0, allUnpriced: 0, mainUnpriced: 0 };
   for (const [d, label, h, mainH] of daily.cells) {
     if (!counted[d]) continue;
+    hours.all += h;
+    hours.main += mainH ?? 0;
     const rate =
       rates === null ? 1 : rates.rate(daily.labels[label] ?? "", daily.days[d]);
-    if (rate === null) continue;
+    if (rate === null) {
+      hours.allUnpriced += h;
+      hours.mainUnpriced += mainH ?? 0;
+      continue;
+    }
     sum += h * rate;
     mainSum += (mainH ?? 0) * rate;
   }
+  const unpriced = (part: number, of: number) =>
+    rates === null || of <= 0 ? null : part / of;
   const partial = rates !== null && countedDays < days.length;
   const approx =
     rates !== null &&
     (partial || days.some((d) => rates.dayKind(d) === "borrowed"));
   const blank =
     days.length === 0 ? "no data" : countedDays === 0 ? "no rates" : "–";
-  const figure = (value: number | null): WindowFigure => ({
+  const figure = (
+    value: number | null,
+    unpricedShare: number | null
+  ): WindowFigure => ({
     value,
     approx: value !== null && approx,
     priced:
       value !== null && partial ? { days: countedDays, of: days.length } : null,
+    unpriced: value === null ? null : unpricedShare,
     blank,
   });
   return {
     days,
     window: windowText(days),
-    perDay: figure(countedDays > 0 ? sum / countedDays : null),
-    perCommit: { ...figure(pushes > 0 ? mainSum / pushes : null), pushes },
+    perDay: figure(
+      countedDays > 0 ? sum / countedDays : null,
+      unpriced(hours.allUnpriced, hours.all)
+    ),
+    perCommit: {
+      ...figure(
+        pushes > 0 ? mainSum / pushes : null,
+        unpriced(hours.mainUnpriced, hours.main)
+      ),
+      pushes,
+    },
     owned:
       days.length === 0
         ? null
@@ -1339,15 +1375,13 @@ export function ownedShareOfTrend(
 }
 
 // ── Chips ──
-export function sideChips(view: LevelView, firstDay: Day | null): string[] {
+export function sideChips(view: LevelView): string[] {
   const [da, db] = view.figures.divisors;
   const chips: string[] = [];
-  const start =
-    firstDay === null ? "" : ` (test_cost starts ${monthDay(firstDay)})`;
-  if (da.days === 0) chips.push(`A has no data${start}`);
+  if (da.days === 0) chips.push("A has no data");
   else if (da.days < da.asked)
     chips.push(`A has ${da.days} of ${da.asked} days`);
-  if (db.days === 0) chips.push(`B has no data${start}`);
+  if (db.days === 0) chips.push("B has no data");
   else if (db.days < db.asked)
     chips.push(`B has ${db.days} of ${db.asked} days`);
   // $ divides by the priced days only.
@@ -1860,15 +1894,6 @@ export function countText(v: number | null): string {
 }
 export function testHoursText(v: number | null): string {
   return v === null ? "–" : fineAmountLabel("hours", v);
-}
-
-// Whether a trail scope is the "No test reports" bucket on a machine: its
-// canvas lists runner labels (no files exist).
-export function isNoReportsPair(trail: readonly Pill[]): boolean {
-  return (
-    trail.some((p) => p.dim === "o" && p.value === NO_TEST_REPORTS) &&
-    trail.some((p) => p.dim === "m")
-  );
 }
 
 // A file's lanes (by=lane children "env_id|workflow") grouped by environment:

@@ -7,7 +7,6 @@
 import { addDays, type Day } from "lib/api/tests/cost/contracts";
 import { CostTrendSchema } from "lib/api/tests/cost/types";
 import {
-  barAt,
   daysNote,
   foldBars,
   isPartialBar,
@@ -23,6 +22,11 @@ import TREND_JSON from "./trend.json";
 const answer = CostTrendSchema.parse(TREND_JSON);
 const ctx = trendContext(answer);
 const cells = trendDayCells(answer);
+
+// The bar holding a day, or -1.
+function barAt(fold: ReturnType<typeof foldBars>, day: Day): number {
+  return fold.bars.findIndex((b) => day >= b.start && day <= b.last);
+}
 
 function rawHours(fold: ReturnType<typeof foldBars>): number[] {
   const out = fold.bars.map(() => 0);
@@ -49,7 +53,8 @@ describe("foldBars", () => {
     const shown = shownRange("day", 42, ctx.end);
     const fold = foldBars(cells, "day", shown, ctx);
     expect(fold.bars).toHaveLength(42);
-    expect(fold.clipped).toBe(false); // March 1 has data, before the window
+    // March 1 has data, before the window: nothing cut.
+    expect(fold.window?.from).toBe(shown.from);
     const sums = rawHours(fold);
     const byPeriod = answer.periods.map(() => 0);
     for (const [p, , , h] of answer.cells) byPeriod[p] += h;
@@ -104,7 +109,6 @@ describe("foldBars", () => {
       shownRange("day", 42, c.end),
       c
     );
-    expect(day.clipped).toBe(true);
     expect(day.window?.from).toBe("2026-10-22");
     expect(day.bars).toHaveLength(14);
     const week = foldBars(
@@ -133,7 +137,8 @@ describe("foldBars", () => {
       filling: new Set(live.filling),
     };
     const fold = foldBars(series, "week", shownRange("week", 6, end), c);
-    expect(fold.clipped).toBe(true);
+    // The data start cuts the Show window's left.
+    expect(fold.window!.from > fold.shown.from).toBe(true);
     expect(fold.bars.map((b) => [b.start, b.data, b.filling])).toEqual([
       ["2026-10-26", 4, false],
       ["2026-11-02", 7, false],
@@ -150,7 +155,8 @@ describe("foldBars", () => {
 const run = (from: Day, n: number): Day[] =>
   Array.from({ length: n }, (_, i) => addDays(from, i));
 
-// What Total divides a side by: each counted day as its share of its bar.
+// What Total divides a side by: the bars its counted days fall in, each
+// one whole bar.
 describe("rollupUnits", () => {
   it("counts a day per day in Day view: per day as before", () => {
     expect(rollupUnits("day", run("2026-11-02", 7))).toBe(7);

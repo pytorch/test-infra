@@ -250,6 +250,51 @@ describe("the rates control", () => {
     ).toContain("Kept rates_FAKE_weekly.json. Bad. Dismiss");
   });
 
+  test("one line of one height: the download and the rates joined in a pill, Format a text button beside it", () => {
+    // An element's own emotion rule.
+    const rule = (html: string, tag: RegExp) => {
+      const cls =
+        html
+          .match(tag)?.[0]
+          .match(/css-[\w-]+/g)
+          ?.pop() ?? "";
+      return html.match(new RegExp(`\\.${cls}\\{([^}]*)\\}`))?.[1] ?? "";
+    };
+    for (const state of [{}, { rates: weekly }, { dragging: true }] as Partial<
+      typeof props
+    >[]) {
+      const html = renderToStaticMarkup(<RatesControl {...props} {...state} />);
+      // The pill holds both, up to the Format button.
+      const pillWords = words(
+        html
+          .split('role="group" aria-label="Rates file"')[1]
+          .split('aria-label="Rates file format"')[0]
+          .replace(/^[^>]*>/, "")
+          .replace(/<button [^>]*$/, "")
+      );
+      expect(pillWords).toBe(
+        state.dragging
+          ? "Download rates Drop rates files to load"
+          : state.rates
+          ? "Download rates rates_FAKE_weekly.json · 4 weekly periods"
+          : "Download rates Add rates…"
+      );
+      const pill = rule(html, /<div [^>]*role="group"[^>]*>/);
+      expect(pill).toContain("height:26px;");
+      expect(pill).toContain("border-radius:999px;");
+      const format = rule(
+        html,
+        /<button [^>]*aria-label="Rates file format"[^>]*>/
+      );
+      expect(format).toContain("height:26px;");
+      expect(format).not.toContain("underline");
+      // No gap in the column: the empty error line adds no height.
+      const column = rule(html, /<div [^>]*>/);
+      expect(column).toContain("flex-direction:column;");
+      expect(column).not.toMatch(/gap/);
+    }
+  });
+
   test("nothing opens by itself: no format, tour or tip in the first render", () => {
     const text = words(renderToStaticMarkup(<RatesControl {...props} />));
     expect(text).not.toMatch(

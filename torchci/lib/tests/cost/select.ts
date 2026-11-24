@@ -276,9 +276,7 @@ export function comparePresets(ctx: TrendContext): PresetChoice[] {
         full && lone.length > 0
           ? `Waits for ${lone.map(dayLabel).join(", ")}, still filling`
           : `Needs ${rangeText({ from: a.from, to: b.to }, false)}; ${
-              ctx.firstDay === null
-                ? "no data yet"
-                : `data starts ${dayLabel(ctx.firstDay)}`
+              ctx.firstDay === null ? "no data yet" : "not enough data yet"
             }`;
     }
     return {
@@ -347,7 +345,8 @@ function defaultRanges(rollup: Rollup, ctx: TrendContext) {
 // b keeps its side, the other its neighbour of the same length unless cmp
 // names it); snapped outward to whole bars and clipped only after
 // end − 1, so days before the data stay (the no-data chip says so).
-// Malformed falls back to the rollup default.
+// Malformed falls back to the rollup default. A never equals B: an A on B
+// reads as a lone b.
 export function resolveCompare(
   q: TrendsQuery,
   ctx: TrendContext
@@ -357,21 +356,22 @@ export function resolveCompare(
     if (!validRange(r) || r.from > last) return null;
     return snapRange(q.rollup, r, last);
   };
-  let a = fix(q.a);
-  let b = fix(q.b);
-  // A lone a or b without cmp: the other side is the same number of bars
-  // just before B (or just after A), so it never lands on the given side.
-  if (q.cmp === null && (a === null) !== (b === null)) {
-    const given = (a ?? b) as DayRange;
-    const n = barsBetween(q.rollup, given.from, given.to) + 1;
-    const dir = a === null ? -n : n;
-    const from = shiftBars(q.rollup, given.from, dir);
-    const other = fix({
+  // The same number of bars just before (dir −1) or just after (dir 1) r.
+  const beside = (r: DayRange, dir: 1 | -1): DayRange | null => {
+    const n = barsBetween(q.rollup, r.from, r.to) + 1;
+    const from = shiftBars(q.rollup, r.from, dir * n);
+    return fix({
       from,
       to: barLast(q.rollup, shiftBars(q.rollup, from, n - 1)),
     });
-    if (a === null) a = other;
-    else b = other;
+  };
+  let a = fix(q.a);
+  let b = fix(q.b);
+  // A lone a or b without cmp: the other side is its neighbour, so it never
+  // lands on the given side.
+  if (q.cmp === null && (a === null) !== (b === null)) {
+    if (a === null) a = beside(b!, -1);
+    else b = beside(a, 1);
   }
   if (a === null || b === null) {
     const r =
@@ -382,12 +382,12 @@ export function resolveCompare(
     b = b ?? fix(r.b);
   }
   if (a === null || b === null) return null;
+  if (sameRange(a, b)) a = beside(b, -1)!;
   return { rollup: q.rollup, a, b, preset: matchPreset(q.rollup, a, b, ctx) };
 }
 
 // ── The reducer ──
 export type Side = "a" | "b";
-export const SIDES: readonly Side[] = ["a", "b"];
 
 export interface Selection {
   rollup: Rollup;
@@ -418,18 +418,6 @@ export type PickAction =
   | { type: "preset"; id: ComparePreset }
   | { type: "rollup"; rollup: Rollup };
 
-export function pickerOf(compare: Compare, armed: Side = "b"): Picker {
-  return {
-    sel: {
-      rollup: compare.rollup,
-      a: compare.a,
-      b: compare.b,
-      preset: compare.preset,
-    },
-    armed,
-  };
-}
-
 const sameSel = (x: Selection, y: Selection) =>
   x.rollup === y.rollup &&
   sameRange(x.a, y.a) &&
@@ -456,9 +444,11 @@ export function reducePicker(
     const to = barLast(rollup, shiftBars(rollup, v0, e));
     return { from: shiftBars(rollup, v0, s), to: to > last ? last : to };
   };
-  // A gesture that leaves the period where it sits changes nothing.
+  const other = (side: Side): Side => (side === "a" ? "b" : "a");
+  // A gesture that leaves the period where it sits, or lands it exactly on
+  // the other side, changes nothing (a partial overlap is fine).
   const withSide = (side: Side, r: DayRange) =>
-    sameRange(p.sel[side], r)
+    sameRange(p.sel[side], r) || sameRange(p.sel[other(side)], r)
       ? p
       : commit(p, { ...p.sel, [side]: r, preset: null });
   // A period of len bars starting at bar s, kept inside the window.
@@ -501,8 +491,17 @@ export function reducePicker(
     case "move": {
       const r = p.sel[p.armed];
       const len = barCount(rollup, r);
-      const step = action.whole ? len : 1;
-      return withSide(p.armed, at(off(r.from) + action.by * step, len));
+      const step = action.by * (action.whole ? len : 1);
+      const s = off(r.from) + step;
+      const next = at(s, len);
+      if (!sameRange(next, p.sel[other(p.armed)])) {
+        return withSide(p.armed, next);
+      }
+      // Keys hop over the other side so they never get stuck on it, from
+      // where the move landed (an off-chart start clamps to the first bar);
+      // a hop that would leave the window stays put.
+      const hop = off(next.from) + step;
+      return hop < 0 || hop + len > n ? p : withSide(p.armed, at(hop, len));
     }
     case "resize": {
       const r = p.sel[p.armed];
@@ -559,7 +558,7 @@ export function reducePicker(
 export const DRAG_PX = 4;
 
 // What a click at a bar would place for a side (the ghost), or null where
-// the period already sits.
+// the period already sits or would land exactly on the other side.
 export function ghostFor(
   p: Picker,
   side: Side,

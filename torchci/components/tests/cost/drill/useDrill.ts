@@ -203,9 +203,12 @@ export function useDrill(
   const trail = query.trail;
   const root = rootOf(trail, query.root);
   const canvasBy = childBy(trail, root);
+  // In $, day pieces: each lies in one rate period, so a piece's rate is its
+  // day's. The request says only that $ is on.
+  const span = unit === "usd" ? "day" : "week";
   const urlOf = (pills: readonly Pill[], by: ScopeBy) =>
     repo && compare
-      ? costScopeUrl(repo, workflows, compare.a, compare.b, pills, by)
+      ? costScopeUrl(repo, workflows, compare.a, compare.b, pills, by, span)
       : null;
   const opts = { unit, per, pricer, rollup };
   // Fixed hook count: three levels and the canvas, null URLs when unused.
@@ -404,7 +407,7 @@ export function useDrill(
               aHasDays: basis.aHasDays,
             })
           : null,
-      chips: basis ? sideChips(basis, input.context?.firstDay ?? null) : [],
+      chips: basis ? sideChips(basis) : [],
       stale: trail.length === 0 ? canvas.stale : table.stale,
       fileLevel: trail.some((p) => p.dim === "f"),
     };
@@ -424,7 +427,6 @@ export function useDrill(
     unit,
     per,
     rollup,
-    input.context?.firstDay,
     level0.view,
     level1.view,
     level2.view,

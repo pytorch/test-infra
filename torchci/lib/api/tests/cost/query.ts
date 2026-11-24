@@ -4,8 +4,8 @@ import { catalogLabelSql } from "lib/api/tests/options/options";
 
 // The rollup that holds test jobs' runner time by day, workflow, test file,
 // environment, runner labels and trigger, both attributions computed per job
-// (clickhouse_db_schema/ci/000004-test-cost-table.sql). Every query here but
-// the changes' trigger breakdown sums the two triggers together.
+// (clickhouse_db_schema/ci/000004-test-cost-table.sql). Every query here sums
+// the two triggers together, pushes to main also apart where it counts them.
 export const TEST_COST = `${CI_DATABASE}.test_cost`;
 
 // A test environment's machine, named as the tests page names its device:
@@ -308,58 +308,6 @@ export const SIDES = `arrayJoin(arrayFilter(s -> s >= 0, [
     if(day BETWEEN {a_from: Date} AND {a_to: Date}, 0, -1),
     if(day BETWEEN {b_from: Date} AND {b_to: Date}, 1, -1)])) AS side`;
 
-// What changed between two periods, A (side 0) and B (side 1): the
-// runner-hours of each by runner label, all of them and those of pushes to
-// main, for the page to price, to sum by machine and to divide by the days
-// or the pushes. For some owners, each test file's hours are their share as
-// the trend splits them (a file's evenly among its owners, or a bucket's),
-// so the cells are summed by file before the owners join; for every owner
-// there is no join.
-export function changesQuery(forOwners: boolean): string {
-  const where = `WHERE repo = {repo: String}
-  AND ${IN_SIDES}
-  AND ${IN_SCOPE}
-  AND ${latestDayRows(IN_SIDES)}`;
-  if (!forOwners) {
-    return `
-SELECT
-  ${SIDES},
-  arrayStringConcat(runner_labels, ',') AS label,
-  round(sum(occupancy_runner_milliseconds) / 3600000, 4) AS runner_hours,
-  round(sumIf(occupancy_runner_milliseconds, trigger = 'push:main') / 3600000, 4) AS main_runner_hours
-FROM ${TEST_COST}
-${where}
-GROUP BY side, label
-HAVING runner_hours > 0`;
-  }
-  return `
-WITH
-  cells AS (
-    SELECT
-      ${SIDES.replace(/\n/g, "\n    ")},
-      test_file, arrayStringConcat(runner_labels, ',') AS label,
-      sum(occupancy_runner_milliseconds) AS ms,
-      ${MAIN_MS}
-    FROM ${TEST_COST}
-    ${where.replace(/\n/g, "\n    ")}
-    GROUP BY side, test_file, label
-  )
-SELECT side, label,
-  round(sum(ms * share) / 3600000, 4) AS runner_hours,
-  round(sum(main_ms * share) / 3600000, 4) AS main_runner_hours
-FROM (
-  SELECT c.side AS side, c.label AS label, c.ms AS ms, c.main_ms AS main_ms,
-    arrayCount(owner -> has({owners: Array(String)}, owner), owner_list)
-      / length(owner_list) AS share
-  FROM (
-    ${WITH_OWNERS}
-  ) AS c
-)
-GROUP BY side, label
-HAVING runner_hours > 0
-SETTINGS join_use_nulls = 0`;
-}
-
 // Pushes to main or master of the repository in default.push, read by
 // subcolumns: the quoted form (head_commit.'timestamp') prunes by the sort
 // key but reads every row's whole tuples, 2.8 GB for a year against 138 MB
@@ -367,29 +315,6 @@ SETTINGS join_use_nulls = 0`;
 export const MAIN_PUSHES = `repository.full_name = {repo: String}
     AND ref IN ('refs/heads/main', 'refs/heads/master')
     AND NOT deleted`;
-
-// The days of A and B the rollup holds, what their per-day figures divide
-// by, each with its pushes to main: distinct head commits pushed to main or
-// master, by their timestamp's day, which for a merge is the day it landed.
-// Each push runs CI on its head commit once, however many commits it lands.
-export function changesDaysQuery(): string {
-  return `
-SELECT toString(d.day) AS day_utc, p.pushes AS pushes
-FROM (
-  SELECT DISTINCT day FROM ${TEST_COST}
-  WHERE repo = {repo: String} AND ${IN_SIDES}
-) AS d
-LEFT JOIN (
-  SELECT toDate(head_commit.timestamp) AS day,
-    uniqExact(head_commit.id) AS pushes
-  FROM default.push
-  WHERE ${MAIN_PUSHES}
-    AND (head_commit.timestamp >= {a_from: Date} AND head_commit.timestamp < {a_to: Date} + 1
-      OR head_commit.timestamp >= {b_from: Date} AND head_commit.timestamp < {b_to: Date} + 1)
-  GROUP BY day
-) AS p ON p.day = d.day
-SETTINGS join_use_nulls = 0`;
-}
 
 // Each day's pushes to main from start to end: distinct head commits pushed
 // to main or master, by their timestamp's day, which for a merge is the day

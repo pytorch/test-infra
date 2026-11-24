@@ -192,8 +192,8 @@ export default function TrendBars(props: TrendBarsProps) {
     return span === null || v === null || v <= 0 || span.e <= span.s ? null : v;
   };
 
-  // The y-scale: the bars and the average lines drawn. A one-bar band's
-  // figure stays off it: a partial bar's is a whole bar's worth, above it.
+  // The y-scale: the bars and the average lines drawn. A one-bar band draws
+  // no line: its figure is its bar's.
   const values = Array.from(stacks.total);
   for (const s of ["a", "b"] as const) {
     const v = avgOf(s);
@@ -888,20 +888,6 @@ export default function TrendBars(props: TrendBarsProps) {
         <g pointerEvents="none">{avgMarks}</g>
         {knobMarks}
         {tabMarks}
-        {folded.clipped && folded.dataStart !== null && (
-          <text
-            x={GUTTER + 4}
-            y={plotTop + 14}
-            fontSize={11}
-            fill={muted}
-            stroke={paper}
-            strokeWidth={3}
-            paintOrder="stroke"
-            pointerEvents="none"
-          >
-            Data starts {dayLabel(folded.dataStart)}
-          </text>
-        )}
         {preview && (
           <rect
             x={GUTTER + 0.5}
@@ -919,12 +905,7 @@ export default function TrendBars(props: TrendBarsProps) {
         const r = picker.sel[s];
         const beforeData = folded.dataStart !== null && r.to < folded.dataStart;
         const title = beforeData
-          ? `${s.toUpperCase()} · ${rangeText(
-              r,
-              false
-            )} is before the data starts (${dayLabel(
-              folded.dataStart!
-            )}); history before then is not tracked yet`
+          ? `${s.toUpperCase()} · ${rangeText(r, false)} has no data`
           : `${s.toUpperCase()} · ${rangeText(
               r,
               false

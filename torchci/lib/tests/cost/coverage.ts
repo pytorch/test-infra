@@ -23,10 +23,10 @@ import { dayTotals } from "lib/tests/cost/ratePeriods";
 // jest checks every share; CoverageBanner draws it.
 //
 // Left to right: the organization's other repositories and this repository's
-// jobs that run no tests (grey, from workflow_job), its test jobs outside the
-// workflow scope (grey, only with a scope), then this page (blue, from
-// test_cost): test jobs without reports, their setup and idle time, and the
-// time test files ran. In $ with rates-file totals on every priced day, a
+// jobs not named as test jobs (grey, from workflow_job), its test jobs
+// outside the workflow scope (grey, only with a scope), then this page (blue,
+// from test_cost): test jobs without reports, their setup and idle time, and
+// the time test files ran. In $ with rates-file totals on every priced day, a
 // faint ghost last: the AWS spend outside that job time.
 export const STRIP_PARTS = [
   "other_repos",
@@ -49,19 +49,24 @@ export const PART_NAMES: Record<StripPart, string> = {
   outside_jobs: "Outside job time",
 };
 
+// A shorter name a narrow segment steps down to (segmentLabels).
+const PART_SHORT: Partial<Record<StripPart, string>> = {
+  builds: "Builds",
+};
+
 // What each part is, for its tooltip.
 export function partWhat(part: StripPart, repo: string): string {
   switch (part) {
     case "other_repos":
-      return `Jobs of the organization's other repositories. Their split into test and other jobs isn't tracked yet.`;
+      return "Jobs of the organization's other repositories, test jobs included.";
     case "builds":
-      return `${repo} jobs that run no tests: builds, lint, docs, infra (its job hours less its test-job hours).`;
+      return `${repo} jobs not named "test (…)": builds, lint, docs, infra, and any test jobs named otherwise.`;
     case "outside_view":
       return `${repo} test jobs in workflows outside this view.`;
     case "no_reports":
       return "Test jobs that uploaded no test reports, so their time can't be split by test file or owner.";
     case "setup_idle":
-      return "Test-job time with no test file running: checkout, image pull, build download, gaps between files, teardown. Their split isn't tracked yet.";
+      return "Test-job time with no test file running: checkout, image pull, build download, gaps between files, teardown.";
     case "running":
       return "Time test files held a runner.";
     case "outside_jobs":
@@ -101,24 +106,17 @@ export interface CoverageStrip {
   // org: the strip is the organization's CI; repo: only this repository's
   // test jobs, the organization's jobs being unknown for these days.
   base: "org" | "repo";
-  repos: number | null; // repositories with jobs (org base)
   segments: StripSegment[]; // STRIP_PARTS order; only the parts the base holds
   total: number; // the strip's value, the ghost included: what 100% is
   jobs: number; // its jobs' value: total less the ghost
   page: number; // the blue parts' value
-  running: number; // test files running, of page
-  // Hours of test jobs with reports that have an owner: over the whole
-  // /coverage request (owned_h ÷ with_reports_h), not B alone.
-  ownerShare: number | null;
-  ownerRange: DayRange;
   // $ only: hours without a rate on their day, left out of the widths: on
   // days in no rate period (gapHours, gapDays), the rest on labels their
-  // period lacks (the largest of those labels); borrowed: some day of B is
-  // priced with the last period's rates (≈).
+  // period lacks; borrowed: some day of B is priced with the last period's
+  // rates (≈).
   unpricedHours: number;
   gapHours: number;
   gapDays: Day[];
-  unpricedLabels: string[];
   hours: number; // every part's hours, priced or not
   borrowed: boolean;
   // Hours by which this repository's test jobs exceed its job hours on some
@@ -130,7 +128,6 @@ export interface CoverageStrip {
   // The ghost: org base, $, every priced day with totals, and the bill above
   // its jobs. null otherwise.
   outside: OutsideJobs | null;
-  basis: string | null; // $ only: the rates file's "basis"
 }
 
 // The AWS bill outside the strip's job time, as the totals give it: of it,
@@ -205,7 +202,6 @@ export function coverageStrip(
   // $ by day, of the page and of every part, for the bill's days.
   const dayPage = new Map<Day, number>();
   const dayAll = new Map<Day, number>();
-  const unpriced = new Map<string, number>();
   let unpricedHours = 0;
   let gapHours = 0;
   const gapDays = new Set<Day>();
@@ -224,8 +220,6 @@ export function coverageStrip(
       if (pricer.dayKind(day) === "gap") {
         gapHours += h;
         gapDays.add(day);
-      } else {
-        unpriced.set(label, (unpriced.get(label) ?? 0) + h);
       }
     } else {
       const v = h * rate;
@@ -316,28 +310,18 @@ export function coverageStrip(
     days,
     unit: priced ? "usd" : "hours",
     base: usable ? "org" : "repo",
-    repos: usable ? jobs.repos : null,
     segments,
     total,
     jobs: jobsTotal,
     page: segments.reduce((sum, s) => sum + (s.page ? s.value : 0), 0),
-    running: values.get("running") ?? 0,
-    ownerShare:
-      tests.with_reports_h > 0 ? tests.owned_h / tests.with_reports_h : null,
-    ownerRange: { from: tests.from, to: tests.to },
     unpricedHours,
     gapHours,
     gapDays: Array.from(gapDays).sort(),
-    unpricedLabels: Array.from(unpriced)
-      .sort((x, y) => y[1] - x[1])
-      .slice(0, 3)
-      .map(([label]) => label),
     hours: allHours,
     borrowed: priced && days.some((d) => pricer.dayKind(d) === "borrowed"),
     clampedHours,
     bill,
     outside,
-    basis: priced ? pricer.set?.basis ?? null : null,
   };
 }
 
@@ -401,6 +385,21 @@ export function wholePercents(shares: readonly number[]): number[] {
 // rounds to 0, else the whole percent.
 export function pctLabel(s: Pick<StripSegment, "pct" | "share">): string {
   return s.pct === 0 && s.share > 0 ? "<1%" : `${s.pct}%`;
+}
+
+// A segment's label texts, longest first, for a label that steps down as
+// its segment narrows: name and share, short name and share, short name,
+// share. While the job hours count: the name, then the short name.
+export function segmentLabels(s: StripSegment, counting: boolean): string[] {
+  const short = PART_SHORT[s.part] ?? s.name;
+  const pct = pctLabel(s);
+  return [
+    ...new Set(
+      counting
+        ? [s.name, short]
+        : [`${s.name} · ${pct}`, `${short} · ${pct}`, short, pct]
+    ),
+  ];
 }
 
 // Days as runs: "Nov 2 – 8", "Nov 2 – 4, Nov 6".
@@ -570,11 +569,11 @@ export function bracketLabel(
 // What the strip leaves out while the rates file carries no totals (or the
 // page is in hours).
 export const LEFT_OUT =
-  "Not tracked yet: node time outside jobs, non-runner AWS spend.";
+  "Left out: runner node time outside jobs, non-runner AWS spend.";
 
 // Where the rates-file totals come from, beside any amount drawn from them.
 export const TOTALS_NOTE =
-  "AWS totals: the rates file's per-period totals, prorated per day; they stay in this tab.";
+  "Total AWS spend: the rates file's per-period totals, prorated per day.";
 
 // The ghost's two parts, as the totals give them: ": runner node uptime
 // outside jobs ≈$4.33K · non-runner AWS spend ≈$100K"; "" without
@@ -589,127 +588,74 @@ export function outsideSplit(strip: CoverageStrip): string {
 }
 
 // In $ with totals but no ghost (some priced day without totals, or the
-// repository base), the strip beside the AWS bill; null otherwise.
+// repository base), the strip's shares of the AWS bill; null otherwise.
 export function billLine(strip: CoverageStrip): string | null {
   const b = strip.unit === "usd" ? strip.bill : null;
   if (b === null || b.aws <= 0) return null;
   // Largest to smallest, each a share of the bill.
-  const of = (v: number) =>
-    `${pairAmount(strip, v)} (${shareLabel(v / b.aws)})`;
+  const of = (v: number) => shareLabel(v / b.aws);
   const days = b.days < b.of ? ` (${b.days} of ${b.of} days)` : "";
   const parts = [
-    b.nodes === null ? null : `runner node uptime ${of(b.nodes)}`,
+    b.nodes === null ? null : `runner nodes ${of(b.nodes)}`,
     strip.base === "org" ? `${strip.org} org CI jobs ${of(b.jobs)}` : null,
     `this page ${of(b.page)}`,
   ];
   return `Of ${pairAmount(strip, b.aws)} total AWS spend${days}: ${parts
     .filter((p): p is string => p !== null)
-    .join(" · ")}.`;
+    .join(", ")}.`;
 }
 
-// The ⓘ beside the strip, one fact a line: why the grey parts are missing,
-// what an hour (and a $) is, how much of the page test files ran, owners,
-// the ghost or the bill, what is unpriced, and what isn't tracked.
+// The unpriced hours, left out of the $ widths, and where they are: days in
+// no rate period (named), else labels their period lacks.
+function unpricedLine(strip: CoverageStrip): string {
+  const labelHours = strip.unpricedHours - strip.gapHours;
+  const where = [
+    strip.gapHours > 0
+      ? `days without rates (${dayRuns(strip.gapDays)})`
+      : null,
+    labelHours >= 0.5 ? "labels without a rate" : null,
+  ].filter((w): w is string => w !== null);
+  return `Unpriced: ${hoursLabel(strip.unpricedHours)} h (${shareLabel(
+    strip.unpricedHours / Math.max(strip.hours, 1)
+  )})${
+    where.length > 0 ? ` on ${where.join(" and ")}` : ""
+  }, left out of the widths.`;
+}
+
+// The ⓘ beside the strip, three short lines at most: why the grey parts
+// are missing, what an hour (or a $) is, then what matters most of the
+// unpriced hours, the AWS totals and what the strip leaves out.
 export function coverageDetails(
   strip: CoverageStrip | null,
   jobs: JobsState
 ): string[] {
   const lines: string[] = [];
   if (jobs === "too_long") {
-    lines.push(
-      "Org and non-test jobs: ranges up to 28 days for now (a jobs rollup would lift it)."
-    );
+    lines.push("Other repos and builds show for a B of up to 28 days.");
   } else if (jobs === "error") {
-    lines.push("Org and non-test jobs could not be loaded.");
+    lines.push("Other repos and builds could not be loaded.");
   }
-  const repos =
-    strip?.base === "org" && strip.repos !== null
-      ? `, in ${strip.repos} ${strip.org}/* repos`
-      : "";
-  lines.push(
-    `Hours = job wall time (start → finish) of completed jobs on any runner, GitHub-hosted included${repos}.`
-  );
+  if (strip === null || strip.unit !== "usd") {
+    lines.push(
+      "Hours = wall time of completed jobs on any runner, GitHub-hosted included."
+    );
+  } else {
+    lines.push(
+      `$ = hours × the rates file's $/h for their day and label${
+        strip.borrowed ? " (≈: last period's rates)" : ""
+      }.`
+    );
+  }
   if (strip === null) return lines;
   const usd = strip.unit === "usd";
-  if (usd) {
-    lines.push(
-      `$ = hours × the rates file's $/h for their day and label.${
-        strip.basis === null ? "" : ` Rates basis: ${strip.basis}`
-      }`
-    );
-  }
-  if (strip.page > 0) {
-    lines.push(
-      `Test files ran ${shareLabel(
-        strip.running / strip.page
-      )} of this page's ${usd ? "cost" : "time"}.`
-    );
-  }
-  if (strip.ownerShare !== null) {
-    const shown =
-      strip.ownerRange.from === strip.range.from &&
-      strip.ownerRange.to === strip.range.to
-        ? ""
-        : " (over the days shown)";
-    lines.push(
-      `${shareLabel(
-        strip.ownerShare
-      )} of hours with reports have an owner${shown}.`
-    );
-  }
-  const o = strip.outside;
+  if (usd && strip.unpricedHours > 0) lines.push(unpricedLine(strip));
   const bill = billLine(strip);
-  if (o !== null) {
+  if (strip.outside !== null) lines.push(TOTALS_NOTE);
+  else if (bill !== null) lines.push(bill);
+  else {
     lines.push(
-      `Outside job time ${pairAmount(
-        strip,
-        o.value
-      )} = total AWS spend ${pairAmount(
-        strip,
-        strip.total
-      )} − priced jobs ${pairAmount(strip, strip.jobs)}${outsideSplit(strip)}.`,
-      TOTALS_NOTE
-    );
-  } else if (bill !== null) {
-    lines.push(bill, TOTALS_NOTE);
-  }
-  if (usd && strip.unpricedHours > 0) {
-    // Days in no rate period are unpriced whatever their labels: name the
-    // days, and list example labels only for labels their period lacks.
-    const labelHours = strip.unpricedHours - strip.gapHours;
-    const where = [
-      strip.gapHours > 0
-        ? `${
-            labelHours >= 0.5 ? `${hoursLabel(strip.gapHours)} h ` : ""
-          }on days without rates (${dayRuns(strip.gapDays)})`
-        : null,
-      labelHours >= 0.5
-        ? `${
-            strip.gapHours > 0 ? `${hoursLabel(labelHours)} h ` : ""
-          }on labels without a rate${
-            strip.unpricedLabels.length > 0
-              ? ` (e.g. ${strip.unpricedLabels.join(", ")})`
-              : ""
-          }`
-        : null,
-    ].filter((w): w is string => w !== null);
-    lines.push(
-      `Unpriced: ${hoursLabel(strip.unpricedHours)} h (${shareLabel(
-        strip.unpricedHours / Math.max(strip.hours, 1)
-      )})${where.length > 1 ? ":" : ""} ${where.join(
-        " and "
-      )}, left out of the widths.`
+      usd ? `${LEFT_OUT} Rates-file totals add them (see Format).` : LEFT_OUT
     );
   }
-  if (usd && strip.borrowed) {
-    lines.push("≈: some days are priced with the last period's rates.");
-  }
-  if (o === null && bill === null) {
-    lines.push(
-      usd
-        ? `${LEFT_OUT} A rates file with per-period totals adds them in $ (see Format).`
-        : LEFT_OUT
-    );
-  }
-  return lines;
+  return lines.slice(0, 3);
 }

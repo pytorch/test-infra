@@ -1,4 +1,4 @@
-// The V2 answers' zod schemas infer exactly the interfaces the page codes
+// The drill, bars, banner and cases answers' zod schemas infer exactly the interfaces the page codes
 // against (lib/api/tests/cost/contracts.ts), and every answer's echo
 // rebuilds the URL that asked for it.
 import {
@@ -46,7 +46,7 @@ const B = { from: "2026-11-12", to: "2026-11-18" };
 const TRAIL = decodeTrail("o:inductor;m:Linux%20x86_64%20avx512");
 const SIDE = { days: [], pushes: [], filling: [] };
 
-describe("the V2 answers", () => {
+describe("the drill, bars, banner and cases answers", () => {
   test("each echo rebuilds its request's URL, workflows in any order", () => {
     const scope = CostScopeSchema.parse({
       repo: "pytorch/pytorch",
@@ -55,6 +55,7 @@ describe("the V2 answers", () => {
       by: "f",
       a: A,
       b: B,
+      piece: "week",
       sides: [SIDE, SIDE],
       pieces: [{ side: 1, from: "2026-11-12", to: "2026-11-15" }],
       children: ["test/test_ops.py"],

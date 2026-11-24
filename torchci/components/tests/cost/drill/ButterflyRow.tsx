@@ -17,6 +17,7 @@ import {
 } from "lib/tests/cost/colors";
 import {
   amount,
+  arrowText,
   changeMetric,
   type ChangeScale,
   changeText,
@@ -713,8 +714,8 @@ export function rowTooltip(opts: {
 }): ReactNode {
   const { row, unit, per } = opts;
   const lines: [string, string][] = [
-    ["A", valueText(unit, row.a)],
-    ["B", valueText(unit, row.b)],
+    ["A", valueText(unit, row.a, row.approxA)],
+    ["B", valueText(unit, row.b, row.approxB)],
     ["Change", `${deltaText(unit, row.delta)} ${changeText(row)}`.trim()],
   ];
   if (row.a !== null && row.b !== null) {
@@ -732,7 +733,7 @@ export function rowTooltip(opts: {
     per === "day" ? "Per commit" : "Per day",
     row.notOnMain && per === "day"
       ? "not on main"
-      : `${valueText(unit, row.other.a)} → ${valueText(unit, row.other.b)}`,
+      : arrowText(unit, row.other.a, row.other.b, row.approxA, row.approxB),
   ]);
   if (row.info.coOwners && row.info.coOwners.length > 1) {
     lines.push(["Owners", `split evenly: ${row.info.coOwners.join(", ")}`]);
@@ -770,7 +771,7 @@ export function rowTooltip(opts: {
   );
 }
 
-// A row's swatch: a machine's hue as the page's machine keys paint it
+// A row's swatch: a machine's hue as the bars paint it
 // (Unknown machine grey stripes, the rest grey); an owner's hue where the
 // rows are what the bars stack (namedOwners), else none.
 export function swatchFor(

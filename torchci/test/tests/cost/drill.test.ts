@@ -35,6 +35,7 @@ import {
   chooseRoot,
   climbTo,
   cutRows,
+  deltaText,
   dropPill,
   expansionOf,
   expansionRows,
@@ -306,9 +307,9 @@ describe("rows", () => {
     expect(v.aHasDays).toBe(false);
     const sorted = sortRows(v.rows, "change", "h", v.aHasDays);
     expect(sorted[0].key).toBe(AVX.value); // falls back to largest B
-    expect(sideChips(v, "2026-10-29")).toContain(
-      "A has no data (test_cost starts Oct 29)"
-    );
+    // No data, and no date it starts.
+    expect(sideChips(v)).toContain("A has no data");
+    expect(sideChips(v).join()).not.toMatch(/starts|\(/);
   });
 });
 
@@ -356,6 +357,14 @@ describe("scales and text", () => {
     expect(changeText({ a: 1, b: 3.12 })).toBe("▲ +212%");
     expect(changeText({ a: 100, b: 67 })).toBe("▼ −33%");
     expect(PCT_CAP).toBe(2);
+  });
+
+  test("Δ text: signed with an arrow, no sign on a sliver, ±0 and blank", () => {
+    expect(deltaText("hours", 2)).toBe("▲ +2 h");
+    expect(deltaText("usd", -0.25)).toBe("▼ −$0.25");
+    expect(deltaText("hours", -0.01)).toBe("▼ <0.1 h");
+    expect(deltaText("hours", 0)).toBe("±0");
+    expect(deltaText("usd", null)).toBe("");
   });
 
   test("machine facets for the tests list", () => {
@@ -541,6 +550,7 @@ describe("$ (stub Pricer)", () => {
     by: "o",
     a: { from: "2026-11-05", to: "2026-11-11" },
     b: { from: "2026-11-12", to: "2026-11-18" },
+    piece: "week",
     sides: [
       { days: ["2026-11-05", "2026-11-06"], pushes: [10, 10], filling: [] },
       {
@@ -611,11 +621,11 @@ describe("$ (stub Pricer)", () => {
   test("a side with fewer priced days than days says so", () => {
     const pricer = stubPricer({ gap: ["2026-11-16", "2026-11-22"] });
     const v = levelView(tiny, { unit: "usd", per: "day", pricer });
-    expect(sideChips(v, "2026-10-29")).toContain("B: 2 of 4 days priced");
-    expect(sideChips(v, "2026-10-29").join()).not.toContain("A:");
+    expect(sideChips(v)).toContain("B: 2 of 4 days priced");
+    expect(sideChips(v).join()).not.toContain("A:");
     // Hours never count priced days.
     const h = levelView(tiny, { unit: "hours", per: "day", pricer });
-    expect(sideChips(h, "2026-10-29").join()).not.toContain("priced");
+    expect(sideChips(h).join()).not.toContain("priced");
   });
 
   test("a side's total: its $ over the days per day divides by, whatever the per", () => {
@@ -750,7 +760,7 @@ describe("totals with the FAKE weekly rates", () => {
     const a = v.total.totals.a;
     expect(a).toMatchObject({ approx: true, days: "3 of 7 days priced" });
     near(a.value, (v.total.a as number) * 3);
-    expect(sideChips(v, null)).toContain("A: 3 of 7 days priced");
+    expect(sideChips(v)).toContain("A: 3 of 7 days priced");
     expect(v.total.totals.b).toMatchObject({ approx: true, days: "7 days" });
   });
 
@@ -789,6 +799,7 @@ describe("totals with the FAKE weekly rates", () => {
       by: "o",
       a: { from: "2026-11-02", to: "2026-11-07" },
       b: { from: "2026-11-08", to: "2026-11-14" },
+      piece: "week",
       sides: [
         { days: span("2026-11-02", 6), pushes: Array(6).fill(10), filling: [] },
         { days: span("2026-11-08", 7), pushes: Array(7).fill(10), filling: [] },
@@ -822,10 +833,111 @@ describe("totals with the FAKE weekly rates", () => {
     expect(h.total.totals.b.days).toBe("7 days");
     expect(h.total.totals.a).toMatchObject({ value: 60, days: "6 days" });
   });
+
+  test("a rate change mid-week: day pieces price each day as the chart does; a week piece reads the mean, ≈", () => {
+    // The weekly file with Nov 9–15 cut at Thu Nov 12, its rates doubled
+    // from there. A = Nov 2–8, B = Nov 9–15, most of B's hours before the cut.
+    const label = "mt-l-x86iavx512-16-128";
+    const json = JSON.parse(WEEKLY.text);
+    const last = json.periods[3];
+    const doubled = Object.fromEntries(
+      Object.entries(last.rates as Record<string, number>).map(([k, r]) => [
+        k,
+        r * 2,
+      ])
+    );
+    const midWeek = makePricer(
+      parseRatesFiles([
+        {
+          name: "rates_FAKE_midweek.json",
+          text: JSON.stringify({
+            ...json,
+            periods: [
+              ...json.periods.slice(0, 3),
+              { ...last, valid_through: "2026-11-11" },
+              { ...last, valid_from: "2026-11-12", rates: doubled },
+            ],
+          }),
+        },
+      ]),
+      TODAY
+    );
+    const aDays = Array.from({ length: 7 }, (_, i) => addDays("2026-11-02", i));
+    const bDays = Array.from({ length: 7 }, (_, i) => addDays("2026-11-09", i));
+    const aH = aDays.map(() => 50);
+    const bH = [100, 100, 100, 10, 10, 10, 10];
+    const scope = (span: "week" | "day"): CostScope => {
+      const days = [aDays, bDays];
+      const hours = [aH, bH];
+      const pieces =
+        span === "week"
+          ? days.map((d, side) => ({
+              side: side as 0 | 1,
+              from: d[0],
+              to: d[6],
+            }))
+          : days.flatMap((d, side) =>
+              d.map((day) => ({ side: side as 0 | 1, from: day, to: day }))
+            );
+      type Cell = CostScope["cells"][number];
+      const cells: Cell[] =
+        span === "week"
+          ? hours.map(
+              (h, side): Cell => [
+                side,
+                side,
+                0,
+                0,
+                h.reduce((t, x) => t + x),
+                0,
+              ]
+            )
+          : hours.flatMap((h, side) =>
+              h.map((x, i): Cell => [side, side * 7 + i, 0, 0, x, 0])
+            );
+      return {
+        repo: "pytorch/pytorch",
+        workflows: [],
+        trail: [],
+        by: "o",
+        a: { from: aDays[0], to: aDays[6] },
+        b: { from: bDays[0], to: bDays[6] },
+        piece: span,
+        sides: [
+          { days: aDays, pushes: aDays.map(() => 10), filling: [] },
+          { days: bDays, pushes: bDays.map(() => 10), filling: [] },
+        ],
+        pieces,
+        children: ["inductor"],
+        info: [{}],
+        labels: [label],
+        cells,
+        tests: [],
+        query_duration_ms: 1,
+      };
+    };
+    // The chart's pricing: each day's hours at that day's rate.
+    const perDay = (d: Day[], h: number[]) =>
+      d.reduce((t, day, i) => t + h[i] * (midWeek.rate(label, day) ?? 0), 0);
+    const day = usd(scope("day"), midWeek);
+    near(day.total.totals.a.value, perDay(aDays, aH));
+    near(day.total.totals.b.value, perDay(bDays, bH));
+    near(day.total.b, perDay(bDays, bH) / 7);
+    expect(day.total.totals.b.approx).toBe(false);
+    near(day.total.pct, perDay(bDays, bH) / perDay(aDays, aH) - 1, 9);
+    // A week piece spans both periods: the mean rate, marked ≈. A, inside
+    // one period, prices the same either way.
+    const week = usd(scope("week"), midWeek);
+    const r = midWeek.rate(label, "2026-11-09") as number;
+    near(week.total.totals.b.value, 340 * ((3 * r + 4 * 2 * r) / 7));
+    expect(week.total.totals.b.approx).toBe(true);
+    near(week.total.totals.a.value, day.total.totals.a.value as number);
+    expect(week.total.totals.a.approx).toBe(false);
+  });
 });
 
-// Total reads each side per bar of the rollup: its sum over the share of
-// its bars' calendar days it counts (days with data; priced days in $).
+// Total reads each side per bar of the rollup: its sum over the bars it
+// counts a day in (days with data; priced days in $), a partial bar whole.
 describe("per bar of the rollup (Total)", () => {
   const span = (from: Day, n: number) =>
     Array.from({ length: n }, (_, i) => addDays(from, i));
@@ -837,6 +949,7 @@ describe("per bar of the rollup (Total)", () => {
     by: "o",
     a: { from: a[0], to: a[a.length - 1] },
     b: { from: b[0], to: b[b.length - 1] },
+    piece: "week",
     sides: [
       { days: a, pushes: a.map(() => 10), filling: [] },
       { days: b, pushes: b.map(() => 10), filling: [] },
@@ -1268,7 +1381,7 @@ describe("expand in place", () => {
   });
 });
 
-describe("page facts: V1's headline numbers", () => {
+describe("page facts: the headline numbers", () => {
   // The root trend: daily cells Oct 15 – Nov 19, Nov 19 still filling. Day i
   // holds 10 + i h on a priced label (2 of them on pushes to main) and 1 h
   // on one without rates, with 10 pushes; the owner cells 30 h of inductor
@@ -1321,24 +1434,22 @@ describe("page facts: V1's headline numbers", () => {
   // Oct 22 – Nov 18 is i = 7..34: Σ (10 + i) = 280 + 574 = 854.
   const LAST28 = 854;
 
-  test("the window: the last 28 whole days, the filling day out; fewer while the data holds fewer", () => {
+  test("the window: the last 28 whole days, the filling day out; fewer while the data holds fewer; no dates", () => {
     const facts = pageFacts(trendOf(), "hours", null);
     expect(facts.days).toHaveLength(FACTS_DAYS);
     expect(facts.days[0]).toBe("2026-10-22");
     expect(facts.days[27]).toBe("2026-11-18");
-    expect(facts.window).toBe("Last 28 days, Oct 22 – Nov 18");
+    expect(facts.window).toBe("Last 28 days");
     // Nov 19 whole: the window moves a day.
     expect(
-      pageFacts(trendOf(0, { filling: false }), "hours", null).window
-    ).toBe("Last 28 days, Oct 23 – Nov 19");
+      pageFacts(trendOf(0, { filling: false }), "hours", null).days[0]
+    ).toBe("2026-10-23");
     // Data from Oct 29 (i = 14): the 21 whole days there are.
     const late = pageFacts(trendOf(14), "hours", null);
     expect(late.days).toHaveLength(21);
-    expect(late.window).toBe("Last 21 days, Oct 29 – Nov 18");
-    expect(windowText(["2026-11-18"])).toBe("Last day, Nov 18");
-    expect(windowText(["2026-11-01", "2026-11-18"])).toBe(
-      "Last 2 days, Nov 1–18"
-    );
+    expect(late.window).toBe("Last 21 days");
+    expect(windowText(["2026-11-18"])).toBe("Last day");
+    expect(windowText(["2026-11-01", "2026-11-18"])).toBe("Last 2 days");
     expect(recentDays(trendDaily(trendOf(35)))).toEqual([]);
   });
 
@@ -1362,8 +1473,11 @@ describe("page facts: V1's headline numbers", () => {
       value: null,
       approx: false,
       priced: null,
+      unpriced: null,
       blank: "no data",
     });
+    // Hours price nothing, so nothing is unpriced.
+    expect(facts.perDay.unpriced).toBeNull();
     expect(none.owned).toBeNull();
   });
 
@@ -1374,6 +1488,9 @@ describe("page facts: V1's headline numbers", () => {
     near(full.perCommit.value, (2 * 2 * 28) / 280);
     expect(full.perDay.approx).toBe(false);
     expect(full.perDay.priced).toBeNull();
+    // Its 1 h a day is the share unpriced; none of it on pushes to main.
+    near(full.perDay.unpriced, 28 / (LAST28 + 28));
+    expect(full.perCommit.unpriced).toBe(0);
     // No rates from Nov 16: Oct 22 – Nov 15 (i = 7..31) priced, Σ = 725,
     // over their 25 days and their 250 pushes.
     const gap = pageFacts(
@@ -1387,6 +1504,8 @@ describe("page facts: V1's headline numbers", () => {
     expect(gap.perCommit.approx).toBe(true);
     expect(gap.perDay.priced).toEqual({ days: 25, of: 28 });
     expect(gap.perCommit.pushes).toBe(250);
+    // Unpriced over the priced days only.
+    near(gap.perDay.unpriced, 25 / (725 + 25));
     const lent = stubPricer();
     const borrowed: Pricer = {
       ...lent,
@@ -1405,6 +1524,7 @@ describe("page facts: V1's headline numbers", () => {
     expect(none.perDay.blank).toBe("no rates");
     expect(none.perCommit.blank).toBe("no rates");
     expect(none.perDay.approx).toBe(false);
+    expect(none.perDay.unpriced).toBeNull();
     // Owners stay a share of hours.
     near(none.owned, 30 / 40);
     // Hours whatever the pricer when the unit is hours.

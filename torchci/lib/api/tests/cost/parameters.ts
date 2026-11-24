@@ -1,5 +1,4 @@
 import {
-  canonicalValues,
   ParameterDefinition,
   parameterQueryParameters,
   parameterSchema,
@@ -118,7 +117,7 @@ export function costTrendQueryParameters() {
   );
 }
 
-// The longest period the changes compare, in days: the month rollup's
+// The longest period A, B or a series spans, in days: the month rollup's
 // longest preset, 3 months, fits twice over, and a period's read stays
 // about a year of the trend's (query-validation.md).
 export const MAX_CHANGE_DAYS = 400;
@@ -126,7 +125,7 @@ export const MAX_CHANGE_DAYS = 400;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_RANGE = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
 
-// A period as the changes take it, from..to, both whole UTC days and
+// A period as the endpoints take it, from..to, both whole UTC days and
 // included; null unless both are real days, in order, at most
 // MAX_CHANGE_DAYS apart.
 export function parseDayRange(
@@ -158,53 +157,15 @@ function dayRange(name: "a" | "b", description: string) {
   } as const;
 }
 
-// The changes take the two periods compared, the owners whose hours they
-// are (every owner's when absent) and the page's workflow scope: an owner's
-// test files are a few thousand cells, every owner's tens of thousands.
-export const COST_CHANGES_PARAMETER_DEFINITIONS = {
-  repo: TEST_PARAMETERS.repo,
-  a: dayRange(
-    "a",
-    "The period compared against, A: whole UTC days from..to, both included, e.g. 2026-10-27..2026-11-02."
-  ),
-  b: dayRange(
-    "b",
-    "The period compared, B, as a is. It may overlap A: a day in both counts in both."
-  ),
-  owner: {
-    encoding: "repeat",
-    schema: z
-      .array(z.string().min(1).max(200))
-      .min(1)
-      .max(50)
-      .transform(canonicalValues)
-      .optional()
-      .describe(
-        "Owners whose share of the runner-hours to count, as GET /api/tests/cost names them (a bucket such as unattributed:no_owner included); repeat for several, at most 50. Every owner when absent, and then no test files."
-      ),
-  },
-  workflow: COST_TREND_PARAMETER_DEFINITIONS.workflow,
-} as const satisfies Record<string, ParameterDefinition>;
-
-export const CostChangesParamsSchema = parameterSchema(
-  COST_CHANGES_PARAMETER_DEFINITIONS
+// The two periods compared, A and B, as /scope and /cases take them.
+const PERIOD_A = dayRange(
+  "a",
+  "The period compared against, A: whole UTC days from..to, both included, e.g. 2026-10-27..2026-11-02."
 );
-export type CostChangesParams = z.infer<typeof CostChangesParamsSchema>;
-
-export function parseCostChangesParams(rawQuery: RawQuery) {
-  return parseParameters(
-    rawQuery,
-    COST_CHANGES_PARAMETER_DEFINITIONS,
-    CostChangesParamsSchema
-  );
-}
-
-export function costChangesQueryParameters() {
-  return parameterQueryParameters(
-    CostChangesParamsSchema,
-    COST_CHANGES_PARAMETER_DEFINITIONS
-  );
-}
+const PERIOD_B = dayRange(
+  "b",
+  "The period compared, B, as a is. It may overlap A: a day in both counts in both."
+);
 
 // Named scopes of workflows a reader picks in one click, published with the
 // runner-hours. The PR critical path is what a pull request runs and must pass to
@@ -237,7 +198,7 @@ export const SIGNALS = [
   },
 ];
 
-// ── Cost V2 ──
+// ── Drill, bars, banner and cases ──
 
 // A drill trail as the page's URL spells it (encodeTrail): o:owner;m:machine;f:file,
 // values URI-encoded, one pill per dimension, in drill order; empty for the
@@ -322,11 +283,20 @@ function rangeIssue(max: number, what: string) {
 
 export const COST_SCOPE_PARAMETER_DEFINITIONS = {
   repo: TEST_PARAMETERS.repo,
-  a: COST_CHANGES_PARAMETER_DEFINITIONS.a,
-  b: COST_CHANGES_PARAMETER_DEFINITIONS.b,
+  a: PERIOD_A,
+  b: PERIOD_B,
   trail: TRAIL,
   by: BY,
   workflow: COST_TREND_PARAMETER_DEFINITIONS.workflow,
+  piece: {
+    encoding: "single",
+    schema: z
+      .enum(["week", "day"], { error: "piece must be one of: week, day" })
+      .default("week")
+      .describe(
+        "What a piece of the cells is: week, one side's days inside one ISO week and one calendar month; day, one day, for prices that change on any day."
+      ),
+  },
 } as const satisfies Record<string, ParameterDefinition>;
 
 export const CostScopeParamsSchema = parameterSchema(
@@ -476,8 +446,8 @@ export const COST_CASES_PARAMETER_DEFINITIONS = {
         "The machine, as GET /api/tests/cost/scope names it: NVIDIA L4, Linux x86_64 avx512."
       ),
   },
-  a: COST_CHANGES_PARAMETER_DEFINITIONS.a,
-  b: COST_CHANGES_PARAMETER_DEFINITIONS.b,
+  a: PERIOD_A,
+  b: PERIOD_B,
   environment: {
     encoding: "single",
     schema: z

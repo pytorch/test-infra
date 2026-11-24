@@ -277,43 +277,6 @@ const DAY_RANGE = z
   })
   .describe("A period of whole UTC days.");
 
-export const CostChangesSchema = z
-  .object({
-    repo: z.string().describe("Repository as owner/name."),
-    workflows: z
-      .array(z.string())
-      .describe("The workflows counted, lowercase; empty for every workflow."),
-    owners: z
-      .array(z.string())
-      .describe(
-        "The owners whose share is counted, sorted; empty for every owner."
-      ),
-    a: DAY_RANGE.describe("The period compared against."),
-    b: DAY_RANGE.describe("The period compared."),
-    days: z
-      .array(z.tuple([DAY, z.number().int().min(0)]))
-      .describe(
-        "[day, pushes]: each day of A and B the rollup holds, ascending, what their per-day figures divide by, with its pushes to main: distinct head commits pushed to main, by their day."
-      ),
-    labels: z
-      .array(z.string())
-      .describe(
-        "Runner labels as the jobs asked for them, sorted and comma-separated, most runner-hours first: what a rates file prices."
-      ),
-    cells: z
-      .array(z.tuple([z.number().int().min(0).max(1), INDEX, HOURS, HOURS]))
-      .describe(
-        "[side, label, runner_hours, main_runner_hours]: 0 for A or 1 for B, an index into labels, the runner-hours, and those of pushes to main (trigger push:main), part of them. Each side's cells sum to its whole; cells without hours are left out."
-      ),
-    query_duration_ms: z
-      .number()
-      .int()
-      .describe("Time spent in the database requests, rounded."),
-  })
-  .describe(
-    "Two periods' test-job runner-hours, of some owners or every owner, by runner label, all and those of pushes to main, with each day's pushes to main: what changed between them, per day or per commit."
-  );
-
 export type RunnerHoursRow = z.infer<typeof RunnerHoursRowSchema>;
 export type Contributor = z.infer<typeof ContributorSchema>;
 export type MachineSource = (typeof MACHINE_SOURCES)[number];
@@ -322,10 +285,10 @@ export type CostSignal = z.infer<typeof CostSignalSchema>;
 export type WorkflowPreset = z.infer<typeof WorkflowPresetSchema>;
 export type RunnerHours = z.infer<typeof RunnerHoursSchema>;
 export type CostTrend = z.infer<typeof CostTrendSchema>;
-export type CostChanges = z.infer<typeof CostChangesSchema>;
 
-// ── Cost V2 answers: each infers exactly its interface in contracts.ts
-// (test/api/tests/cost/contracts.test.ts) and echoes its request. ──
+// ── Drill, bars, banner and cases answers: each infers exactly its
+// interface in contracts.ts (test/api/tests/cost/contracts.test.ts) and
+// echoes its request. ──
 
 const PILL = z
   .object({
@@ -382,7 +345,7 @@ export const ScopePieceSchema = z
     to: DAY.describe("The piece's last day, included."),
   })
   .describe(
-    "One side's run of days inside one ISO week and one calendar month: from the latest of the week's Monday, the month's first and the side's first day, to the earliest of the week's Sunday, the month's last and the side's last day. A rate set by week or month prices each piece whole."
+    "One side's run of days inside one ISO week and one calendar month: from the latest of the week's Monday, the month's first and the side's first day, to the earliest of the week's Sunday, the month's last and the side's last day. A rate set by week or month prices each piece whole. With piece day, one day."
   );
 
 export const ScopeChildInfoSchema = z
@@ -423,6 +386,9 @@ export const CostScopeSchema = z
     by: SCOPE_BY,
     a: DAY_RANGE.describe("A, as asked."),
     b: DAY_RANGE.describe("B, as asked."),
+    piece: z
+      .enum(["week", "day"])
+      .describe("What a piece is, as asked: week or day."),
     sides: z
       .tuple([ScopeSideSchema, ScopeSideSchema])
       .describe("A's and B's days with data, pushes and days still filling."),

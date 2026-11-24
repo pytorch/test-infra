@@ -249,7 +249,13 @@ export default function FileLevel({ drill }: { drill: DrillModel }) {
               <Box sx={{ ...numSx, color: "text.secondary" }}>
                 {per === "day" && g.row.notOnMain
                   ? "not on main"
-                  : arrowText(unit, g.row.other.a, g.row.other.b)}
+                  : arrowText(
+                      unit,
+                      g.row.other.a,
+                      g.row.other.b,
+                      g.row.approxA,
+                      g.row.approxB
+                    )}
               </Box>
               <Box sx={{ ...numSx, color: "text.secondary" }}>
                 {testHoursText(t.a)} → {testHoursText(t.b)}

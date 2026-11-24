@@ -1,4 +1,4 @@
-// The V2 Trends panel (components/tests/cost/trends) from trend.json (a day
+// The Trends panel (components/tests/cost/trends) from trend.json (a day
 // answer ending Nov 5: cells Oct 22 – Nov 4) read as words under SSR, and
 // driven through its handlers with react-test-renderer: a click places B, A
 // arms with its key, Esc mid-drag restores (and calls preventDefault), a
@@ -140,6 +140,17 @@ describe("TrendsPanel under SSR", () => {
     ]) {
       expect(chip(label)).toContain('aria-disabled="true"');
     }
+  });
+
+  it("keeps the band's (i) to three short lines, true to how A and B read", () => {
+    const tip = /aria-label="(Test-job runner-hours[^"]*)"/.exec(markup)?.[1];
+    expect(tip).toBeDefined();
+    expect(tip!.split("\n").length).toBeLessThanOrEqual(3);
+    expect(tip!.split(/\s+/).length).toBeLessThanOrEqual(30);
+    // A, B and the drill count a partial bar as one whole bar.
+    expect(tip).not.toMatch(/share of days/);
+    // No data start date, which would grow stale.
+    expect(tip).not.toMatch(/starts|before the first day|not tracked/i);
   });
 
   it("has no coach, toast, keycaps or Shift-drag caption", () => {
@@ -433,6 +444,25 @@ describe("disclosures", () => {
       "A has no data, B has no data",
       "A and B overlap by 1 day",
     ]);
+  });
+
+  it("says a side before the data has no data, with no start date", () => {
+    const items = disclosures({
+      folded,
+      stacks,
+      sel: {
+        rollup: "day",
+        a: { from: "2026-10-01", to: "2026-10-07" },
+        b: { from: "2026-11-03", to: "2026-11-03" },
+        preset: null,
+      },
+      per: "day",
+      unit: "hours",
+      pricer: null,
+      context: { ...ctx, firstDay: "2026-10-22" },
+    });
+    expect(items).toContain("A has no data");
+    expect(items.join(" · ")).not.toMatch(/starts|Oct 22/);
   });
 });
 

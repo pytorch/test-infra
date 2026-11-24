@@ -125,6 +125,8 @@ describe("coverage banner", () => {
       for (const name of [
         "Other repos · 20%",
         "Builds, lint, other",
+        // A narrow segment steps down to a short name before its share alone.
+        "Builds · ",
         "No reports",
         "Setup &amp; idle".replace("&amp;", "&"),
         "Active test time · 38%",
@@ -137,17 +139,11 @@ describe("coverage banner", () => {
         /^this page: pytorch\/pytorch test jobs · [\d.]+K of [\d.]+K h \(6\d%\) this page · 6\d% 6\d%$/
       );
       // The two text lines are gone: their facts are in the ⓘ.
-      expect(words).not.toMatch(/This page \(blue\)|Hours = job wall time/);
-      const tip = details(html);
-      expect(tip).toContain(
-        "Hours = job wall time (start → finish) of completed jobs on any runner, GitHub-hosted included, in 21 pytorch/* repos."
+      expect(words).not.toMatch(/This page \(blue\)|Hours = wall time/);
+      // The ⓘ: two short lines, no repository count.
+      expect(details(html)).toBe(
+        "Hours = wall time of completed jobs on any runner, GitHub-hosted included. Left out: runner node time outside jobs, non-runner AWS spend."
       );
-      expect(tip).toMatch(/Test files ran 5\d% of this page's time\./);
-      expect(tip).toContain("97% of hours with reports have an owner.");
-      expect(tip).toContain(
-        "Not tracked yet: node time outside jobs, non-runner AWS spend."
-      );
-      expect(tip).not.toContain("see Format");
       expect(words).not.toContain("total AWS spend");
       expect(words).not.toContain("Outside job time");
       // No popups or coach marks: one strip, labelled for readers.
@@ -185,14 +181,12 @@ describe("coverage banner", () => {
         /^this page: pytorch\/pytorch test jobs · ≈\$[\d.]+K of ≈\$200K \((\d+)%\) this page · \1% \1%$/
       );
       const tip = details(html);
-      expect(tip).toContain("Rates basis: FAKE synthetic rates");
-      expect(tip).toMatch(
-        /Outside job time ≈\$\d+K = total AWS spend ≈\$200K − priced jobs ≈\$[\d.]+K: runner node uptime outside jobs ≈\$[\d.]+K · non-runner AWS spend ≈\$100K\./
+      expect(tip).toContain(
+        "Total AWS spend: the rates file's per-period totals, prorated per day."
       );
-      expect(tip).not.toContain("runner nodes up");
-      expect(tip).not.toContain("Not tracked");
+      expect(tip).not.toMatch(/basis|Outside job time|Left out/);
     }
-    // Without totals: no ghost; the ⓘ names what isn't tracked and where
+    // Without totals: no ghost; the ⓘ names what is left out and where
     // totals go.
     const json = JSON.parse(
       readFileSync(join(__dirname, "rates_FAKE_weekly.json"), "utf8")
@@ -211,7 +205,7 @@ describe("coverage banner", () => {
       /^this page: pytorch\/pytorch test jobs · ≈\$[\d.]+K of ≈\$[\d.]+K \(\d+%\) /
     );
     expect(details(html)).toContain(
-      "Not tracked yet: node time outside jobs, non-runner AWS spend. A rates file with per-period totals adds them in $ (see Format)."
+      "Left out: runner node time outside jobs, non-runner AWS spend. Rates-file totals add them (see Format)."
     );
     expect(text(html)).not.toContain("total AWS spend");
   });
@@ -222,7 +216,7 @@ describe("coverage banner", () => {
     );
     expect(text(html)).toContain("What this page covers");
     expect(html).not.toContain("data-bracket");
-    expect(details(html)).toMatch(/^Hours = job wall time/);
+    expect(details(html)).toMatch(/^Hours = wall time/);
     expect(asked.every((u) => u === null)).toBe(true);
   });
 
@@ -251,7 +245,7 @@ describe("coverage banner", () => {
         strip={coverageStrip(tests, jobs, early, null, "hours")}
         pending={null}
         dim={false}
-        details={["Hours = job wall time"]}
+        details={["Hours = wall time"]}
       />
     );
     expect(text(html)).toContain("No test data for Oct 20 – 26.");
@@ -316,7 +310,9 @@ describe("coverage banner", () => {
     );
     // The ⓘ's name says so; the strip is the repository's test jobs.
     const words = JSON.stringify(renderer!.toJSON());
-    expect(words).toContain("ranges up to 28 days for now");
+    expect(words).toContain(
+      "Other repos and builds show for a B of up to 28 days"
+    );
     expect(words).toContain("pytorch/pytorch test-job runner-hours");
     act(() => renderer!.unmount());
     jest.useRealTimers();

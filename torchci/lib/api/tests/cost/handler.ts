@@ -1,14 +1,12 @@
 import { failQuery, rejectParameters, requestQuery } from "lib/api/handler";
 import type { RawQuery } from "lib/api/parameters";
 import { getCostCases } from "lib/api/tests/cost/cases";
-import { getCostChanges } from "lib/api/tests/cost/changes";
 import {
   getCostCoverage,
   getCostCoverageJobs,
 } from "lib/api/tests/cost/coverage";
 import {
   parseCostCasesParams,
-  parseCostChangesParams,
   parseCostCoverageJobsParams,
   parseCostCoverageParams,
   parseCostParams,
@@ -65,31 +63,10 @@ export async function costTrendHandler(request: Request): Promise<Response> {
   }
 }
 
-// What changed between two periods, cached as the trend is: the periods end
-// by yesterday, and a day's rollup changes at most every few hours.
-export async function costChangesHandler(request: Request): Promise<Response> {
-  const parsed = parseCostChangesParams(await requestQuery(request));
-  if (!parsed.success) return rejectParameters(parsed.error);
-  try {
-    return Response.json(await getCostChanges(parsed.data), {
-      headers: {
-        "Cache-Control": "private, max-age=600",
-        Vary: "Authorization, Cookie",
-      },
-    });
-  } catch (error) {
-    return failQuery(
-      "GET /api/tests/cost/changes",
-      "Failed to compare the runner-hours",
-      error
-    );
-  }
-}
-
-// One V2 endpoint: parse, answer, cache privately for maxAge seconds (the
-// days asked are past days, recomputed at most every few hours), or say
-// what failed without its details.
-function costV2Handler<P>(
+// A drill or banner endpoint: parse, answer, cache privately for maxAge
+// seconds (the days asked are past days, recomputed at most every few
+// hours), or say what failed without its details.
+function cachedCostHandler<P>(
   path: string,
   failure: string,
   parse: (
@@ -115,7 +92,7 @@ function costV2Handler<P>(
 }
 
 // A drill scope's children in A and B.
-export const costScopeHandler = costV2Handler(
+export const costScopeHandler = cachedCostHandler(
   "/api/tests/cost/scope",
   "Failed to compute the scope's runner-hours",
   parseCostScopeParams,
@@ -124,7 +101,7 @@ export const costScopeHandler = costV2Handler(
 );
 
 // A drill scope's runner-hours by day: the bars below the owner root.
-export const costSeriesHandler = costV2Handler(
+export const costSeriesHandler = cachedCostHandler(
   "/api/tests/cost/series",
   "Failed to compute the scope's runner-hours by day",
   parseCostSeriesParams,
@@ -134,7 +111,7 @@ export const costSeriesHandler = costV2Handler(
 
 // A file's configurations and cases from the runs table: a heavy scan
 // behind a gate, kept an hour.
-export const costCasesHandler = costV2Handler(
+export const costCasesHandler = cachedCostHandler(
   "/api/tests/cost/cases",
   "Failed to read the file's test cases",
   parseCostCasesParams,
@@ -143,7 +120,7 @@ export const costCasesHandler = costV2Handler(
 );
 
 // The coverage banner's test-job segments.
-export const costCoverageHandler = costV2Handler(
+export const costCoverageHandler = cachedCostHandler(
   "/api/tests/cost/coverage",
   "Failed to compute the test-job coverage",
   parseCostCoverageParams,
@@ -153,7 +130,7 @@ export const costCoverageHandler = costV2Handler(
 
 // The coverage banner's organization and repository jobs: a heavy scan of
 // the jobs table, kept an hour.
-export const costCoverageJobsHandler = costV2Handler(
+export const costCoverageJobsHandler = cachedCostHandler(
   "/api/tests/cost/coverage/jobs",
   "Failed to compute the organization's job hours",
   parseCostCoverageJobsParams,

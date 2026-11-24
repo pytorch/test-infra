@@ -149,7 +149,13 @@ export default function ScopeHead({ drill }: ScopeHeadProps) {
           <FactPill label="Per day">
             {stale
               ? dots
-              : arrowText(unit, row?.daily.a ?? null, row?.daily.b ?? null)}
+              : arrowText(
+                  unit,
+                  row?.daily.a ?? null,
+                  row?.daily.b ?? null,
+                  row?.approxA,
+                  row?.approxB
+                )}
           </FactPill>
         )}
         <FactPill label={otherPer === "commit" ? "Per commit" : "Per day"}>
@@ -157,7 +163,13 @@ export default function ScopeHead({ drill }: ScopeHeadProps) {
             ? dots
             : per === "day" && row?.notOnMain
             ? "not on main"
-            : arrowText(unit, row?.other.a ?? null, row?.other.b ?? null)}
+            : arrowText(
+                unit,
+                row?.other.a ?? null,
+                row?.other.b ?? null,
+                row?.approxA,
+                row?.approxB
+              )}
         </FactPill>
         {head.root && head.pushes && (
           <FactPill label="Pushes to main">

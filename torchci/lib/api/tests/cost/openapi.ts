@@ -7,7 +7,6 @@ import {
 } from "lib/api/schema";
 import {
   costCasesQueryParameters,
-  costChangesQueryParameters,
   costCoverageJobsQueryParameters,
   costCoverageQueryParameters,
   costQueryParameters,
@@ -19,7 +18,6 @@ import {
   CasesLaneSchema,
   ContributorSchema,
   CostCasesSchema,
-  CostChangesSchema,
   CostCoverageJobsSchema,
   CostCoverageSchema,
   CostMachineSchema,
@@ -61,7 +59,6 @@ export const costApiOpenApi: ApiResource = {
     UnprobedLabel: UnprobedLabelSchema,
     WorkflowPreset: WorkflowPresetSchema,
     CostTrend: CostTrendSchema,
-    CostChanges: CostChangesSchema,
     CostScope: CostScopeSchema,
     ScopeSide: ScopeSideSchema,
     ScopePiece: ScopePieceSchema,
@@ -112,27 +109,6 @@ export const costApiOpenApi: ApiResource = {
         },
       },
     },
-    "/api/tests/cost/changes": {
-      get: {
-        operationId: "getTestsCostChanges",
-        tags: ["tests"],
-        summary:
-          "What changed in a repository's CI runner-hours between two periods",
-        description:
-          "Returns the runner-hours of a repository's test jobs in two periods of whole UTC days, A and B, read from the test_cost rollup as GET /api/tests/cost/trend reads them, by runner label, all of them and those of pushes to main (the trigger push:main: a push to main or master), so a caller finds what moved between the periods, prices the hours by runner label, or divides the pushes to main's hours by the pushes for what a main push costs. With owner, the hours are those owners' share as the trend splits them (a file's hours evenly among its owners, or the buckets unattributed:no_owner and unattributed:no_test_reports); without, every owner's. days lists the days of A and B the rollup holds, what per-day figures divide by, each with its pushes to main (distinct head commits pushed, by day), for runner-hours per push. A day in both periods counts in both. workflow narrows every figure to the workflows named. The API holds no prices.",
-        parameters: costChangesQueryParameters(),
-        responses: {
-          "200": jsonResponse(
-            "The two periods' runner-hours by runner label.",
-            ref(CostChangesSchema)
-          ),
-          ...errorResponses(
-            ref,
-            "A missing, malformed or unsupported parameter (invalid_parameters)."
-          ),
-        },
-      },
-    },
     "/api/tests/cost/scope": {
       get: {
         operationId: "getTestsCostScope",
@@ -140,7 +116,7 @@ export const costApiOpenApi: ApiResource = {
         summary:
           "The children of a drill scope of a repository's CI runner-hours in two periods",
         description:
-          "Returns the runner-hours of a repository's test jobs in two periods of whole UTC days, A and B, read from the test_cost rollup as GET /api/tests/cost/trend reads them (each day as last computed, owners from ci.owners split evenly, the buckets unattributed:no_owner and unattributed:no_test_reports), inside a drill scope (trail: an owner, a machine and a test file, each optional) and split by its children (by): owners, machines, test files, lanes (environment and workflow) or runner label and workflow. A machine is the environment's when the jobs have test reports, else the machine the runner label's reporting jobs ran on most in that ISO week, else Unknown machine; GET /api/tests/cost/series names machines the same way. Cells are [side, piece, child, label, runner_hours, main_runner_hours]: a piece is one side's days inside one ISO week and one calendar month, so a caller prices them by runner label with weekly or monthly rates. sides gives each side's days with data (what per-day figures divide by), their pushes to main and the days still filling. With by=f or lane, tests gives each child's executed and skipped test hours. The answer echoes the request (trail canonical, workflows sorted). The API holds no prices.",
+          "Returns the runner-hours of a repository's test jobs in two periods of whole UTC days, A and B, read from the test_cost rollup as GET /api/tests/cost/trend reads them (each day as last computed, owners from ci.owners split evenly, the buckets unattributed:no_owner and unattributed:no_test_reports), inside a drill scope (trail: an owner, a machine and a test file, each optional) and split by its children (by): owners, machines, test files, lanes (environment and workflow) or runner label and workflow. A machine is the environment's when the jobs have test reports, else the machine the runner label's reporting jobs ran on most in that ISO week, else Unknown machine; GET /api/tests/cost/series names machines the same way. Cells are [side, piece, child, label, runner_hours, main_runner_hours]: a piece is one side's days inside one ISO week and one calendar month, so a caller prices them by runner label with weekly or monthly rates, or with piece=day one day, for rates that change on any day. sides gives each side's days with data (what per-day figures divide by), their pushes to main and the days still filling. With by=f or lane, tests gives each child's executed and skipped test hours. The answer echoes the request (trail canonical, workflows sorted). The API holds no prices.",
         parameters: costScopeQueryParameters(),
         responses: {
           "200": jsonResponse(

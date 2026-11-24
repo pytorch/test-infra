@@ -6,11 +6,6 @@ import {
   CostPageQuerySchema,
 } from "lib/api/tests/cost/page";
 import {
-  COST_V2_PAGE_PARAMETER_DEFINITIONS,
-  COST_V2_PAGE_PATH,
-  CostV2PageQuerySchema,
-} from "lib/api/tests/cost/pageV2";
-import {
   COMMIT_PAGE_PARAMETER_DEFINITIONS,
   COMMIT_PAGE_PATH,
   COMMIT_PAGE_PATH_PARAMETERS,
@@ -136,8 +131,8 @@ export const testsPagesOpenApi: ApiResource = {
         operationId: "testsCostPage",
         tags: [PAGES_TAG],
         summary:
-          "HUD page: a repository's CI runner-hours by owner, machine and workflow",
-        description: `Runner-hours of the last 1, 3 or 7 whole UTC days by owner split by machine, the workflows and every owner-machine pair, summed in the browser from getTestsCost (GET /api/tests/cost). ${PAGE_NATURE} window and workflow are the only parameters that change the numbers: window is the days, the endpoint's own parameter, and workflow the scope; owner and machine highlight and narrow nothing; split_by, cells and only are how the page draws them. Names the answer does not hold are dropped.`,
+          "HUD page: a repository's CI runner-hours, how they changed between two periods, and what share of the organization's CI they are",
+        description: `Trends of a repository's test-job runner-hours by day, week or month, two periods A and B compared, and a drill-down by owner, machine, test file and configuration, summed in the browser from GET /api/tests/cost/trend, /scope, /series and /cases; a banner of what share of the organization's CI runner-hours the page covers over B (GET /api/tests/cost/coverage and /coverage/jobs); the PR signals and the workflows card over the last days of getTestsCost (GET /api/tests/cost). ${PAGE_NATURE} workflow, a, b (or cmp, a relative preset they win over) and trail are the parameters that change the numbers; the others are how the page draws them, and window the days of the PR signals and the workflows card. owner and machine are read from older links as the trail and never written. Names no answer holds are kept in the URL. Prices come from a rates file added in the browser and are never in the URL.`,
         parameters: [
           ...Object.entries(TESTS_PAGE_PATH_PARAMETERS).map(([name, schema]) =>
             pathParameter(name, schema)
@@ -145,26 +140,6 @@ export const testsPagesOpenApi: ApiResource = {
           ...parameterQueryParameters(
             CostPageQuerySchema,
             COST_PAGE_PARAMETER_DEFINITIONS
-          ),
-        ],
-        responses: { "200": HTML_RESPONSE },
-        security: [],
-      },
-    },
-    [COST_V2_PAGE_PATH]: {
-      get: {
-        operationId: "testsCostV2Page",
-        tags: [PAGES_TAG],
-        summary:
-          "HUD page (preview): a repository's CI runner-hours, how they changed between two periods, and what share of the organization's CI they are",
-        description: `The cost page's V2 preview, beside the current page (/tests/{organization}/{repo}/cost). Trends of a repository's test-job runner-hours by day, week or month, two periods A and B compared, and a drill-down by owner, machine, test file and configuration, summed in the browser from GET /api/tests/cost/trend, /scope, /series and /cases; a banner of what share of the organization's CI runner-hours the page covers over B (GET /api/tests/cost/coverage and /coverage/jobs); the owner-machine matrix and the workflows card over the last days of getTestsCost (GET /api/tests/cost). ${PAGE_NATURE} workflow, a, b (or cmp, a relative preset they win over) and trail are the parameters that change the numbers; the others are how the page draws them, and window the matrix's days. owner and machine are read from older links as the trail and never written. Names no answer holds are kept in the URL. Prices come from a rates file added in the browser and are never in the URL.`,
-        parameters: [
-          ...Object.entries(TESTS_PAGE_PATH_PARAMETERS).map(([name, schema]) =>
-            pathParameter(name, schema)
-          ),
-          ...parameterQueryParameters(
-            CostV2PageQuerySchema,
-            COST_V2_PAGE_PARAMETER_DEFINITIONS
           ),
         ],
         responses: { "200": HTML_RESPONSE },

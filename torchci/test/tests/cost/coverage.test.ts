@@ -24,7 +24,9 @@ import {
   jobsSource,
   LEFT_OUT,
   outsideSplit,
+  partWhat,
   pctLabel,
+  segmentLabels,
   shortRange,
   STRIP_PARTS,
   testDays,
@@ -70,11 +72,18 @@ function jobHoursInB(segment: number): number {
 }
 const part = (strip: ReturnType<typeof coverageStrip>, name: string) =>
   strip.segments.find((s) => s.part === name);
-// The ⓘ's lines, and the line starting with a prefix.
+// The ⓘ's lines, three short ones at most, and the line starting with a
+// prefix.
 const details = (
   strip: ReturnType<typeof coverageStrip>,
   jobs: Parameters<typeof coverageDetails>[1] = "ok"
-) => coverageDetails(strip, jobs);
+) => {
+  const lines = coverageDetails(strip, jobs);
+  expect(lines.length).toBeLessThanOrEqual(3);
+  return lines;
+};
+const HOURS_LINE =
+  "Hours = wall time of completed jobs on any runner, GitHub-hosted included.";
 const line = (lines: string[], prefix: string) =>
   lines.find((l) => l.startsWith(prefix));
 // Every part but the ghost, which only $ with totals adds.
@@ -150,15 +159,7 @@ describe("coverage strip", () => {
     expect(bracketLabel(strip)!.full).toMatch(
       /^this page · [\d.]+K h \(100%\)$/
     );
-    const lines = details(strip);
-    expect(line(lines, "Test files ran")).toMatch(
-      /^Test files ran \d+% of this page's time\.$/
-    );
-    expect(lines).toContain("97% of hours with reports have an owner.");
-    // No org: the hours line names no repositories.
-    expect(line(lines, "Hours =")).toBe(
-      "Hours = job wall time (start → finish) of completed jobs on any runner, GitHub-hosted included."
-    );
+    expect(details(strip)).toEqual([HOURS_LINE, LEFT_OUT]);
   });
 
   test("past 28 days the jobs aren't asked and the caption says why", () => {
@@ -175,12 +176,12 @@ describe("coverage strip", () => {
     const strip = coverageStrip(tests, null, B, null, "hours");
     const long = details(strip, "too_long");
     expect(long[0]).toBe(
-      "Org and non-test jobs: ranges up to 28 days for now (a jobs rollup would lift it)."
+      "Other repos and builds show for a B of up to 28 days."
     );
-    expect(long[1]).toMatch(/^Hours = job wall time/);
+    expect(long[1]).toBe(HOURS_LINE);
     expect(details(strip).join(" ")).not.toMatch(/28 days/);
     expect(details(strip, "error")[0]).toBe(
-      "Org and non-test jobs could not be loaded."
+      "Other repos and builds could not be loaded."
     );
   });
 
@@ -251,8 +252,6 @@ describe("coverage strip", () => {
     close(sum(strip.segments.map((s) => s.share)), 1);
     // ROCm and GitHub-hosted labels have no rate, nor does any label on Nov 14.
     expect(strip.unpricedHours).toBeGreaterThan(0);
-    expect(strip.unpricedLabels.length).toBeGreaterThan(0);
-    expect(strip.unpricedLabels.some((l) => l in RATES)).toBe(false);
     close(strip.hours, sum(strip.segments.map((s) => s.hours)), 3);
     expect(strip.unpricedHours).toBeLessThan(strip.hours);
     // The widths are $: a cheap label weighs less than in hours.
@@ -262,22 +261,15 @@ describe("coverage strip", () => {
       part(hours, "running")!.share,
       3
     );
-    const lines = details(strip);
-    expect(line(lines, "Unpriced:")).toMatch(
-      /^Unpriced: .* h \(\d+%\) on labels without a rate/
-    );
-    expect(lines).toContain(
-      "≈: some days are priced with the last period's rates."
-    );
-    // A pricer without a set (this double) names no basis.
-    expect(lines).toContain(
-      "$ = hours × the rates file's $/h for their day and label."
-    );
-    expect(line(lines, "Test files ran")).toMatch(/of this page's cost\.$/);
-    // Without totals: what isn't tracked, and where totals would go.
-    expect(line(lines, "Not tracked yet")).toMatch(
-      /A rates file with per-period totals adds them in \$ \(see Format\)\.$/
-    );
+    // What a $ is (≈ for the borrowed day), the unpriced hours, and without
+    // totals what the strip leaves out and where totals would go.
+    expect(details(strip)).toEqual([
+      "$ = hours × the rates file's $/h for their day and label (≈: last period's rates).",
+      expect.stringMatching(
+        /^Unpriced: .* h \(\d+%\) on labels without a rate, left out of the widths\.$/
+      ),
+      `${LEFT_OUT} Rates-file totals add them (see Format).`,
+    ]);
     expect(bracketLabel(strip)!.full).toMatch(
       /^this page: pytorch\/pytorch test jobs · ≈\$[\d.]+K of ≈\$[\d.]+K \(\d+%\)$/
     );
@@ -337,17 +329,13 @@ describe("coverage strip", () => {
     );
     expect(label.short).toMatch(/^this page · 6\d%$/);
     expect(label.tiny).toMatch(/^6\d%$/);
-    // The ⓘ: the definitions, one fact a line, and what isn't tracked.
-    expect(details(strip)).toEqual([
-      "Hours = job wall time (start → finish) of completed jobs on any runner, GitHub-hosted included, in 21 pytorch/* repos.",
-      expect.stringMatching(/^Test files ran 5\d% of this page's time\.$/),
-      "97% of hours with reports have an owner.",
-      LEFT_OUT,
-    ]);
+    // The ⓘ: what an hour is (no repository count: the jobs window isn't
+    // B), and what the strip leaves out.
+    expect(details(strip)).toEqual([HOURS_LINE, LEFT_OUT]);
     expect(strip.bill).toBeNull();
     expect(billLine(strip)).toBeNull();
     expect(LEFT_OUT).toBe(
-      "Not tracked yet: node time outside jobs, non-runner AWS spend."
+      "Left out: runner node time outside jobs, non-runner AWS spend."
     );
   });
 
@@ -393,11 +381,8 @@ describe("shares and the $ caption", () => {
     const strip = coverageStrip(tests, jobs, B, pricer, "usd");
     expect(strip.gapDays).toEqual(["2026-11-14"]);
     expect(strip.gapHours).toBeGreaterThan(0);
-    expect(strip.unpricedLabels.every((l) => l.startsWith("linux.rocm"))).toBe(
-      true
-    );
     expect(line(details(strip), "Unpriced:")).toMatch(
-      /^Unpriced: .* h \(\d+%\): .* h on days without rates \(Nov 14\) and .* h on labels without a rate \(e\.g\. linux\.rocm/
+      /^Unpriced: .* h \(\d+%\) on days without rates \(Nov 14\) and labels without a rate, left out of the widths\.$/
     );
     // A B wholly in a gap names the days and no labels.
     const gap = {
@@ -408,6 +393,34 @@ describe("shares and the $ caption", () => {
       line(details(coverageStrip(tests, jobs, B, gap, "usd")), "Unpriced:")
     ).toMatch(
       /^Unpriced: .* h \(100%\) on days without rates \(Nov 12 – 18\), left out/
+    );
+  });
+
+  test("a narrow segment keeps a name before only its share", () => {
+    const strip = coverageStrip(tests, jobs, B, null, "hours");
+    const builds = part(strip, "builds")!;
+    const pct = pctLabel(builds);
+    expect(segmentLabels(builds, false)).toEqual([
+      `Builds, lint, other · ${pct}`,
+      `Builds · ${pct}`,
+      "Builds",
+      pct,
+    ]);
+    const none = part(strip, "no_reports")!;
+    expect(segmentLabels(none, false)).toEqual([
+      `No reports · ${pctLabel(none)}`,
+      "No reports",
+      pctLabel(none),
+    ]);
+    // While the job hours count: names only.
+    expect(segmentLabels(builds, true)).toEqual([
+      "Builds, lint, other",
+      "Builds",
+    ]);
+    expect(segmentLabels(none, true)).toEqual(["No reports"]);
+    // Builds is every job not named as a test job, not "no tests".
+    expect(partWhat("builds", "pytorch/pytorch")).toBe(
+      'pytorch/pytorch jobs not named "test (…)": builds, lint, docs, infra, and any test jobs named otherwise.'
     );
   });
 
@@ -467,20 +480,19 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     expect(greyShare(strip)).toBeGreaterThan(
       part(strip, "other_repos")!.share + part(strip, "builds")!.share
     );
-    // The ⓘ: the basis, the ghost's sum and split, where totals come from;
-    // nothing "not tracked", no bill line.
+    // The ⓘ: what a $ is and where the totals come from (the ghost's own
+    // hover splits it); nothing left out, no bill line, no basis (the rates
+    // key names it).
     const lines = details(strip);
     expect(line(lines, "$ =")).toBe(
-      "$ = hours × the rates file's $/h for their day and label. Rates basis: FAKE synthetic rates for tests: one made-up value per machine class, unrelated to any price list or discount. Totals are FAKE round numbers."
+      "$ = hours × the rates file's $/h for their day and label (≈: last period's rates)."
     );
-    expect(line(lines, "Outside job time")).toMatch(
-      /^Outside job time ≈\$\d+K = total AWS spend ≈\$200K − priced jobs ≈\$[\d.]+K: runner node uptime outside jobs ≈\$[\d.]+K · non-runner AWS spend ≈\$100K\.$/
-    );
+    expect(lines.join(" ")).not.toMatch(/basis|Outside job time/);
     expect(outsideSplit(strip)).toMatch(/^: runner node uptime outside jobs /);
     expect(lines).toContain(
-      "AWS totals: the rates file's per-period totals, prorated per day; they stay in this tab."
+      "Total AWS spend: the rates file's per-period totals, prorated per day."
     );
-    expect(line(lines, "Not tracked")).toBeUndefined();
+    expect(line(lines, "Left out")).toBeUndefined();
     expect(line(lines, "Of ")).toBeUndefined();
     // In hours: no bill, no ghost, the left-out line.
     const hours = coverageStrip(tests, jobs, B, pricer, "hours");
@@ -493,7 +505,7 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     expect(repo.outside).toBeNull();
     expect(repo.segments.map((s) => s.part)).not.toContain("outside_jobs");
     expect(line(details(repo), "Of ")).toMatch(
-      /^Of ≈\$200K total AWS spend: runner node uptime ≈\$100K \(50%\) · this page ≈\$[\d.]+K \(\d+%\)\.$/
+      /^Of ≈\$200K total AWS spend: runner nodes 50%, this page \d+%\.$/
     );
   });
 
@@ -518,7 +530,7 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     expect(none.bill).toBeNull();
     expect(none.outside).toBeNull();
     expect(billLine(none)).toBeNull();
-    expect(line(details(none), "Not tracked yet")).toMatch(/see Format/);
+    expect(line(details(none), "Left out")).toMatch(/see Format/);
   });
 
   test("a partial B names its days with totals and draws no ghost; runner node uptime only when every day has it", () => {
@@ -542,7 +554,7 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     expect(bill.page).toBeLessThan(strip.page);
     expect(bill.jobs).toBeLessThan(strip.total);
     expect(billLine(strip)).toMatch(
-      /^Of \$400K total AWS spend \(4 of 7 days\): pytorch org CI jobs \$[\d.]+K \(\d+%\) · this page \$[\d.]+K \(\d+%\)\.$/
+      /^Of \$400K total AWS spend \(4 of 7 days\): pytorch org CI jobs \d+%, this page \d+%\.$/
     );
     // The ghost needs every priced day's totals: the bill line instead.
     expect(strip.outside).toBeNull();

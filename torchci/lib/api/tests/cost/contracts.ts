@@ -1,4 +1,4 @@
-// Cost V2: the types the page and its API share. Pure TypeScript with type-only imports (no zod or React at
+// The cost page: the types the page and its API share. Pure TypeScript with type-only imports (no zod or React at
 // runtime), so lib/api and the page both import it.
 import type { CostTrend } from "lib/api/tests/cost/types";
 import type { EnvironmentRecord, EnvVarsRecord } from "lib/api/tests/types";
@@ -199,12 +199,16 @@ export interface ScopeSide {
   filling: Day[];
 } // days the rollup holds; pushes to main aligned with days
 // One side's run of days inside one ISO week and one calendar month:
-// [max(week start, month start, side.from), min(week end, month end, side.to)]. Overlapping A and B get a piece each.
+// [max(week start, month start, side.from), min(week end, month end, side.to)]; with piece=day, one day.
+// Overlapping A and B get a piece each.
 export interface ScopePiece {
   side: 0 | 1;
   from: Day;
   to: Day;
 }
+// What a /scope piece is: week (as above) in hours; day in $, so a rate period starting on any day splits no piece.
+// The request says only that $ is on, never anything of the rates file.
+export type PieceSpan = "week" | "day";
 export interface ScopeChildInfo {
   family?: string;
   short?: string;
@@ -223,6 +227,7 @@ export interface CostScope {
   by: ScopeBy;
   a: DayRange;
   b: DayRange;
+  piece: PieceSpan;
   sides: [ScopeSide, ScopeSide]; // per day ÷ sides[s].days.length; per commit ÷ Σ sides[s].pushes (priced days only in $)
   pieces: ScopePiece[]; // price a cell with pricer.piece(label, the days of sides[piece.side].days inside the piece)
   children: string[];
@@ -381,7 +386,8 @@ export const costScopeUrl = (
   a: DayRange,
   b: DayRange,
   trail: readonly Pill[],
-  by: ScopeBy
+  by: ScopeBy,
+  piece: PieceSpan = "week"
 ) =>
   apiUrl(
     "/scope",
@@ -391,6 +397,7 @@ export const costScopeUrl = (
       ["b", dayRangeParam(b)],
       ["trail", encodeTrail(trail)],
       ["by", by],
+      ...(piece === "day" ? ([["piece", "day"]] as [string, string][]) : []),
     ],
     workflows
   );
@@ -465,7 +472,7 @@ export function current<T>(
 export const trendEcho = (t: CostTrend) =>
   costTrendDaysUrl(t.repo, t.workflows, t.periods.length);
 export const scopeEcho = (s: CostScope) =>
-  costScopeUrl(s.repo, s.workflows, s.a, s.b, s.trail, s.by);
+  costScopeUrl(s.repo, s.workflows, s.a, s.b, s.trail, s.by, s.piece);
 export const seriesEcho = (s: CostSeries) =>
   costSeriesUrl(s.repo, s.workflows, s.trail, s.by, { from: s.from, to: s.to });
 export const casesEcho = (c: CostCases) =>
@@ -562,7 +569,6 @@ export interface DrillInput {
   repo: string | undefined;
   workflows: string[];
   compare: Compare | null; // settled (useSettled, 400 ms): /scope refetches once a gesture stops
-  context: TrendContext | null;
   query: DrillQuery;
   onQueryChange(patch: Partial<DrillQuery>): void;
   per: Per;

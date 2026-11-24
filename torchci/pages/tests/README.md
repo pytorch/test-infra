@@ -1637,153 +1637,61 @@ the rules above: nothing but `/api/tests` endpoints, its logic in
 
 ## Cost page
 
-`/tests/[organization]/[repo]/cost` is a prototype: where a repository's
-test-job runner-hours went over the last 1, 3 or 7 whole UTC days, by owner,
-machine and workflow at once, from one answer of `GET /api/tests/cost` summed
-in the browser (`lib/tests/cost/runnerHours.ts`, tested in
-`test/tests/cost.test.ts`). The API README's
-[Cost](../../app/api/README.md#cost) section has the method.
+`/tests/[organization]/[repo]/cost` shows where a repository's test-job
+runner-hours go and how they changed between two periods, summed in the
+browser from `GET /api/tests/cost/trend`, `/scope`, `/series`, `/cases`,
+`/coverage` and `/coverage/jobs`, and the last 7 days (`window`) of
+`GET /api/tests/cost`. The API README's [Cost](../../app/api/README.md#cost)
+section has the method. The old `/cost/v2` path redirects here with its
+query.
 
-- Three rules hold throughout. The window and the workflow scope are the only
-  choices that change the numbers: owners and machines highlight, and nothing
-  re-sorts or rescales when they do. Every number carries its unit, and every
-  percentage its base: the owner bars, their axis and the machine key are
-  shares of the scope, the workflows card shares of the whole window. Colors
-  follow the machine: the window's seven largest keep seven validated hues in
-  name order (`lib/tests/cost/colors.ts`), other machines are grey, and a
-  highlighted machine without a hue takes the accent. Hours whose machine is
-  estimated from a runner label are striped in their machine's color;
-  Unknown machine is grey stripes at the other angle.
-- The page opens with the hub's row (`HubTabs`), Cost marked as the page's
-  own: the way here from the tests page and back. Under it the page still
-  has a title sentence, as the tests page had until 2026-11-24:
-  "Runner-hours over the last 7 days", the window (1, 3 or 7 days) its pill
-  (`InlineSelect`); the row names the repository. The page has not been
-  moved to the rule every page in the tabs is to follow, the row as the
-  title with the page's choices at its right end (Best Practice says what
-  moving it takes); until it is, its entry in `PAGES` is marked `ownTitle`,
-  so the row adds no heading beside the sentence's.
-  The facts under it say what the hours cover: the scope (in
-  the accent with a clear button while one is in force), annualized and per
-  day runner-hours, the share attributed to owners, and the PR update and PR
-  merge signals (pull and trunk on pushes to main, medians with queueing),
-  which ignore the scope. Each panel's subtitle names the days its answer
-  covers, and how many of the window's days have data when not all do. Every
-  tooltip and caption is a phrase or two.
-- Runner-hours by owner: the top 15 owners, every highlighted owner in its
-  own row, "N more owners" (opens to list them), then one Unattributed row
-  with an (i) defining it, each bar split by machine in one fixed order (the
-  window's largest first, Unknown machine last). Highlighted machines move to
-  the start of every bar and the rest goes pale; highlighted owners dim the
-  other rows. The band holds the scope keys (All workflows, the API's presets
-  such as PR Critical Path, and Custom while the workflows card sets one) and
-  "Split by machine". The machine key at the right is legend, machine picker
-  and machine shares in one.
-- All owner–machine pairs: the matrix, open until its band folds it. Its rows
-  end with the two unattributed buckets, No owner then No test reports, each
-  with an (i). Cells show an owner's share of the machine (default), the
-  machine's share of the owner, or hours on a square-root scale, by one
-  sequential blue ramp in light and dark steps; cells that are mostly
-  estimated are striped. "Only selected" hides what is not
-  highlighted, every number unchanged; "Download CSV" saves the rows in the
-  scope and highlight. Columns group by machine family. A cell opens a drawer
-  at the right: its hours and their bases, how many have an estimated
-  machine, its workflows, the runner labels mapped to the machine, for a
-  bucket what it is made of (runner labels or files), and caveats. Headers,
-  row names and cells are buttons, so all of it works from the keyboard.
-  Escape closes the drawer, then clears the highlight, unless a text field or
-  menu has it.
-- Cost by owner (`CostPanel`), under the runner-hours chart: the same chart in
-  $, from a rates file the reader adds, so the page never asks for a unit up
-  front. Until a file is added the panel's body asks for one: a dashed area to
-  drop it on (a file dropped anywhere on the page lands there, so a miss never
-  opens the file in the tab), "Download rates file", "Choose rates file…" and
-  "File format" (a JSON of runner label → $ per runner-hour, or wrapped as
-  `{valid_from, window, basis, rates}`; `window` is `{start, end}`, the UTC
-  days of usage the rates are averaged over, both included, and a bad one is
-  ignored as the notes are). "Download rates file" is a plain link to the
-  internal rates file (`RATES_FILE_URL`, a Meta-only fburl; its tooltip says
-  it needs access to the file) that opens in a new tab: the browser downloads
-  the file and the reader adds it as any other; HUD never fetches it. The file
-  is read in the browser into the page's state (`lib/tests/cost/rates.ts`):
-  never sent, stored, or put in the URL, whose query HUD's analytics record,
-  and reloading drops it; the panel's split keys stay out of the URL with it.
-  The API holds no prices. A row's price key is its runner labels without
-  self-hosted; 0 is a price, and a runner the file leaves out has no rate and
-  stays out of the cost. Once added, a line under the band names the file, its
-  usage window in a grey pill like the facts' (the page's date format, "Rates
-  averaged over 2026-10-08 to 11-06"; its tooltip counts the UTC days and says
-  the page prices all its days with these rates), its valid_from unless that
-  is the window's last day, its basis, how many of the window's runners it
-  leaves without a rate and how many of its labels didn't run (each listed in
-  a tooltip), and Replace, Clear and File format (the facts' "Priced" pill is
-  the share, by scope); a file that can't be read says why, keeping the one
-  loaded, and a file pricing no runner in the window is refused, with an
-  example label. Rates run from 0 to 100,000 $/h and read to 3 significant
-  figures under $1. Each runner's $/h in the key is editable in place
-  (`RateCell`: a click or Enter makes it a field, Enter or leaving applies,
-  Escape cancels, blank removes the rate, a hint shows while what is typed
-  is no rate), the page repricing at once; edited rates are in the accent,
-  and the file's line counts them (each change in a tooltip) with an inline
-  "(Undo)". The runners drawer finds its row again on every change, as the
-  matrix's cell drawer does, and closes when the row is gone. A file dropped
-  anywhere on the page is never opened in a tab, even before the panel is
-  there. The field is in no form and has no name,
-  so the browser neither submits nor remembers it; edits live in the page's
-  state with the file. Owners sort by
-  $, and a mark on each bar is its share of the runner-hours that have a
-  rate, on the axis's share scale (where the bar would end at the scope's
-  average $/h), so owners whose hours cost more than average stand out. The panel follows the page's workflow scope and
-  highlight; machines keep their runner-hours order and hues, so nothing
-  repaints, and owners and machines with hours but no rate keep their rows.
-  With a file, the facts gain a second row in $ (annualized, per day, and
-  the share of the scope's runner-hours priced), following the scope and
-  any edits; the matrix and the workflows card stay in runner-hours.
-- Runners, in the cost panel only (runner names matter where they are
-  priced; the runner-hours chart is as it was): each split bar piece's
-  tooltip names the runners it ran on; a row's › opens a drawer of its
-  machines and each machine's runners with their shares, $/h and cost, and
-  the runners with no rate; the machine key (`CostMachineKey`) gives each
-  machine its $/h and a ▸ listing its runners with theirs, in the runner
-  level's shades and order, every figure of one set (every owner, or the
-  highlighted owners', the pale bars still every owner's, so a machine's
-  runners add up to it), a highlighted machine's runners open and the others
-  dimmed with theirs, each runner in a shade of its machine's color in a
-  fixed order (its window hours, largest first, darkest). Every runner figure
-  follows the workflow scope. The answer's rows keep
-  their runner label for this.
-- Workflows: the four largest, ticked ones pinned, "+ N more" with a search;
-  ticking makes a custom scope. Open, under the matrix (2026-11-04: folded,
-  it was easy to miss).
-- The URL carries `window`, `workflow`, `owner` and `machine` (repeated),
-  `split_by`, `cells` and `only`, defined in `lib/api/tests/cost/page.ts`
-  (`COST_PAGE_PARAMETER_DEFINITIONS`, `window` taken from the endpoint's
-  definition). Names the answer does not hold are dropped from the page at
-  once and from the URL with the next change (`knownChoices`), except on a
-  window change, whose new answer may hold them.
-
-## Cost page V2 preview
-
-`/tests/[organization]/[repo]/cost/v2` is the next cost page, kept beside the
-current one while it is evaluated; the current page is unchanged. It reads the
-same endpoints plus `/api/tests/cost/scope`, `/series`, `/cases`, `/coverage`
-and `/coverage/jobs`:
-
-- A compact banner of what share of the organization's CI runner-hours the
-  page accounts for over period B (`components/tests/cost/banner`).
-- Trends: owner-stacked daily, weekly or monthly bars with two periods, A and
-  B, picked on the chart: pick A or B, click a bar, drag to draw, drag an edge
-  to stretch, arrow keys to move (`components/tests/cost/trends`).
-- With a rates file, a strip of its rate periods under the bars; each day is
-  priced by the period covering it, and days without one read as no rates,
-  never $0 (`lib/tests/cost/ratePeriods.ts`).
-- A drill-down under the trends, A against B row by row, through a trail of
-  owner, machine and test file down to configurations and test cases
-  (`components/tests/cost/drill`).
-- The owner-machine matrix and the workflows card, folded.
-
-Its URL parameters are defined in `lib/api/tests/cost/pageV2.ts` and read and
-written by `lib/tests/cost/queryV2.ts`.
+- Title row (`CostHeading`): "Runner-hours of pytorch/pytorch", then the
+  workflow scope chips (All workflows, the API's presets such as PR Critical
+  Path, and Custom while the workflows card sets one; `ScopeKeys`) and the
+  rates control (`RatesControl`): "Download rates", a link to the internal
+  rates file that opens in a new tab, "Add rates…" and Format. A rates.json
+  (with its optional rates.meta.json), picked or dropped anywhere on the page,
+  is read in the browser into the page's memory: never sent, stored or put in
+  the URL, and a reload drops it (`lib/tests/cost/ratePeriods.ts`). Each UTC
+  day is priced by the rate period covering it; a day in none reads as no
+  rates, never $0. The API holds no prices.
+- Headline facts (`PageFacts`): the scope, annualized, per day and per commit
+  runner-hours and the share attributed to owners over the last 28 whole
+  days, then the PR update and merge signals of the window (pull and trunk on
+  pushes to main). They follow the workflow scope only, never the trail or
+  A/B, as the caption at the row's end says.
+- Coverage banner (`components/tests/cost/banner`): what share of the
+  organization's CI runner-hours the page covers over B's days, as one strip
+  (other repositories; this repository's builds, lint and other jobs; test
+  jobs outside the workflow scope; then the page's own: no reports, setup and
+  idle, active test time), with an ⓘ holding the definitions.
+- Trends (`components/tests/cost/trends`): daily, weekly or monthly bars
+  stacked by owner or by machine, in hours or $, per bar (Total; a partial
+  bar counts as a whole one) or per commit (push:main runner-hours over the
+  pushes to main). Two periods, A (compared against) and B (studied), are
+  picked on the chart (`lib/tests/cost/select.ts`): arm A or B, click a bar,
+  drag to draw, drag an edge to stretch, arrow keys to move, Swap; Show sets
+  how many bars. The Quick row's relative presets (day over day, week over
+  week, month over month, last 7 vs prior 7, last 28 vs prior 28) keep a
+  bookmark current.
+- Drill (`components/tests/cost/drill`), inside Trends: a trail of owner,
+  machine and test file pills (By owner or By machine picks what the root
+  lists), a head of A and B figures, and a table of A against B row by row
+  with the change and %, rows opening in place, down to a test file's
+  configurations and test cases (`GET /api/tests/cost/cases`, a heavy query
+  behind a cheap gate, asked only on request). The bars follow the trail.
+- Rate strip (`RateStrip`): in $ with a rates file, a thin row under the
+  bars, a segment per rate period with its $/h, gaps hatched.
+- Workflows card (`WorkflowsCard`), folded at the end: each workflow's share
+  of the window's runner-hours, the four largest listed with ticked ones
+  pinned, "+ N more" and a search; ticking makes a custom scope.
+- Every choice lives in the URL under `COST_PAGE_PARAMETER_DEFINITIONS`
+  (`lib/api/tests/cost/page.ts`), defaults left off, read by
+  `lib/tests/cost/query.ts` and written by one writer
+  (`lib/tests/cost/urlState.ts`): a new workflow scope pushes a history
+  entry, anything else replaces. An older link's `owner` and `machine` become
+  the trail; `split_by`, `cells` and `only` leave the URL with the next
+  write. Every color comes from the theme's mode (`lib/tests/cost/colors.ts`).
 
 ## Verifying a change
 

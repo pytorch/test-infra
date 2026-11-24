@@ -79,10 +79,9 @@ const ROLLUPS: { value: Rollup; label: string }[] = [
 ];
 
 const DESCRIPTION = [
-  "Runner-hours of test jobs (ci.test_cost) by day, week or month, stacked by what the scope lists; $ with a rates file, each day priced at its own rate period.",
-  'Total: a bar is its days\' hours summed (a bar missing days reads low, marked "4 of 7"); A, B, the drill and their change read per bar of the rollup: a day, a week or a month, a partial bar counting as its share of days. Per commit: push-to-main hours over pushes to main (main runs every test).',
-  "Owners are today's ownership map applied to every day (not kept per day yet). A machine is the job environment's, else the machine its runner label ran on most that week. No data before the first day shown.",
-  "Picking periods: choose A or B (or press A, B), then click a bar to place it at its length, drag across bars to draw a longer one, drag an edge to stretch it or its label to move it. ← → move it, Shift+← → by its length, [ ] resize.",
+  "Test-job runner-hours per day, week or month, stacked by the scope.",
+  "Pick A or B, then click or drag on the bars.",
+  "Per commit: push-to-main hours over pushes to main.",
 ].join("\n");
 
 const scopeKey = (s: BarsScope) =>
@@ -162,15 +161,7 @@ export function disclosures(input: {
     const data = dataDays(ctx, r);
     const calendar = calendarDays(sel.rollup, r);
     const name = s.toUpperCase();
-    if (data === 0) {
-      return [
-        `${name} has no data${
-          ctx.firstDay !== null && r.to < ctx.firstDay
-            ? ` (test_cost starts ${dayLabel(ctx.firstDay)})`
-            : ""
-        }`,
-      ];
-    }
+    if (data === 0) return [`${name} has no data`];
     return data < calendar
       ? [`${name} has data on ${data} of ${calendar} days`]
       : [];
@@ -191,11 +182,7 @@ export function disclosures(input: {
   }
   const overlap = overlapDays(sel.a, sel.b);
   if (overlap > 0) {
-    items.push(
-      sel.a.from === sel.b.from && sel.a.to === sel.b.to
-        ? "A and B are the same period"
-        : `A and B overlap by ${overlap} day${overlap === 1 ? "" : "s"}`
-    );
+    items.push(`A and B overlap by ${overlap} day${overlap === 1 ? "" : "s"}`);
   }
   if (
     per === "commit" &&

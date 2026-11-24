@@ -104,8 +104,8 @@ table's columns.
 
 ## The trend and what changed
 
-`trendQuery`, `trendDailyQuery` and `changesQuery` carry the runner-hours of
-pushes to main beside the whole (`sumIf(…, trigger = 'push:main')`), for
+`trendQuery` and `trendDailyQuery` carry the runner-hours of pushes to
+main beside the whole (`sumIf(…, trigger = 'push:main')`), for
 cost per commit. Over 10-29..11-04:
 
 - The trend's rows are those of the query before the change (8,329 rows,
@@ -116,17 +116,6 @@ cost per commit. Over 10-29..11-04:
   day (`label` ''), so a day with data is a day the rollup holds, not a day
   the scope ran: for `periodic`, the same 74 cells and 4,101.86 h, plus 7
   zero rows.
-
-`changesQuery(true)` for inductor, A 10-29..11-01 against B 11-02..11-04,
-against the straightforward form (the latest day by a window function and
-the owners joined on every row): the same 4,830 rows (0 differing), median
-0.87 s against 1.63 s over 5 rounds, 1.0 s against 1.9 s on one thread,
-53 MiB against 97 MiB. Its sides sum to the trend's inductor hours to
-0.0005 h (64,344.2 h and 65,308.0 h). With the push:main hours added and
-the trigger cut dropped, the file and workflow rows are unchanged and their
-push:main sums equal the old trigger breakdown's; 0.56 s against 0.44 s
-(medians of 6, ranges overlapping). About a CPU-second for a week a side:
-not a heavy query.
 
 ## Pushes to main
 
@@ -155,7 +144,7 @@ last computed before 03:00 the next day (`FILLING_HOURS`, 27 hours after it
 began) is filling: the trend lists it, fades its bar, keeps it out of the
 presets and says it reads low.
 
-## Cost V2: scope, series, coverage, coverage/jobs, cases
+## Scope, series, coverage, coverage/jobs, cases
 
 Measured 2026-11-19/20 through `hud_user` (`readonly=2`, 8 GB, `max_execution_time` 120,
 the database's old analyzer), server figures from `FORMAT JSON` statistics, `max_threads` 1

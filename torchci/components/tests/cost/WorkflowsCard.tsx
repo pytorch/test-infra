@@ -7,7 +7,7 @@ import {
   useTheme,
 } from "@mui/material";
 import CostFrame from "components/tests/cost/CostFrame";
-import { ScopeKeys } from "components/tests/cost/OwnerChart";
+import ScopeKeys from "components/tests/cost/ScopeKeys";
 import type { WorkflowPreset } from "lib/api/tests/cost/types";
 import { otherMachinesColor, paleColor } from "lib/tests/cost/colors";
 import { hoursLabel, shareLabel } from "lib/tests/cost/query";
@@ -88,7 +88,7 @@ export default function WorkflowsCard({
   return (
     <CostFrame
       title="Workflows"
-      description="Each workflow's share of all runner-hours. Ticking workflows scopes the whole page."
+      description="Ticking workflows scopes the whole page."
       note={`share of all ${hoursLabel(
         prepared.total
       )} runner-hours · ${dates}`}
@@ -97,22 +97,14 @@ export default function WorkflowsCard({
       open={open}
       onOpenChange={setOpen}
     >
-      <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
-        Most readers can leave this on All workflows; tick some to narrow the
-        page
-        {highlighting ? (
-          <>
-            .{" "}
-            <Box component="span" sx={{ color: "primary.main" }}>
-              Blue
-            </Box>
-            : {highlightName(prepared, view)}
-          </>
-        ) : (
-          ""
-        )}
-        .
-      </Typography>
+      {highlighting && (
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
+          <Box component="span" sx={{ color: "primary.main" }}>
+            Blue
+          </Box>
+          : {highlightName(prepared, view)}.
+        </Typography>
+      )}
       <Box
         sx={{
           display: "grid",

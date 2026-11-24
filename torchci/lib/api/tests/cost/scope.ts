@@ -3,6 +3,7 @@ import type {
   CostScope,
   Day,
   DayRange,
+  PieceSpan,
   Pill,
   ScopeBy,
   ScopeChildInfo,
@@ -74,13 +75,15 @@ export function trailParams(trail: readonly Pill[]): Record<string, string> {
 // The rows are summed first by side and piece (or day), test file,
 // environment, runner label and workflow, keeping only the keys the scope
 // needs, so the machine and owner joins read a row per group rather than per
-// stored row. Pieces are a side's days inside one ISO week and one calendar
-// month, from piece_from, for pricing by week or month without a day
-// dimension; a piece's week names its label machine.
+// stored row. Pieces start at piece_from: by default a side's days inside
+// one ISO week and one calendar month, for pricing by week or month without
+// a day dimension; with span day, single days, for prices that change on any
+// day. A row's week names its label machine.
 export function scopeQuery(
   grain: ScopeGrain,
   trail: readonly Pill[],
-  by: ScopeBy
+  by: ScopeBy,
+  span: PieceSpan = "week"
 ): string {
   const has = (dim: Pill["dim"]) => trail.some((p) => p.dim === dim);
   const needMachine = by === "m" || has("m");
@@ -107,7 +110,9 @@ export function scopeQuery(
     ...(grain === "sides"
       ? [
           SIDES.replace(/\n/g, "\n    "),
-          `greatest(toMonday(day), toStartOfMonth(day),
+          span === "day"
+            ? "day AS piece_from"
+            : `greatest(toMonday(day), toStartOfMonth(day),
         if(side = 0, {a_from: Date}, {b_from: Date})) AS piece_from`,
         ]
       : ["day AS day_utc_date"]),
@@ -301,9 +306,16 @@ const mondayOf = (day: Day): Day => {
   return addDays(day, -((d.getUTCDay() + 6) % 7));
 };
 
-// The piece of a side starting on from: through the earliest of its week's
-// Sunday, its month's last day and the side's last day.
-export function pieceOf(side: 0 | 1, from: Day, range: DayRange): ScopePiece {
+// The piece of a side starting on from: that day alone for day pieces, else
+// through the earliest of its week's Sunday, its month's last day and the
+// side's last day.
+export function pieceOf(
+  side: 0 | 1,
+  from: Day,
+  range: DayRange,
+  span: PieceSpan = "week"
+): ScopePiece {
+  if (span === "day") return { side, from, to: from };
   const ends = [addDays(mondayOf(from), 6), lastOfMonth(from), range.to];
   return { side, from, to: ends.sort()[0] };
 }
@@ -404,7 +416,8 @@ export function compactScope(
   a: DayRange,
   b: DayRange,
   rows: ScopeRow[],
-  dayRows: ScopeDayRow[]
+  dayRows: ScopeDayRow[],
+  span: PieceSpan = "week"
 ): Pick<
   CostScope,
   "sides" | "pieces" | "children" | "labels" | "cells" | "tests"
@@ -433,7 +446,7 @@ export function compactScope(
   ).sort();
   const pieces = pieceKeys.map((key) => {
     const side = Number(key.slice(0, 1)) as 0 | 1;
-    return pieceOf(side, key.slice(2), ranges[side]);
+    return pieceOf(side, key.slice(2), ranges[side], span);
   });
   const pieceIndex = new Map(pieceKeys.map((k, i) => [k, i]));
   const childIndex = new Map(children.map((c, i) => [c, i]));
@@ -495,6 +508,7 @@ export async function getCostScope(
   const workflows = params.workflow ?? [];
   const trail = params.trail;
   const by = params.by;
+  const piece = params.piece;
   const bound = {
     repo: params.repo,
     a_from: a.from,
@@ -513,7 +527,7 @@ export async function getCostScope(
     EnvironmentRow[]
   ] = await Promise.all([
     queryClickhouse(
-      scopeQuery("sides", trail, by),
+      scopeQuery("sides", trail, by, piece),
       { ...bound, workflows, ...trailParams(trail) },
       "tests_cost_scope"
     ),
@@ -532,7 +546,7 @@ export async function getCostScope(
       ? queryClickhouse(environmentsQuery(), {}, "tests_cost_scope_envs")
       : Promise.resolve([]),
   ]);
-  const compact = compactScope(by, a, b, rows, dayRows);
+  const compact = compactScope(by, a, b, rows, dayRows, piece);
   return {
     repo: params.repo,
     workflows,
@@ -540,6 +554,7 @@ export async function getCostScope(
     by,
     a,
     b,
+    piece,
     sides: compact.sides,
     pieces: compact.pieces,
     children: compact.children,

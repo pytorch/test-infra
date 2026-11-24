@@ -9,7 +9,7 @@ import {
   costUrlParams,
   parseDayRange,
   resolveCostQuery,
-} from "lib/tests/cost/queryV2";
+} from "lib/tests/cost/query";
 import {
   applyPatch,
   type CostRouter,
@@ -144,8 +144,6 @@ describe("cost page URL", () => {
       cfg: "123:456",
       cases: "slower",
       rank: "day",
-      cells: "hours",
-      only: "1",
       window: "3d",
     });
     expect(query).toMatchObject({
@@ -266,7 +264,12 @@ describe("useCostUrl", () => {
     (fn.mock.calls[fn.mock.calls.length - 1][0] as { query: object }).query;
 
   test("two patches in one tick write once, with both", async () => {
-    const { router } = stubRouter({ owner: "inductor", split_by: "none" });
+    const { router } = stubRouter({
+      owner: "inductor",
+      split_by: "none",
+      cells: "hours",
+      only: "1",
+    });
     const write = costUrlWriter(router as unknown as CostRouter);
     write({ trends: { per: "commit" } });
     write({ drill: { chg: "pct" } });
@@ -279,7 +282,8 @@ describe("useCostUrl", () => {
       repo: "pytorch",
       per: "commit",
       chg: "pct",
-      // The older link's owner moved into the trail; split_by is retired.
+      // The older link's owner moved into the trail; split_by, cells and
+      // only are retired.
       trail: "o:inductor",
     });
     expect(router.replace.mock.calls[0][2]).toEqual({

@@ -167,8 +167,8 @@ export default function CasesPanel({
       component="p"
       sx={{ color: "text.secondary", mt: 0.75 }}
     >
-      Test-level figures: per day, all workflows and triggers, last 14 days.
-      Older runs and files too big to scan are not tracked yet.
+      Test-level figures: per day, all workflows and triggers, last 14 days;
+      files too big to scan are left out.
     </Typography>
   );
   if (!cases.asked) {
@@ -877,8 +877,7 @@ export default function CasesPanel({
                 "en-US"
               )} tests × configuration; the rest are in the tests list. `
             : ""}
-          Test-level figures: per day, all workflows and triggers, last 14 days;
-          older runs are not tracked yet.
+          Test-level figures: per day, all workflows and triggers, last 14 days.
         </Typography>
       </Box>
     </Box>

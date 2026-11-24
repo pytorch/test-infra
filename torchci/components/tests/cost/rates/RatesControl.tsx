@@ -1,6 +1,7 @@
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import {
   Box,
@@ -13,7 +14,7 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import RatesFormatPeriods from "components/tests/cost/rates/RatesFormatPeriods";
-import { RatesAction } from "components/tests/cost/RatesDropzone";
+import TextButton from "components/tests/TextButton";
 import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import type { RatesControlProps, RatesSet } from "lib/api/tests/cost/contracts";
 import { daySpanLabel, ratesChip } from "lib/tests/cost/ratePeriods";
@@ -22,11 +23,31 @@ import {
   headerBandColor,
   headerBandHoverColor,
   headerKeyFocusRing,
+  headerRuleColor,
 } from "lib/tests/headerColors";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 const PRIVACY =
   "They stay in this tab; HUD never receives or stores them, and reloading drops them.";
+
+// A text action in the error line: underlined, so it reads as one.
+function RatesAction({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <TextButton label={label} onClick={onClick}>
+      <Box component="span" sx={{ textDecoration: "underline" }}>
+        {children}
+      </Box>
+    </TextButton>
+  );
+}
 
 // What the chip's tooltip adds to its words.
 function chipLines(rates: RatesSet): string[] {
@@ -54,11 +75,12 @@ function chipLines(rates: RatesSet): string[] {
   ];
 }
 
-// The title row's rates control: a link to download the internal rates
-// file; "Add rates…" until a rates.json (and its rates.meta.json) is loaded,
-// then a chip naming it with ✕; a Format popover; one inline error line;
-// "Drop rates files to load" while files are dragged over the page (the page
-// owns the drop). No edits.
+// The title row's rates control: one grey pill joining a link to download
+// the internal rates file and "Add rates…", which turns into a chip naming
+// the loaded rates.json (and its rates.meta.json) with ✕, and into "Drop
+// rates files to load" while files are dragged over the page (the page owns
+// the drop); then a Format text button for the popover, and one inline
+// error line under them. No edits.
 export default function RatesControl({
   rates,
   error,
@@ -74,23 +96,24 @@ export default function RatesControl({
   const [formatAnchor, setFormatAnchor] = useState<HTMLElement | null>(null);
   const choose = () => picker.current?.click();
   const warning = dark ? theme.palette.error.light : theme.palette.error.dark;
-  const pill = {
+  // A part of the pill, the pill's height; one pressed on its own darkens
+  // under the pointer.
+  const part = {
     display: "inline-flex",
     alignItems: "center",
     gap: 0.75,
-    height: VIEW_CHIP_HEIGHT,
-    px: 1.25,
-    borderRadius: "999px",
+    height: "100%",
+    minWidth: 0,
     typography: "body2",
     whiteSpace: "nowrap",
-  } as const;
-  const pressable = {
-    ...pill,
     color: "text.primary",
-    backgroundColor: headerBandColor(theme),
-    "&:hover": { backgroundColor: headerBandHoverColor(theme) },
     "&.Mui-focusVisible": headerKeyFocusRing(theme),
   } as const;
+  const pressable = {
+    ...part,
+    "&:hover": { backgroundColor: headerBandHoverColor(theme) },
+  } as const;
+  const icon = { fontSize: 18, color: "text.secondary", flex: "none" };
 
   // A plain link: the browser downloads the file, which then comes in as
   // any other does. HUD never fetches it; it opens only for Meta employees.
@@ -104,27 +127,31 @@ export default function RatesControl({
         href={RATES_FILE_URL}
         target="_blank"
         rel="noopener noreferrer"
-        sx={{ ...pressable, flex: "none" }}
+        sx={{
+          ...pressable,
+          flex: "none",
+          pl: 1.25,
+          pr: 1,
+          borderRadius: "999px 0 0 999px",
+        }}
       >
-        <DownloadRoundedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+        <DownloadRoundedIcon sx={icon} />
         Download rates
       </ButtonBase>
     </Tooltip>
   );
 
+  const end = { pl: 1, pr: 1.25, borderRadius: "0 999px 999px 0" } as const;
   let main;
   if (dragging) {
     main = (
       <Box
         sx={{
-          ...pill,
+          ...part,
+          ...end,
           color: "primary.main",
           fontWeight: 500,
-          border: `1.5px dashed ${theme.palette.primary.main}`,
-          backgroundColor: alpha(
-            theme.palette.primary.main,
-            dark ? 0.16 : 0.06
-          ),
+          backgroundColor: alpha(theme.palette.primary.main, dark ? 0.24 : 0.1),
         }}
       >
         <UploadFileOutlinedIcon sx={{ fontSize: 18 }} />
@@ -138,10 +165,8 @@ export default function RatesControl({
         enterDelay={500}
         title={`Price runner-hours with your rates.json (and its rates.meta.json). ${PRIVACY}`}
       >
-        <ButtonBase onClick={choose} sx={pressable}>
-          <UploadFileOutlinedIcon
-            sx={{ fontSize: 18, color: "text.secondary" }}
-          />
+        <ButtonBase onClick={choose} sx={{ ...pressable, ...end }}>
+          <UploadFileOutlinedIcon sx={icon} />
           Add rates…
         </ButtonBase>
       </Tooltip>
@@ -150,11 +175,13 @@ export default function RatesControl({
     main = (
       <Box
         sx={{
-          ...pill,
-          pr: 0.25,
+          display: "inline-flex",
+          alignItems: "center",
           gap: 0.25,
-          maxWidth: 420,
-          backgroundColor: headerBandColor(theme),
+          minWidth: 0,
+          maxWidth: 360,
+          pl: 1,
+          pr: 0.25,
         }}
       >
         <Tooltip
@@ -168,28 +195,12 @@ export default function RatesControl({
           <ButtonBase
             onClick={choose}
             aria-label={`Replace ${rates.file}`}
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 0.75,
-              minWidth: 0,
-              height: "100%",
-              borderRadius: "999px",
-              typography: "body2",
-              color: "text.primary",
-              "&.Mui-focusVisible": headerKeyFocusRing(theme),
-            }}
+            sx={{ ...part, borderRadius: "4px" }}
           >
-            <InsertDriveFileOutlinedIcon
-              sx={{ fontSize: 17, color: "text.secondary", flex: "none" }}
-            />
+            <InsertDriveFileOutlinedIcon sx={{ ...icon, fontSize: 17 }} />
             <Box
               component="span"
-              sx={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
+              sx={{ overflow: "hidden", textOverflow: "ellipsis" }}
             >
               {ratesChip(rates, true)}
             </Box>
@@ -213,7 +224,6 @@ export default function RatesControl({
         display: "flex",
         flexDirection: "column",
         alignItems: "flex-end",
-        rowGap: 0.5,
         minWidth: 0,
       }}
     >
@@ -233,16 +243,45 @@ export default function RatesControl({
       <Box
         sx={{
           display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "flex-end",
           alignItems: "center",
-          columnGap: 1.25,
+          gap: 0.5,
           minWidth: 0,
           maxWidth: "100%",
         }}
       >
-        {download}
-        {main}
+        <Box
+          role="group"
+          aria-label="Rates file"
+          sx={{
+            display: "inline-flex",
+            alignItems: "stretch",
+            height: VIEW_CHIP_HEIGHT,
+            minWidth: 0,
+            borderRadius: "999px",
+            backgroundColor: headerBandColor(theme),
+            ...(dragging
+              ? {
+                  outline: `1.5px dashed ${theme.palette.primary.main}`,
+                  outlineOffset: "-1.5px",
+                }
+              : {}),
+          }}
+        >
+          {download}
+          <Box
+            aria-hidden
+            sx={{
+              flex: "none",
+              width: "1px",
+              my: 0.75,
+              backgroundColor: headerRuleColor(theme),
+            }}
+          />
+          {main}
+        </Box>
         <ButtonBase
-          disableRipple
           aria-haspopup="dialog"
           aria-expanded={formatAnchor !== null}
           aria-label="Rates file format"
@@ -250,22 +289,41 @@ export default function RatesControl({
             setFormatAnchor(formatAnchor === null ? e.currentTarget : null)
           }
           sx={{
+            ...part,
             flex: "none",
-            typography: "body2",
-            color: "text.secondary",
-            textDecoration: "underline",
-            textUnderlineOffset: "3px",
-            borderRadius: "2px",
-            "&:hover": { color: "text.primary" },
-            "&.Mui-focusVisible": headerKeyFocusRing(theme),
+            gap: 0.25,
+            height: VIEW_CHIP_HEIGHT,
+            pl: 1,
+            pr: 0.5,
+            borderRadius: "999px",
+            color: formatAnchor === null ? "text.secondary" : "text.primary",
+            backgroundColor:
+              formatAnchor === null ? "transparent" : headerBandColor(theme),
+            "&:hover": {
+              color: "text.primary",
+              backgroundColor: headerBandColor(theme),
+            },
           }}
         >
           Format
+          <KeyboardArrowDownRoundedIcon
+            aria-hidden
+            sx={{
+              fontSize: 18,
+              opacity: 0.7,
+              transform: formatAnchor === null ? "none" : "rotate(180deg)",
+              transition: theme.transitions.create("transform", {
+                duration: theme.transitions.duration.shorter,
+              }),
+            }}
+          />
         </ButtonBase>
       </Box>
-      <Box role="alert" sx={{ maxWidth: "72ch", textAlign: "right" }}>
+      {/* As wide as the controls above, never wider: a long error wraps
+          rather than pushing the keys under the title. */}
+      <Box role="alert" sx={{ width: 0, minWidth: "100%", textAlign: "right" }}>
         {error !== null && (
-          <Typography variant="body2" sx={{ color: warning }}>
+          <Typography variant="body2" sx={{ mt: 0.5, color: warning }}>
             <b>
               {rates === null
                 ? "Couldn't read the rates files."
