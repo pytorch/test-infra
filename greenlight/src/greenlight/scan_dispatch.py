@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
+from greenlight.latch import latch_rate_limit
 from greenlight.scan_runner import _staleness_key_for_state
 from greenlight.state import next_run_id
 
@@ -107,7 +108,7 @@ def _dispatch_pending(
             raise
         except Exception as exc:
             if is_rate_limit_error(exc):
-                cancel_event.set()
+                latch_rate_limit(cancel_event, exc)
             logger.error("failed to dispatch review for PR #%d: %s", candidate.pr_number, exc, exc_info=True)
             dispatch_failed.append(candidate.pr_number)
             continue

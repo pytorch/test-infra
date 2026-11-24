@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import dataclasses
 import http.server
 import json
@@ -198,33 +199,28 @@ def test_an_invalid_primary_file_is_safety_only_under_the_builtin(text, reason):
     assert reason in settings.problem
 
 
-class _Content:
-    def __init__(self, text: str, size: int | None = None) -> None:
-        self.decoded_content = text.encode()
-        self.size = len(self.decoded_content) if size is None else size
+def _content(text: str, size: int | None = None) -> dict[str, object]:
+    """The contents API's answer for a file holding ``text`` (``size`` as the API reports it)."""
+    data = text.encode()
+    return {"type": "file", "size": len(data) if size is None else size, "content": base64.b64encode(data).decode()}
 
 
-class _ContentsRepo:
+class _Requester:
     def __init__(self, contents: object) -> None:
         self.contents = contents
-        self.paths: list[str] = []
+        self.calls: list[tuple[str, str]] = []
 
-    def get_contents(self, path: str) -> object:
-        self.paths.append(path)
+    def requestJsonAndCheck(self, verb: str, url: str) -> tuple[dict[str, str], object]:
+        self.calls.append((verb, url))
         if isinstance(self.contents, BaseException):
             raise self.contents
-        return self.contents
+        return {}, self.contents
 
 
 class _ContentsClient:
     def __init__(self, contents: object) -> None:
-        self.repo = _ContentsRepo(contents)
-        self.names: list[str] = []
+        self.requester = _Requester(contents)
         self.closed = 0
-
-    def get_repo(self, full_name_or_id: str) -> _ContentsRepo:
-        self.names.append(full_name_or_id)
-        return self.repo
 
     def close(self) -> None:
         self.closed += 1
@@ -235,13 +231,12 @@ def _read(repo: str, contents: object) -> Settings:
 
 
 def test_read_settings_reads_the_repos_own_file_from_its_default_branch():
-    client = _ContentsClient(_Content(_file()))
+    client = _ContentsClient(_content(_file()))
 
     settings = repo_config.read_settings(client, _VISION)  # type: ignore[arg-type]
 
     assert settings.served is True
-    assert client.names == [_VISION]
-    assert client.repo.paths == [REPO_CONFIG_PATH]
+    assert client.requester.calls == [("GET", f"/repos/{_VISION}/contents/{REPO_CONFIG_PATH}")]
 
 
 def test_an_absent_file_serves_the_primary_builtin_and_leaves_other_repos_unconfigured():
@@ -254,9 +249,11 @@ def test_an_absent_file_serves_the_primary_builtin_and_leaves_other_repos_unconf
 @pytest.mark.parametrize(
     ("contents", "reason"),
     [
-        pytest.param([_Content("x")], "it is a directory, not a file", id="directory"),
-        pytest.param(_Content(_file(), size=CONFIG_MAX_BYTES + 1), "byte limit", id="api-size-over-cap"),
-        pytest.param(_Content("#" * (CONFIG_MAX_BYTES + 1), size=0), "byte limit", id="decoded-over-cap"),
+        pytest.param([_content("x")], "it is a directory, not a file", id="directory"),
+        pytest.param(_content(_file(), size=CONFIG_MAX_BYTES + 1), "byte limit", id="api-size-over-cap"),
+        pytest.param(_content("#" * (CONFIG_MAX_BYTES + 1), size=0), "byte limit", id="decoded-over-cap"),
+        pytest.param({"type": "file", "size": 2, "content": "//79"}, "not UTF-8 text", id="not-utf8"),
+        pytest.param({"type": "symlink", "size": 2}, "it is a symlink, not a file", id="symlink"),
     ],
 )
 def test_a_directory_or_an_oversized_file_is_invalid(contents, reason):
@@ -288,33 +285,13 @@ def test_a_cold_unreadable_file_serves_the_primary_builtin_and_gives_other_repos
     assert any(record.exc_info is not None for record in caplog.records)
 
 
-@pytest.mark.parametrize(
-    "last",
-    [
-        pytest.param(Settings(TARGET_REPO, "valid", dataclasses.replace(BUILTIN_PYTORCH, mode="off"), True), id="off"),
-        pytest.param(Settings(TARGET_REPO, "invalid", BUILTIN_PYTORCH, False, "x"), id="safety-only"),
-        pytest.param(
-            Settings(_VISION, "valid", RepoEntry(_VISION, "greenlight", "gate", "merge_rules", "shadow"), True),
-            id="other",
-        ),
-        pytest.param(Settings(_VISION, "absent", None, False), id="absent"),
-    ],
-)
-def test_an_unreadable_file_serves_the_last_settings_read(last):
-    settings = repo_config.read_settings(_ContentsClient(GithubException(502)), last.repo, last=last)  # type: ignore[arg-type]
+@pytest.mark.parametrize("contents", [{"type": "file"}, "not a mapping"], ids=["no-size", "not-a-mapping"])
+def test_an_answer_that_is_no_contents_response_is_unreadable(contents):
+    settings = _read(_VISION, contents)
 
-    assert (settings.kind, settings.entry, settings.served) == ("unreadable", last.entry, last.served)
-    assert settings.problem == "config unreadable, serving the last settings read: GithubException: 502"
-
-
-@pytest.mark.parametrize("contents", [_Content("mode: off\n"), UnknownObjectException(404), _Content("- a\n")])
-def test_last_is_served_only_on_an_unreadable_file(contents):
-    last = Settings(TARGET_REPO, "valid", dataclasses.replace(BUILTIN_PYTORCH, mode="shadow"), True)
-
-    settings = repo_config.read_settings(_ContentsClient(contents), TARGET_REPO, last=last)  # type: ignore[arg-type]
-
-    assert settings.kind != "unreadable"
-    assert settings.entry is None or settings.entry.mode != "shadow"
+    assert (settings.kind, settings.entry) == ("unreadable", None)
+    assert settings.problem is not None
+    assert "unexpected shape" in settings.problem
 
 
 @pytest.mark.parametrize(
@@ -332,7 +309,7 @@ def _refuse(_token: str) -> NoReturn:
 
 
 def test_fetch_settings_builds_and_closes_its_own_patient_client(monkeypatch):
-    client = _ContentsClient(_Content(_file()))
+    client = _ContentsClient(_content(_file()))
     tokens: list[str] = []
 
     def build(token: str) -> _ContentsClient:

@@ -9,17 +9,17 @@ from a PR head); both end in a ``Settings``, the one place the outcome of every 
   takes safety work away from an older pinned release, and an older release never serves a file it
   does not fully understand;
 - **invalid** (not YAML, an anchor, alias or duplicate key, not a mapping, over ``CONFIG_MAX_BYTES``,
-  a directory, a field missing or out of its values, a cross-field rule broken): the primary is
-  safety-only under ``BUILTIN_PYTORCH``, any other repo is refused;
-- **unreadable** (any other read failure but a rate limit, which is re-raised): the settings of the
-  repo's last read that was not unreadable, when the caller kept them, so a failed read neither stops
-  a repo nor turns an ``off`` or ``shadow`` one ``active``; with none, the primary is served under
-  ``BUILTIN_PYTORCH`` and any other repo gets no work.
+  a directory, not UTF-8 text, a field missing or out of its values, a cross-field rule broken): the
+  primary is safety-only under ``BUILTIN_PYTORCH``, any other repo is refused;
+- **unreadable** (any other read failure but a rate limit, which is re-raised): the primary is served
+  under ``BUILTIN_PYTORCH`` and any other repo gets no work. The scan's config cache
+  (``config_cache``) serves the last file read instead.
 
+``read_settings`` judges the contents API's answer through ``config_contents``, as ``config_cache`` does.
 The primary reads only ``mode`` from its file: its ``status_comment``, ``safety``, ``eligibility`` and
 ``minimum_role`` are pinned to ``BUILTIN_PYTORCH``'s (a different value or an unknown key is logged and
-ignored, so a one-line config edit cannot widen whom GreenLight approves there). Every problem is logged with its
-reason and carried in ``Settings.problem``. See REPOS.md.
+ignored, so a one-line config edit cannot widen whom GreenLight approves there). Every problem is logged
+with its reason and carried in ``Settings.problem``. See REPOS.md.
 """
 
 from __future__ import annotations
@@ -27,13 +27,13 @@ from __future__ import annotations
 import dataclasses
 import logging
 import reprlib
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol, cast, get_args
+from typing import TYPE_CHECKING, Literal, cast, get_args
 
 import yaml
 
 from greenlight import github_client
+from greenlight.config_contents import config_url, contents_answer, too_big
 from greenlight.constants import (
     CONFIG_MAX_BYTES,
     DRCI_STATUS_COMMENT_REPOS,
@@ -45,17 +45,10 @@ from greenlight.constants import (
 from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
-    class _Content(Protocol):
-        @property
-        def size(self) -> int: ...
-
-        @property
-        def decoded_content(self) -> bytes: ...
-
-    class _ContentsRepo(Protocol):
-        def get_contents(self, path: str) -> _Content | Sequence[_Content]: ...
+    from github import Github
 
 
 logger = logging.getLogger(__name__)
@@ -137,10 +130,6 @@ _Loader.yaml_implicit_resolvers = {
 }
 
 
-class _ContentsClient(Protocol):
-    def get_repo(self, full_name_or_id: str) -> _ContentsRepo: ...
-
-
 @dataclass(frozen=True)
 class RepoEntry:
     repo: str
@@ -171,11 +160,10 @@ class Settings:
     problem: str | None = None
 
 
-def outcome(repo: str, kind: SettingsKind, reason: str = "", *, last: Settings | None = None) -> Settings:
+def outcome(repo: str, kind: SettingsKind, reason: str = "") -> Settings:
     """The settings of a file that is absent, invalid for ``reason`` or unreadable for ``reason``.
 
-    An unreadable file serves ``last``, the settings of the repo's last read that was not unreadable,
-    when there is one; else the primary's built-in entry, served, and no work anywhere else.
+    An unreadable file serves the primary's built-in entry, and no work anywhere else.
     """
     primary = is_primary(repo)
     builtin = BUILTIN_PYTORCH if primary else None
@@ -184,9 +172,6 @@ def outcome(repo: str, kind: SettingsKind, reason: str = "", *, last: Settings |
     if kind == "invalid":
         action = "safety-only under the built-in entry" if primary else "refused"
         settings = Settings(repo, kind, builtin, served=False, problem=f"invalid config, {action}: {reason}")
-    elif last is not None:
-        problem = f"config unreadable, serving the last settings read: {reason}"
-        settings = Settings(repo, kind, last.entry, served=last.served, problem=problem)
     else:
         action = "serving the built-in entry" if primary else "no work"
         settings = Settings(repo, kind, builtin, served=primary, problem=f"config unreadable, {action}: {reason}")
@@ -239,15 +224,11 @@ def _unknown_keys(raw: Mapping[object, object]) -> list[str]:
     return sorted(_cut(str(key)) for key in raw if key not in _ENUMS)
 
 
-def _too_big(size: int) -> str:
-    return f"the file is {size} bytes, over the {CONFIG_MAX_BYTES}-byte limit"
-
-
 def _load(text: str | bytes) -> Mapping[object, object]:
     """The file's top-level mapping; ``_Invalid`` when it cannot be one."""
     size = len(text.encode() if isinstance(text, str) else text)
     if size > CONFIG_MAX_BYTES:
-        raise _Invalid(_too_big(size))
+        raise _Invalid(too_big(size))
     try:
         document = yaml.load(text, Loader=_Loader)  # noqa: S506 -- _Loader is a yaml.SafeLoader
     except _Invalid:
@@ -305,31 +286,17 @@ def parse_settings(repo: str, text: str | bytes) -> Settings:
     return Settings(repo, "valid", _entry(repo, raw), served=True)
 
 
-def _read_file(client: _ContentsClient, repo: str) -> bytes:
-    contents = client.get_repo(repo).get_contents(REPO_CONFIG_PATH)
-    if isinstance(contents, Sequence):
-        raise _Invalid("it is a directory, not a file")
-    size = getattr(contents, "size", None)
-    if isinstance(size, int) and size > CONFIG_MAX_BYTES:
-        raise _Invalid(_too_big(size))
-    return contents.decoded_content
-
-
 def _is_not_found(exc: Exception) -> bool:
     from github import GithubException
 
     return isinstance(exc, GithubException) and exc.status == 404
 
 
-def read_settings(client: _ContentsClient, repo: str, *, last: Settings | None = None) -> Settings:
-    """``repo``'s settings from its default branch. Re-raises a rate limit and ``IterationTimeout``.
-
-    ``last`` is what an unreadable file serves (``outcome``).
-    """
+def read_settings(client: Github, repo: str) -> Settings:
+    """``repo``'s settings from its default branch. Re-raises a rate limit and ``IterationTimeout``."""
     try:
-        data = _read_file(client, repo)
-    except _Invalid as exc:
-        return outcome(repo, "invalid", str(exc))
+        _headers, data = client.requester.requestJsonAndCheck("GET", config_url(repo))
+        answer = contents_answer(data)
     except IterationTimeout:
         raise
     except Exception as exc:
@@ -338,8 +305,10 @@ def read_settings(client: _ContentsClient, repo: str, *, last: Settings | None =
         if _is_not_found(exc):
             return outcome(repo, "absent")
         logger.error("cannot read %s of %s", REPO_CONFIG_PATH, repo, exc_info=True)
-        return outcome(repo, "unreadable", f"{type(exc).__name__}: {exc}", last=last)
-    return parse_settings(repo, data)
+        return outcome(repo, "unreadable", f"{type(exc).__name__}: {exc}")
+    if answer.text is None:
+        return outcome(repo, "invalid", answer.reason or "")
+    return parse_settings(repo, answer.text)
 
 
 def fetch_settings(token: str, repo: str) -> Settings:

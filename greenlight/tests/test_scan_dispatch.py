@@ -10,6 +10,7 @@ import pytest
 from greenlight import scan_dispatch, scan_runner
 from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
+from greenlight.latch import RateLimitLatch
 from greenlight.state import PRState
 
 if TYPE_CHECKING:
@@ -405,6 +406,30 @@ def test_a_rate_limit_on_a_dispatch_sets_the_event_and_defers_the_rest(caplog):
     [error] = [record for record in caplog.records if record.levelno == logging.ERROR]
     assert "failed to dispatch review for PR #2" in error.getMessage()
     assert error.exc_info is not None
+
+
+def test_a_rate_limit_on_a_dispatch_keeps_the_wait_github_asked_for_on_the_latch():
+    from github import GithubException
+
+    latch = RateLimitLatch(lambda: 1000.0)
+
+    def dispatch(*_args: object, shadow: bool, repo: str) -> None:
+        raise GithubException(403, {"message": "You have exceeded a secondary rate limit"}, {"retry-after": "300"})
+
+    scan_dispatch._dispatch_pending(
+        _CLIENT,
+        [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+        repo=TARGET_REPO,
+        ref="main",
+        max_dispatches=None,
+        dispatch=dispatch,
+        emit_dispatched=lambda **_kwargs: None,
+        poke=_noop_poke,
+        shadow_for_pr=_never_shadow,
+        cancel_event=latch,
+    )
+
+    assert latch.until == 1300.0
 
 
 def test_a_failure_other_than_a_rate_limit_leaves_the_event_alone_and_dispatches_the_rest():

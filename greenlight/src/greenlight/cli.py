@@ -61,14 +61,12 @@ def build_parser() -> argparse.ArgumentParser:
             "merge rules: named by a valid rule, whatever files the PR changes, on a base trymerge "
             "accepts. Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials. The repo must have a "
-            f"GreenLight config at {REPO_CONFIG_PATH} (pytorch/pytorch has a built-in one), read from its "
+            f"GreenLight config at {REPO_CONFIG_PATH} (pytorch/pytorch has a built-in one), revalidated on its "
             "default branch every scan; its mode decides what the scan does (REPOS.md). "
             "PYTORCH_GREENLIGHT_DISPATCH_TOKEN, when set, dispatches the review workflow and reads its runs instead."
         ),
     )
-    review_parser.add_argument(
-        "--repo", default=None, help=f"owner/name of the configured repo to scan (default {TARGET_REPO})"
-    )
+    review_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the configured repo to scan")
     review_parser.add_argument(
         "--pr",
         type=int,
@@ -308,7 +306,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     run = functools.partial(
         repo_scan.scan_repo,
-        repo=TARGET_REPO if args.repo is None else args.repo,
+        repo=args.repo,
         store=_STORE,
         keep_memory=args.pr is None,
         pr=args.pr,

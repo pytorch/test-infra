@@ -11,10 +11,12 @@ from github import GithubException
 
 from greenlight import merge_authz, quota, review_finish, verdict_labels
 from greenlight.authority import Authority
+from greenlight.latch import RateLimitLatch, SharedLatch
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_finish import PreparedScan
 from greenlight.scan_memory import ScanMemory
 from greenlight.state import PRState
+from greenlight.state_store import InProcessStore
 
 _NOW = datetime(2026, 11, 16, 12, 0, 0)
 _HASH = "a" * 64
@@ -26,7 +28,7 @@ def _unreachable(*_args: object, **_kwargs: object) -> NoReturn:
     raise AssertionError("optional work ran")
 
 
-def _prepared(**overrides: Any) -> PreparedScan:
+def prepared_scan(**overrides: Any) -> PreparedScan:
     fields: dict[str, Any] = {
         "entry": BUILTIN_PYTORCH,
         "stack": contextlib.ExitStack(),
@@ -70,7 +72,7 @@ def _prepared(**overrides: Any) -> PreparedScan:
 
 
 def test_without_optional_work_nothing_optional_runs_and_a_clean_safety_pass_returns():
-    assert review_finish.finish(_prepared(), optional=False) == 0
+    review_finish.finish(prepared_scan(), optional=False)
 
 
 @pytest.mark.parametrize(
@@ -89,7 +91,7 @@ def test_a_safety_only_full_tick_counts_as_the_last_full_tick_unless_rate_limite
         cancel_event.set()
 
     review_finish.finish(
-        _prepared(memory=memory, full_tick=full_tick, cancel_event=cancel_event, pr=pr), optional=False
+        prepared_scan(memory=memory, full_tick=full_tick, cancel_event=cancel_event, pr=pr), optional=False
     )
 
     assert memory.full_tick_due(_NOW + timedelta(minutes=1)) is not marked
@@ -99,25 +101,25 @@ def test_a_safety_only_full_tick_is_marked_even_when_its_safety_work_failed_on_a
     memory = ScanMemory()
 
     with pytest.raises(RuntimeError):
-        review_finish.finish(_prepared(memory=memory, failed=[3]), optional=False)
+        review_finish.finish(prepared_scan(memory=memory, failed=[3]), optional=False)
 
     assert not memory.full_tick_due(_NOW + timedelta(minutes=1))
 
 
 def test_without_optional_work_the_safety_works_failures_still_raise():
     with pytest.raises(RuntimeError, match=r"^2 PR\(s\) failed during scan: \[3, 7\]$"):
-        review_finish.finish(_prepared(failed=[7, 3, 7]), optional=False)
+        review_finish.finish(prepared_scan(failed=[7, 3, 7]), optional=False)
 
 
 def test_without_optional_work_the_optional_works_failures_never_raise():
-    assert review_finish.finish(_prepared(optional_failed=[5]), optional=False) == 0
+    review_finish.finish(prepared_scan(optional_failed=[5]), optional=False)
 
 
 def test_the_optional_works_failures_are_kept_apart_and_raised_with_the_safety_works():
     def fingerprint(_client, _repo, number, _authorized, _skip):
         raise RuntimeError(f"fingerprint {number} down")
 
-    prepared = _prepared(
+    prepared = prepared_scan(
         build_github=lambda _token, **_kwargs: object(),
         fingerprint=fingerprint,
         poke=lambda _number: None,
@@ -146,7 +148,7 @@ def test_the_optional_work_fingerprints_dispatches_and_labels_on_the_entrys_repo
     def label_prs(label_pass):
         seen["labels"] = label_pass.repo
 
-    prepared = _prepared(
+    prepared = prepared_scan(
         entry=_VISION,
         build_github=lambda _token, **_kwargs: object(),
         fingerprint=fingerprint,
@@ -156,9 +158,8 @@ def test_the_optional_work_fingerprints_dispatches_and_labels_on_the_entrys_repo
         label_prs=label_prs,
     )
     with prepared.stack:
-        dispatched = review_finish.finish(prepared)
+        review_finish.finish(prepared)
 
-    assert dispatched == 1
     assert seen == {
         "fingerprint": ("pytorch/vision", 1),
         "dispatch": ("pytorch/vision", 1, False),
@@ -171,7 +172,7 @@ def test_errors_name_failed_dispatch_failed_and_abandoned_prs_once_each():
     def dispatch(*_args, **_kwargs):
         raise RuntimeError("dispatch down")
 
-    prepared = _prepared(
+    prepared = prepared_scan(
         build_github=lambda _token, **_kwargs: object(),
         fingerprint=lambda *_args: ("h" * 40, _HASH),
         dispatch=dispatch,
@@ -215,15 +216,15 @@ def _dispatching(**overrides: Any) -> tuple[PreparedScan, list[tuple[object, int
         "updated_at_by_number": dict.fromkeys((1, 2, 3), _NOW),
     }
     fields.update(overrides)
-    return _prepared(**fields), dispatched
+    return prepared_scan(**fields), dispatched
 
 
-def test_finish_returns_how_many_reviews_it_dispatched_under_a_cap_set_after_prepare():
+def test_finish_dispatches_under_a_cap_set_after_prepare():
     prepared, dispatched = _dispatching()
     prepared.max_dispatches = 2
 
     with prepared.stack:
-        assert review_finish.finish(prepared) == 2
+        review_finish.finish(prepared)
 
     assert len(dispatched) == 2
 
@@ -273,7 +274,7 @@ def test_nothing_to_dispatch_builds_no_dispatch_client():
     )
 
     with prepared.stack:
-        assert review_finish.finish(prepared) == 0
+        review_finish.finish(prepared)
 
     assert "dispatch" not in built
 
@@ -295,30 +296,69 @@ def test_a_rate_limit_on_a_dispatch_sets_the_event_defers_the_rest_and_skips_the
     assert "label pass skipped: a rate limit stopped this tick's GitHub work" in messages
 
 
-def test_the_dispatch_count_holds_when_finish_raises_for_a_failed_dispatch():
-    def dispatch(_client, number, _head, _hash, _ref, *, shadow, repo):
-        if number == 2:
-            raise RuntimeError("dispatch down")
-
-    prepared, _dispatched = _dispatching(dispatch=dispatch)
-
-    with pytest.raises(RuntimeError, match=r"failed to dispatch 1 PR\(s\): \[2\]"), prepared.stack:
-        review_finish.finish(prepared)
-
-    assert prepared.dispatched == 2
-
-
-def test_the_dispatch_count_holds_when_a_budget_stop_ends_the_dispatches():
-    def dispatch(_client, number, _head, _hash, _ref, *, shadow, repo):
+def test_fingerprint_results_already_stored_survive_a_stop_that_ends_the_fan_out():
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         if number == 2:
             raise quota.RepoBudgetExceeded("pytorch/pytorch: past its deadline")
+        return ("h" * 40, _HASH)
 
-    prepared, _dispatched = _dispatching(dispatch=dispatch)
+    memory = ScanMemory()
+    quiet = _NOW - timedelta(minutes=10)
+    prepared, dispatched = _dispatching(
+        fingerprint=fingerprint,
+        memory=memory,
+        fingerprint_numbers=[1, 2],
+        updated_at_by_number=dict.fromkeys((1, 2), quiet),
+        states={
+            1: PRState(pr_number=1, status="LAND", eval_hash=_HASH, head_sha="h" * 40, version=_NOW, run_id=1),
+        },
+    )
 
     with pytest.raises(quota.RepoBudgetExceeded), prepared.stack:
         review_finish.finish(prepared)
 
-    assert prepared.dispatched == 1
+    assert set(memory._fingerprints) == {1}
+    assert dispatched == []
+    assert memory.full_tick_due(_NOW + timedelta(minutes=1))
+
+
+def test_a_shared_latch_set_meanwhile_is_read_before_the_dispatch_and_holds_it_back():
+    store = InProcessStore()
+    shared = SharedLatch(store, lambda: 1000.0)
+    prepared, dispatched = _dispatching(cancel_event=RateLimitLatch(lambda: 1000.0, shared), memory=ScanMemory())
+    store.extend_latch(1300.0, 1000.0)
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert dispatched == []
+    assert prepared.cancel_event.is_set()
+    assert prepared.memory is not None
+    assert prepared.memory.full_tick_due(_NOW + timedelta(minutes=1))
+
+
+def test_a_rate_limit_on_a_dispatch_through_finish_latches_until_the_wait_github_asked_for():
+    def dispatch(_client, number, _head, _hash, _ref, *, shadow, repo):
+        raise GithubException(403, {"message": "You have exceeded a secondary rate limit"}, {"retry-after": "300"})
+
+    latch = RateLimitLatch(lambda: 1000.0)
+    prepared, _dispatched = _dispatching(dispatch=dispatch, cancel_event=latch)
+
+    with pytest.raises(RuntimeError, match=r"failed to dispatch 1 PR\(s\)"), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert latch.until == 1300.0
+
+
+@pytest.mark.parametrize(("marks", "marked"), [(True, True), (False, False)])
+def test_a_safety_only_finish_marks_the_full_tick_only_when_the_caller_says_its_optional_work_did_not_stop(
+    marks, marked
+):
+    memory = ScanMemory()
+
+    review_finish.finish(prepared_scan(memory=memory), optional=False, marks_full_tick=marks)
+
+    assert memory.full_tick_due(_NOW + timedelta(minutes=1)) is not marked
 
 
 def test_a_dispatch_without_a_dispatch_token_fails_loudly():
@@ -328,10 +368,3 @@ def test_a_dispatch_without_a_dispatch_token_fails_loudly():
         review_finish.finish(prepared)
 
     assert dispatched == []
-
-
-def test_a_safety_only_finish_counts_nothing():
-    prepared = _prepared()
-
-    assert review_finish.finish(prepared, optional=False) == 0
-    assert prepared.dispatched == 0

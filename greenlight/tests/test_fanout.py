@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 import pytest
 from github import GithubException, RateLimitExceededException
 
-from greenlight import config_cache, fanout
-from greenlight.constants import AWS_REGION, LEASE_DURATION, TARGET_REPO
+from greenlight import config_cache, fanout, fanout_repos, tick
+from greenlight.constants import AWS_REGION, LEASE_DURATION, QUOTA_REFRESH_REQUESTS, TARGET_REPO
 from greenlight.fanout import Planner
 from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
 from greenlight.state_store import ConfigRecord, StoreError
@@ -81,10 +81,10 @@ def test_pytorch_runs_under_its_lease_on_its_stored_memory_and_saves_it_with_the
     leases: list[tuple[str | None, float | None]] = []
     real_finish = world.finish
 
-    def finish(prepared: Any, *, optional: bool) -> int:
+    def finish(prepared: Any, *, optional: bool, marks_full_tick: bool = True) -> None:
         item = world.store.read_repo(TARGET_REPO)
         leases.append((item.lease_owner, item.lease_expires))
-        return real_finish(prepared, optional=optional)
+        real_finish(prepared, optional=optional, marks_full_tick=marks_full_tick)
 
     world.finish = finish  # type: ignore[method-assign]
 
@@ -129,7 +129,7 @@ def test_the_shared_latch_skips_phase_b_and_every_other_repo_but_never_pytorchs_
     planner = _fails(world, make_config, "the shared rate-limit latch holds until")
 
     assert f"prepare {TARGET_REPO} active max=0" in world.events
-    assert f"finish {TARGET_REPO} optional=False max=0" in world.events
+    assert f"finish {TARGET_REPO} optional=False max=0 no-mark" in world.events
     assert "listing" not in world.events
     assert world.invoked == []
     assert planner.lines["pytorch/vision"].outcome == "skipped"
@@ -206,7 +206,7 @@ def test_without_the_dispatch_token_pytorch_runs_only_its_safety_work(make_confi
     _fails(world, make_config, "the dispatch token failed")
 
     assert world.prepare_kwargs[TARGET_REPO]["dispatch_token"] is None
-    assert f"finish {TARGET_REPO} optional=False max=0" in world.events
+    assert f"finish {TARGET_REPO} optional=False max=0 no-mark" in world.events
 
 
 @pytest.mark.parametrize(
@@ -221,7 +221,7 @@ def test_pytorch_gets_no_phase_b_when_the_listing_refuses_it(make_config, listin
 
     planner = _fails(world, make_config, f"pytorch/pytorch: no Phase B this tick: .*{refusal}")
 
-    assert f"finish {TARGET_REPO} optional=False max=0" in world.events
+    assert f"finish {TARGET_REPO} optional=False max=0 no-mark" in world.events
     assert planner.lines[TARGET_REPO].outcome == "safety-only"
 
 
@@ -236,9 +236,9 @@ def test_a_lease_taken_over_before_the_release_is_only_logged(make_config, caplo
     world = World()
     real_finish = world.finish
 
-    def finish(prepared: Any, *, optional: bool) -> int:
+    def finish(prepared: Any, *, optional: bool, marks_full_tick: bool = True) -> None:
         world.store.items[f"repo#{TARGET_REPO}"]["lease_owner"] = "other"
-        return real_finish(prepared, optional=optional)
+        real_finish(prepared, optional=optional, marks_full_tick=marks_full_tick)
 
     world.finish = finish  # type: ignore[method-assign]
 
@@ -330,3 +330,84 @@ def test_a_store_failure_reading_pytorch_under_its_lease_saves_nothing_over_its_
     item = world.store.read_repo(TARGET_REPO)
     assert (item.last_tick, item.lease_owner) == ("old", None)
     assert decode_memory(item.memory, TARGET_REPO)._last_full_tick_started == NOW
+
+
+def _cut_finish(world: World) -> Any:
+    """A finish whose next request meets its meter's stop: pytorch/pytorch's Phase B is cut short."""
+
+    def finish(prepared: Any, *, optional: bool, marks_full_tick: bool = True) -> None:
+        world.events.append(f"finish {prepared.repo} optional={optional}")
+        if optional:
+            meter = world.prepare_kwargs[TARGET_REPO]["build_github"].keywords["meter"]
+            meter.stop = lambda: "past its deadline"
+            meter.before_request()
+
+    return finish
+
+
+@pytest.mark.parametrize(
+    ("failure", "line", "match"),
+    [
+        pytest.param(None, fanout_repos.Line("served"), None, id="ran"),
+        pytest.param(
+            "cut", fanout_repos.Line("cut", "Phase B cut short: past its deadline"), "Phase B cut short", id="cut"
+        ),
+        pytest.param(
+            RateLimitExceededException(403, {}, {}),
+            fanout_repos.Line("cut", f"Phase B stopped: {RATE_LIMITED}"),
+            RATE_LIMITED,
+            id="rate-limit",
+        ),
+        pytest.param(RuntimeError("boom"), fanout_repos.Line("failed", "Phase B failed"), "boom", id="failed"),
+        pytest.param(
+            "no dispatch token",
+            fanout_repos.Line("safety-only", f"no Phase B: {tick.NO_DISPATCH_TOKEN}"),
+            "the dispatch token failed",
+            id="no-dispatch-token",
+        ),
+    ],
+)
+def test_pytorchs_line_says_what_its_phase_b_did(make_config, failure, line, match):
+    world = World()
+    if failure == "cut":
+        world.finish = _cut_finish(world)  # type: ignore[method-assign]
+    elif failure == "no dispatch token":
+        world.failures["dispatch token"] = GithubException(500, {"message": "down"})
+    elif failure is not None:
+        world.failures[f"finish {TARGET_REPO}"] = failure
+
+    planner = _planner(world, make_config)
+    if match is None:
+        planner.run()
+    else:
+        with pytest.raises(RuntimeError, match=match):
+            planner.run()
+
+    assert planner.lines[TARGET_REPO] == line
+
+
+def test_a_rate_limit_another_invocation_meets_during_pytorchs_phase_a_holds_back_the_rest(make_config):
+    world = World(
+        listing=[identity(TARGET_REPO), identity("pytorch/vision")], files={"pytorch/vision": file_answer(SHADOW)}
+    )
+    world.store.write_config("pytorch/vision", ConfigRecord(kind="file", text=SHADOW, served=True))
+    real_prepare = world.prepare
+
+    def prepare(config: Any, *, entry: Any, max_dispatches: int | None, **kwargs: Any) -> Any:
+        world.store.extend_latch(START + 200, START)
+        meter = kwargs["build_github"].keywords["meter"]
+        for _ in range(3 * QUOTA_REFRESH_REQUESTS):
+            meter.before_request()
+            meter.count()
+        return real_prepare(config, entry=entry, max_dispatches=max_dispatches, **kwargs)
+
+    world.prepare = prepare  # type: ignore[method-assign]
+
+    planner = _fails(world, make_config, RATE_LIMITED)
+
+    assert f"prepare {TARGET_REPO} active max=0" in world.events
+    assert "listing" not in world.events
+    assert world.invoked == []
+    assert planner.lines["pytorch/vision"] == fanout_repos.Line("skipped", RATE_LIMITED)
+    assert planner.lines[TARGET_REPO] == fanout_repos.Line("safety-only", f"no Phase B: {RATE_LIMITED}")
+    assert world.store.read_latch(START) == START + 200

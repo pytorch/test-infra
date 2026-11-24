@@ -168,6 +168,7 @@ def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noq
             ref=DEFAULT_DISPATCH_REF,
             timeout_minutes=DEFAULT_TIMEOUT_MINUTES,
             started=started,
+            max_dispatches=max_dispatches,
         ).run()
         return {"status": status}
     Planner(

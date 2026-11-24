@@ -28,6 +28,7 @@ from greenlight.constants import (
     TARGET_REPO,
 )
 from greenlight.guards import IterationTimeout
+from greenlight.latch import RateLimitLatch
 from greenlight.review_gate import HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
 
@@ -977,6 +978,16 @@ def test_a_rate_limit_is_logged_stops_the_pass_and_sets_the_runs_cancel_event(st
     assert record.exc_info is not None
     assert record.exc_info[1] is error
     assert "PR #3" in record.getMessage()
+
+
+def test_a_rate_limit_in_the_label_pass_keeps_the_wait_github_asked_for_on_the_latch():
+    error = GithubException(403, {"message": "secondary rate limit"}, headers={"retry-after": "300"})
+    scan = _failing_scan("fetch", error)
+    scan.cancel_event = RateLimitLatch(lambda: 1000.0)
+
+    scan.run()
+
+    assert scan.cancel_event.until == 1300.0
 
 
 @pytest.mark.parametrize("step", ["fetch", "state", "labels", "remove", "add"])

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import functools
 import http.server
 import json
@@ -14,9 +15,11 @@ from requests.exceptions import RetryError
 from urllib3.exceptions import MaxRetryError, ProtocolError
 from urllib3.util.retry import Retry
 
-from greenlight import github_client, quota
-from greenlight.constants import QUOTA_REFRESH_REQUESTS
+from greenlight import github_client, quota, repo_scan
+from greenlight.constants import QUOTA_REFRESH_REQUESTS, TARGET_REPO
 from greenlight.guards import IterationTimeout
+from greenlight.repo_config import BUILTIN_PYTORCH
+from greenlight.state_store import InProcessStore
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
@@ -179,18 +182,20 @@ def test_a_set_latch_ends_retrying_without_counting():
 
 
 class _Server:
-    """A local GitHub stand-in answering each request with the next scripted status and headers, then 200."""
+    """A local GitHub stand-in answering each request with the next scripted status and headers, then 200 with
+    ``answer``."""
 
-    def __init__(self, script: Sequence[tuple[int, dict[str, str]]]) -> None:
+    def __init__(self, script: Sequence[tuple[int, dict[str, str]]], answer: dict[str, Any] | None = None) -> None:
         self.script = list(script)
         self.hits = 0
         server = self
+        answer = {"full_name": _REPO} if answer is None else answer
 
         class _Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self) -> None:
                 server.hits += 1
                 status, headers = server.script.pop(0) if server.script else (200, {})
-                body = json.dumps({"full_name": _REPO}).encode()
+                body = json.dumps(answer).encode()
                 self.send_response(status)
                 for name, value in headers.items():
                     self.send_header(name, value)
@@ -207,15 +212,15 @@ class _Server:
 
 
 @pytest.fixture
-def github_at(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[Sequence[tuple[int, dict[str, str]]]], _Server]]:
+def github_at(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[..., _Server]]:
     """Point every client ``github_client`` builds at a local server, keeping PyGithub, requests and urllib3 real."""
     servers: list[_Server] = []
     real_github = github.Github
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
     monkeypatch.setenv("no_proxy", "127.0.0.1")
 
-    def start(script: Sequence[tuple[int, dict[str, str]]]) -> _Server:
-        server = _Server(script)
+    def start(script: Sequence[tuple[int, dict[str, str]]], answer: dict[str, Any] | None = None) -> _Server:
+        server = _Server(script, answer)
         threading.Thread(target=server.httpd.serve_forever, daemon=True).start()
         servers.append(server)
         monkeypatch.setattr("github.Github", functools.partial(real_github, base_url=server.url))
@@ -268,7 +273,9 @@ def test_exhausted_retries_count_only_the_attempts_made(github_at, retry_sleeps)
     assert server.hits == meter.requests("B") == 3
 
 
-def test_a_429_on_the_patient_client_latches_at_once_and_the_next_request_is_refused(github_at, retry_sleeps, caplog):
+def test_a_429_on_another_repos_patient_client_latches_at_once_and_the_next_request_is_refused(
+    github_at, retry_sleeps, caplog
+):
     server = github_at([(429, {"Retry-After": "30"})])
     tick = quota.TickMeter(clock=lambda: 1000.0)
     meter = tick.meter(_REPO)
@@ -281,13 +288,92 @@ def test_a_429_on_the_patient_client_latches_at_once_and_the_next_request_is_ref
     assert server.hits == 1
     assert retry_sleeps == []
     assert meter.latch.is_set()
-    assert tick.latch_until == 1030.0
+    assert tick.latch.until == 1030.0
     assert meter.stopped == quota.RATE_LIMIT
     assert "pytorch/vision: GitHub answered 429, a rate limit" in caplog.text
     with pytest.raises(quota.RateLimitStop) as refused:
         _get(client)
     assert type(refused.value) is quota.RateLimitStop
     assert server.hits == 1
+
+
+def _primary_meter(phase: quota.Phase = "A") -> quota.RequestMeter:
+    meter = quota.TickMeter(clock=lambda: 1000.0).meter(TARGET_REPO)
+    meter.phase = phase
+    return meter
+
+
+def test_the_primarys_patient_client_waits_out_a_short_429_in_its_phase_a_counting_the_retry(
+    github_at, retry_sleeps, caplog
+):
+    server = github_at([(429, {"Retry-After": "1"})])
+    meter = _primary_meter()
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        assert _get(github_client.build_authz_client("tok", meter=meter))["full_name"] == _REPO
+
+    assert server.hits == meter.requests("A") == 2
+    assert len(retry_sleeps) == 1
+    assert not meter.latch.is_set()
+    assert "pytorch/pytorch: GitHub answered 429 asking to wait 1 s; its patient client waits it out" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("phase", "headers"),
+    [
+        pytest.param("A", {"Retry-After": "200"}, id="longer-than-the-cap"),
+        pytest.param("A", {}, id="no-retry-after"),
+        pytest.param("B", {"Retry-After": "1"}, id="phase-b"),
+    ],
+)
+def test_any_other_429_on_the_primarys_patient_client_latches_at_once(github_at, retry_sleeps, phase, headers):
+    server = github_at([(429, headers)])
+    meter = _primary_meter(phase)
+
+    with pytest.raises(RetryError):
+        _get(github_client.build_authz_client("tok", meter=meter))
+
+    assert server.hits == 1
+    assert retry_sleeps == []
+    assert meter.latch.is_set()
+    assert meter.latch.until == quota_until(headers)
+
+
+def quota_until(headers: dict[str, str]) -> float:
+    return 1000.0 + float(headers.get("Retry-After", "60"))
+
+
+def test_short_429s_that_outlast_the_patient_retries_latch_with_their_wait(github_at, retry_sleeps):
+    server = github_at([(429, {"Retry-After": "1"})] * 3)
+    meter = _primary_meter()
+
+    with pytest.raises(RetryError) as excinfo:
+        _get(github_client.build_authz_client("tok", meter=meter))
+
+    assert github_client.is_rate_limit_error(excinfo.value)
+    assert server.hits == 3
+    assert meter.requests("A") == 3
+    assert meter.latch.until == 1001.0
+
+
+def test_pytorchs_merge_rules_refresh_rides_out_a_short_429_and_phase_a_runs(github_at, retry_sleeps, make_config):
+    rules = "- name: all\n  patterns: ['*']\n  approved_by: [alice]\n"
+    content = {
+        "type": "file",
+        "encoding": "base64",
+        "name": "merge_rules.yaml",
+        "path": ".github/merge_rules.yaml",
+        "size": len(rules),
+        "content": base64.b64encode(rules.encode()).decode(),
+    }
+    server = github_at([(429, {"Retry-After": "1"})], content)
+    meter = _primary_meter()
+
+    snapshot = repo_scan.eligibility_thunk(make_config(), BUILTIN_PYTORCH, InProcessStore(), "tok", meter=meter)()
+
+    assert snapshot.authorized == frozenset({"alice"})
+    assert server.hits == meter.requests("A") == 2
+    assert not meter.latch.is_set()
 
 
 def test_the_fail_fast_client_hands_a_429_back_unretried_for_the_callers_rate_limit_check(github_at, retry_sleeps):
@@ -515,52 +601,6 @@ def test_phase_b_names_the_deadline_first_when_every_stop_applies():
     assert _stop(now=200.0, request_budget=1, phase_b=1, remaining=10) == "past its deadline"
 
 
-@pytest.mark.parametrize(
-    ("headers", "until"),
-    [
-        pytest.param({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1500"}, 1500.0, id="reset"),
-        pytest.param({"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1500"}, 1500.0, id="reset-any-case"),
-        pytest.param(
-            {"x-ratelimit-remaining": "3", "x-ratelimit-reset": "1500", "retry-after": "20"}, 1020.0, id="not-0"
-        ),
-        pytest.param({"Retry-After": "45"}, 1045.0, id="retry-after"),
-        pytest.param({"retry-after": "soon"}, 1060.0, id="unparsable"),
-        pytest.param({}, 1060.0, id="default"),
-        pytest.param(None, 1060.0, id="no-headers"),
-        pytest.param({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "99999"}, 1900.0, id="clamped"),
-        pytest.param({"retry-after": "3600"}, 1900.0, id="retry-after-clamped"),
-    ],
-)
-def test_a_rate_limit_waits_until_its_reset_else_retry_after_else_a_minute_never_past_fifteen(headers, until):
-    assert quota.rate_limit_until(headers, 1000.0) == until
-
-
-def test_the_headers_of_a_rate_limit_failure_are_found_when_it_carries_some():
-    assert quota.rate_limit_headers(GithubException(429, None, {"retry-after": "5"})) == {"retry-after": "5"}
-    assert quota.rate_limit_headers(GithubException(429, None, None)) is None
-    assert quota.rate_limit_headers(ValueError("x")) is None
-
-
-def test_the_latch_keeps_the_latest_wait_any_rate_limit_asked_for():
-    tick = quota.TickMeter(clock=lambda: 1000.0)
-    assert tick.latch_until is None
-
-    tick.note_rate_limit({"retry-after": "120"})
-    tick.note_rate_limit({"retry-after": "30"})
-
-    assert tick.latch.is_set()
-    assert tick.latch_until == 1120.0
-
-
-def test_a_latch_set_without_headers_waits_the_default_from_the_first_ask():
-    clock = iter([1000.0, 5000.0])
-    tick = quota.TickMeter(clock=lambda: next(clock))
-    tick.latch.set()
-
-    assert tick.latch_until == 1060.0
-    assert tick.latch_until == 1060.0
-
-
 def test_a_metered_retry_records_the_wait_a_rate_limit_response_asks_for():
     tick = quota.TickMeter(clock=lambda: 1000.0)
     meter = tick.meter(_REPO)
@@ -572,7 +612,7 @@ def test_a_metered_retry_records_the_wait_a_rate_limit_response_asks_for():
     with pytest.raises(MaxRetryError):
         meter.retry(Retry(total=2)).increment("GET", "/x", response=_Response())  # type: ignore[arg-type]
 
-    assert tick.latch_until == 1300.0
+    assert tick.latch.until == 1300.0
     assert meter.stopped == quota.RATE_LIMIT
 
 

@@ -10,8 +10,8 @@ from greenlight.constants import LEASE_DURATION, OTHER_REPO_MAX_DISPATCHES, TARG
 from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
 from greenlight.state_store import ConfigRecord
 from greenlight.tick_outcomes import RATE_LIMITED
-from greenlight.worker import Worker, WorkerPayload, parse_payload, worker_event
-from tests.fanout_fakes import NOW, OFF, SHADOW, START, World
+from greenlight.worker import Worker, WorkerPayload, parse_payload, worker_cap, worker_event
+from tests.fanout_fakes import NOW, OFF, SHADOW, START, World, identity
 
 _REPO = "pytorch/vision"
 
@@ -24,7 +24,9 @@ def _served(world: World, text: str = SHADOW, *, memory: ScanMemory | None = Non
         )
 
 
-def _worker(world: World, make_config: Any, *, cap: int = 3, tick: str = "t1") -> Worker:
+def _worker(
+    world: World, make_config: Any, *, cap: int = 3, tick: str = "t1", max_dispatches: int | None = 30
+) -> Worker:
     world.events.append("bot login")
     return Worker(
         make_config(),
@@ -35,6 +37,7 @@ def _worker(world: World, make_config: Any, *, cap: int = 3, tick: str = "t1") -
         ref="main",
         timeout_minutes=45,
         started=START,
+        max_dispatches=max_dispatches,
         seams=world.seams(),
         owner="worker",
     )
@@ -48,10 +51,10 @@ def test_a_worker_runs_its_repo_under_its_lease_and_saves_the_completed_tick(mak
     leases: list[tuple[str | None, float | None]] = []
     real_finish = world.finish
 
-    def finish(prepared: Any, *, optional: bool) -> int:
+    def finish(prepared: Any, *, optional: bool, marks_full_tick: bool = True) -> None:
         item = world.store.read_repo(_REPO)
         leases.append((item.lease_owner, item.lease_expires))
-        return real_finish(prepared, optional=optional)
+        real_finish(prepared, optional=optional, marks_full_tick=marks_full_tick)
 
     world.finish = finish  # type: ignore[method-assign]
 
@@ -60,6 +63,7 @@ def test_a_worker_runs_its_repo_under_its_lease_and_saves_the_completed_tick(mak
     assert world.events[1:] == [
         f"token {_REPO}",
         "dispatch token",
+        f"identity {_REPO}",
         f"prepare {_REPO} shadow max=3",
         f"finish {_REPO} optional=True max=3",
     ]
@@ -217,9 +221,9 @@ def test_a_lease_lost_before_the_release_is_only_logged(make_config, caplog):
     _served(world)
     real_finish = world.finish
 
-    def finish(prepared: Any, *, optional: bool) -> int:
+    def finish(prepared: Any, *, optional: bool, marks_full_tick: bool = True) -> None:
         world.store.items[f"repo#{_REPO}"]["lease_owner"] = "other"
-        return real_finish(prepared, optional=optional)
+        real_finish(prepared, optional=optional, marks_full_tick=marks_full_tick)
 
     world.finish = finish  # type: ignore[method-assign]
 
@@ -249,3 +253,72 @@ def test_a_worker_event_round_trips_through_its_parser():
 def test_any_other_worker_event_is_refused(event, match):
     with pytest.raises(ValueError, match=match):
         parse_payload(event)
+
+
+@pytest.mark.parametrize(
+    ("found", "problem"),
+    [
+        pytest.param(identity(_REPO, private=True), "it is private", id="turned-private"),
+        pytest.param(identity(_REPO, archived=True), "it is archived", id="archived"),
+        pytest.param(identity("pytorch/Vision"), "GitHub names it 'pytorch/Vision'", id="renamed"),
+        pytest.param(identity(_REPO, branch="master"), "its default branch is 'master'", id="branch"),
+    ],
+)
+def test_a_repo_that_fails_a_live_check_since_the_planner_read_it_gets_no_work(make_config, found, problem):
+    world = World()
+    _served(world)
+    world.identities[_REPO] = found
+
+    with pytest.raises(RuntimeError, match=f"pytorch/vision: its identity check failed: {problem}"):
+        _worker(world, make_config).run()
+
+    assert world.events[1:] == [f"token {_REPO}", "dispatch token", f"identity {_REPO}"]
+    item = world.store.read_repo(_REPO)
+    assert (item.last_tick, item.memory, item.lease_owner) == (None, None, None)
+    [client] = [client for client in world.clients if client.token == f"token-{_REPO}" and client.meter]
+    assert client.closed == 1
+    assert client.meter is not None
+    assert client.meter.repo == _REPO
+
+
+def test_a_rate_limit_on_the_identity_check_latches_and_runs_nothing(make_config):
+    world = World(failures={f"identity {_REPO}": RateLimitExceededException(403, {}, {"retry-after": "90"})})
+    _served(world)
+
+    with pytest.raises(RuntimeError, match=RATE_LIMITED):
+        _worker(world, make_config).run()
+
+    assert not any(event.startswith("prepare") for event in world.events)
+    assert world.store.read_latch(START) == START + 90
+
+
+@pytest.mark.parametrize(
+    ("cap", "max_dispatches", "expected"),
+    [(3, None, 3), (3, 30, 3), (20, 30, OTHER_REPO_MAX_DISPATCHES), (3, 0, 0)],
+)
+def test_the_dispatch_cap_follows_the_handlers_current_max(make_config, cap, max_dispatches, expected):
+    world = World()
+    _served(world)
+
+    assert _worker(world, make_config, cap=cap, max_dispatches=max_dispatches).run() == "done"
+
+    assert f"finish {_REPO} optional=True max={expected}" in world.events
+    assert worker_cap(cap, max_dispatches) == expected
+
+
+def test_a_drained_off_repo_gets_no_work_and_a_change_away_from_off_forgets_the_drain(make_config):
+    world = World()
+    drained = ScanMemory()
+    drained.complete_drain(1)
+    world.store.write_config(_REPO, ConfigRecord(kind="file", text=OFF, valid_text=OFF, served=True))
+    world.store.save_memory(_REPO, encode_memory(drained, _REPO), owner=None, now=0.0, tick="t0", drain_complete=True)
+
+    assert _worker(world, make_config).run() == "no work"
+    assert world.events == ["bot login"]
+
+    world.store.write_config(_REPO, ConfigRecord(kind="file", text=SHADOW, valid_text=SHADOW, served=True))
+    assert _worker(world, make_config, tick="t2").run() == "done"
+
+    item = world.store.read_repo(_REPO)
+    assert not item.drain_complete
+    assert decode_memory(item.memory, _REPO).drain_completed_by() is None

@@ -41,6 +41,7 @@ from greenlight.constants import (
 )
 from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
+from greenlight.latch import latch_rate_limit
 
 if TYPE_CHECKING:
     import threading
@@ -262,7 +263,7 @@ def label_listed_prs(
             raise
         except Exception as exc:
             if is_rate_limit_error(exc):
-                scan.cancel_event.set()
+                latch_rate_limit(scan.cancel_event, exc)
                 logger.error(
                     "label pass stopped at PR #%d by a rate limit; the rest wait for the next scan: %s",
                     number,

@@ -8,7 +8,7 @@ from github import GithubException, RateLimitExceededException
 
 from greenlight import fanout_repos
 from greenlight.config_cache import REMOVED, UNREACHABLE
-from greenlight.constants import CONFIG_ABSENT_TTL, STALE_RUN_TICKS, TARGET_REPO, TICK_INTERVAL
+from greenlight.constants import CONFIG_ABSENT_TTL, FANOUT_BUDGET, STALE_RUN_TICKS, TARGET_REPO, TICK_INTERVAL
 from greenlight.fanout import Planner
 from greenlight.guards import IterationTimeout
 from greenlight.state_store import ConfigRecord, StoreError
@@ -430,3 +430,58 @@ def test_an_iteration_timeout_invoking_a_worker_propagates(make_config):
 
     with pytest.raises(IterationTimeout):
         _tick(world, make_config)
+
+
+def test_slow_config_reads_defer_the_repos_past_the_fan_outs_budget_and_they_go_first_next_tick(make_config):
+    repos = ["pytorch/audio", "pytorch/data", "pytorch/text", "pytorch/vision"]
+    world = _world(*(identity(repo) for repo in repos), files=dict.fromkeys(repos, file_answer(SHADOW)))
+    world.read_seconds = FANOUT_BUDGET.total_seconds() * 4 / 9
+
+    first = _tick(world, make_config)
+
+    assert [repo for repo, _headers in world.reads] == [TARGET_REPO, *repos[:3]]
+    assert first.lines["pytorch/vision"] == fanout_repos.Line("deferred", fanout_repos.DEFERRED)
+    assert all(first.lines[repo].outcome == "deferred" for repo in repos)
+    assert world.invoked == []
+    assert first.lines[TARGET_REPO].outcome == "served"
+    assert f"finish {TARGET_REPO} optional=True max=30" in world.events
+    assert _failure(first) is None
+
+    world.reads.clear()
+    world.clock[0] = START + TICK_INTERVAL.total_seconds()
+    _tick(world, make_config)
+
+    assert [repo for repo, _headers in world.reads] == ["pytorch/vision", *repos[:2]]
+
+
+def test_a_fan_out_inside_its_budget_reads_every_repo_and_invokes_their_workers(make_config):
+    repos = ["pytorch/audio", "pytorch/vision"]
+    world = _world(*(identity(repo) for repo in repos), files=dict.fromkeys(repos, file_answer(SHADOW)))
+    world.read_seconds = 1.0
+
+    planner = _tick(world, make_config)
+
+    assert sorted(_caps(world)) == repos
+    assert all(planner.lines[repo].outcome == "invoked" for repo in repos)
+
+
+def test_a_drained_off_repo_gets_no_worker_and_takes_no_worker_slot_until_its_file_changes(make_config):
+    world = _world(
+        identity("pytorch/data"),
+        identity("pytorch/vision"),
+        files={"pytorch/data": file_answer(OFF), "pytorch/vision": file_answer(SHADOW)},
+    )
+    world.store.save_memory("pytorch/data", b"m", owner=None, now=0.0, tick="t0", drain_complete=True)
+
+    planner = _tick(world, make_config, max_workers=1)
+
+    assert planner.lines["pytorch/data"] == fanout_repos.Line("drained")
+    assert _caps(world) == {"pytorch/vision": 5}
+    assert _failure(planner) is None
+
+    world.files["pytorch/data"] = file_answer(SHADOW, '"e2"')
+    world.store.release_lease("pytorch/vision", "worker")
+    world.clock[0] = START + TICK_INTERVAL.total_seconds()
+    changed = _tick(world, make_config, max_workers=2)
+
+    assert changed.lines["pytorch/data"].outcome == "invoked"

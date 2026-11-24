@@ -38,11 +38,18 @@ class Requester:
     def __init__(self, world: World) -> None:
         self.world = world
 
+    def requestJsonAndCheck(self, verb: str, url: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        repo = url.removeprefix("/repos/")
+        self.world.events.append(f"identity {repo}")
+        self.world._fail(f"identity {repo}")
+        return {}, self.world.identities.get(repo, identity(repo))._asdict()
+
     def requestJson(
         self, verb: str, url: str, headers: dict[str, str] | None = None
     ) -> tuple[int, dict[str, Any], str]:
         repo = url.removeprefix("/repos/").removesuffix(f"/contents/{REPO_CONFIG_PATH}")
         self.world.reads.append((repo, headers))
+        self.world.monotonic[0] += self.world.read_seconds
         answer = self.world.files.get(repo, ABSENT)
         if isinstance(answer, BaseException):
             raise answer
@@ -68,7 +75,6 @@ class Client:
 class Prepared:
     repo: str
     max_dispatches: int | None
-    dispatched: int = 0
     optional_failed: list[int] = field(default_factory=list)
 
 
@@ -153,11 +159,14 @@ class World:
     """Everything the fakes answer from, and what they saw."""
 
     listing: list[RepoIdentity] = field(default_factory=lambda: [identity(TARGET_REPO)])
+    identities: dict[str, RepoIdentity] = field(default_factory=dict)
     files: dict[str, Any] = field(default_factory=dict)
     failures: dict[str, BaseException] = field(default_factory=dict)
     quota_reading: tuple[int, int] = (5000, 5000)
     drain_failed: tuple[int, ...] = ()
     clock: list[float] = field(default_factory=lambda: [START])
+    monotonic: list[float] = field(default_factory=lambda: [0.0])
+    read_seconds: float = 0.0
     events: list[str] = field(default_factory=list)
     reads: list[tuple[str, dict[str, str] | None]] = field(default_factory=list)
     clients: list[Client] = field(default_factory=list)
@@ -183,10 +192,10 @@ class World:
         self._fail(f"prepare {entry.repo}")
         return Prepared(entry.repo, max_dispatches)
 
-    def finish(self, prepared: Prepared, *, optional: bool) -> int:
-        self.events.append(f"finish {prepared.repo} optional={optional} max={prepared.max_dispatches}")
+    def finish(self, prepared: Prepared, *, optional: bool, marks_full_tick: bool = True) -> None:
+        mark = "" if marks_full_tick else " no-mark"
+        self.events.append(f"finish {prepared.repo} optional={optional} max={prepared.max_dispatches}{mark}")
         self._fail(f"finish {prepared.repo}")
-        return prepared.dispatched
 
     def drain(self, config: Any, *, repo: str, memory: Any, **_kwargs: Any) -> drain.DrainReport:
         self.events.append(f"drain {repo}")
@@ -208,7 +217,7 @@ class World:
             run_finish=self.finish,
             run_drain=self.drain,
             read_quota=self.read_quota,
-            monotonic=lambda: 0.0,
+            monotonic=lambda: self.monotonic[0],
             clock=self.now,
             now=lambda: NOW,
         )

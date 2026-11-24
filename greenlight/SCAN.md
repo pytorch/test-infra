@@ -15,7 +15,8 @@ ClickHouse password from Secrets Manager, mint their own App tokens, resolve the
 is the backstop.
 
 The CLI's `review --repo` (and `greenlight-review.yml`, which runs it) scans one repo once with an
-in-process store and takes no lease. What each repo's config does is in [REPOS.md](REPOS.md).
+in-process store, reading its config through the same config cache, and takes no lease. What each
+repo's config does is in [REPOS.md](REPOS.md).
 
 ## The planner
 
@@ -25,24 +26,29 @@ Each tick, in this order:
 2. `pytorch/pytorch` first: it mints its repo token and the dispatch token, takes its lease, reads
    its stored item, revalidates its config, and runs its **Phase A** (below) right there, whatever
    the latch says, so its safety work never waits on a worker.
-3. It lists the repos the App installation reaches (`GET /installation/repositories`), mints
-   `contents: read` tokens for the public, unarchived ones, and for every listed or stored repo but
-   `pytorch/pytorch` revalidates its config through the config cache, decides its settings, checks
-   the listing's report of it (the exact canonical name, public, not archived, default branch
-   `main`), and stores the updated config record before any worker can read it. A private or
+3. It reads the shared latch again, then lists the repos the App installation reaches
+   (`GET /installation/repositories`), mints `contents: read` tokens for the public, unarchived
+   ones, and for every listed or stored repo but `pytorch/pytorch`, the one whose config was read
+   longest ago first, revalidates its config through the config cache, decides its settings,
+   checks the listing's report of it (the exact canonical name, public, not archived, default
+   branch `main`), and stores the updated config record before any worker can read it. A private or
    archived repo's file is not read; one with no stored config is only reported.
 4. It invokes one worker per repo with work and a free lease, the repos whose last completed run is
    oldest first, at most `PYTORCH_GREENLIGHT_MAX_WORKERS` running at once, counting the workers
-   still running from earlier ticks.
+   still running from earlier ticks. An `off` repo whose drain is complete has no work.
 5. `pytorch/pytorch`'s **Phase B**, then its memory is saved under its lease with the tick, and the
    lease released.
 6. One outcome line per repo, the shared latch extended by any rate limit this invocation met, and
    one error naming every problem, which fails the invocation.
 
-Steps 3 and 4 are skipped when the store failed, the shared latch holds, or this invocation met a
-rate limit; step 5 then is too. Step 5 is also held
-back when the installation listing does not list `pytorch/pytorch` or its report of it fails a
-check. A listing that fails skips every other repo for the tick.
+Steps 3 and 4 start no repo's config read and no invoke `FANOUT_BUDGET` (45 s) after the fan-out
+started, so its discovery never eats into `pytorch/pytorch`'s Phase B, whose deadline stays
+`WORKER_DEADLINE` after the invocation started: the repos not reached are `deferred`, and their
+configs, now read longest ago, go first on the next tick. Steps 3 and 4 are skipped when the store
+failed, the shared latch holds (at the start or when read again in step 3), or this invocation met a
+rate limit; step 5 then is too. Step 5 is
+also held back when the installation listing does not list `pytorch/pytorch` or its report of it
+fails a check. A listing that fails skips every other repo for the tick.
 
 ## The worker
 
@@ -50,11 +56,15 @@ A worker takes its repo's lease (ending, logged, when another invocation holds i
 repo's item and ends when that tick already completed (a replayed invocation), ends when the shared
 latch holds, derives its settings from the config record the planner stored (the planner's own
 decision, so both agree) and ends when they give no work. Otherwise it mints the repo token and the
-dispatch token, clamps its dispatch cap to `OTHER_REPO_MAX_DISPATCHES`, runs Phase A then Phase B,
-saves the memory with the completed tick under its lease, extends the shared latch by any rate
-limit it met, releases the lease, and raises when the repo had errors. A store failure fails it
-before any GitHub work. The planner's asynchronous invokes are not retried (0 retries, 60 s maximum
-event age on the function): a worker that fails or never starts waits for the next tick's plan.
+dispatch token and reads `GET /repos/{repo}` with the repo token: a repo that fails a live check
+since the planner read the listing (renamed, turned private, archived, its default branch changed)
+gets no work, and its problem fails the worker. Then it runs Phase A then Phase B, its dispatch cap
+the event's clamped to `OTHER_REPO_MAX_DISPATCHES` and 0 while the handler's
+`PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` is 0, saves the memory with the completed tick under
+its lease, extends the shared latch by any rate limit it met, releases the lease, and raises when
+the repo had errors. A store failure fails it before any GitHub work. The planner's asynchronous
+invokes are not retried (0 retries, 60 s maximum event age on the function): a worker that fails or
+never starts waits for the next tick's plan.
 
 ## Phases
 
@@ -70,11 +80,14 @@ event age on the function): a worker that fails or never starts waits for the ne
   other than `pytorch/pytorch` stops once its Phase B spent `OTHER_REPO_REQUEST_BUDGET` (400)
   requests.
 
-A Phase B cut short is the repo's error when its full tick was due (its full tick is not marked
-done, so it shows every tick until the budget fits), and a warning on a fast tick, its PRs waiting
-for the next one. The PRs its Phase B failed on before a cut or a rate limit stopped it are always
-its error. Without the dispatch token (its mint failed) a repo runs Phase A only, and the failed
-mint is its error.
+A Phase B cut short is the repo's error when its full tick was due, and a warning on a fast tick,
+its PRs waiting for the next one. A repo with optional work marks its full tick done only when its
+Phase B's listing and fingerprint fan-out finished without a rate limit: a Phase B cut short or held
+back (the latch, a listing refusal, no dispatch token) leaves it due, so it shows every tick until
+it fits. A safety-only repo marks it when its safety work met no rate limit. The fingerprint
+results a stopped fan-out already stored are kept. The PRs its Phase B failed on before a cut or a
+rate limit stopped it are always its error. Without the dispatch token (its mint failed) a repo runs
+Phase A only, and the failed mint is its error.
 
 ## Leases
 
@@ -99,12 +112,13 @@ idempotent, and the record job checks the author's eligibility live before it ap
 in-process one with the same semantics. Items are keyed by the string attribute `pk`:
 
 - `repo#<repo>`: the repo's lease (`lease_owner`, `lease_expires`); its scan memory (`memory`:
-  when its last full tick that completed started, the fingerprint results fast ticks reuse, its
-  drain's progress and the last settings read, compressed; a memory over 300 KB is saved without
-  its fingerprint results); the last tick a run completed and when (`last_tick`,
+  when its last full tick that completed started, the fingerprint results fast ticks reuse and its
+  drain's progress, compressed; a memory over 300 KB is saved without its fingerprint results; a
+  memory of another version starts cold); the last tick a run completed and when (`last_tick`,
   `last_completed_at`); whether its drain is complete (`drain_complete`); and its config cache
-  (`cfg_*`: the last file read with its ETag, size and time, why the last read was not a usable
-  file, the last valid text, plus `served`, `work_since` and `reported`).
+  (`cfg_*`: the last file read with its ETag and size, when it was last read or revalidated, why
+  the last read was not a usable file, the last valid text, plus `served`, `work_since` and
+  `reported`).
 - `eligibility#<repo>#<eligibility>#<minimum_role>`: the repo's eligibility snapshot (its merge
   rules, or its minimum role's holders) and when it was fetched, refetched once older than
   `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` (600 s); a transient failure serves it for at most
@@ -117,9 +131,10 @@ and a worker's memory and lease never clobber each other; reads are consistent. 
 `dynamodb:GetItem`, `dynamodb:UpdateItem` and `dynamodb:Scan` on the table, and
 `lambda:InvokeFunction` on itself. Tokens and the App key are never stored.
 
-**Store errors.** A failure reading the latch, taking `pytorch/pytorch`'s lease or reading its item
-leaves the planner running its Phase A on a cold memory, skipping its Phase B and the fan-out,
-saving no memory (a lease taken is still released) and failing. A failure listing the stored repos
+**Store errors.** A failure reading the latch when the planner starts, taking `pytorch/pytorch`'s
+lease or reading its item leaves the planner running its Phase A on a cold memory, skipping its
+Phase B and the fan-out, saving no memory (a lease taken is still released) and failing; a later
+read of the latch, or its publication before the invocation ends, is only logged. A failure listing the stored repos
 skips the fan-out; one storing a repo's config record gives that repo no worker this tick; one
 saving a memory, or a lease lost before the save, is the repo's error. An eligibility snapshot that
 cannot be loaded is fetched instead.
@@ -129,8 +144,11 @@ cannot be loaded is fetched instead.
 `config_cache.revalidate` reads `.github/greenlight/config.yml` from the repo's default branch with
 `If-None-Match` on the stored ETag, so an unchanged file costs a 304 and no quota. A file found
 absent (a 404) is asked again only `CONFIG_ABSENT_TTL` (600 s) later, so a new file is picked up
-within about ten minutes. A directory, or a file over 8192 bytes, is invalid; any other failed read
-keeps the stored record and says why (unreadable); a rate limit sets the latch.
+within about ten minutes. A directory, a file over 8192 bytes, or one that is not UTF-8 text, is
+invalid; any other failed read keeps the stored record and says why (unreadable); a rate limit,
+judged as PyGithub judges one (its status, headers and body, so a 403 saying "secondary rate limit"
+counts), sets the latch. The CLI's scan reads through the same `revalidate` and `decide` over its
+in-process store.
 
 `config_cache.decide` applies [REPOS.md](REPOS.md)'s rules to the last file read, and these on top:
 
@@ -160,25 +178,37 @@ its Phase A and Phase B requests with the quota at the invocation's start and th
 
 The quota belongs to the App installation, shared by every invocation and by the review workflows.
 A rate limit anywhere (a response, a token mint, the listing, a quota read) sets the invocation's
-latch, the meter setting it on a rate-limit response before any retry or `Retry-After` wait: every
+latch, the meter setting it on a rate-limit response before any retry or `Retry-After` wait (the
+one exception, `pytorch/pytorch`'s short 429, is below): every
 meter then refuses further requests, the repos and phases left are skipped, and the invocation
-fails naming the rate limit. A dispatch that hits one stops the dispatches and the label pass. The invocation records it in the store's shared latch, until the time the response asked
-for (its reset or `Retry-After`, else 60 s), never more than `RATE_LIMIT_LATCH_MAX` (15 minutes)
-ahead. While the shared latch holds, every planner skips every repo's optional work and the other
-repos' safety work, never `pytorch/pytorch`'s Phase A.
+fails naming the rate limit. A dispatch that hits one stops the dispatches and the label pass. The
+latch holds until the time the response asked for (its reset at `x-ratelimit-remaining: 0`, else
+`Retry-After`, else 60 s), never more than `RATE_LIMIT_LATCH_MAX` (15 minutes) ahead, the scan
+code that catches a rate limit itself (the dispatch, the fingerprint fan-out, the label pass, the
+revert guard, the revokes, the drain) keeping that wait too. The invocation publishes it to the
+store's shared latch the moment it is set, and again when it ends. Every invocation reads the
+shared latch at its start, again before each Phase B, before a dispatch and before the planner's
+fan-out, and every `QUOTA_REFRESH_REQUESTS` (25) of its requests outside `pytorch/pytorch`'s Phase
+A; a shared latch that holds sets its own. So a rate limit one invocation meets stops the others'
+optional work and the other repos' work at their next request, never `pytorch/pytorch`'s Phase A. A
+store failure on these reads and writes is logged, and the invocation goes on with its own latch.
 
 **Isolation.** `pytorch/pytorch` runs in the planner and every other repo in its own worker
 invocation. Within one, a repo's stop is checked before each request and each retry, but cannot
 interrupt a request already sent or a ClickHouse read (bounded by its own timeouts: connect 10 s,
-read 60 s). Any other failure in a step is logged with its traceback and becomes the repo's error. Repos other than `pytorch/pytorch` read their eligibility with the fail-fast client;
-`pytorch/pytorch`'s latches on the first rate limit instead of waiting it out.
+read 60 s). Any other failure in a step is logged with its traceback and becomes the repo's error.
+Repos other than `pytorch/pytorch` read their eligibility with the fail-fast client.
+`pytorch/pytorch`'s patient client waits out, in its Phase A only (which has no deadline), a 429
+asking to wait no longer than its retry's cap (60 s), counted as a retry; any other rate limit, or
+one that outlasts its retries, latches at once.
 
 ## Dispatch caps and concurrency
 
 `pytorch/pytorch` dispatches at most `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` (30) per tick.
 The other repos share `OTHERS_DISPATCH_POOL` (10) per tick: each worker invoked in a tick gets an
 equal share, at least one and at most `OTHER_REPO_MAX_DISPATCHES` (5). A cap of 0 pauses every
-repo's dispatches; the scans still run their safety work and label passes.
+repo's dispatches, in the workers already queued too, which read it when they start; the scans still
+run their safety work and label passes.
 
 `PYTORCH_GREENLIGHT_MAX_WORKERS` (default 3) bounds the workers running at once. More repos with
 work than that fails the planner every tick until it is raised. The function's
@@ -198,8 +228,11 @@ waits at most the 60 s event age, and is then dropped; the next tick plans again
 
 The planner logs one line per repo, `greenlight repo outcome: <repo> <outcome> [<detail>]`, at INFO
 without a detail and WARNING with one. The outcomes are `served`, `safety-only`, `draining`,
-`invoked` (a worker was started), `busy` (its lease is held), `skipped`, `failed`, `refused`,
-`absent` and `unreachable`. A repo with work whose last completed run and the start of its current
+`drained` (an `off` repo whose drain is complete: no worker), `invoked` (a worker was started),
+`busy` (its lease is held), `deferred` (the fan-out's budget ran out first), `cut`, `skipped`,
+`failed`, `refused`, `absent` and `unreachable`. `pytorch/pytorch`'s says what its Phase B did:
+`served` when it ran, `cut` when a stop or a rate limit cut it short, `failed`, or `safety-only`
+with why it did not run. A repo with work whose last completed run and the start of its current
 run of ticks with work are both older than `STALE_RUN_TICKS` (3) ticks fails the planner: its
 workers are not finishing. Every failed invocation, planner or worker, shows in the function's error
 metric, with its error naming each repo's problems.
@@ -228,4 +261,6 @@ Beyond the variables the README lists for every path, the Lambda reads `SECRET_S
 5. Any time after step 2, land in `pytorch/pytorch` its own `.github/greenlight/config.yml`
    (`status_comment: drci`, `safety: pytorchbot`, `eligibility: merge_rules`, `mode: active`), a
    CODEOWNERS line protecting it, and a CI step running `greenlight check-config` on it.
-6. Other repos opt in by installing the App and adding their file, in `mode: shadow` first.
+6. Other `pytorch` repos opt in themselves ([REPOS.md](REPOS.md), "Opting a repo in"): a repo admin
+   (or, where the org restricts that, a `pytorch` org admin) adds the repo to the App's `pytorch`
+   installation, then the repo commits its file, in `mode: shadow` first.

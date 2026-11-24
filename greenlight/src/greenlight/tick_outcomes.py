@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING, Literal, TypeVar
 
 from greenlight import github_client
 from greenlight.guards import IterationTimeout
-from greenlight.quota import RateLimitStop, RepoBudgetExceeded, rate_limit_headers
+from greenlight.latch import latch_rate_limit
+from greenlight.quota import RateLimitStop, RepoBudgetExceeded
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -64,7 +65,7 @@ class Outcomes:
 
     def rate_limited(self, repo: str, step: str, exc: BaseException) -> None:
         """Record ``step`` as stopped by the rate limit ``exc``, setting the latch for it."""
-        self.tick.note_rate_limit(rate_limit_headers(exc))
+        latch_rate_limit(self.tick.latch, exc)
         self.error(repo, f"{step} stopped: {RATE_LIMITED}")
 
     def failed_before(self, repo: str, outcome: Outcome, failed: Iterable[int]) -> None:

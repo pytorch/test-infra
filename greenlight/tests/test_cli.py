@@ -889,10 +889,7 @@ def test_check_config_runs_offline(tmp_path, monkeypatch):
     assert cli.main(["check-config", str(tmp_path / "missing.yml"), "--repo", "pytorch/vision"]) == EXIT_FAILURE
 
 
-def test_review_has_no_all_repos_flag_and_defaults_repo_to_none(capsys):
-    args = cli.build_parser().parse_args(["review"])
-    assert not hasattr(args, "all_repos")
-    assert args.repo is None
+def test_review_has_no_all_repos_flag(capsys):
     with pytest.raises(SystemExit) as excinfo:
         cli.build_parser().parse_args(["review", "--all-repos"])
     assert excinfo.value.code == 2

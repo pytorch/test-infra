@@ -2,8 +2,13 @@
 
 ``revalidate`` reads ``REPO_CONFIG_PATH`` through the contents API with ``If-None-Match`` on the stored
 etag, so an unchanged file costs a 304 and no body; a file found absent (a 404) is asked again only
-``CONFIG_ABSENT_TTL`` later. A directory, or a file over ``CONFIG_MAX_BYTES``, is invalid. Any other failed
-read leaves the record as it was and says why (unreadable); a rate limit is re-raised.
+``CONFIG_ABSENT_TTL`` later. ``read_at`` is the last read or revalidation. What
+``config_contents.contents_answer`` refuses (a directory, a file over ``CONFIG_MAX_BYTES``, one that is not
+UTF-8 text) is invalid. Any other failed read leaves the record as it was and says why (unreadable); a rate
+limit, judged as PyGithub judges one (``_response_error``: status, headers and body), is re-raised.
+
+The scan Lambda's planner and the CLI's single-repo scan (``repo_scan``) both read a repo's config
+through ``revalidate`` and ``decide`` over the state store they run on.
 
 ``decide`` turns a repo's stored ``ConfigRecord`` into its settings. The planner calls it after each read,
 and a worker calls it on the record the planner stored for its tick, so both reach the same settings. It
@@ -25,8 +30,6 @@ its file was removed; ``valid_text`` follows every valid file read.
 
 from __future__ import annotations
 
-import base64
-import binascii
 import dataclasses
 import json
 import logging
@@ -34,12 +37,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from greenlight import github_client
-from greenlight.constants import CONFIG_ABSENT_TTL, CONFIG_MAX_BYTES, REPO_CONFIG_PATH
+from greenlight.config_contents import config_url, contents_answer
+from greenlight.constants import CONFIG_ABSENT_TTL, REPO_CONFIG_PATH
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import Settings, is_primary, outcome, parse_settings
 
 if TYPE_CHECKING:
-    from github import Github
+    from collections.abc import Mapping
+
+    from github import Github, GithubException
 
     from greenlight.state_store import ConfigKind, ConfigRecord
 
@@ -59,24 +65,17 @@ class Decision:
     persistent: bool = False
 
 
-def _file(data: Any) -> tuple[ConfigKind, str | None, int | None, str | None]:
-    """The record ``kind``, ``text``, ``size`` and ``reason`` of a contents API answer; ``ValueError`` on
-    an answer that is no contents response."""
-    if isinstance(data, list):
-        return "invalid", None, None, "it is a directory, not a file"
-    if not isinstance(data, dict) or not isinstance(data.get("size"), int):
-        raise ValueError("the contents API answered an unexpected shape")
-    size: int = data["size"]
-    if data.get("type") != "file":
-        return "invalid", None, size, f"it is a {data.get('type')}, not a file"
-    if size > CONFIG_MAX_BYTES:
-        return "invalid", None, size, f"the file is {size} bytes, over the {CONFIG_MAX_BYTES}-byte limit"
+def _response_error(status: int, headers: Mapping[str, Any], body: str) -> GithubException:
+    """The exception PyGithub raises for an error response, so ``github_client.is_rate_limit_error`` judges a
+    response read without PyGithub's checks by its status, headers and body ("secondary rate limit")."""
+    from github.Requester import Requester
+
     try:
-        text = base64.b64decode(str(data.get("content", "")), validate=False).decode("utf-8")
-    except (binascii.Error, UnicodeDecodeError):
-        logger.error("the contents API answered a file that is not base64-encoded UTF-8", exc_info=True)
-        return "invalid", None, size, "the file is not UTF-8 text"
-    return "file", text, size, None
+        data = json.loads(body) if body else None
+    except ValueError:
+        # PyGithub keeps a body that is not JSON as {"data": body}.
+        data = {"data": body}
+    return Requester.createException(status, dict(headers), data if isinstance(data, dict) else {})
 
 
 def revalidate(record: ConfigRecord, client: Github, repo: str, *, now: float) -> tuple[ConfigRecord, str | None]:
@@ -85,21 +84,16 @@ def revalidate(record: ConfigRecord, client: Github, repo: str, *, now: float) -
     if record.kind == "absent" and absent_for is not None and 0 <= absent_for < CONFIG_ABSENT_TTL.total_seconds():
         return record, None
     headers = {"If-None-Match": record.etag} if record.etag else None
-    url = f"/repos/{repo}/contents/{REPO_CONFIG_PATH}"
     try:
-        status, response_headers, body = client.requester.requestJson("GET", url, headers=headers)
-        if github_client.is_rate_limit_status(status, response_headers):
-            from github import GithubException
-
-            raise GithubException(status, None, response_headers)
+        status, response_headers, body = client.requester.requestJson("GET", config_url(repo), headers=headers)
         if status == 304:
-            return record, None
+            return dataclasses.replace(record, read_at=now), None
         if status == 404:
             cleared = dataclasses.replace(record, kind="absent", text=None, etag=None, size=None, reason=None)
             return dataclasses.replace(cleared, read_at=now), None
         if status != 200:
-            raise ValueError(f"GET {url} answered HTTP {status}")
-        kind, text, size, reason = _file(json.loads(body))
+            raise _response_error(status, response_headers, body)
+        answer = contents_answer(json.loads(body))
     except IterationTimeout:
         raise
     except Exception as exc:
@@ -108,7 +102,10 @@ def revalidate(record: ConfigRecord, client: Github, repo: str, *, now: float) -
         logger.error("cannot read %s of %s", REPO_CONFIG_PATH, repo, exc_info=True)
         return record, f"{type(exc).__name__}: {exc}"
     etag = response_headers.get("etag")
-    updated = dataclasses.replace(record, kind=kind, text=text, size=size, reason=reason, read_at=now)
+    kind: ConfigKind = "invalid" if answer.text is None else "file"
+    updated = dataclasses.replace(
+        record, kind=kind, text=answer.text, size=answer.size, reason=answer.reason, read_at=now
+    )
     return dataclasses.replace(updated, etag=etag if isinstance(etag, str) else None), None
 
 

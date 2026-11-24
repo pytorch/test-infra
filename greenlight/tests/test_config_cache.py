@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from github import GithubException, RateLimitExceededException
 
-from greenlight import config_cache
+from greenlight import config_cache, github_client
 from greenlight.config_cache import PRIMARY_ABSENT, REMOVED, UNREACHABLE, decide, revalidate
 from greenlight.constants import CONFIG_ABSENT_TTL, CONFIG_MAX_BYTES, REPO_CONFIG_PATH, TARGET_REPO
 from greenlight.guards import IterationTimeout
@@ -66,12 +66,12 @@ def test_a_file_read_stores_its_text_etag_size_and_time_and_keeps_the_planners_f
     assert client.requester.calls == [("GET", _URL, None)]
 
 
-def test_a_stored_file_is_revalidated_with_its_etag_and_a_304_changes_nothing():
+def test_a_stored_file_is_revalidated_with_its_etag_and_a_304_changes_only_when_it_was_read():
     record = ConfigRecord(kind="file", text=_SHADOW, etag='"e1"', size=9, read_at=5.0)
 
-    updated, unreadable, client = _read(record, (304, {}, ""))
+    updated, unreadable, client = _read(record, (304, {}, ""), now=70.0)
 
-    assert (updated, unreadable) == (record, None)
+    assert (updated, unreadable) == (dataclasses.replace(record, read_at=70.0), None)
     assert client.requester.calls == [("GET", _URL, {"If-None-Match": '"e1"'})]
 
 
@@ -121,8 +121,9 @@ def test_a_file_that_cannot_be_a_config_is_recorded_invalid_with_its_reason(body
 @pytest.mark.parametrize(
     ("answer", "reason"),
     [
-        pytest.param((500, {}, "{}"), "HTTP 500", id="5xx"),
-        pytest.param((403, {}, '{"message": "forbidden"}'), "HTTP 403", id="403"),
+        pytest.param((500, {}, "{}"), "GithubException: 500", id="5xx"),
+        pytest.param((502, {}, "<html>bad gateway</html>"), "bad gateway", id="5xx-not-json"),
+        pytest.param((403, {}, '{"message": "forbidden"}'), "GithubException: forbidden: 403", id="403"),
         pytest.param((200, {}, "not json"), "JSONDecodeError", id="not-json"),
         pytest.param((200, {}, '{"type": "file"}'), "unexpected shape", id="no-size"),
         pytest.param(ConnectionError("reset"), "ConnectionError: reset", id="connection"),
@@ -146,6 +147,11 @@ def test_any_other_failed_read_leaves_the_record_and_says_why(caplog, answer, re
     [
         pytest.param((429, {}, "{}"), id="429"),
         pytest.param((403, {"x-ratelimit-remaining": "0"}, "{}"), id="403-exhausted"),
+        pytest.param(
+            (403, {}, '{"message": "You have exceeded a secondary rate limit. Please wait a few minutes."}'),
+            id="403-secondary-by-its-body",
+        ),
+        pytest.param((403, {}, '{"message": "API rate limit exceeded for installation."}'), id="403-primary-body"),
         pytest.param(RateLimitExceededException(403, {"message": "rate limit"}, {}), id="raised"),
     ],
 )
@@ -153,6 +159,15 @@ def test_a_rate_limit_is_raised(answer):
     with pytest.raises(GithubException) as excinfo:
         _read(ConfigRecord(), answer)
     assert excinfo.value.status in (403, 429)
+    assert github_client.is_rate_limit_error(excinfo.value)
+
+
+def test_a_secondary_limit_403_keeps_its_headers_for_the_latch():
+    headers = {"retry-after": "300"}
+    with pytest.raises(GithubException) as excinfo:
+        _read(ConfigRecord(), (403, headers, '{"message": "You have exceeded a secondary rate limit"}'))
+    assert isinstance(excinfo.value, RateLimitExceededException)
+    assert excinfo.value.headers == headers
 
 
 def test_an_iteration_timeout_propagates():

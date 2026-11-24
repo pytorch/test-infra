@@ -182,6 +182,32 @@ def repo_item(repo: str, attributes: Mapping[str, Value]) -> RepoItem:
     )
 
 
+def eligibility_attributes(snapshot: bytes, fetched_at: float) -> dict[str, Value]:
+    return {SNAPSHOT: snapshot, FETCHED_AT: fetched_at}
+
+
+def eligibility_value(attributes: Mapping[str, Value]) -> tuple[bytes, float] | None:
+    """The snapshot and fetch time an eligibility item's attributes hold, or None when they hold none."""
+    snapshot, fetched_at = attributes.get(SNAPSHOT), _number(attributes.get(FETCHED_AT))
+    if not isinstance(snapshot, bytes) or fetched_at is None:
+        return None
+    return snapshot, fetched_at
+
+
+def latch_attributes(until: float, now: float) -> dict[str, Value]:
+    """What holding the latch until ``until`` writes: the clamped time and the TTL just past it."""
+    clamped = clamp_latch(until, now)
+    return {UNTIL: clamped, TTL_AT: int(clamped) + 1}
+
+
+def latch_value(attributes: Mapping[str, Value], now: float) -> float | None:
+    """Until when the latch item's attributes hold it, clamped; None when it is not set at ``now``."""
+    until = _number(attributes.get(UNTIL))
+    if until is None or until <= now:
+        return None
+    return clamp_latch(until, now)
+
+
 def memory_attributes(memory: bytes, *, now: float, tick: str | None, drain_complete: bool) -> dict[str, Value]:
     """What a memory save writes: the memory, the drain's completion and, for a tick, the tick and when."""
     attributes: dict[str, Value] = {MEMORY: memory, DRAIN_COMPLETE: drain_complete}
@@ -290,27 +316,20 @@ class InProcessStore:
 
     def read_eligibility(self, key: EligibilityKey) -> tuple[bytes, float] | None:
         with self._lock:
-            item = self.items.get(eligibility_key(key), {})
-        snapshot, fetched_at = item.get(SNAPSHOT), _number(item.get(FETCHED_AT))
-        if not isinstance(snapshot, bytes) or fetched_at is None:
-            return None
-        return snapshot, fetched_at
+            return eligibility_value(dict(self.items.get(eligibility_key(key), {})))
 
     def write_eligibility(self, key: EligibilityKey, snapshot: bytes, fetched_at: float) -> None:
         with self._lock:
-            self._item(eligibility_key(key)).update({SNAPSHOT: snapshot, FETCHED_AT: fetched_at})
+            self._item(eligibility_key(key)).update(eligibility_attributes(snapshot, fetched_at))
 
     def read_latch(self, now: float) -> float | None:
         with self._lock:
-            until = _number(self.items.get(LATCH_KEY, {}).get(UNTIL))
-        if until is None or until <= now:
-            return None
-        return clamp_latch(until, now)
+            return latch_value(dict(self.items.get(LATCH_KEY, {})), now)
 
     def extend_latch(self, until: float, now: float) -> None:
-        clamped = clamp_latch(until, now)
+        attributes = latch_attributes(until, now)
         with self._lock:
             item = self._item(LATCH_KEY)
             current = _number(item.get(UNTIL))
-            if current is None or current < clamped:
-                item.update({UNTIL: clamped, TTL_AT: int(clamped) + 1})
+            if current is None or current < float(attributes[UNTIL]):
+                item.update(attributes)

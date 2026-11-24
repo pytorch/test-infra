@@ -7,14 +7,19 @@ Its event is only ``{"greenlight_worker": {"repo": ..., "tick": ..., "dispatch_c
 2. reads the repo's item, and ends when its run already completed this tick (a replayed invocation);
 3. ends when the shared rate-limit latch holds: a repo other than the primary gets no work then;
 4. derives the repo's settings from the config record the planner stored (``config_cache.decide``, the
-   planner's own decision), and ends when they give no work;
-5. resolves the App's bot login, clamps the dispatch cap to ``OTHER_REPO_MAX_DISPATCHES``, loads the repo's
-   memory, and mints its repo token and the dispatch token;
-6. runs Phase A then Phase B (``tick.RepoRun``);
-7. saves the memory with the completed tick under its lease, extends the shared latch by any rate limit it
+   planner's own decision), and ends when they give no work (``repo_scan.has_work``: an ``off`` repo
+   whose drain is complete has none);
+5. resolves the App's bot login, loads the repo's memory, and mints its repo token and the dispatch token
+   (``leased_run``);
+6. checks GitHub's current report of the repo with its own token (``repo_scan.check_identity``: the exact
+   canonical name, public, not archived, default branch ``main``), and on any problem does no work;
+7. runs Phase A then Phase B (``tick.RepoRun``), its dispatch cap the payload's clamped to
+   ``OTHER_REPO_MAX_DISPATCHES``, and 0 while the handler's current ``--max`` pauses dispatching;
+8. saves the memory with the completed tick under its lease, extends the shared latch by any rate limit it
    met, releases the lease, and raises when the repo had errors.
 
-A store failure fails the worker before any GitHub work.
+A store failure fails the worker before any GitHub work. Its latch follows the shared one while it runs
+(``latch``).
 """
 
 from __future__ import annotations
@@ -25,19 +30,19 @@ import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from greenlight import config_cache, repo_scan
+from greenlight import config_cache, github_client, leased_run, repo_scan
 from greenlight.constants import LEASE_DURATION, OTHER_REPO_MAX_DISPATCHES
 from greenlight.repo_config import is_primary
-from greenlight.scan_memory import decode_memory, encode_memory
-from greenlight.state_store import StoreError, epoch_text
-from greenlight.tick import Invocation, RepoRun, Seams, run_config
+from greenlight.scan_memory import decode_memory
+from greenlight.state_store import epoch_text
+from greenlight.tick import Invocation, Seams
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from greenlight.app_tokens import AppTokens
     from greenlight.config import Config
-    from greenlight.repo_config import Settings
+    from greenlight.repo_config import RepoEntry, Settings
     from greenlight.scan_memory import ScanMemory
     from greenlight.state_store import StateStore
 
@@ -59,6 +64,14 @@ def worker_event(repo: str, tick: str, dispatch_cap: int) -> dict[str, object]:
     return {WORKER_KEY: {"repo": repo, "tick": tick, "dispatch_cap": dispatch_cap}}
 
 
+def worker_cap(payload_cap: int, max_dispatches: int | None) -> int:
+    """A worker's dispatch cap: the payload's, at most ``OTHER_REPO_MAX_DISPATCHES``, and 0 while the
+    handler's current ``max_dispatches`` pauses dispatching."""
+    if max_dispatches is not None and max_dispatches <= 0:
+        return 0
+    return min(payload_cap, OTHER_REPO_MAX_DISPATCHES)
+
+
 def parse_payload(event: Mapping[str, object]) -> WorkerPayload:
     """The worker payload ``event`` carries; ``ValueError`` on any other shape."""
     body = event.get(WORKER_KEY)
@@ -76,7 +89,8 @@ def parse_payload(event: Mapping[str, object]) -> WorkerPayload:
 
 @dataclass
 class Worker:
-    """One worker invocation; ``started`` is its wall-clock start (epoch seconds), its lease's base."""
+    """One worker invocation; ``started`` is its wall-clock start (epoch seconds), its lease's base, and
+    ``max_dispatches`` the handler's current ``--max``."""
 
     config: Config
     payload: WorkerPayload
@@ -86,6 +100,7 @@ class Worker:
     ref: str
     timeout_minutes: int
     started: float
+    max_dispatches: int | None
     seams: Seams = field(default_factory=Seams)
     owner: str = field(default_factory=lambda: uuid.uuid4().hex)
 
@@ -99,23 +114,13 @@ class Worker:
         if not self.store.acquire_lease(self.repo, self.owner, expires=expires, now=self.seams.clock()):
             logger.warning("%s: its lease is held by another invocation; this worker ends", self.repo)
             return "busy"
-        problem: str | None = None
         try:
             status = self._leased()
         finally:
-            problem = self._release()
+            problem = leased_run.release(self.store, self.repo, self.owner)
         if problem is not None:
-            raise RuntimeError(problem)
+            raise RuntimeError(f"{self.repo}: {problem}")
         return status
-
-    def _release(self) -> str | None:
-        try:
-            if not self.store.release_lease(self.repo, self.owner):
-                logger.warning("%s: its lease was no longer held at release", self.repo)
-        except StoreError as exc:
-            logger.error("%s: cannot release its lease", self.repo, exc_info=True)
-            return f"{self.repo}: its lease could not be released: {exc}"
-        return None
 
     def _leased(self) -> str:
         repo, clock = self.repo, self.seams.clock
@@ -130,17 +135,16 @@ class Worker:
             repo, item.config, unreadable=None, reachable=True, drain_complete=item.drain_complete
         ).settings
         entry = settings.entry
-        if entry is None or repo_scan.repo_work(entry, served=settings.served).kind == "none":
+        work = None if entry is None else repo_scan.repo_work(entry, served=settings.served)
+        if work is None or not repo_scan.has_work(work, drain_complete=item.drain_complete):
             logger.warning("%s: its stored settings give no work (%s); this worker ends", repo, settings.problem)
             return "no work"
         bot_login = self.resolve_bot_login()
         memory = decode_memory(item.memory, repo)
         with contextlib.ExitStack() as stack:
-            invocation = Invocation(stack, self.seams)
+            invocation = Invocation(stack, self.seams, self.store)
             self._work(invocation, settings, memory, bot_login)
-            until = invocation.meter.latch_until
-            if until is not None:
-                self._record_latch(invocation, until)
+            leased_run.record_latch(invocation, self.store)
         outcomes = invocation.outcomes
         outcomes.name_the_rate_limit()
         if outcomes.errors:
@@ -148,43 +152,29 @@ class Worker:
         return "done"
 
     def _work(self, invocation: Invocation, settings: Settings, memory: ScanMemory, bot_login: str) -> None:
-        repo, tokens = self.repo, self.tokens
-        token = invocation.outcomes.result(repo, "its token", lambda: tokens.repo_token(repo))
-        if token is None or settings.entry is None:
+        repo, entry = self.repo, settings.entry
+        minted = leased_run.mint(invocation, self.tokens, repo)
+        if minted is None or entry is None or not self._identity_checked(invocation, entry, minted.repo):
             return
-        invocation.watch_quota(token)
-        dispatch_token = invocation.outcomes.result(repo, "the dispatch token", tokens.dispatch_token)
-        run = RepoRun(
-            invocation,
-            run_config(self.config, token, dispatch_token),
-            settings.entry,
-            settings.served,
-            memory,
-            self.store,
-            bot_login,
-            min(self.payload.dispatch_cap, OTHER_REPO_MAX_DISPATCHES),
-            self.ref,
-            self.timeout_minutes,
+        options = leased_run.RunOptions(self.config, self.store, bot_login, self.ref, self.timeout_minutes)
+        cap = worker_cap(self.payload.dispatch_cap, self.max_dispatches)
+        run = leased_run.repo_run(
+            invocation, options, minted, entry, served=settings.served, memory=memory, max_dispatches=cap
         )
         run.phase_a()
         run.phase_b()
         run.close()
-        try:
-            self.store.save_memory(
-                repo,
-                encode_memory(memory, repo),
-                owner=self.owner,
-                now=self.seams.clock(),
-                tick=self.payload.tick,
-                drain_complete=memory.drain_completed_by() is not None,
-            )
-        except StoreError as exc:
-            logger.error("%s: cannot save its memory", repo, exc_info=True)
-            invocation.outcomes.error(repo, f"its memory could not be saved: {exc}")
+        leased_run.keep_memory(invocation, self.store, repo, memory, owner=self.owner, tick=self.payload.tick)
 
-    def _record_latch(self, invocation: Invocation, until: float) -> None:
+    def _identity_checked(self, invocation: Invocation, entry: RepoEntry, token: str) -> bool:
+        """Whether GitHub's current report of the repo passes every live check; a problem is the repo's error."""
+        client = invocation.metered(self.repo)(token)
         try:
-            self.store.extend_latch(until, self.seams.clock())
-        except StoreError as exc:
-            logger.error("cannot record the shared rate-limit latch", exc_info=True)
-            invocation.outcomes.problem(f"the state store failed recording the rate-limit latch: {exc}")
+            outcome = invocation.outcomes.attempt(
+                self.repo,
+                "its identity check",
+                lambda: repo_scan.check_identity(entry, repo_scan.fetch_identity(client, self.repo)),
+            )
+        finally:
+            github_client.close_client(client)
+        return outcome == "done"

@@ -2,13 +2,16 @@
 
 ``FanOut.run`` lists the repos the GitHub App installation reaches (``app_tokens.AppTokens.installation``),
 mints the ``contents: read`` tokens of the public, unarchived ones, and goes through each listed or stored
-repo but the primary: it revalidates the repo's config file (``config_cache.revalidate``; a private or
-archived repo's is not read, and one with no stored config is only reported), decides its settings
-(``config_cache.decide``), refuses an entry the listing fails (``repo_scan.identity_problem``), and stores
-the updated config record before any worker can read it. A repo whose work is more than nothing is a
-candidate. Each candidate whose lease is free gets one worker, at most ``max_workers`` running at once,
-the repos whose last completed run is oldest first, each with an equal share of ``OTHERS_DISPATCH_POOL``
-(at least one, at most ``OTHER_REPO_MAX_DISPATCHES``; none while ``--max`` is zero or below).
+repo but the primary, the one whose config was read longest ago first: it revalidates the repo's config
+file (``config_cache.revalidate``; a private or archived repo's is not read, and one with no stored config
+is only reported), decides its settings (``config_cache.decide``), refuses an entry the listing fails
+(``repo_scan.identity_problem``), and stores the updated config record before any worker can read it. A
+repo with work (``repo_scan.has_work``: an ``off`` repo whose drain is complete has none) is a candidate.
+Each candidate whose lease is free gets one worker, at most ``max_workers`` running at once, the repos
+whose last completed run is oldest first, each with an equal share of ``OTHERS_DISPATCH_POOL`` (at least
+one, at most ``OTHER_REPO_MAX_DISPATCHES``; none while ``--max`` is zero or below). The fan-out starts no
+repo and no invoke ``FANOUT_BUDGET`` after it started: the repos it did not reach are deferred, and their
+configs, read longest ago, go first on the next tick.
 
 Every repo gets one outcome (``Line``). These fail the planner: a failed listing or token, a failed
 invoke, more candidates than ``max_workers``, a candidate whose last completed run (or the start of its
@@ -21,11 +24,12 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from greenlight import config_cache, github_client, repo_scan
 from greenlight.constants import (
+    FANOUT_BUDGET,
     OTHER_REPO_MAX_DISPATCHES,
     OTHERS_DISPATCH_POOL,
     STALE_RUN_TICKS,
@@ -49,6 +53,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 INSTALLATION = "the GitHub App installation"
+DEFERRED = f"the fan-out's {FANOUT_BUDGET.total_seconds():g} s budget ran out; it goes first next tick"
 
 
 @dataclass
@@ -101,12 +106,17 @@ class FanOut:
     max_dispatches: int | None
     max_workers: int
     lines: dict[str, Line]
+    started: float = field(init=False, default=0.0)
 
     def _now(self) -> float:
         return self.invocation.seams.clock()
 
+    def _out_of_time(self) -> bool:
+        return self.invocation.seams.monotonic() - self.started >= FANOUT_BUDGET.total_seconds()
+
     def run(self, stored: Mapping[str, RepoItem]) -> dict[str, RepoIdentity] | None:
         """Fan out over the listing and ``stored``; the listing, or None when it failed."""
+        self.started = self.invocation.seams.monotonic()
         listing = self.invocation.outcomes.result(
             INSTALLATION,
             "the installation listing",
@@ -127,11 +137,13 @@ class FanOut:
             )
             tokens = minted or {}
         names = {identity.full_name for identity in listing.values()} | set(stored)
-        candidates = [
-            candidate
-            for repo in sorted(name for name in names if not is_primary(name))
-            if (candidate := self._plan(repo, listing.get(repo.lower()), stored.get(repo) or RepoItem(repo), tokens))
-        ]
+        items = {name: stored.get(name) or RepoItem(name) for name in names if not is_primary(name)}
+        candidates: list[_Candidate] = []
+        for repo in sorted(items, key=lambda name: (items[name].config.read_at or float("-inf"), name)):
+            if self._out_of_time():
+                self.lines[repo] = Line("deferred", DEFERRED)
+            elif candidate := self._plan(repo, listing.get(repo.lower()), items[repo], tokens):
+                candidates.append(candidate)
         self._invoke(candidates)
         return listing
 
@@ -182,7 +194,7 @@ class FanOut:
                 return None
             record, unreadable = read
         elif identity is not None and record.kind is None:
-            self.lines[repo] = Line("skipped", "it is private" if identity.private else "it is archived")
+            self.lines[repo] = Line("skipped", repo_scan.visibility_problem(identity))
             return None
         decision = config_cache.decide(
             repo, record, unreadable=unreadable, reachable=identity is not None, drain_complete=item.drain_complete
@@ -192,7 +204,7 @@ class FanOut:
             refused = f"refused for this tick: {refusal}"
             problem, entry = refused if problem is None else f"{problem}; {refused}", None
         work = None if entry is None else repo_scan.repo_work(entry, served=settings.served)
-        has_work = work is not None and work.kind != "none"
+        has_work = work is not None and repo_scan.has_work(work, drain_complete=item.drain_complete)
         now = self._now()
         work_since = (decision.record.work_since or now) if has_work else None
         updated = dataclasses.replace(decision.record, work_since=work_since, reported=problem)
@@ -205,7 +217,7 @@ class FanOut:
             self.lines[repo] = Line(outcome, problem)
             return None
         if not has_work:
-            self.lines[repo] = Line("safety-only", problem)
+            self.lines[repo] = Line("drained" if work.kind == "drain" else "safety-only", problem)
             return None
         self.lines[repo] = Line("draining" if work.kind == "drain" else "served", problem)
         return _Candidate(repo, item, entry, work, work_since)
@@ -240,7 +252,10 @@ class FanOut:
         for candidate in free[len(chosen) :]:
             self._settle(candidate.repo, "skipped", "no free worker this tick")
         for candidate in chosen:
-            self._start(candidate, cap if candidate.work.optional else 0)
+            if self._out_of_time():
+                self._settle(candidate.repo, "deferred", DEFERRED)
+            else:
+                self._start(candidate, cap if candidate.work.optional else 0)
         for candidate in candidates:
             self._stale(candidate, now)
 

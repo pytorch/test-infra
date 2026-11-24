@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import base64
 import dataclasses
+import json
 import logging
 from datetime import datetime
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 from unittest.mock import Mock
 
 import pytest
-from github import GithubException, RateLimitExceededException, UnknownObjectException
+from github import GithubException, RateLimitExceededException
 
 from greenlight import drain, github_client, merge_authz, quota, repo_scan, writers
-from greenlight.constants import REPO_CONFIG_PATH, TARGET_REPO
+from greenlight.constants import CONFIG_ABSENT_TTL, REPO_CONFIG_PATH, TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.repo_scan import RepoIdentity
@@ -26,40 +28,39 @@ def _identity(repo: str, *, private: bool = False, branch: str = "main", archive
     return RepoIdentity(repo, private, branch, archived)
 
 
-class _Content:
-    def __init__(self, text: str) -> None:
-        self.decoded_content = text.encode()
-        self.size = len(self.decoded_content)
-
-
-class _ContentsRepo:
-    def __init__(self, contents: object) -> None:
-        self.contents = contents
-        self.paths: list[str] = []
-
-    def get_contents(self, path: str) -> object:
-        self.paths.append(path)
-        if isinstance(self.contents, BaseException):
-            raise self.contents
-        return self.contents
+def _content(text: str) -> tuple[int, dict[str, str], str]:
+    """The contents API's answer for a config file holding ``text``, its etag naming the text."""
+    body = {"type": "file", "size": len(text.encode()), "content": base64.b64encode(text.encode()).decode()}
+    return 200, {"etag": f'"{hash(text)}"'}, json.dumps(body)
 
 
 class _Client:
+    """``GET /repos/{repo}`` answers ``identity``; the config read answers ``contents`` (an answer or a raise)."""
+
     def __init__(self, contents: object = None, identity: RepoIdentity | None = None) -> None:
         self.closed = 0
-        self.repo = _ContentsRepo(contents)
-        self.names: list[str] = []
+        self.contents = contents
         self.identity = identity
         self.requester = self
-
-    def get_repo(self, full_name_or_id: str) -> _ContentsRepo:
-        self.names.append(full_name_or_id)
-        return self.repo
+        self.urls: list[str] = []
 
     def requestJsonAndCheck(self, verb: str, url: str) -> tuple[dict[str, str], dict[str, object]]:
         assert (verb, url[: len("/repos/")]) == ("GET", "/repos/")
+        self.urls.append(url)
         identity = self.identity or _identity(url[len("/repos/") :])
         return {}, identity._asdict()
+
+    def requestJson(
+        self, verb: str, url: str, headers: dict[str, str] | None = None
+    ) -> tuple[int, dict[str, str], str]:
+        assert verb == "GET"
+        self.urls.append(url)
+        if isinstance(self.contents, BaseException):
+            raise self.contents
+        status, found, body = cast("tuple[int, dict[str, str], str]", self.contents)
+        if headers and headers.get("If-None-Match") == found.get("etag"):
+            return 304, {}, ""
+        return status, found, body
 
     def close(self) -> None:
         self.closed += 1
@@ -130,10 +131,22 @@ def test_identity_problem(identity, problem):
 
 
 def test_check_identity_passes_a_repo_passing_every_live_check_and_refuses_any_other():
-    repo_scan.check_identity(_VISION, _Client())  # type: ignore[arg-type]
+    repo_scan.check_identity(_VISION, _identity("pytorch/vision"))
 
     with pytest.raises(repo_scan.RepoUnavailable, match="it is private"):
-        repo_scan.check_identity(_VISION, _Client(identity=_identity("pytorch/vision", private=True)))  # type: ignore[arg-type]
+        repo_scan.check_identity(_VISION, _identity("pytorch/vision", private=True))
+
+
+@pytest.mark.parametrize(
+    ("identity", "problem"),
+    [
+        pytest.param(_identity("pytorch/Vision"), None, id="name-is-not-visibility"),
+        pytest.param(_identity("pytorch/vision", private=True), "it is private", id="private"),
+        pytest.param(_identity("pytorch/vision", archived=True), "it is archived", id="archived"),
+    ],
+)
+def test_visibility_problem(identity, problem):
+    assert repo_scan.visibility_problem(identity) == problem
 
 
 @pytest.mark.parametrize(
@@ -292,18 +305,19 @@ def test_a_timeout_loading_a_stored_snapshot_propagates():
         repo_scan.eligibility_cache(_Late(), _VISION, 600.0)
 
 
-def _file(**fields: str) -> _Content:
+def _file(**fields: str) -> tuple[int, dict[str, str], str]:
     values = {"status_comment": "greenlight", "safety": "gate", "eligibility": "merge_rules", "mode": "shadow"}
     values.update(fields)
-    return _Content("".join(f"{key}: {value}\n" for key, value in values.items()))
+    return _content("".join(f"{key}: {value}\n" for key, value in values.items()))
 
 
-_MISSING = UnknownObjectException(404)
+_MISSING: tuple[int, dict[str, str], str] = (404, {}, '{"message": "Not Found"}')
 
 
 class _Scan:
     def __init__(self, contents: object, *, identity: RepoIdentity | None = None, failed: tuple[int, ...] = ()):
         self.contents = contents
+        self.clock = [1000.0]
         self.store = InProcessStore()
         self.review = Mock()
         self.drain = Mock(return_value=drain.DrainReport(1, 0, 0, False, "x", failed))
@@ -344,6 +358,7 @@ class _Scan:
             build_github=self._build,
             run_review=self.review,
             run_drain=self.drain,
+            clock=lambda: self.clock[0],
             ref="main",
         )
 
@@ -391,19 +406,22 @@ def test_a_listing_scan_saves_its_memory_even_when_it_fails(make_config):
     assert scan.store.read_repo("pytorch/vision").last_tick is None
 
 
-def test_the_config_is_read_fresh_every_scan_from_the_scanned_repo_with_the_scan_token(make_config):
+def test_the_config_is_revalidated_every_scan_through_the_config_cache_on_the_store(make_config):
     scan = _Scan(_file())
 
+    scan.run(make_config, "pytorch/vision")
     scan.run(make_config, "pytorch/vision")
     scan.contents = _file(mode="off")
     scan.run(make_config, "pytorch/vision")
 
-    assert scan.review.call_count == 1
+    assert scan.review.call_count == 2
     assert scan.drain.call_count == 1
-    assert scan.tokens[:1] == [_TOKEN]
-    reads = [client for client in scan.clients if client.repo.paths]
-    assert [client.names[0] for client in reads] == ["pytorch/vision", "pytorch/vision"]
-    assert all(client.repo.paths == [REPO_CONFIG_PATH] for client in reads)
+    assert scan.tokens == [_TOKEN] * 3
+    config_url = f"/repos/pytorch/vision/contents/{REPO_CONFIG_PATH}"
+    assert [client.urls for client in scan.clients] == [["/repos/pytorch/vision", config_url]] * 3
+    record = scan.store.read_repo("pytorch/vision").config
+    assert (record.kind, record.etag, record.read_at) == ("file", _file(mode="off")[1]["etag"], 1000.0)
+    assert record.served
 
 
 @pytest.mark.parametrize(
@@ -443,7 +461,8 @@ def test_a_pr_recheck_gets_no_memory(make_config):
 
     assert scan.review.call_args.kwargs["memory"] is None
     assert scan.review.call_args.kwargs["pr"] == 5
-    assert scan.store.items == {}
+    assert scan.store.read_repo(TARGET_REPO).memory is None
+    assert scan.store.read_repo(TARGET_REPO).config.kind == "absent"
 
 
 def test_the_primary_with_no_file_is_served_under_the_builtin_with_no_problem(make_config):
@@ -456,7 +475,7 @@ def test_the_primary_with_no_file_is_served_under_the_builtin_with_no_problem(ma
 
 
 def test_an_invalid_primary_file_runs_only_its_safety_work_then_fails(make_config):
-    scan = _Scan(_Content("mode: paused\n"))
+    scan = _Scan(_content("mode: paused\n"))
 
     with pytest.raises(RuntimeError, match=r"pytorch/pytorch: invalid config, safety-only under the built-in entry"):
         scan.run(make_config, TARGET_REPO)
@@ -504,10 +523,36 @@ def test_a_repo_with_no_file_gets_no_work_and_fails(make_config):
     scan.review.assert_not_called()
 
 
-def test_a_repo_failing_a_live_check_gets_no_work_and_fails(make_config):
-    scan = _Scan(_file(), identity=_identity("pytorch/vision", private=True))
+@pytest.mark.parametrize(
+    ("identity", "problem"),
+    [
+        pytest.param(_identity("pytorch/vision", private=True), "it is private", id="private"),
+        pytest.param(_identity("pytorch/vision", archived=True), "it is archived", id="archived"),
+    ],
+)
+def test_a_private_or_archived_repo_is_refused_before_its_config_is_read(make_config, identity, problem):
+    scan = _Scan(AssertionError("the config was read"), identity=identity)
 
-    with pytest.raises(RuntimeError, match="refused for this scan: it is private"):
+    with pytest.raises(RuntimeError, match=f"^pytorch/vision: refused for this scan: {problem}$"):
+        scan.run(make_config, "pytorch/vision")
+
+    scan.review.assert_not_called()
+    assert [client.urls for client in scan.clients] == [["/repos/pytorch/vision"]]
+    assert scan.store.read_repo("pytorch/vision").config.kind is None
+    assert all(client.closed == 1 for client in scan.clients)
+
+
+@pytest.mark.parametrize(
+    ("identity", "problem"),
+    [
+        pytest.param(_identity("pytorch/Vision"), "GitHub names it 'pytorch/Vision'", id="name"),
+        pytest.param(_identity("pytorch/vision", branch="master"), "its default branch is 'master'", id="branch"),
+    ],
+)
+def test_a_repo_failing_a_live_check_after_its_config_gets_no_work_and_fails(make_config, identity, problem):
+    scan = _Scan(_file(), identity=identity)
+
+    with pytest.raises(RuntimeError, match=f"refused for this scan: {problem}"):
         scan.run(make_config, "pytorch/vision")
 
     scan.review.assert_not_called()
@@ -515,9 +560,9 @@ def test_a_repo_failing_a_live_check_gets_no_work_and_fails(make_config):
 
 
 def test_a_live_check_failure_also_reports_the_settings_problem(make_config):
-    scan = _Scan(_file(extra="1"), identity=_identity("pytorch/vision", private=True))
+    scan = _Scan(_file(extra="1"), identity=_identity("pytorch/vision", branch="master"))
 
-    with pytest.raises(RuntimeError, match=r"safety-only: unknown key.*; refused for this scan: it is private"):
+    with pytest.raises(RuntimeError, match=r"safety-only: unknown key.*; refused for this scan: its default branch"):
         scan.run(make_config, "pytorch/vision")
 
     scan.review.assert_not_called()
@@ -567,11 +612,11 @@ def test_a_cold_unreadable_primary_file_serves_the_builtin_entry_and_fails_after
 
 @pytest.mark.parametrize("mode", ["off", "shadow"])
 def test_a_warm_off_or_shadow_primary_stays_so_on_an_unreadable_read(make_config, mode):
-    scan = _Scan(_Content(f"mode: {mode}\n"))
+    scan = _Scan(_content(f"mode: {mode}\n"))
     scan.run(make_config, TARGET_REPO)
     scan.contents = GithubException(502)
 
-    with pytest.raises(RuntimeError, match="config unreadable, serving the last settings read: GithubException"):
+    with pytest.raises(RuntimeError, match="config unreadable, serving the last file read: GithubException"):
         scan.run(make_config, TARGET_REPO)
 
     if mode == "off":
@@ -587,8 +632,9 @@ def test_a_warm_active_primary_keeps_its_optional_work_on_an_unreadable_read(mak
     scan = _Scan(_MISSING)
     scan.run(make_config, TARGET_REPO)
     scan.contents = GithubException(502)
+    scan.clock[0] += CONFIG_ABSENT_TTL.total_seconds()
 
-    with pytest.raises(RuntimeError, match="serving the last settings read"):
+    with pytest.raises(RuntimeError, match="serving the last file read"):
         scan.run(make_config, TARGET_REPO)
 
     assert scan.review.call_args.kwargs["entry"] == BUILTIN_PYTORCH
@@ -596,12 +642,12 @@ def test_a_warm_active_primary_keeps_its_optional_work_on_an_unreadable_read(mak
 
 
 def test_a_warm_invalid_primary_stays_safety_only_on_an_unreadable_read(make_config):
-    scan = _Scan(_Content("mode: paused\n"))
+    scan = _Scan(_content("mode: paused\n"))
     with pytest.raises(RuntimeError, match="invalid config"):
         scan.run(make_config, TARGET_REPO)
     scan.contents = GithubException(502)
 
-    with pytest.raises(RuntimeError, match="serving the last settings read"):
+    with pytest.raises(RuntimeError, match="serving the last file read"):
         scan.run(make_config, TARGET_REPO)
 
     assert scan.review.call_args.kwargs["optional"] is False
@@ -612,15 +658,12 @@ def test_a_warm_other_repo_keeps_its_settings_on_an_unreadable_read(make_config)
     scan.run(make_config, "pytorch/vision")
     scan.contents = GithubException(502)
 
-    with pytest.raises(RuntimeError, match="pytorch/vision: config unreadable, serving the last settings read"):
+    with pytest.raises(RuntimeError, match="pytorch/vision: config unreadable, serving the last file read"):
         scan.run(make_config, "pytorch/vision")
 
     assert scan.review.call_count == 2
     assert scan.review.call_args.kwargs["entry"] == _VISION
-    saved = scan.memory("pytorch/vision")
-    assert saved is not None
-    assert saved.last_settings is not None
-    assert saved.last_settings.kind == "valid"
+    assert scan.store.read_repo("pytorch/vision").config.text is not None
 
 
 def test_an_unreadable_file_elsewhere_gives_no_work(make_config):

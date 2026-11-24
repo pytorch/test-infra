@@ -203,7 +203,7 @@ def _expand_team(client: AuthzClient, team_ref: str) -> set[str]:
     return members
 
 
-def merge_rule_entries(content: bytes, source: str) -> Iterator[tuple[Mapping[str, object], list[str]]]:
+def _merge_rule_entries(content: bytes, source: str) -> Iterator[tuple[Mapping[str, object], list[str]]]:
     """Each rule of the merge_rules.yaml ``content`` with its ``approved_by`` entries, in file order.
 
     Raises ``ValueError``, naming ``source``, on malformed YAML, a top level that is not a list, a
@@ -232,7 +232,7 @@ def merge_rule_entries(content: bytes, source: str) -> Iterator[tuple[Mapping[st
 def resolve_merge_rules(client: AuthzClient, repo: str) -> MergeRulesSnapshot:
     """Resolve every merge rule in ``repo`` and the lowercased union of their approvers.
 
-    Raises ``ValueError`` on a file ``merge_rule_entries`` rejects, a malformed team ref, or an empty
+    Raises ``ValueError`` on a file ``_merge_rule_entries`` rejects, a malformed team ref, or an empty
     union -- an empty allowlist would silently blank every comment from the fingerprint. Unusable
     patterns are not fatal: that rule is logged and qualifies nobody, and its approvers still join
     the union.
@@ -244,7 +244,7 @@ def resolve_merge_rules(client: AuthzClient, repo: str) -> MergeRulesSnapshot:
 
     logins: set[str] = set()
     merge_rules: list[MergeRule] = []
-    for rule, approved_by in merge_rule_entries(contents.decoded_content, source):
+    for rule, approved_by in _merge_rule_entries(contents.decoded_content, source):
         approvers: set[str] = set()
         for entry in approved_by:
             if "/" in entry:

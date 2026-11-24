@@ -12,6 +12,7 @@ from github import RateLimitExceededException
 from greenlight import drain
 from greenlight.constants import DISPATCH_REPO, DRAIN_PRS_PER_TICK, WORKFLOW_FILE
 from greenlight.guards import IterationTimeout
+from greenlight.latch import RateLimitLatch
 from greenlight.scan_memory import ScanMemory
 from greenlight.state import PRState
 
@@ -233,6 +234,16 @@ def test_a_rate_limit_sets_the_runs_cancel_event(make_config):
 
     assert cancel_event.is_set()
     assert run.read == [1]
+
+
+def test_a_rate_limit_keeps_the_wait_github_asked_for_on_the_latch(make_config):
+    latch = RateLimitLatch(lambda: 1000.0)
+    error = RateLimitExceededException(403, {"message": "API rate limit exceeded"}, {"retry-after": "300"})
+    run = _Drain([_Pull(1), _Pull(2)], errors={1: error})
+
+    run.tick(make_config, cancel_event=latch)
+
+    assert latch.until == 1300.0
 
 
 def test_a_cancel_event_already_set_reads_no_pr_and_the_pass_continues_next_tick(make_config):

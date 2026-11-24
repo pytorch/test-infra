@@ -1,27 +1,31 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
 from github import GithubException, RateLimitExceededException
 
-from greenlight import drain, merge_authz, quota, tick
+from greenlight import drain, merge_authz, quota, review_finish, tick
 from greenlight.constants import (
     OTHER_REPO_REQUEST_BUDGET,
     QUOTA_FLOOR_OTHERS,
     QUOTA_FLOOR_PRIMARY,
+    QUOTA_REFRESH_REQUESTS,
     TARGET_REPO,
     WORKER_DEADLINE,
 )
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
+from greenlight.review_gate import HUMAN_APPROVED, ReviewSkip
 from greenlight.scan_memory import ScanMemory
 from greenlight.state_store import InProcessStore
 from greenlight.tick_outcomes import RATE_LIMITED, Outcomes
+from tests.test_review_finish import prepared_scan
 
 _NOW = datetime(2026, 11, 24, 12, 0, 0)
 _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow")
@@ -43,7 +47,6 @@ class _Client:
 class _Prepared:
     repo: str
     max_dispatches: int | None
-    dispatched: int = 0
     optional_failed: list[int] = field(default_factory=list)
 
 
@@ -68,6 +71,7 @@ class _Fakes:
         self.prepare_kwargs: dict[str, Any] = {}
         self.drain_kwargs: dict[str, Any] = {}
         self.stops: list[str | None] = []
+        self.marks: list[bool] = []
         self.clients: list[_Client] = []
 
     def _fail(self, step: str) -> None:
@@ -87,8 +91,9 @@ class _Fakes:
         self._fail("prepare")
         return _Prepared(entry.repo, max_dispatches)
 
-    def finish(self, prepared: _Prepared, *, optional: bool) -> int:
+    def finish(self, prepared: _Prepared, *, optional: bool, marks_full_tick: bool = True) -> None:
         self.events.append(f"finish {prepared.repo} optional={optional} max={prepared.max_dispatches}")
+        self.marks.append(marks_full_tick)
         if optional:
             meter = self.prepare_kwargs["build_github"].keywords["meter"]
             meter.count()
@@ -97,7 +102,6 @@ class _Fakes:
             self._fail("finish")
         else:
             self._fail("safety")
-        return prepared.dispatched
 
     def drain(self, config: Any, *, repo: str, **kwargs: Any) -> drain.DrainReport:
         self.events.append(f"drain {repo}")
@@ -272,7 +276,7 @@ def test_a_rate_limit_in_phase_b_latches_with_its_wait_and_names_the_prs_failed_
         errors = _all(run)
 
     assert run.invocation.meter.latch.is_set()
-    assert run.invocation.meter.latch_until == 1090.0
+    assert run.invocation.meter.latch.until == 1090.0
     assert errors == [
         f"pytorch/vision: Phase B stopped: {RATE_LIMITED}",
         "pytorch/vision: Phase B failed on 1 PR(s) before it stopped: [7]",
@@ -380,7 +384,7 @@ def test_outcomes_sort_how_a_step_ended():
     assert outcomes.attempt("r", "s", _raise(quota.RateLimitStop("x"))) == "rate limit"
     assert not meter.latch.is_set()
     assert outcomes.attempt("r", "s", _raise(GithubException(429, None, {"retry-after": "5"}))) == "rate limit"
-    assert meter.latch_until == 1005.0
+    assert meter.latch.until == 1005.0
     with pytest.raises(IterationTimeout):
         outcomes.attempt("r", "s", _raise(IterationTimeout("late")))
     assert outcomes.errors == ["r: s failed: boom", f"r: s stopped: {RATE_LIMITED}", f"r: s stopped: {RATE_LIMITED}"]
@@ -423,3 +427,158 @@ def test_a_latch_set_by_work_that_absorbed_the_rate_limit_is_still_named():
     outcomes.name_the_rate_limit()
 
     assert outcomes.errors == [RATE_LIMITED]
+
+
+def _real_finish_run(
+    stack: contextlib.ExitStack,
+    make_config: Any,
+    entry: RepoEntry,
+    *,
+    served: bool = True,
+    fingerprint: Any = None,
+    dispatch_token: str | None = "dispatch",  # noqa: S107
+) -> tick.RepoRun:
+    """A run whose Phase B finishes through the real ``review_finish.finish`` on a real ``PreparedScan``."""
+
+    def prepare(_config: Any, *, entry: RepoEntry, max_dispatches: int | None, **kwargs: Any) -> Any:
+        return prepared_scan(
+            entry=entry,
+            stack=kwargs["stack"],
+            memory=kwargs["memory"],
+            cancel_event=kwargs["cancel_event"],
+            max_dispatches=max_dispatches,
+            listed_at=_NOW,
+            evaluated_at=_NOW,
+            build_github=lambda _token, **_kwargs: object(),
+            fingerprint=fingerprint or (lambda *_args: ReviewSkip(HUMAN_APPROVED, "approved by alice")),
+            label_prs=lambda _label_pass: None,
+            poke=lambda _number: None,
+        )
+
+    seams = dataclasses.replace(_Fakes().seams(), run_prepare=prepare, run_finish=review_finish.finish)
+    invocation = tick.Invocation(stack, seams)
+    return tick.RepoRun(
+        invocation,
+        tick.run_config(make_config(), "repo-token", dispatch_token),
+        entry,
+        served,
+        ScanMemory(),
+        InProcessStore(),
+        "bot[bot]",
+        5,
+        "main",
+        45,
+    )
+
+
+def _cut(*_args: Any) -> Any:
+    raise quota.RepoBudgetExceeded("pytorch/pytorch: past its deadline")
+
+
+@pytest.mark.parametrize(
+    ("entry", "served", "fingerprint", "dispatch_token", "hold", "marked"),
+    [
+        pytest.param(BUILTIN_PYTORCH, True, None, "dispatch", None, True, id="phase-b-finished"),
+        pytest.param(BUILTIN_PYTORCH, False, None, "dispatch", None, True, id="safety-only"),
+        pytest.param(BUILTIN_PYTORCH, True, _cut, "dispatch", None, False, id="cut"),
+        pytest.param(BUILTIN_PYTORCH, True, None, "dispatch", "held back", False, id="held-back"),
+        pytest.param(BUILTIN_PYTORCH, True, None, None, None, False, id="no-dispatch-token"),
+    ],
+)
+def test_only_a_finished_phase_b_or_a_safety_only_run_marks_the_full_tick_done(
+    make_config, entry, served, fingerprint, dispatch_token, hold, marked
+):
+    with contextlib.ExitStack() as stack:
+        run = _real_finish_run(
+            stack, make_config, entry, served=served, fingerprint=fingerprint, dispatch_token=dispatch_token
+        )
+        if hold is not None:
+            run.hold(hold)
+        run.phase_a()
+        run.phase_b()
+        run.close()
+
+    assert run.memory.full_tick_due(_NOW + timedelta(minutes=1)) is not marked
+    assert run.held == (hold if dispatch_token else tick.NO_DISPATCH_TOKEN)
+
+
+def test_a_phase_b_stopped_by_the_latch_leaves_the_full_tick_due(make_config):
+    with contextlib.ExitStack() as stack:
+        run = _real_finish_run(stack, make_config, BUILTIN_PYTORCH)
+        run.phase_a()
+        run.invocation.meter.latch.set()
+        run.phase_b()
+        run.close()
+
+    assert run.held == RATE_LIMITED
+    assert run.memory.full_tick_due(_NOW + timedelta(minutes=1))
+
+
+def test_phase_b_records_how_it_ended(make_config):
+    fakes = _Fakes(failures={"finish": quota.RepoBudgetExceeded("pytorch/vision: past its deadline")})
+    with contextlib.ExitStack() as stack:
+        cut = _run(fakes, stack, make_config, _VISION)
+        cut.phase_b()
+        done = _run(_Fakes(), stack, make_config, _VISION)
+        done.phase_b()
+
+    assert (cut.phase_b_outcome, cut.held) == ("cut", None)
+    assert (done.phase_b_outcome, done.held) == ("done", None)
+
+
+def _shared_run(
+    stack: contextlib.ExitStack, make_config: Any, store: InProcessStore, entry: RepoEntry, fakes: _Fakes
+) -> tick.RepoRun:
+    invocation = tick.Invocation(stack, fakes.seams(), store)
+    return tick.RepoRun(
+        invocation,
+        tick.run_config(make_config(), "repo-token", "dispatch"),
+        entry,
+        True,
+        ScanMemory(),
+        store,
+        "bot[bot]",
+        5,
+        "main",
+        45,
+    )
+
+
+def test_a_rate_limit_one_invocation_meets_stops_the_others_optional_work_but_never_pytorchs_phase_a(make_config):
+    store = InProcessStore()
+    with contextlib.ExitStack() as stack:
+        vision = _shared_run(stack, make_config, store, _VISION, _Fakes())
+        primary = _shared_run(stack, make_config, store, BUILTIN_PYTORCH, _Fakes())
+        latching = _shared_run(stack, make_config, store, _OFF, _Fakes())
+
+        latching.invocation.meter.meter("pytorch/data").rate_limited({"retry-after": "120"})
+        assert store.read_latch(1000.0) == 1120.0
+
+        pytorch_meter = primary.invocation.meter.meter(TARGET_REPO)
+        for _ in range(3 * QUOTA_REFRESH_REQUESTS):
+            pytorch_meter.before_request()
+            pytorch_meter.count()
+        assert not primary.invocation.meter.latch.is_set()
+
+        vision.phase_b()
+
+    assert vision.held == RATE_LIMITED
+    assert vision.invocation.meter.latch.until == 1120.0
+    assert vision.invocation.outcomes.errors == [f"pytorch/vision: Phase B skipped: {RATE_LIMITED}"]
+
+
+def test_the_next_optional_request_after_another_invocation_latches_is_refused(make_config):
+    store = InProcessStore()
+    with contextlib.ExitStack() as stack:
+        vision = _shared_run(stack, make_config, store, _VISION, _Fakes())
+        meter = vision.invocation.meter.meter("pytorch/vision")
+        meter.phase = "B"
+        for _ in range(QUOTA_REFRESH_REQUESTS):
+            meter.before_request()
+            meter.count()
+        store.extend_latch(1300.0, 1000.0)
+
+        with pytest.raises(quota.RateLimitStop):
+            meter.before_request()
+
+    assert vision.invocation.meter.latch.until == 1300.0

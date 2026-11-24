@@ -2,8 +2,9 @@
 
 The planner (``fanout``) runs pytorch/pytorch's; a worker (``worker``) runs any other repo's. An
 ``Invocation`` holds what every run of one Lambda invocation shares: its ``quota.TickMeter`` (the request
-counts and the rate-limit latch), its ``QuotaGauge``, its errors (``tick_outcomes.Outcomes``), its start
-and its ``ExitStack``. A ``RepoRun`` routes its repo by ``repo_scan.repo_work``:
+counts and the rate-limit latch, which follows the state store's shared latch), its ``QuotaGauge``, its
+errors (``tick_outcomes.Outcomes``), its start and its ``ExitStack``. A ``RepoRun`` routes its repo by
+``repo_scan.repo_work``:
 
 - **Phase A**, safety work, never stopped by a budget or a floor: an ``off`` repo runs its drain slice, a
   ``pytorchbot`` repo ``review.prepare`` (the revert guard and the ineligible revoke), a ``gate`` repo
@@ -15,9 +16,12 @@ and its ``ExitStack``. A ``RepoRun`` routes its repo by ``repo_scan.repo_work``:
 
 Every GitHub client of a repo shares its ``quota.RequestMeter``; its Phase B ``stop`` raises
 ``RepoBudgetExceeded`` before the next request, which ends that repo's optional work: a cut. A rate limit
-sets the invocation's latch, which every meter then refuses. ``RepoRun.close`` raises, as the repo's
-error, the safety work's failures of a prepared scan Phase B did not finish, and logs the repo's request
-counts per phase with the installation's quota.
+sets the invocation's latch, which every meter then refuses; Phase B reads the shared latch again before it
+starts. ``RepoRun.close`` raises, as the repo's error, the safety work's failures of a prepared scan Phase B
+did not finish, and logs the repo's request counts per phase with the installation's quota. Only a run
+with no optional work marks its full tick done there (when its safety work met no rate limit): a run whose
+Phase B was cut short or held back (``hold``, the latch, no dispatch token) leaves it due. How Phase B
+ended (``phase_b_outcome``) or why it did not run (``held``) is kept for the planner's outcome line.
 """
 
 from __future__ import annotations
@@ -36,9 +40,10 @@ from greenlight.constants import (
     QUOTA_FLOOR_PRIMARY,
     WORKER_DEADLINE,
 )
+from greenlight.latch import SharedLatch
 from greenlight.quota import QuotaGauge, TickMeter, core_quota, phase_b_stop
 from greenlight.repo_config import is_primary
-from greenlight.tick_outcomes import Outcomes
+from greenlight.tick_outcomes import RATE_LIMITED, Outcome, Outcomes
 
 if TYPE_CHECKING:
     import contextlib
@@ -55,6 +60,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+NO_DISPATCH_TOKEN = "without the dispatch token no review can be dispatched"  # noqa: S105
+
 
 @dataclass(frozen=True)
 class Seams:
@@ -62,7 +69,7 @@ class Seams:
 
     build_github: Callable[..., Github] = github_client.build_client
     run_prepare: Callable[..., PreparedScan | None] = review.prepare
-    run_finish: Callable[..., int] = review_finish.finish
+    run_finish: Callable[..., None] = review_finish.finish
     run_drain: Callable[..., drain.DrainReport] = drain.drain
     read_quota: Callable[[Github], tuple[int, int]] = core_quota
     monotonic: Callable[[], float] = time.monotonic
@@ -76,10 +83,11 @@ def _quota_text(remaining: int | None, limit: int | None) -> str:
 
 @dataclass
 class Invocation:
-    """What every repo run of one scan invocation shares."""
+    """What every repo run of one scan invocation shares; ``store``'s latch is the shared one its latch follows."""
 
     stack: contextlib.ExitStack
     seams: Seams = field(default_factory=Seams)
+    store: StateStore | None = None
     meter: TickMeter = field(init=False)
     outcomes: Outcomes = field(init=False)
     gauge: QuotaGauge = field(init=False)
@@ -88,7 +96,8 @@ class Invocation:
 
     def __post_init__(self) -> None:
         self.started = self.seams.monotonic()
-        self.meter = TickMeter(self.seams.clock)
+        shared = None if self.store is None else SharedLatch(self.store, self.seams.clock)
+        self.meter = TickMeter(self.seams.clock, shared)
         self.outcomes = Outcomes(self.meter)
         self.gauge = QuotaGauge(self.meter, None)
 
@@ -124,6 +133,8 @@ class RepoRun:
     timeout_minutes: int
     prepared: PreparedScan | None = None
     finished: bool = False
+    held: str | None = None
+    phase_b_outcome: Outcome | None = None
 
     @property
     def repo(self) -> str:
@@ -180,13 +191,22 @@ class RepoRun:
             self.invocation.gauge.refresh()
             outcomes.attempt(self.repo, "Phase A (safety work)", lambda: self._prepare(0))
 
+    def hold(self, why: str) -> None:
+        """Run no Phase B, for ``why``."""
+        self.held = why
+
     def phase_b(self) -> None:
         """The repo's optional work, when it has any."""
         invocation, outcomes = self.invocation, self.invocation.outcomes
-        if not self.work.optional or outcomes.skipped(self.repo, "Phase B"):
+        if not self.work.optional or self.held is not None:
+            return
+        invocation.meter.latch.recheck()
+        if outcomes.skipped(self.repo, "Phase B"):
+            self.held = RATE_LIMITED
             return
         if self.config.dispatch_token is None:
-            logger.warning("%s: no Phase B: without the dispatch token no review can be dispatched", self.repo)
+            logger.warning("%s: no Phase B: %s", self.repo, NO_DISPATCH_TOKEN)
+            self.held = NO_DISPATCH_TOKEN
             return
         full_tick_due = self.memory.full_tick_due(invocation.seams.now())
         meter = invocation.meter.meter(self.repo)
@@ -212,6 +232,7 @@ class RepoRun:
             invocation.seams.run_finish(prepared, optional=True)
 
         outcome = outcomes.attempt(self.repo, "Phase B", work, full_tick_due=full_tick_due)
+        self.phase_b_outcome = outcome
         if outcome in ("done", "failed"):
             self.finished = True
         elif self.prepared is not None:
@@ -221,11 +242,10 @@ class RepoRun:
         """Raise the unfinished safety work's failures as the repo's error, and log the repo's requests."""
         invocation = self.invocation
         if self.prepared is not None and not self.finished:
-            invocation.outcomes.attempt(
-                self.repo,
-                "Phase A (safety work)",
-                functools.partial(invocation.seams.run_finish, self.prepared, optional=False),
+            finish = functools.partial(
+                invocation.seams.run_finish, self.prepared, optional=False, marks_full_tick=not self.work.optional
             )
+            invocation.outcomes.attempt(self.repo, "Phase A (safety work)", finish)
         invocation.gauge.refresh()
         meter = invocation.meter.meter(self.repo)
         logger.info(

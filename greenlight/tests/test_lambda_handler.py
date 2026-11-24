@@ -134,6 +134,15 @@ def test_a_worker_event_runs_that_repos_worker(fakes):
     fanout.lambda_invoker.assert_not_called()  # type: ignore[attr-defined]
 
 
+@pytest.mark.parametrize(("raw", "expected"), [("", 30), ("0", 0), ("7", 7)])
+def test_a_worker_gets_the_handlers_current_max_dispatches(fakes, monkeypatch, raw, expected):
+    monkeypatch.setenv(_MAX_ENV, raw)
+
+    lambda_handler.handler(json.loads(json.dumps(_WORKER)), object())
+
+    assert fakes["worker"].kwargs["max_dispatches"] == expected
+
+
 def test_a_worker_needs_no_function_name(fakes, monkeypatch):
     monkeypatch.delenv("AWS_LAMBDA_FUNCTION_NAME")
 

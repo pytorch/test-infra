@@ -3,19 +3,21 @@
 ``finish`` fingerprints each eligible PR (``scan_runner``), dispatches the candidates (``scan_dispatch``),
 relabels the listed PRs (``verdict_labels``) and, on ``--pr``, posts the recheck refusals; then it
 raises one error naming every PR that failed, failed to dispatch or was abandoned to a rate limit,
-the safety work's failures (``PreparedScan.failed``) included, and otherwise returns how many reviews
-it dispatched. The optional work's own failures are kept apart (``PreparedScan.optional_failed``), so
-a caller whose optional work was cut short reports them with the cut. The dispatch goes through a
-client on the scan's dispatch token when that differs from its repo token. A
-fast tick reuses a PR's cached fingerprint result while its listed ``updated_at`` and head and the
-approver set are unchanged, but fingerprints afresh any PR it would dispatch (``scan_memory``);
+the safety work's failures (``PreparedScan.failed``) included. The optional work's own failures are
+kept apart (``PreparedScan.optional_failed``), so a caller whose optional work was cut short reports
+them with the cut. The dispatch goes through a client on the scan's dispatch token when that differs
+from its repo token. A fast tick reuses a PR's cached fingerprint result while its listed
+``updated_at`` and head and the approver set are unchanged, but fingerprints afresh any PR it would
+dispatch (``scan_memory``);
 ``--pr`` and ``--force`` never touch the cache. Every listing tick that reaches its dispatch phase
 without a rate limit, and whose dispatch hits none, relabels the PRs it listed that are reverted, kept
 by the recency filter or Stale-skipped. ``optional=False`` (a safety-only repo) skips all of the
 optional work and raises only the safety work's errors; a full tick whose safety work met no rate limit
-still counts as the last full tick, so a safety-only repo is not listed in full on every tick.
-``PreparedScan.dispatched`` counts each review as it goes out, so a caller still reads it when
-``finish`` raises.
+still counts as the last full tick, so a safety-only repo is not listed in full on every tick, unless the
+caller says its optional work did not finish (``marks_full_tick=False``). The fingerprint results the
+fan-out stored are kept in the scan memory even when a stop (``quota.RepoBudgetExceeded``,
+``quota.RateLimitStop``) ends it. The shared rate-limit latch is read again before the dispatch
+(``latch.recheck``).
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ import queue
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from greenlight import github_client, scan_dispatch, scan_runner, verdict_labels
+from greenlight import github_client, latch, scan_dispatch, scan_runner, verdict_labels
 from greenlight.scan_memory import FingerprintCache
 
 if TYPE_CHECKING:
@@ -106,17 +108,16 @@ class PreparedScan:
     now: Callable[[], datetime]
     failed: list[int] = field(default_factory=list)
     optional_failed: list[int] = field(default_factory=list)
-    dispatched: int = 0
 
 
-def finish(prepared: PreparedScan, *, optional: bool = True) -> int:
+def finish(prepared: PreparedScan, *, optional: bool = True, marks_full_tick: bool = True) -> None:
     abandoned: list[int] = []
     dispatch_failed: list[int] = []
     failed = set(prepared.failed)
     if optional:
         dispatch_failed = _optional_work(prepared, abandoned)
         failed.update(prepared.optional_failed)
-    elif not prepared.cancel_event.is_set():
+    elif marks_full_tick and not prepared.cancel_event.is_set():
         _mark_full_tick(prepared)
     # A PR can land in failed twice (the revert guard's revoke and record) and in failed and abandoned both.
     failed_prs = sorted(failed)
@@ -130,7 +131,6 @@ def finish(prepared: PreparedScan, *, optional: bool = True) -> int:
         if abandoned_prs:
             errors.append(f"{len(abandoned_prs)} PR(s) abandoned due to rate limit: {abandoned_prs}")
         raise RuntimeError("; ".join(errors))
-    return prepared.dispatched
 
 
 def _mark_full_tick(scan: PreparedScan) -> None:
@@ -147,16 +147,53 @@ def _dispatch_client(scan: PreparedScan) -> Github:
     )
 
 
-def _counted(scan: PreparedScan) -> DispatchFn:
-    """``scan``'s dispatch, adding each review that went out to ``scan.dispatched``."""
-
-    def dispatch(
-        client: Github, pr_number: int, head_sha: str, eval_hash: str, ref: str, /, *, shadow: bool, repo: str
-    ) -> None:
-        scan.dispatch(client, pr_number, head_sha, eval_hash, ref, shadow=shadow, repo=repo)
-        scan.dispatched += 1
-
-    return dispatch
+def _fan_out(
+    scan: PreparedScan,
+    client_pool: queue.Queue[Github],
+    worker_count: int,
+    abandoned: list[int],
+    skips: list[tuple[int, ReviewSkip]],
+    cache: FingerprintCache | None,
+) -> list[scan_runner._Candidate]:
+    """Fingerprint ``scan``'s eligible PRs: every one, or under ``--max`` only until enough would dispatch."""
+    if scan.max_dispatches is None:
+        return scan_runner._fingerprint_all(
+            scan.fingerprint_numbers,
+            scan.states,
+            repo=scan.entry.repo,
+            fingerprint=scan.fingerprint,
+            client_pool=client_pool,
+            worker_count=worker_count,
+            authorized_logins=scan.authorized_logins,
+            skip_on_approval=scan.skip_on_approval,
+            now=scan.evaluated_at,
+            timeout=scan.timeout,
+            failed=scan.optional_failed,
+            abandoned=abandoned,
+            skips=skips,
+            force=scan.force,
+            cancel_event=scan.cancel_event,
+            cache=cache,
+        )
+    return scan_runner._fingerprint_until_dispatchable(
+        scan.fingerprint_numbers,
+        scan.states,
+        repo=scan.entry.repo,
+        fingerprint=scan.fingerprint,
+        client_pool=client_pool,
+        worker_count=worker_count,
+        authorized_logins=scan.authorized_logins,
+        skip_on_approval=scan.skip_on_approval,
+        limit=max(0, scan.max_dispatches),
+        now=scan.evaluated_at,
+        timeout=scan.timeout,
+        failed=scan.optional_failed,
+        abandoned=abandoned,
+        skips=skips,
+        force=scan.force,
+        cancel_event=scan.cancel_event,
+        cache=cache,
+    )
 
 
 def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
@@ -184,47 +221,12 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
             now=scan.evaluated_at,
         )
     )
-    if scan.max_dispatches is None:
-        pending = scan_runner._fingerprint_all(
-            scan.fingerprint_numbers,
-            scan.states,
-            repo=repo,
-            fingerprint=scan.fingerprint,
-            client_pool=client_pool,
-            worker_count=worker_count,
-            authorized_logins=scan.authorized_logins,
-            skip_on_approval=scan.skip_on_approval,
-            now=scan.evaluated_at,
-            timeout=scan.timeout,
-            failed=scan.optional_failed,
-            abandoned=abandoned,
-            skips=skips,
-            force=scan.force,
-            cancel_event=scan.cancel_event,
-            cache=cache,
-        )
-    else:
-        pending = scan_runner._fingerprint_until_dispatchable(
-            scan.fingerprint_numbers,
-            scan.states,
-            repo=repo,
-            fingerprint=scan.fingerprint,
-            client_pool=client_pool,
-            worker_count=worker_count,
-            authorized_logins=scan.authorized_logins,
-            skip_on_approval=scan.skip_on_approval,
-            limit=max(0, scan.max_dispatches),
-            now=scan.evaluated_at,
-            timeout=scan.timeout,
-            failed=scan.optional_failed,
-            abandoned=abandoned,
-            skips=skips,
-            force=scan.force,
-            cancel_event=scan.cancel_event,
-            cache=cache,
-        )
-    if cache is not None:
-        cache.commit()
+    try:
+        pending = _fan_out(scan, client_pool, worker_count, abandoned, skips, cache)
+    finally:
+        if cache is not None:
+            cache.commit()
+    latch.recheck(scan.cancel_event)
     dispatch_failed: list[int] = []
     if scan.cancel_event.is_set():
         # A rate limit tripped the fan-out. The completed candidates are deferred, not lost: no
@@ -248,7 +250,7 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
             repo=repo,
             ref=scan.ref,
             max_dispatches=scan.max_dispatches,
-            dispatch=_counted(scan),
+            dispatch=scan.dispatch,
             emit_dispatched=scan.emit_dispatched,
             poke=scan.poke,
             shadow_for_pr=scan.authority.shadow,

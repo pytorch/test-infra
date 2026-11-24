@@ -115,6 +115,9 @@ WORKER_DEADLINE = timedelta(seconds=240)
 # A repo lease outlives the 300 s function timeout of the invocation that took it, so a lease is never
 # taken over while its holder can still run; an invocation killed by the timeout frees it at expiry.
 LEASE_DURATION = timedelta(seconds=330)
+# The planner's fan-out reads no other repo's config and invokes no worker this long after it started, so
+# its discovery never eats into pytorch/pytorch's Phase B; the repos it did not reach go first next tick.
+FANOUT_BUDGET = timedelta(seconds=45)
 # A repo with work whose last completed run is older than this many ticks fails the planner.
 STALE_RUN_TICKS = 3
 OTHER_REPO_REQUEST_BUDGET = 400

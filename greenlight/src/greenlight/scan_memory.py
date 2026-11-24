@@ -4,7 +4,8 @@ It is read and written from the main thread only. ``encode_memory`` and ``decode
 the state store keeps between invocations (``state_store``): versioned JSON, zlib-compressed, the
 approvers digest of the fingerprint results stored once. A form over ``MEMORY_MAX_BYTES`` is saved without
 its fingerprint results, logged as an error; a blob of another version, or one that does not decode,
-starts the repo cold.
+starts the repo cold. ``save_memory`` saves it with whether its drain is complete, for the CLI's scan and
+the scan Lambda's (``leased_run``) alike.
 """
 
 from __future__ import annotations
@@ -18,13 +19,13 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
 from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE, MEMORY_MAX_BYTES
-from greenlight.repo_config import RepoEntry, Settings
 from greenlight.review_gate import ReviewSkip
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
     from greenlight.scan_runner import FingerprintResult
+    from greenlight.state_store import StateStore
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +96,6 @@ class ScanMemory:
     when the process first saw the repo off, and the pass under way (``DrainPass``: the PRs it checked
     and its read attempts), which ends when no open PR is pending.
 
-    ``last_settings`` is the repo's config as last read when that read was not unreadable, which an
-    unreadable read serves instead (``repo_config.read_settings``), or None.
-
     Times are the scan's naive-UTC wall clock: a monotonic clock may not advance while Lambda freezes
     the execution environment between invocations. A full tick is due when none has completed, or once
     ``FULL_TICK_INTERVAL`` less ``FULL_TICK_TOLERANCE`` has passed since the last one started; a clock
@@ -111,7 +109,6 @@ class ScanMemory:
         self._drain_passes = 0
         self._drain_pass: DrainPass | None = None
         self._drain_completed_by: int | None = None
-        self.last_settings: Settings | None = None
 
     def full_tick_due(self, now: datetime) -> bool:
         if self._last_full_tick_started is None:
@@ -221,7 +218,7 @@ class FingerprintCache:
         return _Key(updated_at, head_sha, self._digest)
 
 
-MEMORY_VERSION = 1
+MEMORY_VERSION = 2
 
 
 def _time(value: datetime | None) -> str | None:
@@ -230,32 +227,6 @@ def _time(value: datetime | None) -> str | None:
 
 def _parse_time(value: object) -> datetime | None:
     return None if value is None else datetime.fromisoformat(str(value))
-
-
-def _settings_form(settings: Settings | None) -> dict[str, Any] | None:
-    if settings is None:
-        return None
-    entry = settings.entry
-    return {
-        "repo": settings.repo,
-        "kind": settings.kind,
-        "entry": None if entry is None else {name: getattr(entry, name) for name in entry.__dataclass_fields__},
-        "served": settings.served,
-        "problem": settings.problem,
-    }
-
-
-def _settings(form: Mapping[str, Any] | None) -> Settings | None:
-    if form is None:
-        return None
-    entry = form["entry"]
-    return Settings(
-        str(form["repo"]),
-        form["kind"],
-        None if entry is None else RepoEntry(**entry),
-        served=bool(form["served"]),
-        problem=form["problem"],
-    )
 
 
 def _result_form(result: FingerprintResult) -> dict[str, list[str]]:
@@ -320,7 +291,6 @@ def _form(memory: ScanMemory, *, fingerprints: bool) -> dict[str, Any]:
         "drain_passes": memory._drain_passes,
         "drain_pass": _drain_form(memory._drain_pass),
         "drain_completed_by": memory._drain_completed_by,
-        "last_settings": _settings_form(memory.last_settings),
     }
 
 
@@ -343,6 +313,15 @@ def encode_memory(memory: ScanMemory, repo: str) -> bytes:
     return blob
 
 
+def save_memory(
+    store: StateStore, repo: str, memory: ScanMemory, *, owner: str | None, now: float, tick: str | None
+) -> None:
+    """Save ``memory`` as ``repo``'s, with whether its drain is complete (``StateStore.save_memory``, which
+    raises ``StoreError``)."""
+    completed = memory.drain_completed_by() is not None
+    store.save_memory(repo, encode_memory(memory, repo), owner=owner, now=now, tick=tick, drain_complete=completed)
+
+
 def _restore(form: Mapping[str, Any]) -> ScanMemory:
     memory = ScanMemory()
     memory._last_full_tick_started = _parse_time(form["last_full_tick_started"])
@@ -355,7 +334,6 @@ def _restore(form: Mapping[str, Any]) -> ScanMemory:
     memory._drain_pass = _drain(form["drain_pass"])
     completed_by = form["drain_completed_by"]
     memory._drain_completed_by = None if completed_by is None else int(completed_by)
-    memory.last_settings = _settings(form["last_settings"])
     return memory
 
 

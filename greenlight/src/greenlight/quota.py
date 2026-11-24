@@ -1,18 +1,22 @@
 """Per-invocation GitHub request metering: request counts, Phase B stops and the rate-limit latch.
 
-One ``TickMeter`` per scan invocation holds the latch, until when the rate limit that set it asked to
-wait (``rate_limit_until``; the invocation records it in the state store's shared latch), and the
-invocation's request total, and makes one ``RequestMeter`` per repo, shared by every GitHub client that
-repo's work builds. A meter sits at the two seams
-PyGithub and urllib3 offer. ``CountingToken.authentication`` runs once per request, before it is sent:
-it raises ``RateLimitStop`` once the latch is set and ``RepoBudgetExceeded`` once the meter's ``stop``
-gives a reason, and otherwise counts the request. ``MeteredRetry.increment`` runs once per retry
-attempt, before its sleep: on a rate-limit response it sets the latch, and on a set latch or a stop it
-ends the retrying; otherwise it counts the attempt urllib3 will make. It never raises an
-``IterationTimeout``, since requests turns any ``OSError`` raised inside urllib3 into a
-``ConnectionError``: the next request's ``authentication`` raises the typed signal instead. urllib3
-calls it on a response only when the ``Retry`` would retry that status, so a 429 off the fail-fast
-client's forcelist, and any 403, reach the caller as a ``GithubException`` for its own rate-limit check.
+One ``TickMeter`` per scan invocation holds the latch (``latch.RateLimitLatch``: until when the rate limits
+that set it asked to wait, published to the state store's shared latch as it is set) and the invocation's
+request total, and makes one ``RequestMeter`` per repo, shared by every GitHub client that repo's work
+builds. A meter sits at the two seams PyGithub and urllib3 offer. ``CountingToken.authentication`` runs
+once per request, before it is sent: outside the primary's Phase A it first polls the shared latch
+(``RateLimitLatch.poll``), so a rate limit another invocation met stops this one's optional work and the
+other repos' work, never the primary's safety work; it raises ``RateLimitStop`` once the latch is set and
+``RepoBudgetExceeded`` once the meter's ``stop`` gives a reason, and otherwise counts the request.
+``MeteredRetry.increment`` runs once per retry attempt, before its sleep: on a rate-limit response it sets
+the latch, and on a set latch or a stop it ends the retrying; otherwise it counts the attempt urllib3 will
+make. It never raises an ``IterationTimeout``, since requests turns any ``OSError`` raised inside urllib3
+into a ``ConnectionError``: the next request's ``authentication`` raises the typed signal instead. urllib3
+calls it on a response only when the ``Retry`` would retry that status, so a 429 off the fail-fast client's
+forcelist, and any 403, reach the caller as a ``GithubException`` for its own rate-limit check. The one
+rate-limit response it does not latch at once is a 429 on the primary's patient client
+(``github_client.build_authz_client``) in its Phase A, which has no deadline: one asking to wait no longer
+than that retry's ``retry_after_max`` is waited out and counted, and latches only once the retries run out.
 PyGithub's 301, 302 and 202 follow-ups pass neither seam and are not counted.
 
 ``QuotaGauge`` estimates the installation's remaining requests between reads of ``GET /rate_limit``
@@ -34,9 +38,11 @@ from github import Auth
 from urllib3.exceptions import MaxRetryError, ResponseError
 from urllib3.util.retry import Retry
 
-from greenlight.constants import QUOTA_REFRESH_REQUESTS, RATE_LIMIT_DEFAULT_WAIT, RATE_LIMIT_LATCH_MAX
+from greenlight.constants import QUOTA_REFRESH_REQUESTS
 from greenlight.github_client import is_rate_limit_error, is_rate_limit_status
 from greenlight.guards import IterationTimeout
+from greenlight.latch import RateLimitLatch, latch_rate_limit, seconds
+from greenlight.repo_config import is_primary
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -45,6 +51,8 @@ if TYPE_CHECKING:
     from github import Github
     from urllib3.connectionpool import ConnectionPool
     from urllib3.response import BaseHTTPResponse
+
+    from greenlight.latch import SharedLatch
 
 logger = logging.getLogger(__name__)
 
@@ -56,34 +64,6 @@ _RETRY_PARAMETERS: tuple[str, ...] = tuple(
 )
 
 
-def _seconds(raw: object) -> float | None:
-    try:
-        return float(str(raw))
-    except ValueError:
-        return None
-
-
-def rate_limit_until(headers: Mapping[str, str] | None, now: float) -> float:
-    """Until when a rate-limit response asks to wait: ``x-ratelimit-reset`` when ``x-ratelimit-remaining`` is
-    0, else ``Retry-After`` seconds, else ``RATE_LIMIT_DEFAULT_WAIT``; never past ``RATE_LIMIT_LATCH_MAX``."""
-    found = {str(name).lower(): value for name, value in (headers or {}).items()}
-    reset = _seconds(found.get("x-ratelimit-reset")) if found.get("x-ratelimit-remaining") == "0" else None
-    retry_after = _seconds(found.get("retry-after"))
-    if reset is not None:
-        until = reset
-    elif retry_after is not None:
-        until = now + retry_after
-    else:
-        until = now + RATE_LIMIT_DEFAULT_WAIT.total_seconds()
-    return min(until, now + RATE_LIMIT_LATCH_MAX.total_seconds())
-
-
-def rate_limit_headers(exc: BaseException) -> Mapping[str, str] | None:
-    """The response headers a rate-limit failure carries, when it carries any."""
-    headers = getattr(exc, "headers", None)
-    return headers if isinstance(headers, dict) else None
-
-
 class RepoBudgetExceeded(IterationTimeout):
     """A repo's ``stop`` gave a reason: its optional work ends for this tick."""
 
@@ -93,39 +73,19 @@ class RateLimitStop(IterationTimeout):
 
 
 class TickMeter:
-    """One invocation's rate-limit latch and until when it asked to wait, its request total and its repo meters."""
+    """One invocation's rate-limit latch, its request total and its repo meters; ``shared`` is the state
+    store's latch, which the invocation's latch publishes to and follows."""
 
-    def __init__(self, clock: Callable[[], float] = time.time) -> None:
-        self.latch = threading.Event()
-        self._clock = clock
+    def __init__(self, clock: Callable[[], float] = time.time, shared: SharedLatch | None = None) -> None:
         self._lock = threading.Lock()
         self._total = 0
-        self._until: float | None = None
         self._meters: dict[str, RequestMeter] = {}
+        self.latch = RateLimitLatch(clock, shared, lambda: self.total)
 
     @property
     def total(self) -> int:
         with self._lock:
             return self._total
-
-    @property
-    def latch_until(self) -> float | None:
-        """Until when the rate limits that set the latch asked to wait, the latest; None while it is not set.
-
-        Work that catches a rate limit itself sets the latch (its ``cancel_event``) without the response's
-        headers: such a latch waits ``RATE_LIMIT_DEFAULT_WAIT`` from the first time this is asked.
-        """
-        with self._lock:
-            if self._until is None and self.latch.is_set():
-                self._until = rate_limit_until(None, self._clock())
-            return self._until
-
-    def note_rate_limit(self, headers: Mapping[str, str] | None) -> None:
-        """Set the latch for a rate-limit response with ``headers``, keeping the latest wait it asks for."""
-        until = rate_limit_until(headers, self._clock())
-        with self._lock:
-            self._until = until if self._until is None else max(self._until, until)
-        self.latch.set()
 
     def meter(self, repo: str) -> RequestMeter:
         """``repo``'s meter for this tick, made on first use."""
@@ -156,8 +116,14 @@ class RequestMeter:
         self._counts: dict[Phase, int] = {"A": 0, "B": 0}
 
     @property
-    def latch(self) -> threading.Event:
+    def latch(self) -> RateLimitLatch:
         return self._tick.latch
+
+    @property
+    def primary_phase_a(self) -> bool:
+        """The primary's safety work: never stopped by the shared latch, and its patient client waits out a
+        short 429."""
+        return is_primary(self.repo) and self.phase == "A"
 
     def requests(self, phase: Phase) -> int:
         with self._lock:
@@ -180,9 +146,11 @@ class RequestMeter:
 
     def rate_limited(self, headers: Mapping[str, str] | None) -> None:
         self.stopped = RATE_LIMIT
-        self._tick.note_rate_limit(headers)
+        self.latch.note(headers)
 
     def before_request(self) -> None:
+        if not self.primary_phase_a:
+            self.latch.poll()
         reason = self.stop_reason()
         if reason is None:
             return
@@ -230,22 +198,46 @@ class MeteredRetry(Retry):
         _pool: ConnectionPool | None = None,
         _stacktrace: TracebackType | None = None,
     ) -> Self:
-        if response is not None and is_rate_limit_status(response.status, response.headers):
-            self.meter.rate_limited(response.headers)
-            logger.warning(
-                "%s: GitHub answered %d, a rate limit; the invocation stops its GitHub work",
-                self.meter.repo,
-                response.status,
-            )
+        limited = response is not None and is_rate_limit_status(response.status, response.headers)
+        if response is not None and limited and not self._waits_out(response):
+            self._latch(response, "the invocation stops its GitHub work")
             reason = ResponseError(ResponseError.SPECIFIC_ERROR.format(status_code=response.status))
             raise MaxRetryError(_pool, url, reason)  # type: ignore[arg-type]
         stop = self.meter.stop_reason()
         if stop is not None:
             logger.warning("%s: no retry of %s %s: %s", self.meter.repo, method, url, stop)
             raise MaxRetryError(_pool, url, ResponseError(f"greenlight stopped retrying: {stop}"))  # type: ignore[arg-type]
-        retry = super().increment(method, url, response, error, _pool, _stacktrace)
+        try:
+            retry = super().increment(method, url, response, error, _pool, _stacktrace)
+        except MaxRetryError:
+            if response is not None and limited:
+                self._latch(response, "its retries ran out; the invocation stops its GitHub work")
+            raise
+        if response is not None and limited:
+            logger.warning(
+                "%s: GitHub answered %d asking to wait %s s; its patient client waits it out",
+                self.meter.repo,
+                response.status,
+                response.headers.get("Retry-After"),
+            )
         self.meter.count()
         return retry
+
+    def _waits_out(self, response: BaseHTTPResponse) -> bool:
+        """A 429 the primary's patient client waits out in its Phase A: one asking to wait no longer than
+        ``retry_after_max``."""
+        wait = seconds(response.headers.get("Retry-After"))
+        return (
+            response.status == 429
+            and self.respect_retry_after_header
+            and self.meter.primary_phase_a
+            and wait is not None
+            and wait <= self.retry_after_max
+        )
+
+    def _latch(self, response: BaseHTTPResponse, what: str) -> None:
+        self.meter.rate_limited(response.headers)
+        logger.warning("%s: GitHub answered %d, a rate limit; %s", self.meter.repo, response.status, what)
 
 
 def core_quota(client: Github) -> tuple[int, int]:
@@ -294,7 +286,7 @@ class QuotaGauge:
                     "reading the installation's rate limit hit a rate limit; the invocation stops its GitHub work",
                     exc_info=True,
                 )
-                self._tick.note_rate_limit(rate_limit_headers(exc))
+                latch_rate_limit(self._tick.latch, exc)
             else:
                 logger.warning("cannot read the installation's rate limit; keeping the last reading", exc_info=True)
         else:

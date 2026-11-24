@@ -1,20 +1,20 @@
 """The per-repo decisions of one scan: its config, the live checks, its eligibility source, its work.
 
-``scan_repo`` (the CLI's ``review``) reads the repo's own ``.github/greenlight/config.yml`` fresh every scan
-(``repo_config.read_settings``; an unreadable file serves the settings of the repo's last read in its
-``ScanMemory``, kept for nothing else), checks what GitHub reports for the repo
-(``check_identity``: the exact canonical name, public, not archived, default branch ``main``:
-``accepts_base`` judges bases against ``main``, so a repo on another default branch would get no
-reviews), and then
-does the work ``repo_work`` gives its entry: the drain when its mode is ``off``; the review
-(``review.run``), whole when served and only its safety work when safety-only; or nothing for a
-safety-only ``gate`` entry, which has no safety work yet. A repo whose settings give no entry (no
-file, a refused file, an unreadable one), or one that fails a live check, gets no work at all. Every
-problem the settings carry fails the scan, after the work they still allow ran.
-The dispatch and the drain's read of the review runs use the dispatch token
+``scan_repo`` (the CLI's ``review``) first checks what GitHub reports for the repo (``fetch_identity``)
+and refuses a private or archived one before reading anything else of it. It then reads the repo's own
+``.github/greenlight/config.yml`` through the config cache on the state store it is given
+(``config_cache.revalidate`` and ``decide``, as the scan Lambda's planner does: an unreadable file serves
+the last file read), stores the updated record, and checks the rest of GitHub's report against the entry
+(``check_identity``: the exact canonical name, default branch ``main``: ``accepts_base`` judges bases
+against ``main``, so a repo on another default branch would get no reviews). Then it does the work
+``repo_work`` gives its entry: the drain when its mode is ``off``; the review (``review.run``), whole when
+served and only its safety work when safety-only; or nothing for a safety-only ``gate`` entry, which has
+no safety work yet. A repo whose settings give no entry (no file, a refused file, an unreadable one), or
+one that fails a live check, gets no work at all. Every problem the settings carry fails the scan, after
+the work they still allow ran. The dispatch and the drain's read of the review runs use the dispatch token
 (``Config.dispatch_or_scan_token``): both are on ``DISPATCH_REPO``. A listing scan loads the repo's memory
-from the state store it is given and saves it back, with no lease; each eligibility source is read through
-a ``SnapshotCache`` whose snapshot the store keeps. The scan Lambda (``fanout``, ``worker``, ``tick``)
+from the store and saves it back, with no lease; each eligibility source is read through a
+``SnapshotCache`` whose snapshot the store keeps. The scan Lambda (``fanout``, ``worker``, ``tick``)
 routes every repo through the same ``repo_work``, ``identity_problem`` and eligibility caches.
 """
 
@@ -24,11 +24,11 @@ import logging
 import time
 from typing import TYPE_CHECKING, Literal, NamedTuple, NoReturn
 
-from greenlight import drain, github_client, merge_authz, review, writers
+from greenlight import config_cache, drain, github_client, merge_authz, review, writers
 from greenlight.constants import REPO_CONFIG_PATH, TARGET_BRANCH
 from greenlight.guards import IterationTimeout
-from greenlight.repo_config import is_primary, read_settings
-from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
+from greenlight.repo_config import is_primary
+from greenlight.scan_memory import ScanMemory, decode_memory, save_memory
 from greenlight.snapshot_cache import SnapshotCache
 from greenlight.state_store import EligibilityKey, StoreError
 
@@ -41,10 +41,10 @@ if TYPE_CHECKING:
     from greenlight.config import Config
     from greenlight.merge_authz import MergeRulesSnapshot
     from greenlight.quota import RequestMeter
-    from greenlight.repo_config import RepoEntry
+    from greenlight.repo_config import RepoEntry, Settings
     from greenlight.review import RunFn, ScanOptions
     from greenlight.review_finish import BuildClient
-    from greenlight.state_store import StateStore
+    from greenlight.state_store import RepoItem, StateStore
 
 logger = logging.getLogger(__name__)
 
@@ -79,22 +79,29 @@ def fetch_identity(client: Github, repo: str) -> RepoIdentity:
     return RepoIdentity(full_name, private, default_branch, archived)
 
 
-def identity_problem(entry: RepoEntry, identity: RepoIdentity) -> str | None:
-    """Why GitHub's report refuses ``entry`` for this scan, or None when it passes every live check."""
-    if identity.full_name != entry.repo:
-        return f"GitHub names it {identity.full_name!r}; scan it by that exact name"
+def visibility_problem(identity: RepoIdentity) -> str | None:
+    """Why GitHub's report keeps GreenLight from reading anything of the repo (private, archived), or None."""
     if identity.private:
         return "it is private"
     if identity.archived:
         return "it is archived"
+    return None
+
+
+def identity_problem(entry: RepoEntry, identity: RepoIdentity) -> str | None:
+    """Why GitHub's report refuses ``entry`` for this scan, or None when it passes every live check."""
+    if identity.full_name != entry.repo:
+        return f"GitHub names it {identity.full_name!r}; scan it by that exact name"
+    if (problem := visibility_problem(identity)) is not None:
+        return problem
     if identity.default_branch != TARGET_BRANCH:
         return f"its default branch is {identity.default_branch!r}, not {TARGET_BRANCH!r}"
     return None
 
 
-def check_identity(entry: RepoEntry, client: Github) -> None:
-    """Raise ``RepoUnavailable`` when what GitHub reports for ``entry``'s repo fails a live check."""
-    problem = identity_problem(entry, fetch_identity(client, entry.repo))
+def check_identity(entry: RepoEntry, identity: RepoIdentity) -> None:
+    """Raise ``RepoUnavailable`` when GitHub's report ``identity`` of ``entry``'s repo fails a live check."""
+    problem = identity_problem(entry, identity)
     if problem is not None:
         raise RepoUnavailable(problem)
 
@@ -117,6 +124,13 @@ def repo_work(entry: RepoEntry, *, served: bool) -> RepoWork:
     if entry.safety == "pytorchbot" or served:
         return RepoWork("review", optional=served)
     return RepoWork("none", optional=False)
+
+
+def has_work(work: RepoWork, *, drain_complete: bool) -> bool:
+    """Whether a scan Lambda run of a repo with ``work`` has anything to do: an ``off`` repo whose stored drain
+    is complete has not, until its settings stop saying ``off`` and a run forgets the drain
+    (``ScanMemory.clear_drain``)."""
+    return work.kind != "none" and not (work.kind == "drain" and drain_complete)
 
 
 def eligibility_resolver(entry: RepoEntry) -> tuple[str, Callable[[Github], MergeRulesSnapshot]]:
@@ -227,26 +241,39 @@ def scan_repo(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
-    memory = decode_memory(store.read_repo(repo).memory, repo) if keep_memory else None
+    item = store.read_repo(repo)
+    memory = decode_memory(item.memory, repo) if keep_memory else None
     try:
         _scan(
             config,
             repo=repo,
             token=token,
             store=store,
+            item=item,
             memory=memory,
             pr=pr,
             bot_login=bot_login,
             build_github=build_github,
             run_review=run_review,
             run_drain=run_drain,
+            clock=clock,
             **review_kwargs,
         )
     finally:
         if memory is not None:
-            completed = memory.drain_completed_by() is not None
-            blob = encode_memory(memory, repo)
-            store.save_memory(repo, blob, owner=None, now=clock(), tick=None, drain_complete=completed)
+            save_memory(store, repo, memory, owner=None, now=clock(), tick=None)
+
+
+def _settings(client: Github, store: StateStore, item: RepoItem, *, now: float) -> Settings:
+    """``item``'s repo's settings through the config cache on ``store``, the updated record stored."""
+    repo = item.repo
+    record, unreadable = config_cache.revalidate(item.config, client, repo, now=now)
+    decision = config_cache.decide(
+        repo, record, unreadable=unreadable, reachable=True, drain_complete=item.drain_complete
+    )
+    if decision.record != item.config:
+        store.write_config(repo, decision.record)
+    return decision.settings
 
 
 def _scan(
@@ -255,20 +282,23 @@ def _scan(
     repo: str,
     token: str,
     store: StateStore,
+    item: RepoItem,
     memory: ScanMemory | None,
     pr: int | None,
     bot_login: str,
     build_github: BuildClient,
     run_review: RunFn,
     run_drain: Callable[..., drain.DrainReport],
+    clock: Callable[[], float],
     **review_kwargs: Unpack[ScanOptions],
 ) -> None:
     dispatch_token = config.dispatch_or_scan_token
     client = build_github(token)
     try:
-        settings = read_settings(client, repo, last=None if memory is None else memory.last_settings)
-        if memory is not None and settings.kind != "unreadable":
-            memory.last_settings = settings
+        identity = fetch_identity(client, repo)
+        if (hidden := visibility_problem(identity)) is not None:
+            _raise(repo, [f"refused for this scan: {hidden}"])
+        settings = _settings(client, store, item, now=clock())
         if settings.entry is None:
             if settings.problem is None:
                 raise RuntimeError(f"{repo} has no GreenLight config at {REPO_CONFIG_PATH}")
@@ -276,7 +306,7 @@ def _scan(
         entry = settings.entry
         errors: list[str] = [] if settings.problem is None else [settings.problem]
         try:
-            check_identity(entry, client)
+            check_identity(entry, identity)
         except RepoUnavailable as exc:
             errors.append(f"refused for this scan: {exc}")
             _raise(repo, errors)

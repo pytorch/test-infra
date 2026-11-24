@@ -22,7 +22,7 @@ without any of them.
 ``prepare`` runs the safety work: both authz gates (``authz_gates``) once the merge rules resolve,
 the listing, the state read, the revert guard, the recency filter and the ineligible revoke.
 ``review_finish.finish`` runs the optional work (fan-out, dispatch, label pass, refusals) and raises
-the errors; ``run`` is both, and returns how many reviews it dispatched. A caller may pass the run's
+the errors; ``run`` is both. A caller may pass the run's
 ``cancel_event`` (a tick-wide rate-limit latch), and always passes the token for the dispatch
 (``PrepareKwargs``). Dr. CI is poked only for a repo whose ``status_comment`` is ``drci``.
 
@@ -124,7 +124,7 @@ if TYPE_CHECKING:
     class RunFn(Protocol):
         def __call__(
             self, config: Config, *, entry: RepoEntry, optional: bool, **kwargs: Unpack[PrepareKwargs]
-        ) -> int: ...
+        ) -> None: ...
 
 
 logger = logging.getLogger(__name__)
@@ -158,17 +158,15 @@ def _no_poke(_pr_number: int) -> None:
 
 def run(
     config: Config, *, entry: RepoEntry = BUILTIN_PYTORCH, optional: bool = True, **kwargs: Unpack[PrepareKwargs]
-) -> int:
+) -> None:
     """``prepare`` then ``review_finish.finish``, inside one ExitStack; ``kwargs`` are ``prepare``'s keywords.
 
-    ``optional=False`` runs only the safety work and raises its errors. Returns how many reviews were
-    dispatched: 0 when ``prepare`` stopped the scan early.
+    ``optional=False`` runs only the safety work and raises its errors.
     """
     with contextlib.ExitStack() as stack:
         prepared = prepare(config, entry=entry, stack=stack, **kwargs)
-        if prepared is None:
-            return 0
-        return review_finish.finish(prepared, optional=optional)
+        if prepared is not None:
+            review_finish.finish(prepared, optional=optional)
 
 
 def prepare(

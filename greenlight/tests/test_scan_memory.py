@@ -9,7 +9,6 @@ import pytest
 
 from greenlight import scan_memory
 from greenlight.constants import FINGERPRINT_QUIET
-from greenlight.repo_config import RepoEntry, Settings
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
 from greenlight.scan_memory import MEMORY_VERSION, FingerprintCache, ScanMemory, decode_memory, encode_memory
 
@@ -288,11 +287,7 @@ def _full_memory() -> ScanMemory:
     current.checked.add(3)
     current.dismissed, current.failures = 1, 1
     memory.complete_drain(4)
-    memory.last_settings = Settings("pytorch/vision", "valid", _ENTRY, served=False, problem="safety-only: x")
     return memory
-
-
-_ENTRY = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow", "maintain")
 
 
 def test_the_memory_codec_round_trips_every_part_of_the_memory():
@@ -307,7 +302,6 @@ def test_the_memory_codec_round_trips_every_part_of_the_memory():
     assert restored._drain_passes == memory._drain_passes == 1
     assert restored._drain_pass == memory._drain_pass
     assert restored.drain_completed_by() == 4
-    assert restored.last_settings == memory.last_settings
     assert _tick(restored).lookup(1) == _RESULT
 
 
@@ -317,13 +311,12 @@ def test_a_cold_memory_round_trips_cold():
     assert restored.full_tick_due(_STARTED)
     assert restored._fingerprints == {}
     assert restored.drain_pass() is None
-    assert restored.last_settings is None
 
 
 def test_the_stored_form_is_versioned_compressed_json_with_the_approvers_digest_once():
     form = json.loads(zlib.decompress(encode_memory(_full_memory(), "pytorch/vision")))
 
-    assert form["version"] == MEMORY_VERSION == 1
+    assert form["version"] == MEMORY_VERSION == 2
     assert len(form["digests"]) == 1
     assert [row[3] for row in form["fingerprints"]] == [0, 0]
 
@@ -332,19 +325,20 @@ def test_no_memory_starts_cold():
     assert decode_memory(None, "pytorch/vision")._fingerprints == {}
 
 
-def test_another_version_starts_cold(caplog):
-    blob = zlib.compress(json.dumps({"version": 99}).encode())
+@pytest.mark.parametrize("version", [1, 99])
+def test_another_version_starts_cold(caplog, version):
+    blob = zlib.compress(json.dumps({"version": version, "last_settings": None}).encode())
 
     with caplog.at_level(logging.WARNING, logger="greenlight"):
         restored = decode_memory(blob, "pytorch/vision")
 
     assert restored.full_tick_due(_STARTED)
-    assert "stored scan memory has version 99, not 1; starting cold" in caplog.text
+    assert f"stored scan memory has version {version}, not 2; starting cold" in caplog.text
 
 
 @pytest.mark.parametrize(
     "blob",
-    [b"not zlib", zlib.compress(b"not json"), zlib.compress(json.dumps({"version": 1}).encode())],
+    [b"not zlib", zlib.compress(b"not json"), zlib.compress(json.dumps({"version": MEMORY_VERSION}).encode())],
     ids=["not-zlib", "not-json", "missing-parts"],
 )
 def test_a_blob_that_does_not_decode_starts_cold_and_logs_the_error(caplog, blob):

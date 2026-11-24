@@ -18,21 +18,21 @@ from greenlight.guards import IterationTimeout
 from greenlight.state_store import (
     CONFIG_ATTRIBUTE_NAMES,
     DRAIN_COMPLETE,
-    FETCHED_AT,
     LAST_COMPLETED_AT,
     LAST_TICK,
     LATCH_KEY,
     LEASE_EXPIRES,
     LEASE_OWNER,
     REPO_PREFIX,
-    SNAPSHOT,
-    TTL_AT,
     UNTIL,
     LeaseLost,
     StoreError,
-    clamp_latch,
     config_attributes,
+    eligibility_attributes,
     eligibility_key,
+    eligibility_value,
+    latch_attributes,
+    latch_value,
     memory_attributes,
     repo_item,
     repo_key,
@@ -254,32 +254,20 @@ class DynamoStore:
         return True
 
     def read_eligibility(self, key: EligibilityKey) -> tuple[bytes, float] | None:
-        attributes = self._get(eligibility_key(key))
-        snapshot, fetched_at = attributes.get(SNAPSHOT), attributes.get(FETCHED_AT)
-        if not isinstance(snapshot, bytes) or not isinstance(fetched_at, int | float) or isinstance(fetched_at, bool):
-            return None
-        return snapshot, float(fetched_at)
+        return eligibility_value(self._get(eligibility_key(key)))
 
     def write_eligibility(self, key: EligibilityKey, snapshot: bytes, fetched_at: float) -> None:
-        self._update(eligibility_key(key), {SNAPSHOT: snapshot, FETCHED_AT: fetched_at})
+        self._update(eligibility_key(key), eligibility_attributes(snapshot, fetched_at))
 
     def read_latch(self, now: float) -> float | None:
-        until = self._get(LATCH_KEY).get(UNTIL)
-        if not isinstance(until, int | float) or isinstance(until, bool) or until <= now:
-            return None
-        return clamp_latch(float(until), now)
+        return latch_value(self._get(LATCH_KEY), now)
 
     def extend_latch(self, until: float, now: float) -> None:
-        clamped = clamp_latch(until, now)
+        attributes = latch_attributes(until, now)
         expression = _Expression()
-        name, value = expression.name(UNTIL), expression.value(clamped)
+        name, value = expression.name(UNTIL), expression.value(attributes[UNTIL])
         condition = f"attribute_not_exists({name}) OR {name} < {value}"
         try:
-            self._update(
-                LATCH_KEY,
-                {UNTIL: clamped, TTL_AT: int(clamped) + 1},
-                expression=expression,
-                condition=condition,
-            )
+            self._update(LATCH_KEY, attributes, expression=expression, condition=condition)
         except _ConditionFailed:
-            logger.debug("the shared rate-limit latch already holds until %s or later", clamped)
+            logger.debug("the shared rate-limit latch already holds until %s or later", attributes[UNTIL])

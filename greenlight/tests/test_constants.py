@@ -235,10 +235,12 @@ def test_the_scan_budgets_floors_and_caps():
     assert constants.MEMORY_MAX_BYTES == 300 * 1024
     assert timedelta(minutes=15) == constants.RATE_LIMIT_LATCH_MAX
     assert timedelta(seconds=60) == constants.RATE_LIMIT_DEFAULT_WAIT
+    assert timedelta(seconds=45) == constants.FANOUT_BUDGET
 
 
 def test_a_run_ends_inside_the_function_timeout_and_its_lease_outlives_it():
     function_timeout = timedelta(seconds=300)
     assert constants.WORKER_DEADLINE < function_timeout < constants.LEASE_DURATION
+    assert constants.FANOUT_BUDGET < constants.WORKER_DEADLINE
     assert constants.QUOTA_FLOOR_PRIMARY < constants.QUOTA_FLOOR_OTHERS
     assert constants.OTHER_REPO_MAX_DISPATCHES <= constants.OTHERS_DISPATCH_POOL

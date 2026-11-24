@@ -162,8 +162,8 @@ one asynchronous worker (`worker.Worker`) per other repo with work. It mints App
 single-instance lock and arms neither hang-guard layer (the watchdog's `os._exit` is wrong under Lambda): every Lambda scan
 of a repo holds that repo's lease in the DynamoDB state store, and the function timeout bounds each invocation. The store
 also keeps each repo's scan memory (kept fingerprints, a drain's progress), its config cache (revalidated every tick by
-ETag) and its eligibility snapshots across invocations; a CLI one-shot uses an in-process store, takes no lease and always
-lists in full.
+ETag) and its eligibility snapshots across invocations; a CLI one-shot uses an in-process store (its config read through
+the same config cache), takes no lease and always lists in full.
 
 ## Comments
 

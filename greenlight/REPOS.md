@@ -33,6 +33,17 @@ mode: shadow                  # shadow | active | off
 - `minimum_role`: optional, for `eligibility: write_permission` only. `write` (the default when the
   key is absent) counts push access; `maintain` counts only the maintain and admin roles.
 
+## Opting a repo in
+
+GreenLight serves repos of the `pytorch` org only, through its App's one `pytorch` installation, and a
+repo opts in by itself, with no change to GreenLight:
+
+1. A repo owner who may manage GitHub Apps for the repo (a repository admin, unless the `pytorch` org
+   restricts App installation by repository admins) adds the repo to the GreenLight App's existing
+   `pytorch` installation. A repo owner without that permission asks any `pytorch` org admin to add
+   it.
+2. They commit `.github/greenlight/config.yml`, `mode: shadow` first, and protect it as above.
+
 The file names no repo: it belongs to the repo it sits in. Every value is read as a string: a bare
 `off` is the mode `off`, not a YAML boolean. `greenlight check-config PATH --repo OWNER/NAME`
 validates a file offline as the scan would read it, printing every problem and exiting non-zero on
@@ -48,7 +59,7 @@ Every problem is logged and reported by the scan.
 | valid | served | served under the built-in entry with the file's `mode` |
 | valid with an unknown key | safety-only | served (the key is ignored) |
 | invalid | refused: no work | safety-only under the built-in entry |
-| unreadable | the last settings read; with none, no work | the last settings read; with none, served under the built-in entry |
+| unreadable | the last file read; with none, no work | the last file read; with none, served under the built-in entry |
 | rate limited | the scan stops | the scan stops |
 
 - **invalid**: not valid YAML (any exception while parsing, deeply nested brackets included), an
@@ -63,14 +74,13 @@ Every problem is logged and reported by the scan.
   key makes a repo safety-only so a newer config never takes safety work away from an older pinned
   release, and an older release never serves a file it does not fully understand.
 - **unreadable**: any read failure but a 404 or a rate limit (a GitHub 5xx, a network error or
-  timeout, a 403). The scan then serves what it last read: the scan Lambda the last file read,
-  kept in its config cache, and a CLI scan the settings of the repo's last read that was not
-  unreadable, kept in its process. A failed read so neither stops a repo nor turns an `off` or
-  `shadow` one `active`; the scan still fails after its work. With nothing kept (a first read, a
-  `--pr` recheck), `pytorch/pytorch` is served under the built-in entry, so a config failure never
+  timeout, a 403). The scan then serves the last file read, kept in its config cache (the scan
+  Lambda's in its state store, a CLI scan's in its process). A failed read so neither stops a repo
+  nor turns an `off` or `shadow` one `active`; the scan still fails after its work. With nothing kept
+  (a first read), `pytorch/pytorch` is served under the built-in entry, so a config failure never
   stops it, and any other repo gets no work.
 
-The scan Lambda's config cache adds rules on top of these, from what it stored of earlier reads
+The config cache adds rules on top of these, from what it stored of earlier reads
 ([SCAN.md](SCAN.md)): an invalid file is safety-only under the repo's last valid settings; a
 served repo whose file is removed is drained as `off`; and `pytorch/pytorch`'s file removed after
 a valid one leaves it safety-only under its last valid settings, never back to `active`.
@@ -86,20 +96,22 @@ the built-in values with mode `active`, and `greenlight check-config` reports ev
 or ignores as a problem, so a CI check running it can keep the file truthful.
 
 When its file is invalid, or its `mode` is missing or invalid, `pytorch/pytorch` is
-safety-only: the revert guard and the ineligible revoke run under the built-in entry (in the scan
-Lambda, under its last valid settings, so an `off` one keeps draining), nothing is dispatched, and
-the scan fails every tick until the file is fixed. A broken attempt to turn it off therefore stops
-its dispatches rather than keeping them going. With no file at all it is served under the built-in
-entry, unless the scan Lambda read a valid one before.
+safety-only: the revert guard and the ineligible revoke run under the built-in entry (under its
+last valid settings when the config cache kept some, so an `off` one keeps draining), nothing is
+dispatched, and the scan fails every tick until the file is fixed. A broken attempt to turn it off
+therefore stops its dispatches rather than keeping them going. With no file at all it is served under the built-in
+entry, unless the config cache kept a valid one.
 
 ## Live checks
 
 Before any work, the scan checks what GitHub reports for the repo: the scanned name must be the
 canonical `full_name` exactly, the repo must be public and not archived, and its default branch
 must be `main`, the base `merge_authz.accepts_base` judges PRs against. A CLI scan reads
-`GET /repos/{repo}`; the scan Lambda reads the App installation's listing of its repos. A repo
-failing one gets no work on that scan and the scan fails; in the Lambda `pytorch/pytorch`'s Phase A
-has already run by then, and only its Phase B is held back.
+`GET /repos/{repo}` first and refuses a private or archived repo before it reads its config. The scan
+Lambda's planner reads the App installation's listing of its repos, and each worker reads
+`GET /repos/{repo}` again with its repo's own token before any work, so a repo turned private since
+the planner read it gets none. A repo failing one gets no work on that scan and the scan fails; in
+the Lambda `pytorch/pytorch`'s Phase A has already run by then, and only its Phase B is held back.
 
 ## Where the config is read
 
@@ -108,8 +120,8 @@ Always from the repo's default branch through the contents API, never from a PR 
 - **Scan**: the scan Lambda revalidates the file every tick through its config cache: an unchanged
   file costs a 304, and an absent one is asked again only ten minutes after its last 404, so a mode
   change acts on the next tick and a new file within about ten minutes ([SCAN.md](SCAN.md)). A CLI
-  scan reads it on every scan with the scan's token. `review --repo` naming a repo with no file
-  fails the scan.
+  scan goes through the same config cache with the scan's token, kept in its process (a one-shot
+  starts empty). `review --repo` naming a repo with no file fails the scan.
 - **Verdict** (the record job): at record time, with the job's token, through the patient client the
   eligibility check uses (it rides out a short rate limit). A `LAND` or `NO_LAND` on a
   repo with no usable settings (no file outside `pytorch/pytorch`, an invalid file, any read
@@ -158,11 +170,13 @@ off was still queued, waiting, pending, requested or in progress. Runs do not sa
 review, so every older unfinished run counts; they are read with the dispatch token. Until then each
 tick logs `pass N, checked K, dismissed M, not complete: <why>`. A repo whose stored memory is lost
 or cannot be read starts cold, which moves the off time later and only delays completion. Once the
-drain is complete no new pass starts while the repo stays off: each later tick logs that it is
-complete and reads nothing.
+drain is complete no new pass starts while the repo stays off: the scan Lambda gives such a repo no
+worker at all (its outcome is `drained`) until its file stops saying `off`, and a CLI scan logs that
+it is complete and reads nothing. The first run after a change away from `off` forgets the drain, so
+a later switch back to `off` drains again.
 
-To stop serving a repo, set its `mode` to `off` or remove its file: the scan Lambda drains a served
-repo whose file is removed as `off`, and stops serving it once the drain completes. Uninstall the
+To stop serving a repo, set its `mode` to `off` or remove its file: the scan drains a served repo
+whose file is removed as `off`, and stops serving it once the drain completes. Uninstall the
 App from the repo only after `drain complete` in the scan's log: a repo the installation no longer
 reaches cannot be drained, so any approval GreenLight already holds there stays, and the scan fails
 every tick until the App is back and the drain completes.
@@ -183,8 +197,8 @@ the planner's config reads; and one token per scanned repo (`pull_requests: writ
 work and fails the tick; a rate limit on the listing or a mint stops the invocation's GitHub work.
 From the environment (the CLI and `greenlight-review.yml`): `PYTORCH_GREENLIGHT_GITHUB_TOKEN` for
 the repo, its live checks included, and `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` (falling back to the
-first) for the dispatch and the review runs. Adding a repo needs its file and the App installed on
-it, and no Terraform change.
+first) for the dispatch and the review runs. Adding a repo needs only its file and the repo added to
+the App's installation ("Opting a repo in"), and no Terraform change.
 
 `greenlight-review.yml` scans one repo, its `repo` input (default `pytorch/pytorch`): with `pr` it
 rechecks that PR, without it it scans the repo once, with no lease and no stored state. It mints the
@@ -211,8 +225,8 @@ cohort keeps an approval already given until it is dismissed by hand.
 The modules the per-repo config, the drain and the scan Lambda added to `src/greenlight/` (the rest
 are in README.md's "Layout"):
 
-- `repo_config.py`: reads and judges a repo's config file (`Settings`), for the scan, the verdict,
-  the markers and `check-config`.
+- `repo_config.py`: judges a repo's config file (`Settings`), for the scan, the verdict, the markers
+  and `check-config`; `config_contents.py`: the one judgement of the contents API's answer.
 - `repo_scan.py`: one repo's decisions on both entry points: its settings, the live checks, its
   eligibility cache, then its work (`repo_work`: a drain, a review or none); `scan_repo` is the
   CLI's scan.
@@ -228,13 +242,14 @@ are in README.md's "Layout"):
   source.
 - `lambda_handler.py`: the Lambda entry point, the planner or a worker by the event;
   `fanout.py`: the planner; `fanout_repos.py`: its fan-out over the other repos; `worker.py`: one
-  repo's worker.
+  repo's worker; `leased_run.py`: the steps both take around a repo's run under its lease.
 - `tick.py`: one repo's run in an invocation, Phase A then Phase B; `tick_outcomes.py`: how its
   steps ended (cut, rate limit, failure).
-- `config_cache.py`: the Lambda's cache of each repo's config file and the store-aware rules.
+- `config_cache.py`: the cache of each repo's config file and the store-aware rules, for the Lambda
+  and the CLI.
 - `state_store.py`: the shared state (leases, memory, config cache, eligibility, latch) and its
   in-process backend; `state_dynamo.py`: its DynamoDB backend.
-- `quota.py`: per-invocation request metering at PyGithub's and urllib3's seams, the rate-limit
-  latch and the quota gauge.
+- `quota.py`: per-invocation request metering at PyGithub's and urllib3's seams and the quota gauge;
+  `latch.py`: the rate-limit latch and how it follows the store's shared latch.
 - `app_tokens.py`: the Lambda's App tokens: the dispatch token, the installation listing, the
   contents tokens and one token per repo.

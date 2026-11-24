@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from greenlight import github_client
 from greenlight.constants import BOT_LOGIN_SUFFIX, STATUS_LAND, is_app_login
 from greenlight.guards import IterationTimeout
+from greenlight.latch import latch_rate_limit
 
 if TYPE_CHECKING:
     import threading
@@ -61,7 +62,7 @@ def dismiss_each(
             raise
         except Exception as exc:
             if github_client.is_rate_limit_error(exc):
-                cancel_event.set()
+                latch_rate_limit(cancel_event, exc)
             logger.error("failed to revoke greenlight approval on PR #%d, %s: %s", number, why, exc, exc_info=True)
             failed.append(number)
             continue
