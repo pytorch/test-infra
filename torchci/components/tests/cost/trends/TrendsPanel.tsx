@@ -29,7 +29,6 @@ import {
   trendDayCells,
 } from "lib/tests/cost/fold";
 import { fineAmountLabel } from "lib/tests/cost/query";
-import { pricingNotes } from "lib/tests/cost/ratePeriods";
 import { ownerLabel } from "lib/tests/cost/runnerHours";
 import {
   calendarDays,
@@ -465,20 +464,15 @@ export default function TrendsPanel(props: TrendsPanelProps) {
   const cu = costUnit(unit);
   const perText = per === "day" ? rollupWord(rollup) : "per commit";
   const sideFacts = (s: Side) => {
-    const r = sel[s];
-    const t = spanTotals(folded, stacks, r);
-    const usd = unit === "usd" && pricer !== null;
-    const notes = usd
-      ? pricingNotes(
-          pricer,
-          folded.cells.days.filter((d) => d >= r.from && d <= r.to)
-        )
-      : { approx: false, lines: [] };
-    return { t, approx: notes.approx, priced: usd ? pricedNote(t) : null };
+    const t = spanTotals(folded, stacks, sel[s]);
+    return {
+      t,
+      priced: unit === "usd" && pricer !== null ? pricedNote(t) : null,
+    };
   };
   const facts = { a: sideFacts("a"), b: sideFacts("b") };
   const tabOf = (s: Side): BandTab => {
-    const { t, approx, priced } = facts[s];
+    const { t, priced } = facts[s];
     const name = s.toUpperCase();
     const range = `${name} · ${rangeText(sel[s], false)}`;
     const grip = "drag to move it, click to pick it";
@@ -496,7 +490,7 @@ export default function TrendsPanel(props: TrendsPanelProps) {
         title: `${range} · no rates · ${grip}`,
         value: null,
       };
-    const amount = `${approx ? "≈" : ""}${fineAmountLabel(cu, t.value)}`;
+    const amount = fineAmountLabel(cu, t.value);
     const value = `${amount} ${perText}${
       priced === null ? "" : ` · ${priced}`
     }`;
@@ -504,7 +498,7 @@ export default function TrendsPanel(props: TrendsPanelProps) {
     const sumDays = unit === "usd" ? t.pricedDays : t.days;
     const sum =
       per === "day"
-        ? ` · ${approx ? "≈" : ""}${fineAmountLabel(
+        ? ` · ${fineAmountLabel(
             cu,
             unit === "usd" ? t.usd : t.hours
           )} over ${sumDays} ${sumDays === 1 ? "day" : "days"}`

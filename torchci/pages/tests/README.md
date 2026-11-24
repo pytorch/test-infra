@@ -1653,8 +1653,10 @@ query.
   (with its optional rates.meta.json), picked or dropped anywhere on the page,
   is read in the browser into the page's memory: never sent, stored or put in
   the URL, and a reload drops it (`lib/tests/cost/ratePeriods.ts`). Each UTC
-  day is priced by the rate period covering it; a day in none reads as no
-  rates, never $0. The API holds no prices.
+  day is priced by the rate period covering it, and only the days the file
+  lists are priced: a day in none (a hole, or before the first or after the
+  last period) reads as no rates, never $0. To price recent days the file must list a period for
+  them, which its meta may mark provisional. The API holds no prices.
 - Headline facts (`PageFacts`): the scope, annualized, per day and per commit
   runner-hours and the share attributed to owners over the last 28 whole
   days, then the PR update and merge signals of the window (pull and trunk on
@@ -1681,7 +1683,8 @@ query.
   configurations and test cases (`GET /api/tests/cost/cases`, a heavy query
   behind a cheap gate, asked only on request). The bars follow the trail.
 - Rate strip (`RateStrip`): in $ with a rates file, a thin row under the
-  bars, a segment per rate period with its $/h, gaps hatched.
+  bars, a segment per rate period with its $/h (provisional ones dashed),
+  days no period lists hatched "no rates".
 - Workflows card (`WorkflowsCard`), folded at the end: each workflow's share
   of the window's runner-hours, the four largest listed with ticked ones
   pinned, "+ N more" and a search; ticking makes a custom scope.

@@ -384,7 +384,7 @@ export interface SideDivisors {
   pricedUnits: number; // rollupUnits of the priced days
   pricedPushes: number;
   pricedNote: string | null; // "6 of 7 days priced" when some aren't
-  pricingNotes: string[]; // how its days were priced: borrowed, provisional
+  pricingNotes: string[]; // its provisional periods, if any
   range: DayRange | null; // its first to last day with data
   filling: number;
 }
@@ -413,7 +413,7 @@ export function sideDivisors(
           ),
     pricedPushes: priced?.pushes ?? 0,
     pricedNote: priced?.note ?? null,
-    pricingNotes: pricer === null ? [] : pricingNotes(pricer, s.days).lines,
+    pricingNotes: pricer === null ? [] : pricingNotes(pricer, s.days),
     range: n === 0 ? null : { from: s.days[0], to: s.days[n - 1] },
     filling: s.filling.length,
   };
@@ -463,7 +463,7 @@ export function levelFigures(
       f.mainUsd += mainH * rate.priced * rate.rate;
       f.unpricedH += h * (1 - rate.priced);
       f.unpricedMainH += mainH * (1 - rate.priced);
-      if (!rate.exact || rate.borrowed) f.approx = true;
+      if (!rate.exact) f.approx = true;
     }
   }
   const total: [Figures, Figures] = [noFigures(), noFigures()];
@@ -527,7 +527,7 @@ export function shownValue(
 export interface SideTotal {
   value: number | null;
   blank: string; // what a null reads, as per day's
-  approx: boolean; // ≈: a rate inexact or borrowed, or days left unpriced
+  approx: boolean; // ≈: a rate inexact, or days left unpriced
   days: string; // what it covers: "7 days", "1 day", "6 of 7 days priced"
   range: DayRange | null; // first to last day with data
   notes: string[]; // $: how its days were priced
@@ -567,7 +567,7 @@ export interface DrillRow {
   delta: number | null; // b − a
   pct: number | null; // (b − a) / a; null when A is 0 or missing
   approx: boolean; // ≈ on either side
-  approxA: boolean; // ≈: a rate on that side inexact or borrowed
+  approxA: boolean; // ≈: a rate on that side inexact
   approxB: boolean;
   unpricedH: number; // A + B hours with no price ($ only)
   other: { a: number | null; b: number | null }; // the other per (per commit, or per day)
@@ -996,7 +996,7 @@ export function deltaText(unit: Unit, v: number | null): string {
   const sign = size.startsWith("<") ? "" : v > 0 ? "+" : "−";
   return `${v > 0 ? "▲" : "▼"} ${sign}${size}`;
 }
-// A side's figure, "≈" first when its rates are inexact or borrowed.
+// A side's figure, "≈" first when its rates are inexact.
 export function valueText(
   unit: Unit,
   v: number | null,
@@ -1030,11 +1030,16 @@ export function unitWords(
 export interface HalfScale {
   ticks: number[];
   top: number;
+  blank: boolean; // no row has an A or B (in $, both sides no rates): no tick labels
 }
 export function halfScale(rows: readonly DrillRow[]): HalfScale {
   const max = Math.max(0, ...rows.flatMap((r) => [r.a ?? 0, r.b ?? 0]));
   const ticks = niceTicks(max, 4);
-  return { ticks, top: ticks[ticks.length - 1] };
+  return {
+    ticks,
+    top: ticks[ticks.length - 1],
+    blank: rows.every((r) => r.a === null && r.b === null),
+  };
 }
 
 // B's side: kept = min(A, B) solid from 0; lost (A > B) hatched from B
@@ -1209,9 +1214,8 @@ export function changeSentence(opts: {
 // month: a twelfth), per commit their push:main hours ÷ pushes to main, and
 // attributed to owners the share of their hours with a named owner. In $
 // each day is priced at its own rate period and divides by the priced days:
-// ≈ when a day borrows rates or not every day is priced, "no
-// rates" when none is; hours on labels without a rate count $0, and each
-// figure keeps their share.
+// ≈ when not every day is priced, "no rates" when none is; hours on labels
+// without a rate count $0, and each figure keeps their share.
 export const FACTS_DAYS = 28;
 
 // The root trend's daily series. days: days with data, ascending (the
@@ -1309,9 +1313,6 @@ export function pageFacts(
   const unpriced = (part: number, of: number) =>
     rates === null || of <= 0 ? null : part / of;
   const partial = rates !== null && countedDays < days.length;
-  const approx =
-    rates !== null &&
-    (partial || days.some((d) => rates.dayKind(d) === "borrowed"));
   const blank =
     days.length === 0 ? "no data" : countedDays === 0 ? "no rates" : "–";
   const figure = (
@@ -1319,7 +1320,7 @@ export function pageFacts(
     unpricedShare: number | null
   ): WindowFigure => ({
     value,
-    approx: value !== null && approx,
+    approx: value !== null && partial,
     priced:
       value !== null && partial ? { days: countedDays, of: days.length } : null,
     unpriced: value === null ? null : unpricedShare,

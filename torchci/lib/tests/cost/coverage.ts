@@ -112,13 +112,11 @@ export interface CoverageStrip {
   page: number; // the blue parts' value
   // $ only: hours without a rate on their day, left out of the widths: on
   // days in no rate period (gapHours, gapDays), the rest on labels their
-  // period lacks; borrowed: some day of B is priced with the last period's
-  // rates (≈).
+  // period lacks.
   unpricedHours: number;
   gapHours: number;
   gapDays: Day[];
   hours: number; // every part's hours, priced or not
-  borrowed: boolean;
   // Hours by which this repository's test jobs exceed its job hours on some
   // label and day (clamped: builds never go negative).
   clampedHours: number;
@@ -318,7 +316,6 @@ export function coverageStrip(
     gapHours,
     gapDays: Array.from(gapDays).sort(),
     hours: allHours,
-    borrowed: priced && days.some((d) => pricer.dayKind(d) === "borrowed"),
     clampedHours,
     bill,
     outside,
@@ -492,15 +489,14 @@ export function coverageHull(shown: DayRange | null, b: DayRange): DayRange {
 export type JobsState = "ok" | "loading" | "too_long" | "error";
 
 // Two amounts read side by side at one precision (3 significant digits),
-// e.g. "≈$95.7K of ≈$200K", never one rounded finer than the other.
+// e.g. "$95.7K of $200K", never one rounded finer than the other.
 const SIG3 = new Intl.NumberFormat("en-US", {
   notation: "compact",
   maximumSignificantDigits: 3,
 });
 function sig3(strip: CoverageStrip, value: number): string {
   const n = value < 1000 ? value.toFixed(0) : SIG3.format(value);
-  const text = strip.unit === "usd" ? `$${n}` : n;
-  return strip.borrowed && strip.unit === "usd" ? `≈${text}` : text;
+  return strip.unit === "usd" ? `$${n}` : n;
 }
 function pairAmount(strip: CoverageStrip, value: number): string {
   const text = sig3(strip, value);
@@ -576,7 +572,7 @@ export const TOTALS_NOTE =
   "Total AWS spend: the rates file's per-period totals, prorated per day.";
 
 // The ghost's two parts, as the totals give them: ": runner node uptime
-// outside jobs ≈$4.33K · non-runner AWS spend ≈$100K"; "" without
+// outside jobs $4.33K · non-runner AWS spend $100K"; "" without
 // runner_nodes or a ghost.
 export function outsideSplit(strip: CoverageStrip): string {
   const o = strip.outside;
@@ -611,7 +607,7 @@ function unpricedLine(strip: CoverageStrip): string {
   const labelHours = strip.unpricedHours - strip.gapHours;
   const where = [
     strip.gapHours > 0
-      ? `days without rates (${dayRuns(strip.gapDays)})`
+      ? `days not in the rates file (${dayRuns(strip.gapDays)})`
       : null,
     labelHours >= 0.5 ? "labels without a rate" : null,
   ].filter((w): w is string => w !== null);
@@ -640,11 +636,7 @@ export function coverageDetails(
       "Hours = wall time of completed jobs on any runner, GitHub-hosted included."
     );
   } else {
-    lines.push(
-      `$ = hours × the rates file's $/h for their day and label${
-        strip.borrowed ? " (≈: last period's rates)" : ""
-      }.`
-    );
+    lines.push("$ = hours × the rates file's $/h for their day and label.");
   }
   if (strip === null) return lines;
   const usd = strip.unit === "usd";

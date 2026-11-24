@@ -68,7 +68,7 @@ export interface TrendTooltipProps {
   bar: number;
   sides: Side[]; // A and/or B hold this bar
   click: string | null; // "Click: B → Oct 23 – 29", only when a click would change it
-  pricer?: Pricer | null; // $ mode: borrowed (≈) and provisional days
+  pricer?: Pricer | null; // $ mode: provisional days
 }
 
 // The bars' hover breakdown: one card level with the plot top, the
@@ -98,15 +98,14 @@ export default function TrendTooltip({
     .map((key, k) => ({ key, k, value: stacks.value[k][bar] }))
     .filter((r) => r.value > 0);
   const lines: string[] = [];
-  // Borrowed days read ≈ and say whose rates; provisional ones
-  // say what the rates were made from.
+  // Provisional days say what the rates were made from.
   const notes =
     unit === "usd" && pricer !== null
       ? pricingNotes(
           pricer,
           folded.cells.days.filter((_, d) => folded.dayBar[d] === bar)
         )
-      : { approx: false, lines: [] };
+      : [];
   const other = stacks.per === "day" ? "commit" : "day";
   const otherValue = barValue(folded, stacks, bar, other);
   const daily =
@@ -149,7 +148,7 @@ export default function TrendTooltip({
       const share =
         stacks.hours[bar] > 0 ? stacks.unpriced[bar] / stacks.hours[bar] : 0;
       if (share >= 0.005) lines.push(`${shareLabel(share)} of hours unpriced`);
-      lines.push(...notes.lines);
+      lines.push(...notes);
     }
   }
   if (click !== null) lines.push(click);
@@ -208,11 +207,7 @@ export default function TrendTooltip({
               ? "no data"
               : unit === "usd" && stacks.pricedDays[bar] === 0
               ? "no rates"
-              : `${notes.approx ? "≈" : ""}${perLabel(
-                  unit,
-                  stacks.per,
-                  total
-                )}`}
+              : perLabel(unit, stacks.per, total)}
           </Typography>
         </Box>
         {rows.map(({ key, k, value }) => {

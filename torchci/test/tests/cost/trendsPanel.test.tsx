@@ -484,8 +484,7 @@ describe("disclosures in $ (gap file)", () => {
           "utf8"
         ),
       },
-    ]),
-    ctx.end
+    ])
   );
   const shown = shownRange("month", 12, ctx.end);
   const folded = foldBars(trendDayCells(answer), "month", shown, ctx);

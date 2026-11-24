@@ -622,7 +622,8 @@ export default function ButterflyRow({
   );
 }
 
-// The axis row: tick labels on both halves and on the change column.
+// The axis row: tick labels on both halves and on the change column, none
+// when no row has a value to measure.
 export function AxisRow({
   scale,
   change,
@@ -643,6 +644,8 @@ export function AxisRow({
     color: "text.secondary",
     fontVariantNumeric: "tabular-nums",
   } as const;
+  const ticks = scale.blank ? [] : scale.ticks;
+  const changeTicks = scale.blank ? [] : change.ticks;
   return (
     <Box
       aria-hidden
@@ -654,7 +657,7 @@ export function AxisRow({
       }}
     >
       <Box sx={{ position: "relative" }}>
-        {scale.ticks.map((t) => (
+        {ticks.map((t) => (
           <Box
             key={t}
             sx={{
@@ -669,7 +672,7 @@ export function AxisRow({
       </Box>
       <Box />
       <Box sx={{ position: "relative" }}>
-        {scale.ticks.map((t) => (
+        {ticks.map((t) => (
           <Box
             key={t}
             sx={{
@@ -683,7 +686,7 @@ export function AxisRow({
         ))}
       </Box>
       <Box sx={{ position: "relative", mx: 0.5 }}>
-        {change.ticks.map((t) => (
+        {changeTicks.map((t) => (
           <Box
             key={t}
             sx={{

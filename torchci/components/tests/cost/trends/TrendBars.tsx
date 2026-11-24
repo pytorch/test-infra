@@ -73,7 +73,7 @@ export interface TrendBarsProps {
   preview: boolean;
   hoverSpan: DayRange | null;
   strip: ReactNode;
-  pricer?: Pricer | null; // $ mode: the tooltip's ≈ and provisional lines
+  pricer?: Pricer | null; // $ mode: the tooltip's provisional lines
   ariaLabel: string;
   onAction(_action: PickAction): void;
   onDragStart(): void;

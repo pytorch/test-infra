@@ -20,8 +20,8 @@ export const daysIn = (r: DayRange): number =>
 export const within = (r: DayRange, outer: DayRange): boolean =>
   r.from >= outer.from && r.to <= outer.to;
 export const dayRangeParam = (r: DayRange): string => `${r.from}..${r.to}`;
-// The browser's today. Only the first trend URL reads it. Once an answer is in, end, L, presets, folding and
-// pricing read TrendContext.end: an open tab keeps its answer past 00:00 UTC while this clock moves on.
+// The browser's today. Only the first trend URL reads it. Once an answer is in, end, L, presets and folding
+// read TrendContext.end: an open tab keeps its answer past 00:00 UTC while this clock moves on.
 export const todayUtc = (): Day => new Date().toISOString().slice(0, 10);
 
 // ── Trends state (URL rollup, show, cmp, a, b, per, unit) ──
@@ -67,7 +67,7 @@ export interface Compare {
   b: DayRange;
   preset: ComparePreset | null;
 }
-// What presets, snapping, folding and pricing read from the trend answer (select.ts trendContext).
+// What presets, snapping and folding read from the trend answer (select.ts trendContext).
 export interface TrendContext {
   end: Day; // the answer's today (exclusive): the only "today" once an answer is in
   firstDay: Day | null; // first day with data (2026-10-29 for pytorch/pytorch)
@@ -498,12 +498,7 @@ export interface RatesSet {
   legacy: boolean;
   periods: readonly RatePeriod[]; // sorted, non-overlapping
 }
-export type RateDayKind =
-  | "legacy"
-  | "final"
-  | "provisional"
-  | "borrowed"
-  | "gap";
+export type RateDayKind = "legacy" | "final" | "provisional" | "gap";
 export interface RateSegment {
   from: Day;
   to: Day;
@@ -516,11 +511,9 @@ export interface PieceRate {
   rate: number | null;
   priced: number;
   exact: boolean;
-  borrowed: boolean;
 }
 export interface Pricer {
   readonly set: RatesSet;
-  readonly today: Day; // TrendContext.end
   rate(label: string, day: Day): number | null; // label as the API names it; multi-label jobs → null
   piece(label: string, days: readonly Day[]): PieceRate; // days with data inside one ScopePiece
   dayKind(day: Day): RateDayKind;

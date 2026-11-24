@@ -688,8 +688,7 @@ describe("the drill with a scope", () => {
           name: "rates_FAKE_weekly.json",
           text: readFileSync(join(__dirname, "rates_FAKE_weekly.json"), "utf8"),
         },
-      ]),
-      "2026-11-19"
+      ])
     );
     const { model } = drillOf(
       PR,
@@ -785,31 +784,33 @@ describe("the headline facts with a scope", () => {
     );
   });
 
-  test("$ with the FAKE weekly rates: each day at its own week's rate, the borrowed days ≈", () => {
+  test("$ with the FAKE weekly rates: each day at its own week's rate, the days after the file left out (≈)", () => {
     const json = JSON.parse(
       readFileSync(join(__dirname, "rates_FAKE_weekly.json"), "utf8")
     );
     const pricer = makePricer(
       parseRatesFiles([
         { name: "rates_FAKE_weekly.json", text: JSON.stringify(json) },
-      ]),
-      "2026-11-19"
+      ])
     );
-    // Oct 22–25 in the first week, …, Nov 16–18 borrowing the last.
-    const rateOn = (day: Day) => {
-      const p =
-        json.periods.find(
-          (x: { valid_from: Day; valid_through: Day }) =>
-            x.valid_from <= day && day <= x.valid_through
-        ) ?? json.periods[json.periods.length - 1];
-      return p.rates[LABEL] as number;
-    };
-    const want = DAYS.reduce((t, d) => t + 600 * rateOn(d), 0) / DAYS.length;
+    // Oct 22–25 in the first week, …, Nov 9–15 in the last; Nov 16–18,
+    // after the file, have no rates and count neither $ nor days.
+    const priced = DAYS.filter((d) => d <= "2026-11-15");
+    expect(priced).toHaveLength(25);
+    const rateOn = (day: Day) =>
+      json.periods.find(
+        (x: { valid_from: Day; valid_through: Day }) =>
+          x.valid_from <= day && day <= x.valid_through
+      ).rates[LABEL] as number;
+    const want = priced.reduce((t, d) => t + 600 * rateOn(d), 0) / 25;
     const f = pageFacts(scoped, "usd", pricer);
     expect(f.perDay.value).toBeCloseTo(want, 6);
     expect(f.perDay.approx).toBe(true);
+    expect(f.perDay.priced).toEqual({ days: 25, of: 28 });
     expect(f.perDay.unpriced).toBe(0);
+    // Per commit: the priced days' push:main $ over their 25 × 50 pushes.
     expect(f.perCommit.value).toBeCloseTo(want / 10 / 50, 9);
+    expect(f.perCommit.pushes).toBe(25 * 50);
     // The scope's $ is 60% of every workflow's, day by day.
     expect(
       f.perDay.value! / pageFacts(all, "usd", pricer).perDay.value!
@@ -863,8 +864,7 @@ describe("the coverage banner with a scope", () => {
           name: "rates_FAKE_weekly.json",
           text: readFileSync(join(__dirname, "rates_FAKE_weekly.json"), "utf8"),
         },
-      ]),
-      END
+      ])
     );
     const html = banner("usd", pricer);
     expect(html).toContain('data-part="outside_view"');

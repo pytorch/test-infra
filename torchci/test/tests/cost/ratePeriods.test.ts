@@ -1,12 +1,12 @@
 // Rates that change over time: the periods file and its meta
 // as the page reads them, fails closed, and prices each day by its own
-// period. Today is Thu 2026-11-19 (the trend answer's end), so yesterday is
-// Wed Nov 18. Every rate here is FAKE.
+// period, and only the days some period lists. The data runs through Wed
+// 2026-11-18 and the weekly file ends Sun Nov 15, so Nov 16–18 have no
+// rates. Every rate here is FAKE.
 
 import { addDays, type Day } from "lib/api/tests/cost/contracts";
 import {
   cadenceOf,
-  currentPeriod,
   daySpanLabel,
   dayTotals,
   makePricer,
@@ -15,7 +15,6 @@ import {
   periodTotals,
   pricedDays,
   pricingNotes,
-  RATE_GRACE_SLOTS,
   ratesChip,
   readRatesFiles,
 } from "lib/tests/cost/ratePeriods";
@@ -23,7 +22,6 @@ import { parseRates, rateOf } from "lib/tests/cost/rates";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const TODAY = "2026-11-19";
 const text = (name: string) => readFileSync(join(__dirname, name), "utf8");
 const WEEKLY = {
   name: "rates_FAKE_weekly.json",
@@ -92,12 +90,11 @@ describe("reading rates files", () => {
         status: null,
       });
       expect(ratesChip(set)).toBe("r.json · one set for every day");
-      const pricer = makePricer(set, TODAY);
+      const pricer = makePricer(set);
       for (const day of ["2020-01-01", "2026-11-18", "2030-06-30"]) {
         expect(pricer.dayKind(day)).toBe("legacy");
         expect(pricer.rate("linux.2xlarge", day)).toBe(0.5);
       }
-      expect(currentPeriod(set, TODAY)).toBeNull();
     }
     const set = parseRatesFiles([{ name: "r.json", text: wrapped }]);
     expect(set.basis).toBe("made up");
@@ -117,8 +114,7 @@ describe("reading rates files", () => {
   test("a periods file with one period over every day prices as the legacy file does", () => {
     const rates = { "linux.2xlarge": 0.5, "linux.4xlarge": 1 };
     const legacy = makePricer(
-      parseRatesFiles([{ name: "a.json", text: JSON.stringify(rates) }]),
-      TODAY
+      parseRatesFiles([{ name: "a.json", text: JSON.stringify(rates) }])
     );
     const periods = makePricer(
       parseRatesFiles([
@@ -130,8 +126,7 @@ describe("reading rates files", () => {
             ],
           }),
         },
-      ]),
-      TODAY
+      ])
     );
     for (const day of days("2026-10-29", "2026-11-18")) {
       for (const label of ["linux.2xlarge", "self-hosted,linux.4xlarge", "x"]) {
@@ -379,10 +374,9 @@ describe("reading rates files", () => {
 
 describe("pricing each day by its period", () => {
   const weekly = parseRatesFiles([WEEKLY, META]);
-  const pricer = makePricer(weekly, TODAY);
+  const pricer = makePricer(weekly);
 
   test("each day takes its own period's rate; boundaries, gaps and missing labels stay unpriced", () => {
-    expect(RATE_GRACE_SLOTS).toBe(0);
     // Nov 1 | Nov 2 is a boundary where the rate changes.
     expect(rateIn(2)).not.toBe(rateIn(1));
     expect(pricer.rate(LABEL, "2026-11-01")).toBe(rateIn(1));
@@ -406,8 +400,7 @@ describe("pricing each day by its period", () => {
 
   test("every boundary: each side takes its own period's rate, and the two differ", () => {
     // The FAKE file changes every label's rate at every boundary, so a day
-    // priced with its neighbour's period (final, provisional or borrowed)
-    // fails here.
+    // priced with its neighbour's period (final or provisional) fails here.
     const periods = weeklyJson.periods as {
       valid_from: string;
       valid_through: string;
@@ -431,66 +424,64 @@ describe("pricing each day by its period", () => {
       }
     }
     expect(checked).toBeGreaterThan(100);
-    // The borrowed days after the file take its last period's rate, not
-    // the one before it.
+    // The last boundary is the file's end: the day after it is a gap, with
+    // no label priced, neither at the last period's rate nor any other.
+    expect(pricer.dayKind("2026-11-16")).toBe("gap");
     for (const label of Object.keys(periods[3].rates)) {
-      expect(pricer.dayKind("2026-11-16")).toBe("borrowed");
-      expect(pricer.rate(label, "2026-11-16")).toBe(periods[3].rates[label]);
-      if (label in periods[2].rates) {
-        expect(pricer.rate(label, "2026-11-16")).not.toBe(
-          periods[2].rates[label]
-        );
-      }
+      expect(pricer.rate(label, "2026-11-15")).toBe(periods[3].rates[label]);
+      expect(pricer.rate(label, "2026-11-16")).toBeNull();
     }
   });
 
-  test("current period, strict: only the slot holding yesterday borrows the last period", () => {
-    // Ends Sun Nov 15: Nov 16–18 borrowed from Nov 9–15 (provisional).
+  test("only the days the file lists are priced: every day after its last period is a gap, however far back it ends", () => {
+    // Ends Sun Nov 15: Nov 16–18 are a gap, not the last week's rates.
     expect(pricer.segments({ from: "2026-11-09", to: "2026-11-18" })).toEqual([
       { from: "2026-11-09", to: "2026-11-15", kind: "provisional", period: 3 },
-      { from: "2026-11-16", to: "2026-11-18", kind: "borrowed", period: 3 },
+      { from: "2026-11-16", to: "2026-11-18", kind: "gap", period: null },
     ]);
-    expect(pricer.rate(LABEL, "2026-11-17")).toBe(rateIn(3));
-    // Today and later have no data and no pricing.
+    expect(pricer.rate(LABEL, "2026-11-17")).toBeNull();
     expect(pricer.dayKind("2026-11-19")).toBe("gap");
 
-    // Ends Nov 8: Nov 16–18 borrowed from Nov 2–8, Nov 9–15 a gap.
-    const toNov8 = makePricer(firstPeriods(3), TODAY);
+    // Ends Nov 8: Nov 9–18 a gap.
+    const toNov8 = makePricer(firstPeriods(3));
     expect(toNov8.segments({ from: "2026-11-02", to: "2026-11-18" })).toEqual([
       { from: "2026-11-02", to: "2026-11-08", kind: "final", period: 2 },
-      { from: "2026-11-09", to: "2026-11-15", kind: "gap", period: null },
-      { from: "2026-11-16", to: "2026-11-18", kind: "borrowed", period: 2 },
+      { from: "2026-11-09", to: "2026-11-18", kind: "gap", period: null },
     ]);
     expect(toNov8.rate(LABEL, "2026-11-12")).toBeNull();
-    expect(toNov8.rate(LABEL, "2026-11-16")).toBe(rateIn(2));
+    expect(toNov8.rate(LABEL, "2026-11-16")).toBeNull();
 
-    // Ends Nov 1: Nov 16–18 borrowed, Nov 2–15 a gap.
-    const toNov1 = makePricer(firstPeriods(2), TODAY);
+    // Ends Nov 1: Nov 2–18 a gap.
+    const toNov1 = makePricer(firstPeriods(2));
     expect(toNov1.segments({ from: "2026-10-26", to: "2026-11-18" })).toEqual([
       { from: "2026-10-26", to: "2026-11-01", kind: "final", period: 1 },
-      { from: "2026-11-02", to: "2026-11-15", kind: "gap", period: null },
-      { from: "2026-11-16", to: "2026-11-18", kind: "borrowed", period: 1 },
+      { from: "2026-11-02", to: "2026-11-18", kind: "gap", period: null },
     ]);
-    // Borrowing never fills a label the last period lacks.
-    expect(toNov1.rate(PATCHY, "2026-11-17")).toBeNull();
 
-    // A file reaching yesterday has no current period.
-    const reaching = parseRatesFiles([
-      {
-        name: "r.json",
-        text: JSON.stringify({
-          periods: [
-            {
-              valid_from: "2026-11-16",
-              valid_through: "2026-11-22",
-              rates: { a: 1 },
-            },
-          ],
-        }),
-      },
-    ]);
-    expect(currentPeriod(reaching, TODAY)).toBeNull();
-    // A monthly file ending Oct 31: Nov 1–18 borrowed (the month slot).
+    // A file listing the recent days prices them, as any period.
+    const reaching = makePricer(
+      parseRatesFiles([
+        {
+          name: "r.json",
+          text: JSON.stringify({
+            periods: [
+              {
+                valid_from: "2026-11-16",
+                valid_through: "2026-11-22",
+                rates: { a: 1 },
+              },
+            ],
+          }),
+        },
+      ])
+    );
+    expect(reaching.segments({ from: "2026-11-15", to: "2026-11-18" })).toEqual(
+      [
+        { from: "2026-11-15", to: "2026-11-15", kind: "gap", period: null },
+        { from: "2026-11-16", to: "2026-11-18", kind: "final", period: 0 },
+      ]
+    );
+    // A monthly file ending Oct 31: all of November is a gap.
     const monthly = parseRatesFiles([
       {
         name: "m.json",
@@ -511,16 +502,16 @@ describe("pricing each day by its period", () => {
       },
     ]);
     expect(cadenceOf(monthly)).toBe("monthly");
-    expect(currentPeriod(monthly, TODAY)).toEqual({
-      from: "2026-11-01",
-      to: "2026-11-18",
-      period: 1,
-    });
+    expect(
+      makePricer(monthly).segments({ from: "2026-10-31", to: "2026-11-18" })
+    ).toEqual([
+      { from: "2026-10-31", to: "2026-10-31", kind: "final", period: 1 },
+      { from: "2026-11-01", to: "2026-11-18", kind: "gap", period: null },
+    ]);
   });
 
-  test("a split last week: slots keep the last period's length, so only the slot holding yesterday borrows", () => {
-    // Nov 9–15 split by a hole on Nov 11: the last period is Nov 12–15, so the
-    // slots after it are 4 days long (Nov 16–19, Nov 20–23).
+  test("a split last week: the hole and every day after the file are gaps", () => {
+    // Nov 9–15 split by a hole on Nov 11, the file ending Nov 15.
     const w = weeklyJson.periods;
     const split = parseRatesFiles([
       {
@@ -535,22 +526,73 @@ describe("pricing each day by its period", () => {
         }),
       },
     ]);
-    expect(currentPeriod(split, "2026-11-23")).toEqual({
-      from: "2026-11-20",
-      to: "2026-11-22",
-      period: 4,
-    });
     expect(
-      makePricer(split, "2026-11-23")
+      makePricer(split)
         .segments({ from: "2026-11-09", to: "2026-11-22" })
         .map((s) => [s.from, s.to, s.kind])
     ).toEqual([
       ["2026-11-09", "2026-11-10", "final"],
       ["2026-11-11", "2026-11-11", "gap"],
       ["2026-11-12", "2026-11-15", "final"],
-      ["2026-11-16", "2026-11-19", "gap"],
-      ["2026-11-20", "2026-11-22", "borrowed"],
+      ["2026-11-16", "2026-11-22", "gap"],
     ]);
+  });
+
+  test("a day before the first period, a hole day and a day after the last: each a gap, unpriced, and out of $ per day and $ per commit", () => {
+    // The weekly file with a hole on Nov 11; Oct 18 is before its first
+    // period and Nov 16 after its last.
+    const w = weeklyJson.periods;
+    const holed = makePricer(
+      parseRatesFiles([
+        {
+          name: "rates_FAKE_hole.json",
+          text: JSON.stringify({
+            ...weeklyJson,
+            periods: [
+              ...w.slice(0, 3),
+              { ...w[3], valid_through: "2026-11-10" },
+              { ...w[3], valid_from: "2026-11-12" },
+            ],
+          }),
+        },
+      ])
+    );
+    const gaps = ["2026-10-18", "2026-11-11", "2026-11-16"];
+    const labels = Object.keys(w[3].rates);
+    for (const day of gaps) {
+      expect(holed.dayKind(day)).toBe("gap");
+      expect(holed.segments({ from: day, to: day })).toEqual([
+        { from: day, to: day, kind: "gap", period: null },
+      ]);
+      for (const label of labels) expect(holed.rate(label, day)).toBeNull();
+      expect(holed.piece(LABEL, [day])).toEqual({
+        rate: null,
+        priced: 0,
+        exact: true,
+      });
+    }
+    // Days with data: the three gaps and three priced days, each with
+    // pushes of its own. Oct 19 in the first week; Nov 10 and Nov 12, either
+    // side of the hole, at the last week's rates.
+    const side = [
+      "2026-10-18",
+      "2026-10-19",
+      "2026-11-10",
+      "2026-11-11",
+      "2026-11-12",
+      "2026-11-16",
+    ];
+    const pushes = side.map((_, i) => 30 + i);
+    const rateAt = [null, rateIn(0), rateIn(3), null, rateIn(3), null];
+    side.forEach((day, i) => expect(holed.rate(LABEL, day)).toBe(rateAt[i]));
+    // $ per day divides by the priced days only; $ per commit by their
+    // pushes only (the headline sums: drill.test's page facts).
+    expect(pricedDays(holed, { days: side, pushes })).toEqual({
+      days: 3,
+      of: 6,
+      pushes: pushes[1] + pushes[2] + pushes[4],
+      note: "3 of 6 days priced",
+    });
   });
 
   test("piece: exact inside a week, ≈ across a mid-week boundary, weighting only the days passed", () => {
@@ -559,7 +601,6 @@ describe("pricing each day by its period", () => {
       rate: rateIn(2),
       priced: 1,
       exact: true,
-      borrowed: false,
     });
     const across = pricer.piece(LABEL, days("2026-10-30", "2026-11-05"));
     expect(across.exact).toBe(false);
@@ -573,7 +614,7 @@ describe("pricing each day by its period", () => {
     ]);
     expect(sparse.rate).toBeCloseTo((rateIn(1) + 2 * rateIn(2)) / 3, 10);
     // A gap day lowers the priced share.
-    const gap = makePricer(parseRatesFiles([GAP]), TODAY);
+    const gap = makePricer(parseRatesFiles([GAP]));
     const half = gap.piece(LABEL, [
       "2026-11-07",
       "2026-11-08",
@@ -584,27 +625,29 @@ describe("pricing each day by its period", () => {
       rate: rateIn(3),
       priced: 0.5,
       exact: false,
-      borrowed: false,
     });
     // Wholly in a gap: exactly unpriced.
     expect(gap.piece(LABEL, days("2026-11-02", "2026-11-08"))).toEqual({
       rate: null,
       priced: 0,
       exact: true,
-      borrowed: false,
     });
-    // Borrowed days mark the piece.
+    // Days after the file are a gap like any other: a piece over them is
+    // unpriced, and one reaching past the file's end is priced in part.
     expect(pricer.piece(LABEL, days("2026-11-16", "2026-11-18"))).toEqual({
-      rate: rateIn(3),
-      priced: 1,
+      rate: null,
+      priced: 0,
       exact: true,
-      borrowed: true,
+    });
+    expect(pricer.piece(LABEL, days("2026-11-14", "2026-11-17"))).toEqual({
+      rate: rateIn(3),
+      priced: 0.5,
+      exact: false,
     });
     expect(pricer.piece(LABEL, [])).toEqual({
       rate: null,
       priced: 0,
       exact: true,
-      borrowed: false,
     });
   });
 
@@ -631,8 +674,7 @@ describe("pricing each day by its period", () => {
             ],
           }),
         },
-      ]),
-      TODAY
+      ])
     );
     const week = days("2026-11-09", "2026-11-15");
     const hours = [100, 100, 100, 10, 10, 10, 10];
@@ -653,7 +695,6 @@ describe("pricing each day by its period", () => {
       rate: null,
       priced: 0,
       exact: true,
-      borrowed: false,
     });
     // One week piece: the mean of its priced days' rates, inexact, off.
     const p = midWeek.piece(LABEL, week);
@@ -668,7 +709,7 @@ describe("pricing each day by its period", () => {
 
   test("$ per day divides by priced days; $ per commit by the pushes of priced days only", () => {
     // B = Nov 2–15 with the gap file: Nov 2–8 has no rates, Nov 9–15 does.
-    const gap = makePricer(parseRatesFiles([GAP]), TODAY);
+    const gap = makePricer(parseRatesFiles([GAP]));
     const b = days("2026-11-02", "2026-11-15");
     const hours = (i: number) => 1000 + 10 * i; // LABEL's hours that day
     const main = (i: number) => 100 + i; // of them, push:main
@@ -709,20 +750,20 @@ describe("pricing each day by its period", () => {
 
   test("the coverage line says what is notable, and nothing otherwise", () => {
     const range = { from: "2026-10-29", to: "2026-11-18" };
+    // Days after the file read as no rates, as a hole does.
     expect(pricer.coverageLine(range, 21_000)).toBe(
-      "Rates Oct 19 – Nov 15 (Nov 9–15 provisional) · ≈ Nov 16–18 priced with Nov 9–15 rates · 21K h unpriced"
+      "Rates Oct 19 – Nov 15 (Nov 9–15 provisional) · Nov 16–18 no rates · 21K h unpriced"
     );
-    const gap = makePricer(parseRatesFiles([GAP]), TODAY);
+    const gap = makePricer(parseRatesFiles([GAP]));
     expect(gap.coverageLine(range, 0)).toBe(
-      "Rates Oct 19 – Nov 15 · ≈ Nov 16–18 priced with Nov 9–15 rates · Nov 2–8 no rates"
+      "Rates Oct 19 – Nov 15 · Nov 2–8, Nov 16–18 no rates"
     );
     // Inside one final period, every hour priced: nothing to say.
     expect(
       pricer.coverageLine({ from: "2026-11-02", to: "2026-11-08" }, 0)
     ).toBeNull();
     const legacy = makePricer(
-      parseRatesFiles([{ name: "r.json", text: '{"a": 1}' }]),
-      TODAY
+      parseRatesFiles([{ name: "r.json", text: '{"a": 1}' }])
     );
     expect(legacy.coverageLine(range, 0)).toBeNull();
     expect(legacy.coverageLine(range, 1500)).toBe(
@@ -741,26 +782,56 @@ describe("pricing each day by its period", () => {
 });
 
 describe("pricing notes", () => {
-  test("borrowed days read ≈ and name the last period, provisional ones their window", () => {
-    const pricer = makePricer(parseRatesFiles([WEEKLY, META]), TODAY);
-    expect(pricingNotes(pricer, ["2026-11-17"])).toEqual({
-      approx: true,
-      lines: [
-        "≈ priced with Nov 9–15 rates (provisional; no rates for these days yet)",
-      ],
-    });
-    expect(pricingNotes(pricer, ["2026-11-10"])).toEqual({
-      approx: false,
-      lines: ["Provisional: rates from Nov 9–13"],
-    });
-    expect(pricingNotes(pricer, ["2026-11-03"])).toEqual({
-      approx: false,
-      lines: [],
-    });
+  test("provisional days name their window; final days and days after the file add nothing", () => {
+    const pricer = makePricer(parseRatesFiles([WEEKLY, META]));
+    expect(pricingNotes(pricer, ["2026-11-10"])).toEqual([
+      "Provisional: rates from Nov 9–13",
+    ]);
+    expect(pricingNotes(pricer, ["2026-11-10", "2026-11-17"])).toEqual([
+      "Provisional: rates from Nov 9–13",
+    ]);
+    expect(pricingNotes(pricer, ["2026-11-03"])).toEqual([]);
+    expect(pricingNotes(pricer, ["2026-11-17"])).toEqual([]);
     // Without the meta nothing is provisional.
-    const plain = makePricer(parseRatesFiles([WEEKLY]), TODAY);
-    expect(pricingNotes(plain, ["2026-11-10", "2026-11-17"]).lines).toEqual([
-      "≈ priced with Nov 9–15 rates (no rates for these days yet)",
+    const plain = makePricer(parseRatesFiles([WEEKLY]));
+    expect(pricingNotes(plain, ["2026-11-10", "2026-11-17"])).toEqual([]);
+  });
+
+  test("rates carried forward: provisional periods sharing a window say it once", () => {
+    // Nov 16–22 lists Nov 9–15's rates, provisional from the same window.
+    const w = weeklyJson.periods;
+    const meta = JSON.parse(META.text);
+    const pricer = makePricer(
+      parseRatesFiles([
+        {
+          name: "rates_FAKE_forward.json",
+          text: JSON.stringify({
+            ...weeklyJson,
+            periods: [
+              ...w,
+              {
+                ...w[3],
+                valid_from: "2026-11-16",
+                valid_through: "2026-11-22",
+              },
+            ],
+          }),
+        },
+        {
+          name: "rates_FAKE_forward.meta.json",
+          text: JSON.stringify({
+            ...meta,
+            periods: [
+              ...meta.periods,
+              { ...meta.periods[3], valid_from: "2026-11-16" },
+            ],
+          }),
+        },
+      ])
+    );
+    expect(pricer.dayKind("2026-11-17")).toBe("provisional");
+    expect(pricingNotes(pricer, ["2026-11-10", "2026-11-17"])).toEqual([
+      "Provisional: rates from Nov 9–13",
     ]);
   });
 });
@@ -791,18 +862,17 @@ describe("per-period totals (the banner's AWS bill)", () => {
       aws_total: 200000,
       runner_nodes: 100000,
     });
-    const pricer = makePricer(weekly, TODAY);
-    // A week's total over its 7 days; the current slot borrows the last week's.
+    const pricer = makePricer(weekly);
+    // A week's total over its 7 days; a day before or after the file has
+    // none.
     expect(dayTotals(pricer, "2026-11-10")).toEqual({
       aws_total: 200000 / 7,
       runner_nodes: 100000 / 7,
     });
-    expect(dayTotals(pricer, "2026-11-17")).toEqual(
-      dayTotals(pricer, "2026-11-10")
-    );
+    expect(dayTotals(pricer, "2026-11-17")).toBeNull();
     expect(dayTotals(pricer, "2026-10-18")).toBeNull();
     // A gap day has none.
-    const gap = makePricer(parseRatesFiles([GAP]), TODAY);
+    const gap = makePricer(parseRatesFiles([GAP]));
     expect(dayTotals(gap, "2026-11-04")).toBeNull();
     // Without totals, or a legacy file: none, and the files load as before.
     const bare = parseRatesFiles([
@@ -812,9 +882,9 @@ describe("per-period totals (the banner's AWS bill)", () => {
       },
     ]);
     expect(periodTotals(bare.periods[0])).toBeNull();
-    expect(dayTotals(makePricer(bare, TODAY), "2026-11-03")).toBeNull();
+    expect(dayTotals(makePricer(bare), "2026-11-03")).toBeNull();
     const legacy = parseRatesFiles([{ name: "l.json", text: '{"a": 1}' }]);
-    expect(dayTotals(makePricer(legacy, TODAY), "2026-11-03")).toBeNull();
+    expect(dayTotals(makePricer(legacy), "2026-11-03")).toBeNull();
     // runner_nodes is optional.
     expect(one({ aws_total: 70 })).toBe("");
     const only = parseRatesFiles([
@@ -823,7 +893,7 @@ describe("per-period totals (the banner's AWS bill)", () => {
         text: JSON.stringify({ periods: [period({ aws_total: 70 })] }),
       },
     ]);
-    expect(dayTotals(makePricer(only, TODAY), "2026-11-03")).toEqual({
+    expect(dayTotals(makePricer(only), "2026-11-03")).toEqual({
       aws_total: 10,
       runner_nodes: null,
     });

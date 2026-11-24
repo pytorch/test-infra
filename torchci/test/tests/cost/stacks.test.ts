@@ -84,9 +84,8 @@ function stubPricer(
   };
   return {
     set,
-    today: ctx.end,
     rate: (label, day) => (gaps.includes(day) ? null : price(label)),
-    piece: () => ({ rate: null, priced: 0, exact: true, borrowed: false }),
+    piece: () => ({ rate: null, priced: 0, exact: true }),
     dayKind: (day) => (gaps.includes(day) ? "gap" : "legacy"),
     segments: () => [],
     coverageLine: () => null,

@@ -228,14 +228,12 @@ describe("coverage strip", () => {
       "mt-l-x86iavx2-8-32": 1,
     };
     const pricer = {
-      // Nov 18, the day before today, borrows the last period's rates.
       rate: (label: string, day: string) =>
         day === "2026-11-14" ? null : RATES[label] ?? null,
-      dayKind: (day: string) => (day === "2026-11-18" ? "borrowed" : "final"),
+      dayKind: () => "final",
     } as unknown as Pricer;
     const strip = coverageStrip(tests, jobs, B, pricer, "usd");
     expect(strip.unit).toBe("usd");
-    expect(strip.borrowed).toBe(true);
     // running $ = Σ h × rate over B's days and labels, Nov 14 a gap.
     const running = sum(
       tests.cells
@@ -261,17 +259,17 @@ describe("coverage strip", () => {
       part(hours, "running")!.share,
       3
     );
-    // What a $ is (≈ for the borrowed day), the unpriced hours, and without
-    // totals what the strip leaves out and where totals would go.
+    // What a $ is, the unpriced hours, and without totals what the strip
+    // leaves out and where totals would go.
     expect(details(strip)).toEqual([
-      "$ = hours × the rates file's $/h for their day and label (≈: last period's rates).",
+      "$ = hours × the rates file's $/h for their day and label.",
       expect.stringMatching(
         /^Unpriced: .* h \(\d+%\) on labels without a rate, left out of the widths\.$/
       ),
       `${LEFT_OUT} Rates-file totals add them (see Format).`,
     ]);
     expect(bracketLabel(strip)!.full).toMatch(
-      /^this page: pytorch\/pytorch test jobs · ≈\$[\d.]+K of ≈\$[\d.]+K \(\d+%\)$/
+      /^this page: pytorch\/pytorch test jobs · \$[\d.]+K of \$[\d.]+K \(\d+%\)$/
     );
     expect(coverageNote(strip, true)).toBe(
       "pytorch org CI cost · Nov 12 – 18 (B)"
@@ -372,7 +370,7 @@ describe("shares and the $ caption", () => {
     expect(pctLabel({ pct: 7, share: 0.07 })).toBe("7%");
   });
 
-  test("$ caption: days without rates apart from labels without a rate", () => {
+  test("$ caption: days not in the rates file apart from labels without a rate", () => {
     const pricer = {
       rate: (label: string, day: string) =>
         day === "2026-11-14" || label.startsWith("linux.rocm") ? null : 1,
@@ -382,7 +380,7 @@ describe("shares and the $ caption", () => {
     expect(strip.gapDays).toEqual(["2026-11-14"]);
     expect(strip.gapHours).toBeGreaterThan(0);
     expect(line(details(strip), "Unpriced:")).toMatch(
-      /^Unpriced: .* h \(\d+%\) on days without rates \(Nov 14\) and labels without a rate, left out of the widths\.$/
+      /^Unpriced: .* h \(\d+%\) on days not in the rates file \(Nov 14\) and labels without a rate, left out of the widths\.$/
     );
     // A B wholly in a gap names the days and no labels.
     const gap = {
@@ -392,7 +390,7 @@ describe("shares and the $ caption", () => {
     expect(
       line(details(coverageStrip(tests, jobs, B, gap, "usd")), "Unpriced:")
     ).toMatch(
-      /^Unpriced: .* h \(100%\) on days without rates \(Nov 12 – 18\), left out/
+      /^Unpriced: .* h \(100%\) on days not in the rates file \(Nov 12 – 18\), left out/
     );
   });
 
@@ -433,18 +431,54 @@ describe("shares and the $ caption", () => {
 
 describe("the strip beside the AWS bill (rates-file totals)", () => {
   // FAKE weekly rates with FAKE totals ($200,000 a week, $100,000 of it
-  // runner nodes) on every period; today Nov 20, so Nov 16–19 borrow.
+  // runner nodes) on every period. The file ends Nov 15, so B's Nov 16–18
+  // have no rates; carried, the file lists Nov 16–22 too, with the last
+  // week's rates and totals, as a generator extrapolating it would.
   const file = (name: string) => ({
     name,
     text: readFileSync(join(__dirname, name), "utf8"),
   });
+  const weeklyJson = JSON.parse(file("rates_FAKE_weekly.json").text);
   const weekly = parseRatesFiles([file("rates_FAKE_weekly.json")]);
-  const pricer = makePricer(weekly, END);
+  const carried = parseRatesFiles([
+    {
+      name: "rates_FAKE_carried.json",
+      text: JSON.stringify({
+        ...weeklyJson,
+        periods: [
+          ...weeklyJson.periods,
+          {
+            ...weeklyJson.periods[3],
+            valid_from: "2026-11-16",
+            valid_through: "2026-11-22",
+          },
+        ],
+      }),
+    },
+  ]);
+  const pricer = makePricer(carried);
+
+  test("the days after the file's end are a gap: left out of the bill, the $ and the ghost's days, and named", () => {
+    const strip = coverageStrip(tests, jobs, B, makePricer(weekly), "usd");
+    expect(strip.gapDays).toEqual(["2026-11-16", "2026-11-17", "2026-11-18"]);
+    expect(strip.gapHours).toBeGreaterThan(0);
+    // The bill spans the 4 priced days only, each with its totals.
+    const bill = strip.bill!;
+    expect([bill.days, bill.of]).toEqual([4, 4]);
+    close(bill.aws, (4 * 200000) / 7, 3);
+    // Less $ than with the carried file, which prices Nov 16–18 too.
+    const full = coverageStrip(tests, jobs, B, pricer, "usd");
+    expect(strip.page).toBeLessThan(full.page);
+    expect(line(details(strip), "Unpriced:")).toMatch(
+      /^Unpriced: .* h \(\d+%\) on days not in the rates file \(Nov 16 – 18\)/
+    );
+    expect(details(strip).join(" ")).not.toMatch(/≈|last period/);
+  });
 
   test("totals on every priced day: a ghost for the bill outside job time, the bracket against the whole bill", () => {
     const strip = coverageStrip(tests, jobs, B, pricer, "usd");
     const bill = strip.bill!;
-    // B's 7 days are all priced (Nov 16–18 borrowed): 7/7 of a week.
+    // B's 7 days are all listed (Nov 16–18 in the carried week): 7/7.
     expect([bill.days, bill.of]).toEqual([7, 7]);
     close(bill.aws, 200000, 3);
     close(bill.nodes!, 100000, 3);
@@ -468,7 +502,7 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     // The bracket: this page's share of the bill.
     const label = bracketLabel(strip)!;
     expect(label.full).toMatch(
-      /^this page: pytorch\/pytorch test jobs · ≈\$\d+(\.\d+)?K of ≈\$200K \(\d+%\)$/
+      /^this page: pytorch\/pytorch test jobs · \$\d+(\.\d+)?K of \$200K \(\d+%\)$/
     );
     const pct = Number(/\((\d+)%\)$/.exec(label.full)![1]);
     expect(pct).toBe(Math.round((100 * strip.page) / bill.aws));
@@ -485,7 +519,7 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     // key names it).
     const lines = details(strip);
     expect(line(lines, "$ =")).toBe(
-      "$ = hours × the rates file's $/h for their day and label (≈: last period's rates)."
+      "$ = hours × the rates file's $/h for their day and label."
     );
     expect(lines.join(" ")).not.toMatch(/basis|Outside job time/);
     expect(outsideSplit(strip)).toMatch(/^: runner node uptime outside jobs /);
@@ -505,28 +539,29 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     expect(repo.outside).toBeNull();
     expect(repo.segments.map((s) => s.part)).not.toContain("outside_jobs");
     expect(line(details(repo), "Of ")).toMatch(
-      /^Of ≈\$200K total AWS spend: runner nodes 50%, this page \d+%\.$/
+      /^Of \$200K total AWS spend: runner nodes 50%, this page \d+%\.$/
     );
   });
 
-  test("borrowed days borrow the last period's totals; no day with totals, no bill", () => {
+  test("each day takes its own period's totals, never a neighbour's; no day with totals, no bill", () => {
     const json = JSON.parse(file("rates_FAKE_weekly.json").text);
-    // Totals on Nov 9–15 only: Nov 16–18 borrow them with its rates.
+    // Totals on Nov 9–15 only: B's Nov 12–15 have them, and Nov 16–18,
+    // after the file, have neither rates nor totals.
     json.periods.forEach((p: { totals?: unknown }, i: number) => {
       if (i !== 3) delete p.totals;
     });
     const last = parseRatesFiles([
       { name: "r.json", text: JSON.stringify(json) },
     ]);
-    const strip = coverageStrip(tests, jobs, B, makePricer(last, END), "usd");
-    expect([strip.bill!.days, strip.bill!.of]).toEqual([7, 7]);
+    const strip = coverageStrip(tests, jobs, B, makePricer(last), "usd");
+    expect([strip.bill!.days, strip.bill!.of]).toEqual([4, 4]);
     // Totals on Nov 2–8 only: none of B's days has any.
     json.periods[2].totals = { aws_total: 700 };
     delete json.periods[3].totals;
     const early = parseRatesFiles([
       { name: "e.json", text: JSON.stringify(json) },
     ]);
-    const none = coverageStrip(tests, jobs, B, makePricer(early, END), "usd");
+    const none = coverageStrip(tests, jobs, B, makePricer(early), "usd");
     expect(none.bill).toBeNull();
     expect(none.outside).toBeNull();
     expect(billLine(none)).toBeNull();
@@ -534,8 +569,8 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
   });
 
   test("a partial B names its days with totals and draws no ghost; runner node uptime only when every day has it", () => {
-    // Totals only on Nov 9–15; Nov 16–18 borrow nothing in a file whose
-    // last period has none, so they are priced but without totals.
+    // Totals only on Nov 9–15; the file lists Nov 16–22 without totals, so
+    // those days are priced but have none.
     const json = JSON.parse(file("rates_FAKE_weekly.json").text);
     json.periods.push({
       valid_from: "2026-11-16",
@@ -546,7 +581,7 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     const set = parseRatesFiles([
       { name: "p.json", text: JSON.stringify(json) },
     ]);
-    const strip = coverageStrip(tests, jobs, B, makePricer(set, END), "usd");
+    const strip = coverageStrip(tests, jobs, B, makePricer(set), "usd");
     const bill = strip.bill!;
     expect([bill.days, bill.of]).toEqual([4, 7]);
     close(bill.aws, 400000, 3);
@@ -562,7 +597,7 @@ describe("the strip beside the AWS bill (rates-file totals)", () => {
     expect(details(strip)).toContain(billLine(strip));
     expect(line(details(strip), "Outside job time")).toBeUndefined();
     // Without job hours the whole is the repository's: no org part.
-    const repo = coverageStrip(tests, null, B, makePricer(set, END), "usd");
+    const repo = coverageStrip(tests, null, B, makePricer(set), "usd");
     expect(billLine(repo)).not.toMatch(/org CI jobs/);
   });
 });

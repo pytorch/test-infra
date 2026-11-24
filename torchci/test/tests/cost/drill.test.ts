@@ -524,7 +524,6 @@ function stubPricer(opts: { gap?: [Day, Day] } = {}): Pricer {
       legacy: false,
       periods: [],
     },
-    today: "2026-11-19",
     rate,
     piece(label: string, days: readonly Day[]): PieceRate {
       const priced = days.filter((d) => rate(label, d) !== null);
@@ -532,7 +531,6 @@ function stubPricer(opts: { gap?: [Day, Day] } = {}): Pricer {
         rate: priced.length ? 2 : null,
         priced: days.length ? priced.length / days.length : 0,
         exact: priced.length === days.length,
-        borrowed: false,
       };
     },
     dayKind: kind,
@@ -616,6 +614,13 @@ describe("$ (stub Pricer)", () => {
     // In hours a null is no days only.
     const hoursView = levelView(tiny, { unit: "hours", per: "day", pricer });
     expect(hoursView.total.blankB).toBe("–");
+    // Every row blank on both sides: the axis has nothing to label.
+    expect(v.rows.length).toBeGreaterThan(0);
+    expect(halfScale(v.rows).blank).toBe(true);
+    expect(halfScale(hoursView.rows).blank).toBe(false);
+    const partly = stubPricer({ gap: ["2026-11-16", "2026-11-22"] });
+    const p = levelView(tiny, { unit: "usd", per: "day", pricer: partly });
+    expect(halfScale(p.rows).blank).toBe(false);
   });
 
   test("a side with fewer priced days than days says so", () => {
@@ -712,7 +717,7 @@ describe("$ (stub Pricer)", () => {
 
 // Totals priced with the FAKE weekly rates (synthetic, for tests only):
 // Oct 19 – Nov 15 in weeks, Nov 9–15 provisional by the meta; the gap file
-// lacks Nov 2–8. Today is Nov 19, so Nov 16–18 borrow the last week (≈).
+// lacks Nov 2–8. Both end Nov 15, so B's Nov 16–18 have no rates.
 describe("totals with the FAKE weekly rates", () => {
   const fake = (name: string) => ({
     name,
@@ -721,25 +726,28 @@ describe("totals with the FAKE weekly rates", () => {
   const WEEKLY = fake("rates_FAKE_weekly.json");
   const META = fake("rates_FAKE_weekly.meta.json");
   const GAP = fake("rates_FAKE_weekly_gap.json");
-  const TODAY = "2026-11-19";
-  const weekly = makePricer(parseRatesFiles([WEEKLY, META]), TODAY);
-  const gap = makePricer(parseRatesFiles([GAP]), TODAY);
+  const weekly = makePricer(parseRatesFiles([WEEKLY, META]));
+  const gap = makePricer(parseRatesFiles([GAP]));
   const usd = (scope: CostScope, pricer: Pricer, per: Per = "day") =>
     levelView(scope, { unit: "usd", per, pricer });
 
-  test("every day priced: per day × 7 days; B's borrowed days read ≈ and say why", () => {
+  test("A every day priced: per day × 7 days; B's days after the file unpriced: per day × its 4 priced days, ≈", () => {
     const v = usd(root, weekly);
     const { a, b } = v.total.totals;
-    near(b.value, (v.total.b as number) * 7);
+    near(b.value, (v.total.b as number) * 4);
     near(a.value, (v.total.a as number) * 7);
     expect(b).toMatchObject({
       approx: true,
-      days: "7 days",
+      days: "4 of 7 days priced",
       range: { from: "2026-11-12", to: "2026-11-18" },
-      notes: [
-        "≈ priced with Nov 9–15 rates (provisional; no rates for these days yet)",
-        "Provisional: rates from Nov 9–13",
-      ],
+      notes: ["Provisional: rates from Nov 9–13"],
+    });
+    // Nov 16–18's hours are unpriced.
+    expect(v.total.unpricedH).toBeGreaterThan(0);
+    expect(v.figures.divisors[1]).toMatchObject({
+      days: 7,
+      pricedDays: 4,
+      pricedPushes: 73 + 73 + 27 + 8,
     });
     expect(a).toMatchObject({
       approx: false,
@@ -751,7 +759,7 @@ describe("totals with the FAKE weekly rates", () => {
     expect(usd(root, weekly, "commit").total.totals).toEqual(v.total.totals);
     // A row's total is its own: inductor's share of the root's.
     const ind = rowByKey(v, "inductor");
-    near(ind?.totals.b.value ?? null, (ind?.b as number) * 7);
+    near(ind?.totals.b.value ?? null, (ind?.b as number) * 4);
     expect((ind?.totals.b.value as number) < (b.value as number)).toBe(true);
   });
 
@@ -761,7 +769,10 @@ describe("totals with the FAKE weekly rates", () => {
     expect(a).toMatchObject({ approx: true, days: "3 of 7 days priced" });
     near(a.value, (v.total.a as number) * 3);
     expect(sideChips(v)).toContain("A: 3 of 7 days priced");
-    expect(v.total.totals.b).toMatchObject({ approx: true, days: "7 days" });
+    expect(v.total.totals.b).toMatchObject({
+      approx: true,
+      days: "4 of 7 days priced",
+    });
   });
 
   test("a week with the gap file: A's 3 priced days fall in one week, which counts whole; ≈ as per day", () => {
@@ -776,11 +787,18 @@ describe("totals with the FAKE weekly rates", () => {
     near(week.total.a, day.total.totals.a.value as number);
     expect(week.total.approxA).toBe(day.total.approxA);
     expect(week.total.totals).toEqual(day.total.totals);
-    // B, every day priced, touches two weeks (Thu–Wed): its total over 2.
-    near(week.total.b, (week.total.totals.b.value as number) / 2);
+    // B touches two weeks (Thu–Wed), but its priced days (Nov 12–15) fall
+    // in one: Nov 16–18, after the file, are unpriced. Its total over 1.
+    near(week.total.b, week.total.totals.b.value as number);
     expect(week.figures.divisors[0]).toMatchObject({
       days: 7,
       pricedDays: 3,
+      units: 2,
+      pricedUnits: 1,
+    });
+    expect(week.figures.divisors[1]).toMatchObject({
+      days: 7,
+      pricedDays: 4,
       units: 2,
       pricedUnits: 1,
     });
@@ -859,8 +877,7 @@ describe("totals with the FAKE weekly rates", () => {
             ],
           }),
         },
-      ]),
-      TODAY
+      ])
     );
     const aDays = Array.from({ length: 7 }, (_, i) => addDays("2026-11-02", i));
     const bDays = Array.from({ length: 7 }, (_, i) => addDays("2026-11-09", i));
@@ -1481,7 +1498,7 @@ describe("page facts: the headline numbers", () => {
     expect(none.owned).toBeNull();
   });
 
-  test("in $ each day at its own rates: ≈ for a gap or a borrowed day, no rates for none", () => {
+  test("in $ each day at its own rates: ≈ for a gap, no rates for none", () => {
     const full = pageFacts(trendOf(), "usd", stubPricer());
     // The label without rates adds no $.
     near(full.perDay.value, (LAST28 * 2) / 28);
@@ -1506,15 +1523,6 @@ describe("page facts: the headline numbers", () => {
     expect(gap.perCommit.pushes).toBe(250);
     // Unpriced over the priced days only.
     near(gap.perDay.unpriced, 25 / (725 + 25));
-    const lent = stubPricer();
-    const borrowed: Pricer = {
-      ...lent,
-      dayKind: (d) => (d >= "2026-11-17" ? "borrowed" : "final"),
-    };
-    const b = pageFacts(trendOf(), "usd", borrowed);
-    near(b.perDay.value, full.perDay.value as number);
-    expect(b.perDay.approx).toBe(true);
-    expect(b.perDay.priced).toBeNull();
     const none = pageFacts(
       trendOf(),
       "usd",
@@ -1532,6 +1540,46 @@ describe("page facts: the headline numbers", () => {
       pageFacts(trendOf(), "hours", stubPricer()).perDay.value,
       (LAST28 + 28) / 28
     );
+  });
+
+  test("in $ with a rates file: a day before its first period, a hole and the days after its last are gaps, out of per day and per commit", () => {
+    // LF at $2/h on Oct 24 – Nov 4 and Nov 6–15: of the window (Oct 22 –
+    // Nov 18), Oct 22–23 come before the file, Nov 5 is a hole and Nov 16–18
+    // come after it. Their Σ (10 + i) = 6 × 10 + (7 + 8 + 21 + 32 + 33 + 34).
+    const period = (from: Day, through: Day) => ({
+      valid_from: from,
+      valid_through: through,
+      rates: { [LF]: 2 },
+    });
+    const pricer = makePricer(
+      parseRatesFiles([
+        {
+          name: "rates_FAKE_holes.json",
+          text: JSON.stringify({
+            periods: [
+              period("2026-10-24", "2026-11-04"),
+              period("2026-11-06", "2026-11-15"),
+            ],
+          }),
+        },
+      ])
+    );
+    const gaps = ["2026-10-22", "2026-10-23", "2026-11-05", "2026-11-16"];
+    for (const d of gaps) {
+      expect(pricer.dayKind(d)).toBe("gap");
+      expect(pricer.rate(LF, d)).toBeNull();
+    }
+    const f = pageFacts(trendOf(), "usd", pricer);
+    const priced = LAST28 - (6 * 10 + 135);
+    // Per day over the 22 priced days; per commit over their 220 pushes.
+    near(f.perDay.value, (priced * 2) / 22);
+    near(f.perCommit.value, (2 * 2 * 22) / 220);
+    expect(f.perCommit.pushes).toBe(220);
+    expect(f.perDay.priced).toEqual({ days: 22, of: 28 });
+    expect(f.perDay.approx).toBe(true);
+    expect(f.perCommit.approx).toBe(true);
+    // Unpriced: the other label's 1 h a day, on the priced days only.
+    near(f.perDay.unpriced, 22 / (priced + 22));
   });
 
   test("attributed to owners: the trend's days in a range", () => {

@@ -107,13 +107,11 @@ function stubPricer(gap?: [Day, Day]): Pricer {
       legacy: false,
       periods: [],
     },
-    today: "2026-11-20",
     rate,
     piece: (): PieceRate => ({
       rate: 2,
       priced: 1,
       exact: true,
-      borrowed: false,
     }),
     dayKind: kind,
     segments: () => [],
@@ -349,7 +347,7 @@ describe("page facts row", () => {
     ).not.toContain("unpriced");
   });
 
-  test("$ with the FAKE weekly rates: the days after its last week borrow it (≈)", () => {
+  test("$ with the FAKE weekly rates: the days after its last week are unpriced (≈, 25 of 28 days priced)", () => {
     const file = (name: string) => ({
       name,
       text: readFileSync(join(__dirname, name), "utf8"),
@@ -358,16 +356,19 @@ describe("page facts row", () => {
       parseRatesFiles([
         file("rates_FAKE_weekly.json"),
         file("rates_FAKE_weekly.meta.json"),
-      ]),
-      "2026-11-20"
+      ])
     );
     const html = render({ unit: "usd", pricer });
     expect(words(html)).toMatch(
       /Annualized ≈\$[\d.]+[KM] a year Per day ≈\$[\d.]+K Per commit ≈\$[\d.]+ /
     );
-    expect(titles(html).some((t) => /\n≈ priced with .* rates/.test(t))).toBe(
-      true
-    );
+    // Oct 22 – Nov 15 priced; Nov 16–18, after the file, are not.
+    expect(
+      titles(html).some((t) =>
+        t.includes("25 of 28 days priced · Provisional: rates from Nov 9–13")
+      )
+    ).toBe(true);
+    expect(titles(html).join("\n")).not.toMatch(/priced with|last period/);
     for (const t of titles(html)) {
       expect(t.split("\n").length).toBeLessThanOrEqual(3);
     }

@@ -19,10 +19,11 @@ import { MAX_RATE, parseRates, priceKey } from "lib/tests/cost/rates";
 // periods: [{valid_from, status, window}]}. Today's single-set files (a bare
 // map, or {valid_from, basis, window, rates}) still load, as one set for
 // every day. Each UTC day is priced by the period covering it, never
-// averaged across periods; a day in no period stays unpriced, except the
-// current slot (the one holding yesterday), which borrows the file's last
-// period, marked ≈. A period may carry totals too (PeriodTotals). Nothing
-// here is sent, stored or put in a URL.
+// averaged across periods. Only the days the file lists are priced: a day in
+// no period (a hole, before the first or after the last) stays unpriced, so
+// to price recent days the file must list a period for them (its meta may
+// mark it provisional). A period may carry totals too (PeriodTotals).
+// Nothing here is sent, stored or put in a URL.
 
 // A period's optional totals, $ over its days on the rates' basis: the
 // whole AWS bill (aws_total, required in totals) and, of it, the instances
@@ -41,9 +42,6 @@ export const MAX_TOTAL = 1e12;
 export const MAX_PERIOD_RATES_BYTES = 4_000_000;
 export const MAX_META_BYTES = 1_000_000;
 export const MAX_PERIODS = 800;
-// Uncovered slots before the one holding yesterday that also borrow the last
-// period. 0 = strict: only the current slot.
-export const RATE_GRACE_SLOTS = 0;
 
 const FILES_ERROR =
   "Drop one rates.json and, if you have it, its rates.meta.json.";
@@ -72,9 +70,6 @@ function isIsoTime(v: unknown): v is string {
     !Number.isNaN(Date.parse(v))
   );
 }
-
-const maxDay = (a: Day, b: Day): Day => (a > b ? a : b);
-const minDay = (a: Day, b: Day): Day => (a < b ? a : b);
 
 // ── Words for days ──
 const MONTHS = [
@@ -571,47 +566,21 @@ export function periodLabel(set: RatesSet, period: number): string {
 }
 
 // ── Pricing ──
-// The current slot: with today = the answer's end and
-// y = today − 1, the slot of the file's own grid holding y, after the file's
-// last period, borrows that period. null when the file reaches y, or for a
-// legacy set (it covers every day).
-export function currentPeriod(
-  set: RatesSet,
-  today: Day
-): { from: Day; to: Day; period: number } | null {
-  if (set.legacy || set.periods.length === 0) return null;
-  const y = addDays(today, -1);
-  const period = set.periods.length - 1;
-  const last = set.periods[period];
-  if (last.validThrough! >= y) return null;
-  const length = daysIn({ from: last.validFrom!, to: last.validThrough! });
-  const gapStart = addDays(last.validThrough!, 1);
-  const slot = Math.floor((daysIn({ from: gapStart, to: y }) - 1) / length);
-  const slotStart = addDays(gapStart, slot * length);
-  return {
-    from: maxDay(gapStart, addDays(slotStart, -RATE_GRACE_SLOTS * length)),
-    to: y,
-    period,
-  };
-}
-
+// A day takes the period listing it; a day no period lists is a gap,
+// wherever it falls. A legacy set prices every day.
 interface DayPricing {
   kind: RateDayKind;
   period: number | null;
 }
 const GAP: DayPricing = { kind: "gap", period: null };
 
-export function makePricer(set: RatesSet, today: Day): Pricer {
+export function makePricer(set: RatesSet): Pricer {
   const periods = set.periods;
-  const current = currentPeriod(set, today);
   const pricings = new Map<Day, DayPricing>();
   const keys = new Map<string, string | null>();
 
   function find(day: Day): DayPricing {
     if (set.legacy) return { kind: "legacy", period: 0 };
-    if (current !== null && day >= current.from && day <= current.to) {
-      return { kind: "borrowed", period: current.period };
-    }
     // The last period starting on or before the day.
     let lo = 0;
     let hi = periods.length - 1;
@@ -659,7 +628,6 @@ export function makePricer(set: RatesSet, today: Day): Pricer {
     let sum = 0;
     let first: number | null = null;
     let same = true;
-    let borrowed = false;
     for (const day of days) {
       const r = rate(label, day);
       if (r === null) continue;
@@ -667,7 +635,6 @@ export function makePricer(set: RatesSet, today: Day): Pricer {
       sum += r;
       if (first === null) first = r;
       else if (r !== first) same = false;
-      if (pricing(day).kind === "borrowed") borrowed = true;
     }
     return {
       // One rate as given, so an exact piece adds no float error.
@@ -676,7 +643,6 @@ export function makePricer(set: RatesSet, today: Day): Pricer {
       // h·priced·rate is exact whatever the hours' spread over the days when
       // every day has the one rate, or none has any.
       exact: priced === 0 || (same && priced === days.length),
-      borrowed,
     };
   }
   function segments(range: DayRange): RateSegment[] {
@@ -698,7 +664,7 @@ export function makePricer(set: RatesSet, today: Day): Pricer {
     return out;
   }
   // One quiet line, only when something is notable. range = the
-  // shown days with data (days before the data or after y would read as gaps).
+  // shown days with data (days outside the data would read as gaps).
   function coverageLine(range: DayRange, unpricedHours: number): string | null {
     const unpriced =
       unpricedHours >= 0.5 ? `${hoursLabel(unpricedHours)} h unpriced` : null;
@@ -707,21 +673,14 @@ export function makePricer(set: RatesSet, today: Day): Pricer {
         ? `${hoursLabel(unpricedHours)} h on labels without a rate`
         : null;
     }
-    const y = addDays(today, -1);
-    const segs = segments({ from: range.from, to: minDay(range.to, y) });
+    const segs = segments(range);
     const provisional = Array.from(
       new Set(
         segs.filter((s) => s.kind === "provisional").map((s) => s.period!)
       )
     );
-    const borrowed = segs.filter((s) => s.kind === "borrowed");
     const gaps = segs.filter((s) => s.kind === "gap");
-    if (
-      provisional.length === 0 &&
-      borrowed.length === 0 &&
-      gaps.length === 0 &&
-      unpriced === null
-    ) {
+    if (provisional.length === 0 && gaps.length === 0 && unpriced === null) {
       return null;
     }
     const last = periods[periods.length - 1];
@@ -733,13 +692,6 @@ export function makePricer(set: RatesSet, today: Day): Pricer {
               .join(", ")} provisional)`
           : ""
       }`,
-      ...borrowed.map(
-        (s) =>
-          `≈ ${daySpanLabel(s.from, s.to)} priced with ${periodLabel(
-            set,
-            s.period!
-          )} rates`
-      ),
       ...(gaps.length > 0
         ? [`${gaps.map((s) => daySpanLabel(s.from, s.to)).join(", ")} no rates`]
         : []),
@@ -749,7 +701,6 @@ export function makePricer(set: RatesSet, today: Day): Pricer {
   }
   return {
     set,
-    today,
     rate,
     piece,
     dayKind: (day) => pricing(day).kind,
@@ -759,8 +710,8 @@ export function makePricer(set: RatesSet, today: Day): Pricer {
 }
 
 // A day's share of its period's totals (each total ÷ the period's days), by
-// the period pricing it: a borrowed day takes the last period's, as for its
-// rates; a gap day, a legacy set or a period without totals has none.
+// the period pricing it; a gap day, a legacy set or a period without totals
+// has none.
 export function dayTotals(
   pricer: Pricer,
   day: Day
@@ -804,41 +755,24 @@ export function pricedDays(
   };
 }
 
-// How some days with data were priced, for a tooltip or a card.
-// approx: a day borrowed the file's last period (≈). lines: "≈ priced with
-// Nov 9–15 rates (no rates for these days yet)", "Provisional: rates from
-// Nov 9–13".
-export function pricingNotes(
-  pricer: Pricer,
-  days: readonly Day[]
-): { approx: boolean; lines: string[] } {
+// How some days with data were priced, for a tooltip or a card: a line per
+// provisional period among them, "Provisional: rates from Nov 9–13", once
+// per text (rates carried forward share their window).
+export function pricingNotes(pricer: Pricer, days: readonly Day[]): string[] {
   const set = pricer.set;
-  let borrowed: number | null = null;
   const provisional = new Set<number>();
   for (const day of days) {
-    const kind = pricer.dayKind(day);
-    if (kind !== "borrowed" && kind !== "provisional") continue;
+    if (pricer.dayKind(day) !== "provisional") continue;
     const period = pricer.segments({ from: day, to: day })[0]?.period ?? null;
-    if (period === null) continue;
-    if (kind === "borrowed") borrowed = period;
-    else provisional.add(period);
+    if (period !== null) provisional.add(period);
   }
-  const lines: string[] = [];
-  if (borrowed !== null) {
-    const last = set.periods[borrowed];
-    lines.push(
-      `≈ priced with ${periodLabel(set, borrowed)} rates (${
-        last?.status === "provisional" ? "provisional; " : ""
-      }no rates for these days yet)`
-    );
-  }
-  for (const period of Array.from(provisional).sort((x, y) => x - y)) {
-    const w = set.periods[period].window;
-    lines.push(
-      `Provisional: rates from ${
+  const lines = Array.from(provisional)
+    .sort((x, y) => x - y)
+    .map((period) => {
+      const w = set.periods[period].window;
+      return `Provisional: rates from ${
         w === null ? periodLabel(set, period) : daySpanLabel(w.start, w.end)
-      }`
-    );
-  }
-  return { approx: borrowed !== null, lines };
+      }`;
+    });
+  return Array.from(new Set(lines));
 }

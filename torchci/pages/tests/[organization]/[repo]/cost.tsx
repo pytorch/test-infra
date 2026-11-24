@@ -127,12 +127,7 @@ export default function Page() {
   const [rates, setRates] = useState<RatesSet | null>(null);
   const [ratesError, setRatesError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const pricer = useMemo(
-    () => (rates && ctx ? makePricer(rates, ctx.end) : null),
-    // the pricer reads only the answer's end
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rates, ctx?.end]
-  );
+  const pricer = useMemo(() => (rates ? makePricer(rates) : null), [rates]);
   const unit: Unit = t.unit === "usd" && pricer ? "usd" : "hours";
   const labels = trend.trend?.labels;
   const ratesRef = useRef(rates);

@@ -19,8 +19,9 @@ import { headerBandColor, headerRuleColor } from "lib/tests/headerColors";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 // A thin row under the trend bars in $ mode, one segment per
-// rate period of the file (gaps hatched, the borrowed current slot dashed
-// with ≈, provisional periods dashed "prov."), on the bars' own day axis.
+// rate period of the file (provisional ones dashed "prov.") and gaps hatched
+// "no rates": days no period lists, after the file's end included. On the
+// bars' own day axis.
 // The segments are the file's and never move with the trail; their $/h
 // labels come from priceSpan, so they follow the bars' scope and per.
 
@@ -85,9 +86,9 @@ export function fitLabel(
   return candidates.find((c) => c.length * CHAR_PX + LABEL_PAD <= px) ?? null;
 }
 
-// The strip's segments: the file's periods, gaps and borrowed days over the
-// days the bars draw, from the first day the bars' scope has hours (days
-// before the data draw nothing) through `last`.
+// The strip's segments: the file's periods and gaps over the days the bars
+// draw, from the first day the bars' scope has hours (days before the data
+// draw nothing) through `last`.
 export function stripModel(
   pricer: Pricer,
   geometry: Pick<StripGeometry, "bars" | "last" | "priceSpan">
@@ -113,8 +114,6 @@ export function stripModel(
   }
   const from = addDays(first, lo);
   const x = dayX(bars);
-  const lastPeriod = set.periods.length - 1;
-  const lastProvisional = set.periods[lastPeriod]?.status === "provisional";
   return pricer.segments({ from, to }).map((s) => {
     const span = priceSpan({ from: s.from, to: s.to });
     const pricedHours = span.hours - span.unpriced;
@@ -137,38 +136,12 @@ export function stripModel(
       labels = ["no rates"];
       title = `No rates · ${days}`;
       lines = [
+        "Not in the rates file: only the days it lists are priced.",
         span.hours >= 0.5
           ? `${hoursLabel(span.hours)} h unpriced, left out of $`
           : "Left out of $",
       ];
       spoken = `${days}, no rates`;
-    } else if (s.kind === "borrowed") {
-      const source = periodLabel(set, s.period!);
-      // "≈ Nov 9–15 rates (provisional)" when the last period
-      // is the file's own estimate.
-      const prov = lastProvisional ? " (provisional)" : "";
-      const short = lastProvisional ? " prov." : "";
-      labels =
-        r === null
-          ? [`≈ ${source} rates${prov}`, `≈ ${source} rates${short}`, "≈"]
-          : [
-              `≈ ${source} rates${prov} · ${r}`,
-              `≈ ${source} rates · ${r}${short}`,
-              `≈ ${source} rates${short}`,
-              `≈ ${r}${short}`,
-              "≈",
-            ];
-      title = `≈ ${days}`;
-      lines = [
-        `No rates for these days yet; priced with ${source} rates (the file's last period${
-          lastProvisional ? ", provisional" : ""
-        }) until the file covers them.`,
-        rateLine,
-        unpricedLine,
-      ];
-      spoken = `${days}, no rates yet, priced with ${source} rates${
-        lastProvisional ? ", provisional" : ""
-      }${r === null ? "" : `, ${r.replace("/h", " per hour")}`}`;
     } else {
       const p = set.periods[s.period!];
       const name = periodLabel(set, s.period!);
@@ -258,11 +231,6 @@ export default function RateStrip({
       case "provisional":
         return {
           backgroundColor: alpha(headerBandColor(theme), 0.6),
-          border: dashed,
-        };
-      case "borrowed":
-        return {
-          backgroundColor: theme.palette.background.paper,
           border: dashed,
         };
       case "gap":

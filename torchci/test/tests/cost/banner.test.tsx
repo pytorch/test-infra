@@ -164,7 +164,7 @@ describe("coverage banner", () => {
         text: readFileSync(join(__dirname, "rates_FAKE_weekly.json"), "utf8"),
       },
     ]);
-    const pricer = makePricer(set, END);
+    const pricer = makePricer(set);
     for (const mode of ["light", "dark"] as const) {
       const html = renderToStaticMarkup(
         <ThemeProvider theme={createTheme({ palette: { mode } })}>
@@ -174,13 +174,18 @@ describe("coverage banner", () => {
       const words = text(html);
       expect(words).toContain("total AWS spend Nov 12 – 18 (B)");
       // The ghost, last and faint, with its share of the bill.
-      expect(words).toMatch(/Outside job time · 5\d%/);
+      expect(words).toMatch(/Outside job time · 6\d%/);
       expect(html).toMatch(/data-part="outside_jobs"/);
       expect(html).toContain("dashed");
+      // The file ends Nov 15: the bill is B's 4 priced days' ($200K × 4/7),
+      // and Nov 16–18 are unpriced, named in the ⓘ, with no ≈.
       expect(bracket(html)).toMatch(
-        /^this page: pytorch\/pytorch test jobs · ≈\$[\d.]+K of ≈\$200K \((\d+)%\) this page · \1% \1%$/
+        /^this page: pytorch\/pytorch test jobs · \$[\d.]+K of \$114K \((\d+)%\) this page · \1% \1%$/
       );
       const tip = details(html);
+      expect(tip).toMatch(
+        /Unpriced: [\d.]+K h \(\d+%\) on days not in the rates file \(Nov 16 – 18\)/
+      );
       expect(tip).toContain(
         "Total AWS spend: the rates file's per-period totals, prorated per day."
       );
@@ -193,8 +198,7 @@ describe("coverage banner", () => {
     );
     json.periods.forEach((p: { totals?: unknown }) => delete p.totals);
     const bare = makePricer(
-      parseRatesFiles([{ name: "r.json", text: JSON.stringify(json) }]),
-      END
+      parseRatesFiles([{ name: "r.json", text: JSON.stringify(json) }])
     );
     const html = renderToStaticMarkup(
       <CoverageBanner {...props(B)} unit="usd" pricer={bare} />
@@ -202,7 +206,7 @@ describe("coverage banner", () => {
     expect(text(html)).toContain("pytorch org CI cost Nov 12 – 18 (B)");
     expect(text(html)).not.toContain("Outside job time");
     expect(bracket(html)).toMatch(
-      /^this page: pytorch\/pytorch test jobs · ≈\$[\d.]+K of ≈\$[\d.]+K \(\d+%\) /
+      /^this page: pytorch\/pytorch test jobs · \$[\d.]+K of \$[\d.]+K \(\d+%\) /
     );
     expect(details(html)).toContain(
       "Left out: runner node time outside jobs, non-runner AWS spend. Rates-file totals add them (see Format)."

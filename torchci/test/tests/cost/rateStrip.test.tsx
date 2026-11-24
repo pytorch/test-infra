@@ -83,7 +83,7 @@ function dayBars(from: Day, n: number): StripGeometry["bars"] {
 }
 
 describe("the rate strip", () => {
-  const weekly = makePricer(parseRatesFiles([WEEKLY, META]), TODAY);
+  const weekly = makePricer(parseRatesFiles([WEEKLY, META]));
   // 42 day bars, Oct 8 – Nov 18.
   const bars = dayBars("2026-10-08", 42);
   const geometry = {
@@ -98,7 +98,7 @@ describe("the rate strip", () => {
       ["2026-10-29", "2026-11-01", "final", 1],
       ["2026-11-02", "2026-11-08", "final", 2],
       ["2026-11-09", "2026-11-15", "provisional", 3],
-      ["2026-11-16", "2026-11-18", "borrowed", 3],
+      ["2026-11-16", "2026-11-18", "gap", null],
     ]);
     expect(model[0].left).toBeCloseTo(21 / 42, 10);
     expect(model[1].left).toBeCloseTo(25 / 42, 10);
@@ -118,18 +118,15 @@ describe("the rate strip", () => {
       `${rateLabel(rateIn(3))} over 7K h in view`,
       "700 h on labels without a rate",
     ]);
-    // The last period is provisional, so the borrowed days say so.
-    expect(model[3].labels).toEqual([
-      `≈ Nov 9–15 rates (provisional) · ${rateLabel(model[3].rate!)}`,
-      `≈ Nov 9–15 rates · ${rateLabel(model[3].rate!)} prov.`,
-      "≈ Nov 9–15 rates prov.",
-      `≈ ${rateLabel(model[3].rate!)} prov.`,
-      "≈",
+    // The days after the file's end are a gap like a hole: no rates, not
+    // even the last period's.
+    expect([model[3].rate, model[3].usd]).toEqual([null, 0]);
+    expect(model[3].labels).toEqual(["no rates"]);
+    expect(model[3].title).toBe("No rates · Nov 16–18");
+    expect(model[3].lines).toEqual([
+      "Not in the rates file: only the days it lists are priced.",
+      "3.3K h unpriced, left out of $",
     ]);
-    expect(model[3].title).toBe("≈ Nov 16–18");
-    expect(model[3].lines[0]).toBe(
-      "No rates for these days yet; priced with Nov 9–15 rates (the file's last period, provisional) until the file covers them."
-    );
   });
 
   test("week bars: a segment per bar, the data start and `last` mid-bar", () => {
@@ -151,7 +148,7 @@ describe("the rate strip", () => {
   });
 
   test("a gap is hatched and blank, never $0; no hours draws nothing", () => {
-    const gap = makePricer(parseRatesFiles([GAP]), TODAY);
+    const gap = makePricer(parseRatesFiles([GAP]));
     const model = stripModel(gap, { ...geometry, priceSpan: priceSpanOf(gap) });
     const hole = model.find((s) => s.kind === "gap")!;
     expect([hole.from, hole.to, hole.rate, hole.usd]).toEqual([
@@ -162,7 +159,10 @@ describe("the rate strip", () => {
     ]);
     expect(hole.labels).toEqual(["no rates"]);
     expect(hole.title).toBe("No rates · Nov 2–8");
-    expect(hole.lines).toEqual(["7.7K h unpriced, left out of $"]);
+    expect(hole.lines).toEqual([
+      "Not in the rates file: only the days it lists are priced.",
+      "7.7K h unpriced, left out of $",
+    ]);
     expect(
       stripModel(gap, {
         ...geometry,
@@ -190,13 +190,11 @@ describe("the rate strip", () => {
         " per hour"
       )}`
     );
-    expect(text).toContain(
-      "Nov 16–18, no rates yet, priced with Nov 9–15 rates"
-    );
+    expect(text).toContain("Nov 16–18, no rates");
+    expect(text).not.toMatch(/≈|priced with/);
     expect(markup).toContain('aria-hidden="true"');
     const legacy = makePricer(
-      parseRatesFiles([{ name: "r.json", text: `{"${LABEL}": 1}` }]),
-      TODAY
+      parseRatesFiles([{ name: "r.json", text: `{"${LABEL}": 1}` }])
     );
     expect(
       renderToStaticMarkup(
@@ -326,6 +324,14 @@ describe("the rates control", () => {
       "rates.meta.json (optional): status and source days"
     );
     expect(text).toContain("still loads as one set for every day");
+    // Only listed days are priced; recent days need a period of their own.
+    expect(text).toContain(
+      "Only the days the periods list are priced: a day in none (a hole, or before the first or after the last period) stays unpriced and blank."
+    );
+    expect(text).toContain(
+      "Recent days: to price them, the file must list a period for them"
+    );
+    expect(text).not.toMatch(/≈|Current period/);
     expect(text).toContain("Totals (optional): $ per period");
   });
 });

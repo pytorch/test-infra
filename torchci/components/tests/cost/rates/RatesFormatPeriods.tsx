@@ -36,7 +36,7 @@ export function formatExamples(exampleLabels: readonly string[]): {
   ]
 }`,
     meta: `{
-  "generated_at": "2026-11-19T06:00:00Z",
+  "generated_at": "2026-11-16T06:00:00Z",
   "periods": [
     {
       "valid_from": "2026-11-02",
@@ -62,7 +62,7 @@ export function formatExamples(exampleLabels: readonly string[]): {
 // How to write a rates file of periods, as the rates control's
 // Format popover shows it: rates.json and its optional rates.meta.json side
 // by side, the window's largest runner labels as the keys, and under them
-// what periods, the current period, the meta and older files mean.
+// what periods, recent days, the meta and older files mean.
 export default function RatesFormatPeriods({
   exampleLabels,
 }: {
@@ -136,14 +136,14 @@ export default function RatesFormatPeriods({
         <li>
           <b>Periods:</b> UTC days, valid_from through valid_through, both
           included, usually Monday–Sunday weeks. Any order, no overlaps. Each
-          day is priced by its own period, never averaged; days in no period
-          stay unpriced and blank.
+          day is priced by its own period, never averaged. Only the days the
+          periods list are priced: a day in none (a hole, or before the first or
+          after the last period) stays unpriced and blank.
         </li>
         <li>
-          <b>Current period:</b> when the file stops before yesterday, the slot
-          holding yesterday (the last period&apos;s length after it, so a week
-          for weekly files) uses the last period&apos;s rates, marked ≈. Earlier
-          uncovered days stay blank.
+          <b>Recent days:</b> to price them, the file must list a period for
+          them, e.g. the latest rates carried forward and marked provisional in
+          the meta.
         </li>
         <li>
           <b>Totals (optional):</b> $ per period, Meta and LF accounts:

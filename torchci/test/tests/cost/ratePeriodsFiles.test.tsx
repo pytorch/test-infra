@@ -3,9 +3,10 @@
 // synthetic day cells priced by every surface (the chart's bars and A/B, the
 // drill's day pieces, the headline facts, the rate strip, the coverage
 // banner) against an oracle that reads the JSON itself. Files: the FAKE
-// weekly file (with its meta, Nov 9–15 is provisional; today is Nov 19, so
-// Nov 16–18 borrow it), the gap file (no Nov 2–8), and the weekly rates cut
-// on Thursdays, so every Mon–Sun side and week bar straddles a rate change.
+// weekly file (with its meta, Nov 9–15 is provisional; it ends Nov 15, so
+// Nov 16–18, the last days with data, have no rates), the gap file (no
+// Nov 2–8 either), and the weekly rates cut on Thursdays, so every Mon–Sun
+// side and week bar straddles a rate change.
 // Every rate here is FAKE.
 
 import ScopeHead from "components/tests/cost/drill/ScopeHead";
@@ -22,7 +23,6 @@ import {
   costUnit,
   type Day,
   type DayRange,
-  daysIn,
   type DrillQuery,
   type Per,
   type Pricer,
@@ -93,8 +93,9 @@ const weeklyJson: FileJson = JSON.parse(WEEKLY.text);
 const gapJson: FileJson = JSON.parse(GAP.text);
 const metaJson = JSON.parse(META.text);
 
-// The weekly rates moved to Thursday–Wednesday periods, through yesterday
-// (Nov 18), so nothing borrows: each Mon–Sun week holds two rate sets.
+// The weekly rates moved to Thursday–Wednesday periods, through Nov 18 (the
+// last day with data), so every day is priced: each Mon–Sun week holds two
+// rate sets.
 const midweekJson: FileJson = {
   ...weeklyJson,
   periods: weeklyJson.periods.map((p) => ({
@@ -174,27 +175,12 @@ const ROOT: BarsScope = {
 };
 
 // ── The oracle: the file's JSON read directly ──
-// A day takes the period holding it; after the last period, the days of
-// the slot of the file's own grid holding yesterday take the last one.
-function oracle(json: FileJson, today: Day) {
-  const periods = [...json.periods].sort((x, y) =>
-    x.valid_from < y.valid_from ? -1 : 1
-  );
-  const last = periods[periods.length - 1];
-  const y = addDays(today, -1);
-  const length = daysIn({ from: last.valid_from, to: last.valid_through });
-  const after = addDays(last.valid_through, 1);
-  const slot = (day: Day) =>
-    Math.floor((daysIn({ from: after, to: day }) - 1) / length);
-  const periodOf = (day: Day): FilePeriod | null => {
-    const own = periods.find(
-      (p) => p.valid_from <= day && day <= p.valid_through
-    );
-    if (own !== undefined) return own;
-    return day > last.valid_through && day <= y && slot(day) === slot(y)
-      ? last
-      : null;
-  };
+// A day takes the period holding it; a day no period holds (a hole, or
+// before the first or after the last) has no rates.
+function oracle(json: FileJson) {
+  const periodOf = (day: Day): FilePeriod | null =>
+    json.periods.find((p) => p.valid_from <= day && day <= p.valid_through) ??
+    null;
   return {
     priced: (day: Day) => periodOf(day) !== null,
     rate: (label: string, day: Day): number | null => {
@@ -426,7 +412,7 @@ describe("reading rate-period files: what the other suites leave out", () => {
         }),
       },
     ]);
-    const pricer = makePricer(apart, "2026-11-23");
+    const pricer = makePricer(apart);
     expect(pricer.segments({ from: "2026-11-07", to: "2026-11-17" })).toEqual([
       { from: "2026-11-07", to: "2026-11-08", kind: "final", period: 0 },
       { from: "2026-11-09", to: "2026-11-15", kind: "gap", period: null },
@@ -458,7 +444,7 @@ describe("reading rate-period files: what the other suites leave out", () => {
       status: "provisional",
       window: null,
     });
-    expect(pricingNotes(makePricer(set, TODAY), ["2026-11-10"]).lines).toEqual([
+    expect(pricingNotes(makePricer(set), ["2026-11-10"])).toEqual([
       "Provisional: rates from Nov 9–15",
     ]);
   });
@@ -494,7 +480,7 @@ describe("reading rate-period files: what the other suites leave out", () => {
   });
 
   test("labels: self-hosted is dropped, a job of two labels has no rate, a 0 rate is a price", async () => {
-    const pricer = makePricer(parseRatesFiles([WEEKLY]), TODAY);
+    const pricer = makePricer(parseRatesFiles([WEEKLY]));
     const r = weeklyJson.periods[2].rates[L1];
     for (const label of [L1, `self-hosted,${L1}`, `${L1},self-hosted`]) {
       expect(pricer.rate(label, "2026-11-03")).toBe(r);
@@ -540,8 +526,7 @@ describe("reading rate-period files: what the other suites leave out", () => {
             ],
           }),
         },
-      ]),
-      TODAY
+      ])
     );
     const t = chart(free, "day", "day").at({
       from: "2026-11-02",
@@ -585,7 +570,7 @@ const CASES: {
     ],
   },
   {
-    name: "weekly with its meta: a provisional week and borrowed days",
+    name: "weekly with its meta: a provisional week, then days after the file without rates (B has 4 of 7 days priced)",
     files: [WEEKLY, META],
     json: weeklyJson,
     a: { from: "2026-11-05", to: "2026-11-11" },
@@ -595,11 +580,11 @@ const CASES: {
       ["2026-10-29", "2026-11-01", "final", 1],
       ["2026-11-02", "2026-11-08", "final", 2],
       ["2026-11-09", "2026-11-15", "provisional", 3],
-      ["2026-11-16", "2026-11-18", "borrowed", 3],
+      ["2026-11-16", "2026-11-18", "gap", null],
     ],
   },
   {
-    name: "the gap file: A has 3 of 7 days priced",
+    name: "the gap file: A has 3 of 7 days priced, B 4 of 7",
     files: [GAP],
     json: gapJson,
     a: { from: "2026-11-05", to: "2026-11-11" },
@@ -609,7 +594,7 @@ const CASES: {
       ["2026-10-29", "2026-11-01", "final", 1],
       ["2026-11-02", "2026-11-08", "gap", null],
       ["2026-11-09", "2026-11-15", "final", 2],
-      ["2026-11-16", "2026-11-18", "borrowed", 2],
+      ["2026-11-16", "2026-11-18", "gap", null],
     ],
   },
 ];
@@ -617,8 +602,8 @@ const CASES: {
 describe.each(CASES)(
   "every surface prices each day by its own period: $name",
   (c) => {
-    const pricer = makePricer(parseRatesFiles(c.files), TODAY);
-    const o = oracle(c.json, TODAY);
+    const pricer = makePricer(parseRatesFiles(c.files));
+    const o = oracle(c.json);
     const sides = { a: c.a, b: c.b } as const;
 
     test("the chart's A and B: $, unpriced hours and priced days, per bar and per commit", () => {
@@ -663,7 +648,7 @@ describe.each(CASES)(
       }
     });
 
-    test("the drill's day pieces: the chart's $ to the cent, per child and per commit, ≈ only where a day borrows or lacks rates", () => {
+    test("the drill's day pieces: the chart's $ to the cent, per child and per commit, ≈ only where a day lacks rates", () => {
       const scope = dayScope(c.a, c.b);
       const v = levelView(scope, { unit: "usd", per: "day", pricer });
       const day = chart(pricer, "day", "day");
@@ -814,13 +799,9 @@ describe.each(CASES)(
       for (const s of ["a", "b"] as const) {
         const want = sums(o, sides[s]);
         const name = s.toUpperCase();
-        // The chart's tab: per bar ($ a day); ≈ only for borrowed days there.
-        const borrowed = pricingNotes(
-          pricer,
-          DAYS.filter((d) => d >= sides[s].from && d <= sides[s].to)
-        ).approx;
+        // The chart's tab: per bar ($ a day) over the priced days.
         expect(w).toContain(
-          `${name} · ${borrowed ? "≈" : ""}${fineAmountLabel(
+          `${name} · ${fineAmountLabel(
             costUnit("usd"),
             want.usd / want.pricedDays
           )} a day`
@@ -842,12 +823,11 @@ describe.each(CASES)(
 );
 
 describe("the coverage banner's $ across a rate change and a totals change", () => {
-  // B = Nov 12–18 (the captured coverage answers); today Nov 20. The weekly
-  // file plus Nov 16–22 with its own rates and totals: B's first 4 days take
-  // Nov 9–15's, its last 3 the new week's, nothing borrowed.
+  // B = Nov 12–18 (the captured coverage answers). The weekly file plus
+  // Nov 16–22 with its own rates and totals: B's first 4 days take Nov
+  // 9–15's, its last 3 the new week's, every day listed.
   const tests = TESTS_JSON as unknown as CostCoverage;
   const jobs = JOBS_JSON as unknown as CostCoverageJobs;
-  const END = "2026-11-20";
   const B = { from: "2026-11-12", to: "2026-11-18" };
   const last = weeklyJson.periods[3];
   const extended: FileJson = {
@@ -870,10 +850,9 @@ describe("the coverage banner's $ across a rate change and a totals change", () 
   const pricer = makePricer(
     parseRatesFiles([
       { name: "rates_FAKE_extended.json", text: JSON.stringify(extended) },
-    ]),
-    END
+    ])
   );
-  const o = oracle(extended, END);
+  const o = oracle(extended);
   const PAGE_SEGMENTS = new Set([0, 1, 2]); // running, setup_idle, no_reports
 
   test("each day takes its own period's totals, and its job $ its own rates", () => {
@@ -890,7 +869,7 @@ describe("the coverage banner's $ across a rate change and a totals change", () 
       runner_nodes: 175000 / 7,
     });
     const strip = coverageStrip(tests, jobs, B, pricer, "usd");
-    expect(strip.borrowed).toBe(false);
+    expect(strip.gapDays).toEqual([]);
     const bill = strip.bill!;
     expect([bill.days, bill.of]).toEqual([7, 7]);
     near(bill.aws, (4 * 200000 + 3 * 350000) / 7, 3);

@@ -69,7 +69,7 @@ export default function PageFacts({
           facts.perDay.priced
             ? `${facts.perDay.priced.days} of ${facts.perDay.priced.of} days priced`
             : null,
-          ...pricingNotes(pricer, facts.days).lines,
+          ...pricingNotes(pricer, facts.days),
         ]
           .filter(Boolean)
           .join(" · ")

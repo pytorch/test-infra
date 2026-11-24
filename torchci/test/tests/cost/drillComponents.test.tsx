@@ -365,18 +365,23 @@ describe("drill components (SSR)", () => {
     expect(commit).not.toContain("a week");
   });
 
-  test("the head's totals in $ with the FAKE weekly rates: ≈ for borrowed or unpriced days, 3 of 7 days priced", () => {
+  test("the head's totals in $ with the FAKE weekly rates: ≈ for unpriced days, B's after the file among them", () => {
     const fake = (name: string) => ({
       name,
       text: readFileSync(join(__dirname, name), "utf8"),
     });
     const head = (drill: DrillModel) => <ScopeHead drill={drill} />;
     const root = ROOT as unknown as CostScope;
-    for (const [files, aDays] of [
-      [["rates_FAKE_weekly.json", "rates_FAKE_weekly.meta.json"], "7 days"],
-      [["rates_FAKE_weekly_gap.json"], "3 of 7 days priced"],
+    // Both files end Nov 15, so B (Nov 12–18) has 4 of 7 days priced.
+    for (const [files, aDays, bNotes] of [
+      [
+        ["rates_FAKE_weekly.json", "rates_FAKE_weekly.meta.json"],
+        "7 days",
+        "\nProvisional: rates from Nov 9–13",
+      ],
+      [["rates_FAKE_weekly_gap.json"], "3 of 7 days priced", ""],
     ] as const) {
-      const pricer = makePricer(parseRatesFiles(files.map(fake)), "2026-11-19");
+      const pricer = makePricer(parseRatesFiles(files.map(fake)));
       const { a, b } = levelView(root, { unit: "usd", per: "day", pricer })
         .total.totals;
       const approxA = aDays === "7 days" ? "" : "≈";
@@ -384,16 +389,17 @@ describe("drill components (SSR)", () => {
         const html = render({}, head, { unit: "usd", per, pricer });
         const w = words(html);
         expect(w).toContain(
-          `B total ≈${amount("usd", b.value as number)} · 7 days`
+          `B total ≈${amount("usd", b.value as number)} · 4 of 7 days priced`
         );
         expect(w).toContain(
           `A total ${approxA}${amount("usd", a.value as number)} · ${aDays}`
         );
-        // B's title says how its last days were priced.
-        expect(html).toMatch(/title="Nov 12–18\n≈ priced with Nov 9–15 rates/);
-        // The other per marks the same sides ≈.
+        // B's title: its days and any provisional rates.
+        expect(html).toContain(`title="Nov 12–18${bNotes}"`);
+        expect(html).not.toMatch(/priced with|last period/);
+        // The other per is over the priced days at their exact rates: no ≈.
         const t = levelView(root, { unit: "usd", per, pricer }).total;
-        expect(t.approxB).toBe(true);
+        expect(t.approxB).toBe(false);
         expect(w).toContain(
           `${per === "day" ? "Per commit" : "Per day"} ${arrowText(
             "usd",
@@ -403,7 +409,7 @@ describe("drill components (SSR)", () => {
             t.approxB
           )}`
         );
-        expect(w).toMatch(/Per (commit|day) \S+ → ≈/);
+        expect(w).not.toMatch(/Per (commit|day) \S+ → ≈/);
       }
     }
   });
@@ -415,8 +421,7 @@ describe("drill components (SSR)", () => {
           name: "rates_FAKE_weekly.json",
           text: readFileSync(join(__dirname, "rates_FAKE_weekly.json"), "utf8"),
         },
-      ]),
-      "2026-11-19"
+      ])
     );
     const urls = (pricing: Pricing, patch: Partial<DrillQuery> = {}) => {
       let model: DrillModel | null = null;
