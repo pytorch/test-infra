@@ -699,4 +699,50 @@ describe("Push trigger integration tests", () => {
       payload: payload as any,
     });
   });
+
+  test("workflow_run does not tag a newer PR head than the run's commit", async () => {
+    // A maintainer approved commit A. While A's run was going, the author
+    // pushed commit B, which is still waiting for approval. When A's run
+    // completes, the tag must not be created on B.
+    const approvedSha = "aaaaaaa";
+    const newHeadSha = "bbbbbbb";
+    const prNum = 42;
+    const repoFullName = "suo/actions-test";
+
+    const payload = {
+      action: "completed",
+      workflow_run: {
+        event: "pull_request",
+        status: "completed",
+        conclusion: "success",
+        head_sha: approvedSha,
+        head_branch: "feature-branch",
+        head_repository: {
+          owner: { login: "fork-user" },
+          full_name: "fork-user/actions-test",
+        },
+        pull_requests: [{ number: prNum }],
+      },
+      repository: {
+        owner: { login: "suo" },
+        name: "actions-test",
+        full_name: repoFullName,
+      },
+    };
+
+    nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/pulls/${prNum}`)
+      .reply(200, {
+        state: "open",
+        head: { sha: newHeadSha },
+        labels: [{ name: "ciflow/trunk" }],
+      });
+
+    // No tag lookups, tag writes or comment updates should follow.
+    await probot.receive({
+      name: "workflow_run" as any,
+      id: "791",
+      payload: payload as any,
+    });
+  });
 });

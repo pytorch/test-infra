@@ -381,7 +381,19 @@ async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
       continue;
     }
 
+    // This run proves only that its own commit was approved. If the PR head
+    // has moved since, e.g. a new unapproved commit was pushed while this run
+    // was going, do not tag the new head. Its own workflow_run will tag it once
+    // a maintainer approves it.
     const headSha = prData.data.head.sha;
+    if (headSha !== payload.workflow_run.head_sha) {
+      context.log.info(
+        `PR #${prNum} head ${headSha} differs from workflow_run head ` +
+          `${payload.workflow_run.head_sha}, skipping tag sync`
+      );
+      continue;
+    }
+
     const tags = ciflowLabels.map((l: string) => labelToTag(l, prNum));
     const promises = tags.map(
       async (tag: string) => await syncTag(context as any, tag, headSha)
