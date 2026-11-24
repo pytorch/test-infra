@@ -47,8 +47,8 @@ has moved off the reviewed one or that carries `Reverted` to the scan.
 
 At scan time, every listing tick of a repo that reaches its dispatch phase without a rate limit, and
 whose dispatches hit none, runs a label pass after its dispatches and before it raises for the PRs
-that failed: a paused tick (`--max 0`) too, a `--pr` run never. In a tick over every repo, each
-repo's pass runs inside its own Phase B, within that repo's budget ([REPOS.md](REPOS.md)). The pass judges the listed PRs that are reverted, labelled `Stale`, or kept
+that failed: a paused tick (`--max 0`) too, a `--pr` run never. In the scan Lambda, each
+repo's pass runs inside its own Phase B, within that repo's budget ([SCAN.md](SCAN.md)). The pass judges the listed PRs that are reverted, labelled `Stale`, or kept
 by the review window (updated inside it, or with an in-flight or retry-eligible review), reads their
 latest non-shadow rows in one ClickHouse query, and supersedes, restores or re-applies their labels.
 It restores a label someone removed on every PR it judges whose row above names labels. Any other
@@ -103,8 +103,8 @@ The three labels must exist in every repo greenlight serves, named exactly `GL/a
 `GL/superseded`, before code that writes them reaches test-infra `main`, since two paths run
 greenlight from `main` without waiting for a Lambda release: the reviewer workflow's `record` job,
 at the ref the scan dispatches it at (`main` by default), so verdict-time labels start at merge; and
-a run of `greenlight-review.yml` dispatched by hand at `main` (empty `pr`), whose tick over every
-configured repo runs each repo's label pass. The scheduled scan's pass follows the `greenlight-scan` Lambda release (see the README's
+a run of `greenlight-review.yml` dispatched by hand at `main` (empty `pr`), whose scan of its `repo`
+runs that repo's label pass. The scheduled scan's pass follows the `greenlight-scan` Lambda release (see the README's
 "Deployment"). The label writes call the issue-label endpoints, which GitHub's App-permission table
 lists under both Pull requests: write and Issues: write; greenlight's App tokens request
 `pull_requests: write` and not `issues: write`. If label writes return 403, the App installation and

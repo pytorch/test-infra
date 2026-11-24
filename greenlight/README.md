@@ -2,8 +2,8 @@
 
 A Python service that runs a periodic iteration from the CLI — a one-shot
 (cron-like) run by default, or a long-lived daemon with `--loop`. In production the
-scheduled scan runs as an AWS Lambda (`greenlight-scan`) on a 2-minute EventBridge schedule, one
-tick over every repo `repos.yaml` serves; the CLI one-shot and `--loop` modes remain for other use.
+scheduled scan runs as an AWS Lambda (`greenlight-scan`) on a 2-minute EventBridge schedule: a planner scans
+`pytorch/pytorch` and fans out one worker per other configured repo ([SCAN.md](SCAN.md)); the CLI modes remain for other use.
 
 ## Requirements
 
@@ -67,7 +67,7 @@ whose review is unfinished: a failed, cancelled or stuck one is retried at the f
 its `--timeout-minutes` timer (45 minutes by default), and an in-flight one whose fingerprint
 changed without bumping `updated_at` is re-dispatched there.
 
-A fast tick also reuses fingerprints. Once a listing tick's fan-out finishes, the process keeps only
+A fast tick also reuses fingerprints. Once a listing tick's fan-out finishes, the scan memory keeps only
 the fingerprint results that tick reused and those it fetched (a hash only when read at the listed
 head) when the listed `updated_at` was at least two minutes old (`FINGERPRINT_QUIET`) at the clock
 read after the listing, before the fan-out. Each is keyed on that `updated_at`, the listed head and
@@ -93,9 +93,9 @@ A bump that shows up only after the result was stored leaves the PR decided on t
 bump becomes visible (one observed case lagged between 8 s and several minutes), and at most until
 the next full tick.
 
-A warm `greenlight-scan` Lambda and a `--loop` daemon keep the tick memory, kept fingerprints
-included, between scans; a CLI one-shot and a cold Lambda always list in full and start with nothing
-kept, and `--pr` never lists or touches the kept fingerprints.
+The `greenlight-scan` Lambda keeps each repo's scan memory, kept fingerprints included, in its state
+store between invocations, and a `--loop` daemon in its process; a CLI one-shot always lists in full
+and starts with nothing kept, and `--pr` never lists or touches the kept fingerprints.
 
 ```bash
 just run review                      # scan + dispatch once, then exit
@@ -416,7 +416,7 @@ logged and dropped rather than counted against the scan.
 The pool is entered on the scan's `ExitStack`, so `review.run` drains it on the way out. That drain
 runs to completion only where no per-iteration timeout is armed, which is the case that actually
 matters: under Lambda a thread left running is frozen the instant the handler returns and would
-thaw inside a later invocation, and the Lambda disables both hang guards. Under `--loop` or a
+thaw inside a later invocation, and the Lambda arms neither hang guard. Under `--loop` or a
 local one-shot the SIGALRM soft timeout can land inside the pool's `shutdown(wait=True)`, interrupt
 the join, and propagate out of the block. The executor is not shut down with `cancel_futures`, so
 the queued pokes are not dropped — they keep running on non-daemon threads and log their outcomes
@@ -442,12 +442,14 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard cap on runtime (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon mode) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
-| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches each repo's resolved eligibility snapshot (its `merge_rules.yaml`, or its writers on a `write_permission` repo) — the authorized-login set and the rules its eligibility checks read — before refetching, across scans in one process (a warm Lambda included); a transient failure serves it for at most three TTLs, a broken or missing source fails the repo's scan at once. The verdict is outside this cache and re-reads the source for each `LAND`/`NO_LAND` recorded without `--shadow` |
+| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches each repo's resolved eligibility snapshot (its `merge_rules.yaml`, or its writers on a `write_permission` repo) — the authorized-login set and the rules its eligibility checks read — before refetching, across scans in one process, or across invocations in the Lambda's state store; a transient failure serves it for at most three TTLs, a broken or missing source fails the repo's scan at once. The verdict is outside this cache and re-reads the source for each `LAND`/`NO_LAND` recorded without `--shadow` |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check; a fast tick's walk stops at the same edge |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
-| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda handler, which passes it through as `review --max`; every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch: the scan still lists its candidates, reads their state, revokes its approval on a reverted or ineligible PR, and runs its [`GL/*` label pass](STATUS_LABELS.md), but the capped fan-out stops before submitting anything, so nothing is fingerprinted afresh or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda, as `pytorch/pytorch`'s dispatch cap per tick (the other repos share 10 a tick, at most 5 each: [SCAN.md](SCAN.md)); every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch for every repo: the scan still lists its candidates, reads their state, revokes its approval on a reverted or ineligible PR, and runs its [`GL/*` label pass](STATUS_LABELS.md), but the capped fan-out stops before submitting anything, so nothing is fingerprinted afresh or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
+| `PYTORCH_GREENLIGHT_STATE_TABLE` | unset | `greenlight-scan` Lambda only, and required there: the DynamoDB table of its state store ([SCAN.md](SCAN.md)) |
+| `PYTORCH_GREENLIGHT_MAX_WORKERS` | `3` | `greenlight-scan` Lambda only: how many repo workers run at once; the function's reserved concurrency is this plus 2 ([SCAN.md](SCAN.md)) |
 
 `review` additionally reads ClickHouse — any scan that finds at least one cohort
 PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
@@ -457,7 +459,7 @@ variables (`CLICKHOUSE_HOST` or its `CLICKHOUSE_ENDPOINT` alias, `CLICKHOUSE_USE
 `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` (default `600`, `0` = disabled) bounds every iteration in
 both one-shot and `--loop` mode — `runner._bounded_iteration` is shared by `execute_once` and
 `run_forever`, so a plain local `greenlight review` arms both guards too. The scheduled Lambda is
-the only path that runs without them, setting `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`.
+the only path that runs without them: it does not go through the runner.
 
 Neither guard bounds the scan's Dr. CI pokes. Those run on the background pool, and the soft
 timeout is a SIGALRM delivered to the main thread only. Where the guards are off, the drain simply
@@ -473,22 +475,19 @@ so the per-iteration timeout is what interrupts a hung run.
 In production the scheduled scan runs as an AWS Lambda, `greenlight-scan`, in the
 `pytorch-gha-infra-2` account (`us-east-1`), triggered by an EventBridge `rate(2 minutes)`
 schedule. The function runs `python3.13` with handler `greenlight.lambda_handler.handler`, a
-300 s timeout, and `reserved_concurrent_executions = 1`. It runs `greenlight review --all-repos`,
-one tick over every configured repo ([REPOS.md](REPOS.md)), on the CLI's one-shot `execute_once` path,
-minting least-privilege GitHub App installation tokens per job and repo in-process (`app_tokens.py`), resolving `BOT_LOGIN` from the App's own
-`GET /app` slug, and reading the App PEM and ClickHouse
-password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The handler sets
-`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`, so it runs with no single-instance lock and both
-hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
-under the Lambda runtime); single-instance and hang-bounding come from
-`reserved_concurrent_executions = 1` and the Lambda function timeout instead. A warm execution
-environment keeps the scan's tick memory (kept fingerprints, an `off` repo's drain) and caches between invocations, so the
-Lambda alternates full and fast ticks; a CLI one-shot always lists in full (see Usage). The scan's
+300 s timeout, and `reserved_concurrent_executions` of `PYTORCH_GREENLIGHT_MAX_WORKERS` plus 2. Each scheduled event
+runs the planner, which scans `pytorch/pytorch` and invokes one worker of the same function per other repo with work
+([SCAN.md](SCAN.md)). Each invocation mints least-privilege GitHub App installation tokens per job and repo (`app_tokens.py`),
+resolves `BOT_LOGIN` from the App's own `GET /app` slug, and reads the App PEM and ClickHouse password from AWS Secrets
+Manager (`pytorch-greenlight-secrets`). It takes no single-instance lock and arms neither hang-guard layer (the `os._exit`
+watchdog is wrong under the Lambda runtime): each repo's lease in the DynamoDB state store (`PYTORCH_GREENLIGHT_STATE_TABLE`)
+keeps two invocations off one repo, and the function timeout bounds each. The store keeps each repo's scan memory (kept
+fingerprints, an `off` repo's drain) and caches across invocations, so the Lambda alternates full and fast ticks. The scan's
 GitHub token must be able to list the repository's issues (`GET /repos/{owner}/{repo}/issues`,
 through public read access or the Issues: read permission); if it cannot, every fast tick fails
 loudly while full ticks still run.
 
-The handler caps each pass at `--max 30` (`_DEFAULT_MAX_DISPATCHES_PER_SCAN`, changeable on the
+The planner caps `pytorch/pytorch` at 30 dispatches a tick (`_DEFAULT_MAX_DISPATCHES_PER_SCAN`, changeable on the
 function through `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` without a redeploy), and
 `greenlight-review.yml`'s `max` input defaults to the same 30. A dispatch costs 3-8 s of serial
 main-thread work, so an uncapped pass over the whole evaluation cohort would both run the Lambda
@@ -533,7 +532,7 @@ The zip ships in test-infra's shared lambda release alongside every other lambda
    the other lambda zips. `workflow_dispatch` on that workflow cuts a release on demand.
 3. An operator pins that release tag in `pytorch-gha-infra-2`'s `runners/common/Terrafile` (the
    `greenlight-scan` entry).
-4. `terraform apply` in `runners/regions/us-east-1` rolls it out.
+4. `terraform apply` in `runners/regions/us-east-1` rolls it out ([SCAN.md](SCAN.md)'s "Rollout" for the state table).
 
 The greenlight build leg is `continue-on-error`, so a broken package step omits
 `greenlight-scan.zip` from the release rather than blocking the other lambdas — check that the
@@ -727,16 +726,16 @@ All gates must pass before a change is complete.
 ## Layout
 
 ```text
-src/greenlight/    # the modules the per-repo config, the drain and the tick added: REPOS.md, "Modules"
+src/greenlight/    # the modules the per-repo config, the drain and the scan Lambda added: REPOS.md, "Modules"
   __init__.py      # package exports (Config, __version__)
   __main__.py      # `python -m greenlight` entry point
   cli.py           # CLI parsing (review + verdict + drci-poke + check-config subcommands), dispatch, exit codes
-  lambda_handler.py # AWS Lambda entry point: load secrets, mint App token, run one review scan via cli.main
+  lambda_handler.py # AWS Lambda entry point: load secrets, then run the planner or a repo's worker, by the event
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # one repo's review scan: prepare (rules, listing, state, revert guard, ineligible revoke); run is prepare, then review_finish.finish; raises on failure
   repo_config.py, repo_scan.py, review_finish.py, drain.py, snapshot_cache.py # per-repo config, scan and drain: see REPOS.md's "Modules"
   pr_listing.py    # list the scan's open PRs: a full listing, or a fast one (recently updated, plus open Reverted-labelled PRs)
-  scan_memory.py   # what a process carries between listing scans: when the last full tick that completed started, and the fingerprint results a fast tick reuses
+  scan_memory.py   # what a repo's scan carries between listing scans (stored by the Lambda): when its last completed full tick started, the fingerprints a fast tick reuses
   scan_runner.py   # the scan's fingerprint fan-out, which decides cache hits without a fingerprint, and recheck-refusal posting
   scan_dispatch.py # the scan's dispatch loop: the --max cap, the AI_REVIEW_DISPATCHED marker, and the Dr. CI poke
   authz_gates.py   # the scan's two authz gates: the --requester login and the --pr target

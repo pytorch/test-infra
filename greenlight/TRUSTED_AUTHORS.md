@@ -82,9 +82,9 @@ all shadow therefore also gets a non-shadow `REVERTED` row and a Dr. CI poke.
 
 Both are a `merge_rules.yaml` change in the repo, or on a write_permission repo a change to who
 holds the repo's minimum role (push access, or maintain with `minimum_role: maintain`), with no
-greenlight deploy. The scan resolves the source afresh once its cached copy,
-kept between scans in one process (the Lambda's and a `--loop` daemon's), is older than
-`PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`, and the verdict on every run.
+greenlight deploy. The scan resolves the source afresh once its cached copy (in the Lambda's state
+store, or in process for the CLI) is older than `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`, and
+the verdict on every run.
 A login gains authority only where a rule names it in its exact GitHub casing, and the per-PR reason
 catches a miscased entry.
 

@@ -23,8 +23,10 @@ PR again.
 that started once no ``WORKFLOW_FILE`` run on ``DISPATCH_REPO`` created before the scan first saw the
 repo off was still unfinished. The runs do not say which repo they review, so every older
 unfinished run counts, whatever its repo: no review dispatched while the repo was on can still
-approve from its older checkout once the line is logged. Remove a repo's config file only after it.
-Those runs are read with the dispatch token, since a token scoped to the drained repo cannot read them;
+approve from its older checkout once the line is logged. The scan Lambda drains a served repo whose
+config file is removed as an off one (``config_cache``), but cannot drain a repo the GitHub App
+installation no longer reaches: uninstall the App from a repo only after the line. Those runs are
+read with the dispatch token, since a token scoped to the drained repo cannot read them;
 without one, the pass that starts cannot complete the drain. Once the drain is complete no new pass
 starts while the repo stays off: each later tick logs that and reads nothing, until the repo leaves
 ``off`` (``ScanMemory.clear_drain``).

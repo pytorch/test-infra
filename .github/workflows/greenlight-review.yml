@@ -1,21 +1,27 @@
 name: Green Light Scan
 
-# The periodic scan of every repo greenlight/repos.yaml serves runs as the `greenlight-scan` AWS
-# Lambda (pytorch-gha-infra-2, us-east-1, EventBridge rate(2 minutes)). This workflow is the manual /
-# `@greenlight recheck` entry point: dispatched by filename from a pytorch/pytorch trigger (or run
-# by hand), it runs the same greenlight scanner. With `pr` it rechecks that pytorch/pytorch PR
-# (`greenlight review --pr`); without it, it runs one tick over every configured repo
-# (`greenlight review --all-repos`, greenlight/REPOS.md), which lists each repo's open PRs from its
-# evaluation cohort and dispatches greenlight-pr-review.yml for each new or changed PR whose author
-# is eligible, on a base trymerge's base rule accepts, matched by branch name
-# (greenlight/TRUSTED_AUTHORS.md); no other listed PR is dispatched.
+# The periodic scan runs as the `greenlight-scan` AWS Lambda (pytorch-gha-infra-2, us-east-1,
+# EventBridge rate(2 minutes)): its planner scans pytorch/pytorch itself and fans out one worker
+# invocation per other repo with a `.github/greenlight/config.yml` (greenlight/SCAN.md). This
+# workflow is the manual / `@greenlight recheck` path for one repo: dispatched by filename from a
+# pytorch/pytorch trigger (or run by hand), it runs the same greenlight scanner on `repo`. With `pr`
+# it rechecks that PR of `repo` (`greenlight review --repo REPO --pr N`); without it, it scans `repo`
+# once (`greenlight review --repo REPO`), listing its open PRs from its evaluation cohort and
+# dispatching greenlight-pr-review.yml for each new or changed PR whose author is eligible, on a base
+# trymerge's base rule accepts, matched by branch name (greenlight/TRUSTED_AUTHORS.md); no other
+# listed PR is dispatched. It takes no lease and keeps no state between runs.
 # Read-only on ClickHouse; dispatches the reviewer workflow via the App's test-infra token.
 
 on:
   workflow_dispatch:
     inputs:
+      repo:
+        description: "Repo to scan (pytorch/<name>); it must have a GreenLight config, as greenlight/REPOS.md defines (pytorch/pytorch has a built-in one)"
+        required: false
+        default: "pytorch/pytorch"
+        type: string
       pr:
-        description: "Single PR number to scan; a merge rule must name its author and trymerge must accept its base, as greenlight/TRUSTED_AUTHORS.md defines (empty = whole evaluation cohort)"
+        description: "Single PR number of `repo` to scan; its author must be eligible and trymerge must accept its base, as greenlight/TRUSTED_AUTHORS.md defines (empty = whole evaluation cohort)"
         required: false
         default: ""
         type: string
@@ -90,21 +96,21 @@ jobs:
       - name: Sync dependencies
         run: just setup
 
-      # The repos the repo token covers: pytorch alone for a recheck, so no other repo's state can
-      # break it; otherwise every served and safety-only entry of this checkout's repos.yaml. A repo
-      # the App installation lacks then fails the mint below, and this manual scan with it.
-      - name: List the configured repos
-        id: repos
+      # The repo token covers `repo` alone, named inside the pytorch account as the mint takes it. The
+      # input is checked against a strict pattern first, since it reaches the mint and the CLI.
+      - name: Name the repo
+        id: repo
         env:
-          IN_PR: ${{ inputs.pr }}
+          IN_REPO: ${{ inputs.repo }}
         run: |
           set -euo pipefail
-          if [ -n "$IN_PR" ]; then
-            names=pytorch
-          else
-            names=$(mise exec -- uv run python -I -c 'from greenlight import app_tokens, repo_config; print(app_tokens.repo_token_names(repo_config.load_local()))')
+          name=""
+          if [[ "$IN_REPO" =~ ^pytorch/([A-Za-z0-9_.-]{1,100})$ ]]; then name="${BASH_REMATCH[1]}"; fi
+          if [ -z "$name" ] || [[ "$name" =~ ^\.+$ ]]; then
+            echo "::error::repo must be pytorch/<name>"
+            exit 1
           fi
-          echo "names=$names" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
 
       # The two permission sets are app_tokens.DISPATCH_TOKEN_PERMISSIONS and REPO_TOKEN_PERMISSIONS,
       # the ones the Lambda mints; tests/test_review_workflow_tokens.py pins them.
@@ -126,7 +132,7 @@ jobs:
           app-id: ${{ secrets.GREENLIGHT_APP_ID }}
           private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
           owner: pytorch
-          repositories: ${{ steps.repos.outputs.names }}
+          repositories: ${{ steps.repo.outputs.name }}
           permission-pull-requests: write
           permission-contents: read
           permission-members: read
@@ -153,6 +159,7 @@ jobs:
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
           PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+          IN_REPO: ${{ inputs.repo }}
           IN_PR: ${{ inputs.pr }}
           IN_REQUESTER: ${{ inputs.requester }}
           IN_MAX: ${{ inputs.max }}
@@ -161,8 +168,8 @@ jobs:
           IN_LOG_LEVEL: ${{ inputs.log_level }}
         run: |
           set -euo pipefail
-          args=()
-          if [ -n "$IN_PR" ]; then args+=(--pr "$IN_PR"); else args+=(--all-repos); fi
+          args=(--repo "$IN_REPO")
+          if [ -n "$IN_PR" ]; then args+=(--pr "$IN_PR"); fi
           if [ -n "$IN_REQUESTER" ]; then args+=(--requester "$IN_REQUESTER"); fi
           if [ -n "$IN_MAX" ]; then args+=(--max "$IN_MAX"); fi
           args+=(--ref "$IN_REF" --timeout-minutes "$IN_TIMEOUT" --log-level "$IN_LOG_LEVEL")

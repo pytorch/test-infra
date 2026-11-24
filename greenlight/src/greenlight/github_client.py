@@ -77,7 +77,7 @@ def _build_authz_retry() -> Retry:
     # respect_retry_after_header honors a 429/5xx Retry-After capped at retry_after_max: at worst
     # total x cap (<=120s), inside the scan's runtime budget, on the SIGALRM-interruptible main
     # thread. 403 is excluded so a permission denial is never retried; exhausted retries propagate:
-    # the scan fails closed (stale snapshot when warm, re-raise when cold), the verdict writes no row.
+    # the scan fails closed (a bounded-stale cached snapshot, else re-raise), the verdict writes no row.
     from urllib3.util.retry import Retry
 
     return Retry(

@@ -6,7 +6,7 @@ directory. `just` is the front-end for every workflow — run `just` or
 
 PyTorch Green Light runs one iteration of its `review` phase and exits (cron-like), or
 loops as a daemon with `--loop`; in production the scheduled scan runs as the `greenlight-scan`
-AWS Lambda (EventBridge `rate(2 minutes)`, one `review --all-repos` tick over every configured repo),
+AWS Lambda (EventBridge `rate(2 minutes)`: a planner scans `pytorch/pytorch` and fans out a worker per other repo, [SCAN.md](SCAN.md)),
 with the CLI modes kept for local use. It also has the one-shot `verdict` and `drci-poke` subcommands:
 
 - `review` — scan the open PRs from the evaluation cohort in `--repo` (default `pytorch/pytorch`;
@@ -23,7 +23,7 @@ with the CLI modes kept for local use. It also has the one-shot `verdict` and `d
   review is unfinished: a failed, cancelled or stuck one is retried at the first full tick after its
   `--timeout-minutes` timer (45 minutes by default), and an in-flight one whose fingerprint changed
   without bumping `updated_at` is re-dispatched there. Once a listing tick's fan-out finishes, the
-  process keeps only the fingerprint results that tick reused and those it fetched (a hash only when
+  scan memory keeps only the fingerprint results that tick reused and those it fetched (a hash only when
   read at the listed head) when the listed `updated_at` was at least two minutes old at the clock
   read after the listing, before the fan-out, keyed on that `updated_at`, the listed head and the
   merge-authorized login set; a fast tick decides a PR whose key is unchanged on its kept result and
@@ -37,8 +37,8 @@ with the CLI modes kept for local use. It also has the one-shot `verdict` and `d
   full tick. Each bump, a bot's comment edit such as Dr. CI's included, costs a fresh fetch on every
   tick until one finds it at least two minutes old: at most two with ticks two minutes or more apart,
   more on a `--loop` daemon (60 s apart by default). A change to the approver set refetches every PR
-  on the next tick, and a `--loop` host needs a synced clock. A warm Lambda keeps the tick memory,
-  kept fingerprints included, between invocations; a CLI one-shot always lists in full, and `--pr`
+  on the next tick, and a `--loop` host needs a synced clock. The Lambda keeps each repo's scan memory,
+  kept fingerprints included, in its state store; a CLI one-shot always lists in full, and `--pr`
   never lists or touches the kept fingerprints. A reverted PR —
   labeled `Reverted`, or with a `REVERTED` row already recorded — is excluded permanently on every
   path: greenlight revokes its own approving review, records the `REVERTED` row unless it is
@@ -65,7 +65,7 @@ with the CLI modes kept for local use. It also has the one-shot `verdict` and `d
   `--pr` needs an eligible target (see below). Onboarding or offboarding
   an author is a `merge_rules.yaml` change in the repo (on a `write_permission` repo, a change to who holds
   its minimum role: push access, or maintain with `minimum_role: maintain`), live on the scan once its
-  cached rules are `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` old (kept between scans in one process); an
+  cached rules are `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` old (kept between scans in one process, or in the Lambda's state store); an
   author no rule names drops out of the listing and keeps any approval until it is dismissed by
   hand. [TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md) has the details. Every listing tick that reaches its
   dispatch phase without a rate limit also supersedes, restores or re-applies the `GL/*` labels of its
@@ -119,10 +119,8 @@ just review --max 5                  # cap this iteration at 5 dispatches
 just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
 just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: review an ineligible author's PR, in shadow
-just review --all-repos --max 30     # one tick over every configured repo, as the Lambda runs it
+just review --repo pytorch/test-infra  # scan another repo with a GreenLight config, once
 ```
-
-`--all-repos` refuses `--repo`, `--pr`, `--force`, `--requester` and `--allow-untrusted-author`.
 
 `just review` scans the evaluation cohort's open PRs and, for each eligible PR that is new or changed
 since its last recorded state, dispatches the reviewer workflow
@@ -193,7 +191,9 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | `drci-poke` waits this long for state ingestion before the request (`0` = no wait); `review`'s own poke always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key for `drci-poke` and `review`'s dispatch poke (`DRCI_BOT_KEY`); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (`HUD_API_TOKEN`); clears HUD's bot challenge, not an endpoint credential |
-| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | `greenlight-scan` Lambda only: dispatch cap for the scheduled pass, passed through as `review --max` (`0` fingerprints nothing afresh and dispatches nothing; the scan still lists, still revokes on reverted or ineligible PRs, and still runs its `GL/*` label pass, which then supersedes a human-decided PR only on a fast tick, from its kept result). Non-negative integer, with no upper bound enforced — roughly 30-50 is what fits the 300 s timeout; elsewhere use `--max` |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | `greenlight-scan` Lambda only: `pytorch/pytorch`'s dispatch cap per tick, the other repos sharing 10, at most 5 each (`0` pauses every repo: fingerprints nothing afresh and dispatches nothing; the scan still lists, still revokes on reverted or ineligible PRs, and still runs its `GL/*` label pass, which then supersedes a human-decided PR only on a fast tick, from its kept result). Non-negative integer, with no upper bound enforced — roughly 30-50 is what fits the 300 s timeout; elsewhere use `--max` |
+| `PYTORCH_GREENLIGHT_STATE_TABLE` | unset | `greenlight-scan` Lambda only, required: the DynamoDB table of its state store ([SCAN.md](SCAN.md)) |
+| `PYTORCH_GREENLIGHT_MAX_WORKERS` | `3` | `greenlight-scan` Lambda only: repo workers running at once; reserved concurrency is this plus 2 |
 
 Raise verbosity with `--log-level DEBUG` (or `PYTORCH_GREENLIGHT_LOG_LEVEL=DEBUG`); DEBUG also
 logs the resolved `Config`.

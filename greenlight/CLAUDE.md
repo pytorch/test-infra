@@ -65,7 +65,7 @@ PyTorch Green Light has one unit of work — the `review` phase:
   (cancelled/failed) review, and skipping — without fingerprinting or dispatching — any PR a human
   has already decided (approved by a `merge_rules.yaml` approver, or on a `write_permission` repo by a
   holder of its minimum role, bots excluded, or changes requested by any non-bot reviewer).
-  The listing alternates per process (`pr_listing`, `scan_memory`): a full tick lists every open
+  The listing alternates per repo's scan memory (`pr_listing`, `scan_memory`): a full tick lists every open
   PR, on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
   `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed
   (its listing and fingerprint fan-out finished without a rate-limit abort); the fast ticks between
@@ -75,7 +75,7 @@ PyTorch Green Light has one unit of work — the `review` phase:
   does a PR idle longer than the review window whose review is unfinished: a failed, cancelled or
   stuck one is retried at the first full tick after its 45-minute timer, and an in-flight one whose
   fingerprint changed without bumping `updated_at` is re-dispatched there.
-  Once a listing tick's fan-out finishes, the process keeps only the fingerprint results
+  Once a listing tick's fan-out finishes, the scan memory keeps only the fingerprint results
   (`scan_memory`) that tick reused and those it fetched (a hash only when read at the listed head)
   when the listed `updated_at` was at least `FINGERPRINT_QUIET` (2 minutes) old at the clock read
   after the listing, before the fan-out; each is keyed on that `updated_at`, the listed head and the
@@ -133,8 +133,10 @@ The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
 back over HTTP through `https://hud.pytorch.org/api/greenlight/pr_state` and gates on the stored
 `head_sha`, not on `eval_hash`.
 
-Add a repo's scan logic to `review.prepare()` (safety work) or `review_finish.finish()` (optional work), and work across repos to
-`tick.py`; `review.run()` and `tick.run_tick()` **must keep raising on failure** (`run_tick` raises one error for every repo's).
+Add a repo's scan logic to `review.prepare()` (safety work) or `review_finish.finish()` (optional work), a repo's run in an
+invocation to `tick.RepoRun`, and work across repos to the planner (`fanout.py`, `fanout_repos.py`); `review.run()`,
+`fanout.Planner.run()` and `worker.Worker.run()` **must keep raising on failure** (each invocation raises one error for every
+repo's problems).
 The CLI runs the `review` phase through one of two execution paths, so the phase can move between
 cron-driven and daemon deployment with no change to its logic:
 
@@ -154,13 +156,14 @@ interrupt blocking C calls (e.g. DNS) or off-main-thread work; and a hard watchd
 force-exits the process a grace period later, the real backstop for hangs the soft timeout
 cannot reach.
 
-In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda, one `review --all-repos` tick over every configured
-repo (REPOS.md) with App tokens per job and repo: it runs the one-shot path with no single-instance lock and both hang-guard layers off
-(`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`; the watchdog's `os._exit` is wrong under Lambda),
-relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead. The repo's
-config is read every scan; a warm Lambda keeps the scan's tick memory (kept fingerprints, a drain's
-progress) and its merge-rules (eligibility) caches between invocations; a CLI one-shot always lists
-in full.
+In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda (SCAN.md), outside the CLI's execution
+paths: on each scheduled event its planner (`fanout.Planner`) runs `pytorch/pytorch`'s scan, safety work first, and invokes
+one asynchronous worker (`worker.Worker`) per other repo with work. It mints App tokens per job and repo, takes no
+single-instance lock and arms neither hang-guard layer (the watchdog's `os._exit` is wrong under Lambda): every Lambda scan
+of a repo holds that repo's lease in the DynamoDB state store, and the function timeout bounds each invocation. The store
+also keeps each repo's scan memory (kept fingerprints, a drain's progress), its config cache (revalidated every tick by
+ETag) and its eligibility snapshots across invocations; a CLI one-shot uses an in-process store, takes no lease and always
+lists in full.
 
 ## Comments
 
