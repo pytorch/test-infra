@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import json
 import logging
+import zlib
 from datetime import datetime, timedelta
 
 import pytest
 
+from greenlight import scan_memory
 from greenlight.constants import FINGERPRINT_QUIET
+from greenlight.repo_config import RepoEntry, Settings
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
-from greenlight.scan_memory import FingerprintCache, ScanMemory
+from greenlight.scan_memory import MEMORY_VERSION, FingerprintCache, ScanMemory, decode_memory, encode_memory
 
 _STARTED = datetime(2026, 10, 13, 12, 0, 0)
 
@@ -261,3 +265,105 @@ def test_a_checked_pr_is_never_pending_again_in_its_pass():
 
     assert current.pending([1]) == []
     assert current.pending([1, 2]) == [2]
+
+
+def _full_memory() -> ScanMemory:
+    memory = _cached()
+    skip = FingerprintCache(
+        memory,
+        reuse=True,
+        authorized_logins=_LOGINS,
+        updated_at={1: _UPDATED, 2: _UPDATED},
+        head_sha={1: "headsha1", 2: "headsha2"},
+        now=_STARTED,
+    )
+    skip.keep(1)
+    skip.store(2, ReviewSkip(CHANGES_REQUESTED, "changes requested by bob"))
+    skip.commit()
+    memory.mark_full_tick(_STARTED)
+    memory.off_since(_STARTED - timedelta(hours=1))
+    current = memory.start_drain_pass("2 run(s) unfinished", recorded=frozenset({7, 3}))
+    current.attempt(3)
+    current.attempt(9)
+    current.checked.add(3)
+    current.dismissed, current.failures = 1, 1
+    memory.complete_drain(4)
+    memory.last_settings = Settings("pytorch/vision", "valid", _ENTRY, served=False, problem="safety-only: x")
+    return memory
+
+
+_ENTRY = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow", "maintain")
+
+
+def test_the_memory_codec_round_trips_every_part_of_the_memory():
+    memory = _full_memory()
+
+    restored = decode_memory(encode_memory(memory, "pytorch/vision"), "pytorch/vision")
+
+    assert restored._last_full_tick_started == memory._last_full_tick_started
+    assert restored._fingerprints == memory._fingerprints
+    assert set(restored._fingerprints) == {1, 2}
+    assert restored._off_since == memory._off_since
+    assert restored._drain_passes == memory._drain_passes == 1
+    assert restored._drain_pass == memory._drain_pass
+    assert restored.drain_completed_by() == 4
+    assert restored.last_settings == memory.last_settings
+    assert _tick(restored).lookup(1) == _RESULT
+
+
+def test_a_cold_memory_round_trips_cold():
+    restored = decode_memory(encode_memory(ScanMemory(), "pytorch/vision"), "pytorch/vision")
+
+    assert restored.full_tick_due(_STARTED)
+    assert restored._fingerprints == {}
+    assert restored.drain_pass() is None
+    assert restored.last_settings is None
+
+
+def test_the_stored_form_is_versioned_compressed_json_with_the_approvers_digest_once():
+    form = json.loads(zlib.decompress(encode_memory(_full_memory(), "pytorch/vision")))
+
+    assert form["version"] == MEMORY_VERSION == 1
+    assert len(form["digests"]) == 1
+    assert [row[3] for row in form["fingerprints"]] == [0, 0]
+
+
+def test_no_memory_starts_cold():
+    assert decode_memory(None, "pytorch/vision")._fingerprints == {}
+
+
+def test_another_version_starts_cold(caplog):
+    blob = zlib.compress(json.dumps({"version": 99}).encode())
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        restored = decode_memory(blob, "pytorch/vision")
+
+    assert restored.full_tick_due(_STARTED)
+    assert "stored scan memory has version 99, not 1; starting cold" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "blob",
+    [b"not zlib", zlib.compress(b"not json"), zlib.compress(json.dumps({"version": 1}).encode())],
+    ids=["not-zlib", "not-json", "missing-parts"],
+)
+def test_a_blob_that_does_not_decode_starts_cold_and_logs_the_error(caplog, blob):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        restored = decode_memory(blob, "pytorch/vision")
+
+    assert restored._fingerprints == {}
+    [record] = [record for record in caplog.records if "cannot decode its stored scan memory" in record.getMessage()]
+    assert record.exc_info
+
+
+def test_a_memory_over_the_size_cap_is_saved_without_its_fingerprints(monkeypatch, caplog):
+    memory = _full_memory()
+    monkeypatch.setattr(scan_memory, "MEMORY_MAX_BYTES", len(encode_memory(memory, "x")) - 1)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        restored = decode_memory(encode_memory(memory, "pytorch/vision"), "pytorch/vision")
+
+    assert restored._fingerprints == {}
+    assert restored.drain_completed_by() == 4
+    assert restored._last_full_tick_started == _STARTED
+    assert "saved without its 2 fingerprint result(s)" in caplog.text

@@ -1,11 +1,15 @@
-"""AWS Lambda entry point for the greenlight review scan.
+"""AWS Lambda entry point for the greenlight scan: one function, two roles chosen by the event.
 
-Fetches the GitHub App private key and ClickHouse password from AWS Secrets Manager, resolves the
-App's own ``<slug>[bot]`` login, and runs one ``review --all-repos`` tick over every configured repo
-through the same CLI used on the command line, with ``app_tokens.AppTokens`` minting a
-least-privilege installation token per job and repo. The Lambda function timeout is the runtime
-backstop, so the in-process guards are disabled here (their hard watchdog force-exits via
-``os._exit``, which is wrong under the Lambda runtime).
+- The EventBridge schedule (``"source": "aws.events"``, ``"detail-type": "Scheduled Event"``) runs the
+  planner (``fanout.Planner``): pytorch/pytorch's run, and one asynchronous worker invocation of this same
+  function per other repo with work.
+- A worker event (``worker.parse_payload``) runs that repo's worker (``worker.Worker``).
+
+Any other event is refused before anything is read. Both roles fetch the GitHub App private key and the
+ClickHouse password from AWS Secrets Manager, mint least-privilege installation tokens per job and repo
+(``app_tokens.AppTokens``), resolve the App's own ``<slug>[bot]`` login, and keep their shared state in the
+DynamoDB table ``PYTORCH_GREENLIGHT_STATE_TABLE`` (``state_dynamo.DynamoStore``). The Lambda function
+timeout is the runtime backstop: neither role arms the CLI's in-process hang guards.
 """
 
 from __future__ import annotations
@@ -14,18 +18,29 @@ import base64
 import json
 import logging
 import os
+import time
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import cli
-from greenlight.constants import BOT_LOGIN_SUFFIX, is_app_login
-from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_OK
+from greenlight.config import Config
+from greenlight.constants import (
+    AWS_REGION,
+    BOT_LOGIN_SUFFIX,
+    DEFAULT_DISPATCH_REF,
+    DEFAULT_TIMEOUT_MINUTES,
+    is_app_login,
+)
+from greenlight.log import configure_logging
+from greenlight.worker import WORKER_KEY, parse_payload
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from github import GithubIntegration
 
-logger = logging.getLogger(__name__)
+    from greenlight.worker import WorkerPayload
 
-_AWS_REGION = "us-east-1"
+logger = logging.getLogger(__name__)
 
 # A dispatch costs 3-8s of serial main-thread work, and the Lambda function times out at 300s: an
 # uncapped scan against the full evaluation cohort would run out of clock mid-pass. Deferring is
@@ -33,6 +48,7 @@ _AWS_REGION = "us-east-1"
 # and dispatches it -- while overrunning the timeout kills the scan after arbitrary partial work.
 _DEFAULT_MAX_DISPATCHES_PER_SCAN = 30
 _MAX_DISPATCHES_ENV = "PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN"
+_SCHEDULE = {"source": "aws.events", "detail-type": "Scheduled Event"}
 
 
 def _require_env(name: str) -> str:
@@ -68,7 +84,7 @@ def _require_clickhouse_host() -> None:
 def _load_secret(secret_store_name: str) -> dict[str, str]:
     import boto3  # lazy: keeps this module importable without the AWS SDK
 
-    client = boto3.client("secretsmanager", region_name=_AWS_REGION)
+    client = boto3.client("secretsmanager", region_name=AWS_REGION)
     response = client.get_secret_value(SecretId=secret_store_name)
     secret: dict[str, str] = json.loads(response["SecretString"])
     return secret
@@ -96,15 +112,42 @@ def _resolve_bot_login(integration: GithubIntegration) -> str:
     return login
 
 
+def _role(event: Mapping[str, object]) -> WorkerPayload | None:
+    """The worker payload ``event`` carries, None for the schedule; ``ValueError`` for any other event."""
+    if all(event.get(key) == value for key, value in _SCHEDULE.items()):
+        return None
+    if WORKER_KEY in event:
+        return parse_payload(event)
+    raise ValueError(f"refusing an event that is neither the scan schedule nor a worker event (keys {sorted(event)})")
+
+
+def _tick(event: Mapping[str, object], started: float) -> str:
+    """The planner's tick id: the schedule's own time, the same on a retried delivery, else the start."""
+    scheduled = event.get("time")
+    if isinstance(scheduled, str) and scheduled:
+        return scheduled
+    return datetime.fromtimestamp(started, UTC).isoformat(timespec="seconds")
+
+
 def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noqa: ARG001
     from greenlight.app_tokens import AppTokens, require_key  # lazy: keeps this module importable without PyGithub
+    from greenlight.fanout import Planner, lambda_invoker
+    from greenlight.state_dynamo import DynamoStore
+    from greenlight.worker import Worker
 
+    started = time.time()
+    payload = _role(event)
     secret_store_name = _require_env("SECRET_STORE_NAME")
     app_id = _require_env("GITHUB_APP_ID")
     installation_id = int(_require_env("GITHUB_INSTALLATION_ID"))
     _require_env("CLICKHOUSE_USERNAME")
     _require_clickhouse_host()
     max_dispatches = _max_dispatches_from_env()
+    function_name = _require_env("AWS_LAMBDA_FUNCTION_NAME") if payload is None else ""
+    config = Config.from_env()
+    configure_logging(config.log_level)
+    if config.state_table is None:
+        raise ValueError("PYTORCH_GREENLIGHT_STATE_TABLE is required for the greenlight Lambda handler")
 
     secret = _load_secret(secret_store_name)
     secret_source = f"secret {secret_store_name!r}"
@@ -112,22 +155,31 @@ def handler(event: dict[str, object], context: object) -> dict[str, str]:  # noq
     pem = base64.b64decode(pem_b64).decode("utf-8")
     os.environ["CLICKHOUSE_PASSWORD"] = require_key(secret, "CLICKHOUSE_PASSWORD", secret_source)
     integration = _github_integration(app_id, pem)
-    os.environ["BOT_LOGIN"] = _resolve_bot_login(integration)
+    store = DynamoStore(config.state_table)
+    tokens = AppTokens(integration, installation_id)
 
-    # The Lambda function timeout is the runtime backstop; a zero max-runtime disables both the
-    # SIGALRM soft timeout and the hard watchdog (whose os._exit would abort the runtime uncleanly).
-    os.environ["PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS"] = "0"
-
-    # No PYTORCH_GREENLIGHT_LOCK_PATH is set: Lambda's reserved_concurrent_executions = 1 already
-    # guarantees single-flight, so the in-process fcntl lock is intentionally absent and the
-    # EXIT_ALREADY_RUNNING branch below is only defensive/forward-compat.
-    rc = cli.main(
-        ["review", "--all-repos", "--ref", "main", "--max", str(max_dispatches)],
-        tokens=AppTokens(integration, installation_id),
-    )
-    if rc == EXIT_OK:
-        return {"status": "ok"}
-    if rc == EXIT_ALREADY_RUNNING:
-        logger.warning("greenlight review skipped: another instance holds the lock")
-        return {"status": "already_running"}
-    raise RuntimeError(f"greenlight review failed with exit code {rc}")
+    if payload is not None:
+        status = Worker(
+            config,
+            payload,
+            store,
+            tokens,
+            resolve_bot_login=lambda: _resolve_bot_login(integration),
+            ref=DEFAULT_DISPATCH_REF,
+            timeout_minutes=DEFAULT_TIMEOUT_MINUTES,
+            started=started,
+        ).run()
+        return {"status": status}
+    Planner(
+        config,
+        tick=_tick(event, started),
+        store=store,
+        tokens=tokens,
+        invoke=lambda_invoker(function_name),
+        bot_login=_resolve_bot_login(integration),
+        max_dispatches=max_dispatches,
+        ref=DEFAULT_DISPATCH_REF,
+        timeout_minutes=DEFAULT_TIMEOUT_MINUTES,
+        started=started,
+    ).run()
+    return {"status": "ok"}

@@ -40,6 +40,8 @@ def test_defaults_when_env_empty():
     assert cfg.dispatch_token is None
     assert cfg.drci_token is None
     assert cfg.drci_internal_token is None
+    assert cfg.state_table is None
+    assert cfg.max_workers == 3
     assert cfg == Config()
 
 
@@ -72,6 +74,8 @@ def test_from_env_parses_all_vars():
         "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS": "3",
         "PYTORCH_GREENLIGHT_GITHUB_TOKEN": "ghp_abc123",
         "PYTORCH_GREENLIGHT_DISPATCH_TOKEN": "ghs_dispatch",
+        "PYTORCH_GREENLIGHT_STATE_TABLE": "greenlight-state",
+        "PYTORCH_GREENLIGHT_MAX_WORKERS": "8",
         "PYTORCH_GREENLIGHT_DRCI_TOKEN": "drci-key",
         "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN": "hud-key",
     }
@@ -87,6 +91,8 @@ def test_from_env_parses_all_vars():
     assert cfg.drci_poke_delay_seconds == 3.0
     assert cfg.github_token == "ghp_abc123"
     assert cfg.dispatch_token == "ghs_dispatch"
+    assert cfg.state_table == "greenlight-state"
+    assert cfg.max_workers == 8
     assert cfg.drci_token == "drci-key"
     assert cfg.drci_internal_token == "hud-key"
 
@@ -270,3 +276,25 @@ def test_frozen_instance():
 def test_slots_no_instance_dict():
     cfg = Config()
     assert not hasattr(cfg, "__dict__")
+
+
+@pytest.mark.parametrize("blank", BLANK_VALUES)
+def test_blank_state_table_becomes_none_and_blank_max_workers_the_default(blank):
+    cfg = Config.from_env({"PYTORCH_GREENLIGHT_STATE_TABLE": blank, "PYTORCH_GREENLIGHT_MAX_WORKERS": blank})
+    assert cfg.state_table is None
+    assert cfg.max_workers == 3
+
+
+@pytest.mark.parametrize(
+    ("raw", "message"),
+    [("two", "must be an integer, got 'two'"), ("2.5", "must be an integer"), ("-1", "must not be negative, got -1")],
+)
+def test_max_workers_must_be_a_non_negative_integer(raw, message):
+    with pytest.raises(ValueError, match=f"PYTORCH_GREENLIGHT_MAX_WORKERS {message}"):
+        Config.from_env({"PYTORCH_GREENLIGHT_MAX_WORKERS": raw})
+
+
+def test_max_workers_zero_is_allowed_and_a_negative_one_refused_on_construction():
+    assert Config(max_workers=0).max_workers == 0
+    with pytest.raises(ValueError, match="max_workers must not be negative"):
+        Config(max_workers=-1)

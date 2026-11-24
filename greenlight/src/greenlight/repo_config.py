@@ -171,7 +171,7 @@ class Settings:
     problem: str | None = None
 
 
-def _outcome(repo: str, kind: SettingsKind, reason: str = "", *, last: Settings | None = None) -> Settings:
+def outcome(repo: str, kind: SettingsKind, reason: str = "", *, last: Settings | None = None) -> Settings:
     """The settings of a file that is absent, invalid for ``reason`` or unreadable for ``reason``.
 
     An unreadable file serves ``last``, the settings of the repo's last read that was not unreadable,
@@ -286,18 +286,18 @@ def parse_settings(repo: str, text: str | bytes) -> Settings:
     try:
         raw = _load(text)
     except _Invalid as exc:
-        return _outcome(repo, "invalid", str(exc))
+        return outcome(repo, "invalid", str(exc))
     if is_primary(repo):
         invalid, ignored = _primary_findings(raw)
         for finding in ignored:
             logger.error("%s %s: %s", repo, REPO_CONFIG_PATH, finding)
         if invalid:
-            return _outcome(repo, "invalid", "; ".join(invalid))
+            return outcome(repo, "invalid", "; ".join(invalid))
         mode = cast("Mode", raw["mode"])
         return Settings(repo, "valid", dataclasses.replace(BUILTIN_PYTORCH, mode=mode), served=True)
     invalid, unknown = _other_findings(repo, raw)
     if invalid:
-        return _outcome(repo, "invalid", "; ".join(invalid))
+        return outcome(repo, "invalid", "; ".join(invalid))
     if unknown:
         problem = f"safety-only: unknown key(s) {unknown}"
         logger.error("%s %s: %s", repo, REPO_CONFIG_PATH, problem)
@@ -324,21 +324,21 @@ def _is_not_found(exc: Exception) -> bool:
 def read_settings(client: _ContentsClient, repo: str, *, last: Settings | None = None) -> Settings:
     """``repo``'s settings from its default branch. Re-raises a rate limit and ``IterationTimeout``.
 
-    ``last`` is what an unreadable file serves (``_outcome``).
+    ``last`` is what an unreadable file serves (``outcome``).
     """
     try:
         data = _read_file(client, repo)
     except _Invalid as exc:
-        return _outcome(repo, "invalid", str(exc))
+        return outcome(repo, "invalid", str(exc))
     except IterationTimeout:
         raise
     except Exception as exc:
         if github_client.is_rate_limit_error(exc):
             raise
         if _is_not_found(exc):
-            return _outcome(repo, "absent")
+            return outcome(repo, "absent")
         logger.error("cannot read %s of %s", REPO_CONFIG_PATH, repo, exc_info=True)
-        return _outcome(repo, "unreadable", f"{type(exc).__name__}: {exc}", last=last)
+        return outcome(repo, "unreadable", f"{type(exc).__name__}: {exc}", last=last)
     return parse_settings(repo, data)
 
 

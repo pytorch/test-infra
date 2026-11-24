@@ -14,15 +14,16 @@ from greenlight.constants import REPO_CONFIG_PATH, TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.repo_scan import RepoIdentity
-from greenlight.scan_memory import ScanMemory
+from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
+from greenlight.state_store import EligibilityKey, InProcessStore, StoreError
 
 _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "merge_rules", "shadow")
 _SNAPSHOT = merge_authz.MergeRulesSnapshot(authorized=frozenset({"alice"}), rules=())
 _TOKEN = "t"
 
 
-def _identity(repo: str, *, private: bool = False, branch: str = "main") -> RepoIdentity:
-    return RepoIdentity(repo, private, branch)
+def _identity(repo: str, *, private: bool = False, branch: str = "main", archived: bool = False) -> RepoIdentity:
+    return RepoIdentity(repo, private, branch, archived)
 
 
 class _Content:
@@ -84,13 +85,28 @@ def test_fetch_identity_reads_what_github_reports():
 
     identity = repo_scan.fetch_identity(client, "pytorch/vision")  # type: ignore[arg-type]
 
-    assert identity == RepoIdentity("pytorch/Vision", False, "main")
+    assert identity == RepoIdentity("pytorch/Vision", False, "main", False)
     assert client.requester.calls == [("GET", "/repos/pytorch/vision")]
 
 
-def test_fetch_identity_refuses_an_unexpected_shape():
+def test_fetch_identity_reads_the_archived_flag():
+    data = {"full_name": "pytorch/vision", "private": False, "default_branch": "main", "archived": True}
+
+    identity = repo_scan.fetch_identity(_RequesterClient(data), "pytorch/vision")  # type: ignore[arg-type]
+
+    assert identity.archived is True
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"full_name": "x"},
+        {"full_name": "pytorch/x", "private": False, "default_branch": "main", "archived": "no"},
+    ],
+)
+def test_fetch_identity_refuses_an_unexpected_shape(data):
     with pytest.raises(ValueError, match="unexpected shape"):
-        repo_scan.fetch_identity(_RequesterClient({"full_name": "x"}), "pytorch/x")  # type: ignore[arg-type]
+        repo_scan.fetch_identity(_RequesterClient(data), "pytorch/x")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -99,6 +115,7 @@ def test_fetch_identity_refuses_an_unexpected_shape():
         pytest.param(_identity("pytorch/vision"), None, id="passes"),
         pytest.param(_identity("pytorch/Vision"), "GitHub names it 'pytorch/Vision'", id="case"),
         pytest.param(_identity("pytorch/vision", private=True), "it is private", id="private"),
+        pytest.param(_identity("pytorch/vision", archived=True), "it is archived", id="archived"),
         pytest.param(_identity("pytorch/vision", branch="master"), "its default branch is 'master'", id="branch"),
     ],
 )
@@ -199,30 +216,80 @@ def test_the_eligibility_client_carries_the_repos_meter(monkeypatch):
     assert built == [("patient", tick.meter(TARGET_REPO)), ("fast", tick.meter("pytorch/vision"))]
 
 
-def test_eligibility_caches_are_made_once_per_repo_eligibility_and_minimum_role_with_their_policy():
-    caches: repo_scan.EligibilityCaches = {}
+def test_an_eligibility_cache_has_its_policy_and_label_per_repo_eligibility_and_minimum_role():
+    store = InProcessStore()
     writers_entry = dataclasses.replace(_VISION, eligibility="write_permission")
 
-    first = repo_scan.eligibility_cache(caches, _VISION, 600.0)
-    again = repo_scan.eligibility_cache(caches, _VISION, 5.0)
-    other = repo_scan.eligibility_cache(caches, writers_entry, 600.0)
-    maintainers = repo_scan.eligibility_cache(
-        caches, dataclasses.replace(writers_entry, minimum_role="maintain"), 600.0
-    )
+    first = repo_scan.eligibility_cache(store, _VISION, 600.0)
+    other = repo_scan.eligibility_cache(store, writers_entry, 600.0)
+    maintainers = repo_scan.eligibility_cache(store, dataclasses.replace(writers_entry, minimum_role="maintain"), 5.0)
 
-    assert first is again
-    assert len({id(first), id(other), id(maintainers)}) == 3
-    assert set(caches) == {
-        ("pytorch/vision", "merge_rules", "write"),
-        ("pytorch/vision", "write_permission", "write"),
-        ("pytorch/vision", "write_permission", "maintain"),
-    }
     assert (first._ttl_seconds, first._max_stale_seconds) == (600.0, 1800.0)
+    assert (maintainers._ttl_seconds, maintainers._max_stale_seconds) == (5.0, 15.0)
     assert (first._label, other._label, maintainers._label) == (
         "merge rules of pytorch/vision",
         "write-role writers of pytorch/vision",
         "maintain-role writers of pytorch/vision",
     )
+
+
+def test_an_eligibility_snapshot_is_kept_in_the_store_and_served_from_it_inside_its_ttl(monkeypatch):
+    store = InProcessStore()
+    reads: list[str] = []
+
+    def resolve(_client: object, repo: str) -> merge_authz.MergeRulesSnapshot:
+        reads.append(repo)
+        return _SNAPSHOT
+
+    monkeypatch.setattr(merge_authz, "resolve_merge_rules", resolve)
+    monkeypatch.setattr(github_client, "build_client", lambda _token, **_kwargs: _Client())
+
+    assert repo_scan.eligibility_cache(store, _VISION, 600.0).snapshot(_Client) == _SNAPSHOT  # type: ignore[arg-type]
+    assert repo_scan.eligibility_cache(store, _VISION, 600.0).snapshot(_Client) == _SNAPSHOT  # type: ignore[arg-type]
+
+    assert reads == ["pytorch/vision"]
+    stored = store.read_eligibility(EligibilityKey("pytorch/vision", "merge_rules", "write"))
+    assert stored is not None
+    assert merge_authz.decode_snapshot(stored[0]) == _SNAPSHOT
+    assert store.read_eligibility(EligibilityKey("pytorch/vision", "write_permission", "write")) is None
+
+
+class _BrokenEligibilityStore(InProcessStore):
+    def __init__(self, *, blob: bytes | None = None) -> None:
+        super().__init__()
+        self.blob = blob
+
+    def read_eligibility(self, key: EligibilityKey) -> tuple[bytes, float] | None:
+        if self.blob is not None:
+            return self.blob, 0.0
+        raise StoreError("down")
+
+    def write_eligibility(self, key: EligibilityKey, snapshot: bytes, fetched_at: float) -> None:
+        raise StoreError("down")
+
+
+@pytest.mark.parametrize(
+    "store", [_BrokenEligibilityStore(), _BrokenEligibilityStore(blob=b"junk")], ids=["down", "bad"]
+)
+def test_a_store_that_cannot_keep_a_snapshot_only_costs_a_fetch_and_is_logged(monkeypatch, caplog, store):
+    monkeypatch.setattr(merge_authz, "resolve_merge_rules", lambda _client, _repo: _SNAPSHOT)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        assert repo_scan.eligibility_cache(store, _VISION, 600.0).snapshot(_Client) == _SNAPSHOT  # type: ignore[arg-type]
+
+    assert "cannot load the stored eligibility snapshot" in caplog.text
+    assert all(record.exc_info for record in caplog.records if record.levelno >= logging.ERROR)
+    if store.blob is None:
+        assert "cannot store the eligibility snapshot" in caplog.text
+
+
+def test_a_timeout_loading_a_stored_snapshot_propagates():
+    class _Late(InProcessStore):
+        def read_eligibility(self, key: EligibilityKey) -> tuple[bytes, float] | None:
+            raise IterationTimeout("late")
+
+    with pytest.raises(IterationTimeout):
+        repo_scan.eligibility_cache(_Late(), _VISION, 600.0)
 
 
 def _file(**fields: str) -> _Content:
@@ -237,13 +304,20 @@ _MISSING = UnknownObjectException(404)
 class _Scan:
     def __init__(self, contents: object, *, identity: RepoIdentity | None = None, failed: tuple[int, ...] = ()):
         self.contents = contents
-        self.caches: repo_scan.EligibilityCaches = {}
-        self.memories: dict[str, ScanMemory] = {}
+        self.store = InProcessStore()
         self.review = Mock()
         self.drain = Mock(return_value=drain.DrainReport(1, 0, 0, False, "x", failed))
         self.identity = identity
         self.clients: list[_Client] = []
         self.tokens: list[str] = []
+
+    def memory(self, repo: str) -> ScanMemory | None:
+        """The memory the store keeps for ``repo``, None when none was saved."""
+        blob = self.store.read_repo(repo).memory
+        return None if blob is None else decode_memory(blob, repo)
+
+    def seed(self, repo: str, memory: ScanMemory) -> None:
+        self.store.save_memory(repo, encode_memory(memory, repo), owner=None, now=0.0, tick=None, drain_complete=False)
 
     def _build(self, token: str, **_kwargs: object) -> Any:
         client = _Client(self.contents, self.identity)
@@ -263,8 +337,8 @@ class _Scan:
         repo_scan.scan_repo(
             make_config(github_token=token, dispatch_token=dispatch_token),
             repo=repo,
-            eligibility_caches=self.caches,
-            memories=None if pr is not None else self.memories,
+            store=self.store,
+            keep_memory=pr is None,
             pr=pr,
             bot_login="bot[bot]",
             build_github=self._build,
@@ -276,26 +350,45 @@ class _Scan:
 
 def test_a_served_repo_runs_the_whole_review_with_its_entry_memory_and_eligibility_cache(make_config, monkeypatch):
     scan = _Scan(_file())
-    memory = scan.memories["pytorch/vision"] = ScanMemory()
-    memory.off_since(datetime(2026, 1, 1))
+    seeded = ScanMemory()
+    seeded.mark_full_tick(datetime(2026, 1, 1))
+    seeded.off_since(datetime(2026, 1, 1))
+    scan.seed("pytorch/vision", seeded)
 
     scan.run(make_config, "pytorch/vision")
 
     kwargs = scan.review.call_args.kwargs
     assert kwargs["entry"] == _VISION
     assert kwargs["optional"] is True
-    assert kwargs["memory"] is memory
+    assert kwargs["memory"]._last_full_tick_started == datetime(2026, 1, 1)
     assert kwargs["pr"] is None
     assert kwargs["bot_login"] == "bot[bot]"
     assert kwargs["ref"] == "main"
-    assert memory.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
+    saved = scan.memory("pytorch/vision")
+    assert saved is not None
+    assert saved.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
+    assert saved._last_full_tick_started == datetime(2026, 1, 1)
     monkeypatch.setattr(github_client, "build_client", lambda _token, **_kwargs: _Client())
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", lambda _client, _repo: _SNAPSHOT)
-    assert kwargs["resolve_merge_rules"]() is _SNAPSHOT
-    cache = scan.caches[("pytorch/vision", "merge_rules", "write")]
-    assert cache._ttl_seconds == make_config().merge_rules_ttl_seconds
+    assert kwargs["resolve_merge_rules"]() == _SNAPSHOT
+    assert store_key_set(scan.store) == {"eligibility#pytorch/vision#merge_rules#write", "repo#pytorch/vision"}
     assert all(client.closed == 1 for client in scan.clients)
     scan.drain.assert_not_called()
+
+
+def store_key_set(store: InProcessStore) -> set[str]:
+    return set(store.items)
+
+
+def test_a_listing_scan_saves_its_memory_even_when_it_fails(make_config):
+    scan = _Scan(_file())
+    scan.review.side_effect = RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        scan.run(make_config, "pytorch/vision")
+
+    assert scan.memory("pytorch/vision") is not None
+    assert scan.store.read_repo("pytorch/vision").last_tick is None
 
 
 def test_the_config_is_read_fresh_every_scan_from_the_scanned_repo_with_the_scan_token(make_config):
@@ -338,9 +431,9 @@ def test_a_write_permission_repo_reviews_with_its_writers_through_its_own_cache(
     monkeypatch.setattr(writers, "resolve_writers", resolve)
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
     assert scan.review.call_args.kwargs["entry"] == writer_entry
-    assert scan.review.call_args.kwargs["resolve_merge_rules"]() is _SNAPSHOT
+    assert scan.review.call_args.kwargs["resolve_merge_rules"]() == _SNAPSHOT
     assert roles == [minimum_role]
-    assert set(scan.caches) == {("pytorch/vision", "write_permission", minimum_role)}
+    assert f"eligibility#pytorch/vision#write_permission#{minimum_role}" in scan.store.items
 
 
 def test_a_pr_recheck_gets_no_memory(make_config):
@@ -350,7 +443,7 @@ def test_a_pr_recheck_gets_no_memory(make_config):
 
     assert scan.review.call_args.kwargs["memory"] is None
     assert scan.review.call_args.kwargs["pr"] == 5
-    assert scan.memories == {}
+    assert scan.store.items == {}
 
 
 def test_the_primary_with_no_file_is_served_under_the_builtin_with_no_problem(make_config):
@@ -374,8 +467,9 @@ def test_an_invalid_primary_file_runs_only_its_safety_work_then_fails(make_confi
 
 def test_a_safety_only_gate_repo_gets_no_work_forgets_its_drain_and_fails(make_config, caplog):
     scan = _Scan(_file(extra="1"))
-    memory = scan.memories["pytorch/vision"] = ScanMemory()
-    memory.off_since(datetime(2026, 1, 1))
+    seeded = ScanMemory()
+    seeded.off_since(datetime(2026, 1, 1))
+    scan.seed("pytorch/vision", seeded)
 
     with (
         caplog.at_level(logging.WARNING, logger="greenlight"),
@@ -385,7 +479,9 @@ def test_a_safety_only_gate_repo_gets_no_work_forgets_its_drain_and_fails(make_c
 
     scan.review.assert_not_called()
     scan.drain.assert_not_called()
-    assert memory.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
+    saved = scan.memory("pytorch/vision")
+    assert saved is not None
+    assert saved.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
     assert "a safety-only gate entry has no safety work yet" in caplog.text
 
 
@@ -435,8 +531,9 @@ def test_an_off_repo_drains_with_its_memory_instead_of_reviewing(make_config):
     scan.review.assert_not_called()
     kwargs = scan.drain.call_args.kwargs
     assert kwargs["repo"] == "pytorch/vision"
-    assert kwargs["memory"] is scan.memories["pytorch/vision"]
+    assert isinstance(kwargs["memory"], ScanMemory)
     assert kwargs["bot_login"] == "bot[bot]"
+    assert scan.memory("pytorch/vision") is not None
 
 
 def test_a_drain_that_failed_on_a_pr_fails_the_scan(make_config):
@@ -520,8 +617,10 @@ def test_a_warm_other_repo_keeps_its_settings_on_an_unreadable_read(make_config)
 
     assert scan.review.call_count == 2
     assert scan.review.call_args.kwargs["entry"] == _VISION
-    assert scan.memories["pytorch/vision"].last_settings is not None
-    assert scan.memories["pytorch/vision"].last_settings.kind == "valid"
+    saved = scan.memory("pytorch/vision")
+    assert saved is not None
+    assert saved.last_settings is not None
+    assert saved.last_settings.kind == "valid"
 
 
 def test_an_unreadable_file_elsewhere_gives_no_work(make_config):

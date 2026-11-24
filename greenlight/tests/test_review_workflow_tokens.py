@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-from greenlight import app_tokens, repo_config
+from greenlight import app_tokens
 from greenlight.constants import DISPATCH_REPO, TARGET_REPO
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -95,16 +95,6 @@ def test_the_repos_step_lists_the_primary_for_a_recheck_and_the_configured_repos
     assert f"names={TARGET_REPO.partition('/')[2]}\n" in run
     assert "app_tokens.repo_token_names(repo_config.load_local())" in run
     assert '"names=$names" >> "$GITHUB_OUTPUT"' in run
-
-
-def test_repo_token_names_lists_the_served_and_safety_only_repos_of_the_real_config():
-    config = repo_config.load_local()
-    entries = (*config.served, *(entry for entry, _reason in config.safety_only))
-
-    names = app_tokens.repo_token_names(config).split(",")
-
-    assert sorted(names) == sorted(entry.repo.partition("/")[2] for entry in entries)
-    assert names[0] == TARGET_REPO.partition("/")[2]
 
 
 def test_the_scan_step_reads_both_tokens_and_runs_every_repo_without_a_pr():

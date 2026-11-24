@@ -4,7 +4,9 @@ Each repo's eligibility source (its merge rules) is read through one of these. A
 fetched on first use and again once ``ttl_seconds`` have passed, measured on the wall clock: a
 monotonic clock may not advance while Lambda freezes the execution environment between invocations.
 Each fetch builds its own client from the builder passed to ``snapshot`` (tokens change between
-ticks) and closes it as soon as the fetch returns.
+ticks) and closes it as soon as the fetch returns. A cache can start from a snapshot kept elsewhere
+(``cached``, with when it was fetched) and hand each fresh one to ``on_fetch``, so a snapshot outlives the
+process (``repo_scan`` keeps it in the state store).
 
 A failed refresh is judged by its class:
 
@@ -52,7 +54,8 @@ def is_transient(exc: BaseException) -> bool:
 class SnapshotCache[C, T]:
     """One cached ``fetch(client)`` result; ``snapshot(build_client)`` returns it, refreshing when due.
 
-    ``label`` names what is cached in the logs.
+    ``label`` names what is cached in the logs; ``cached`` is the snapshot to start from and when it was
+    fetched; ``on_fetch`` is called with each fresh snapshot and when it was fetched.
     """
 
     def __init__(
@@ -63,13 +66,16 @@ class SnapshotCache[C, T]:
         ttl_seconds: float,
         max_stale_seconds: float,
         clock: Callable[[], float] = time.time,
+        cached: tuple[T, float] | None = None,
+        on_fetch: Callable[[T, float], None] | None = None,
     ) -> None:
         self._fetch = fetch
         self._label = label
         self._ttl_seconds = ttl_seconds
         self._max_stale_seconds = max_stale_seconds
         self._clock = clock
-        self._cached: tuple[T, float] | None = None
+        self._cached = cached
+        self._on_fetch = on_fetch
 
     def snapshot(self, build_client: Callable[[], C]) -> T:
         cached = self._cached
@@ -86,7 +92,10 @@ class SnapshotCache[C, T]:
             return self._serve_stale(exc, cached)
         finally:
             github_client.close_client(client)
-        self._cached = (result, self._clock())
+        fetched_at = self._clock()
+        self._cached = (result, fetched_at)
+        if self._on_fetch is not None:
+            self._on_fetch(result, fetched_at)
         return result
 
     def _serve_stale(self, exc: Exception, cached: tuple[T, float]) -> T:

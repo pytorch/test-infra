@@ -1,30 +1,36 @@
 """The per-repo decisions of one scan: its config, the live checks, its eligibility source, its work.
 
-``scan_repo`` reads the repo's own ``.github/greenlight/config.yml`` fresh every scan
+``scan_repo`` (the CLI's ``review``) reads the repo's own ``.github/greenlight/config.yml`` fresh every scan
 (``repo_config.read_settings``; an unreadable file serves the settings of the repo's last read in its
 ``ScanMemory``, kept for nothing else), checks what GitHub reports for the repo
-(``check_identity``: the exact canonical name, public, default branch ``main``: ``accepts_base``
-judges bases against ``main``, so a repo on another default branch would get no reviews), and then
+(``check_identity``: the exact canonical name, public, not archived, default branch ``main``:
+``accepts_base`` judges bases against ``main``, so a repo on another default branch would get no
+reviews), and then
 does the work ``repo_work`` gives its entry: the drain when its mode is ``off``; the review
 (``review.run``), whole when served and only its safety work when safety-only; or nothing for a
 safety-only ``gate`` entry, which has no safety work yet. A repo whose settings give no entry (no
 file, a refused file, an unreadable one), or one that fails a live check, gets no work at all. Every
 problem the settings carry fails the scan, after the work they still allow ran.
 The dispatch and the drain's read of the review runs use the dispatch token
-(``Config.dispatch_or_scan_token``): both are on ``DISPATCH_REPO``. ``tick`` routes every repo it
-scans through the same ``repo_work`` and ``check_identity``.
+(``Config.dispatch_or_scan_token``): both are on ``DISPATCH_REPO``. A listing scan loads the repo's memory
+from the state store it is given and saves it back, with no lease; each eligibility source is read through
+a ``SnapshotCache`` whose snapshot the store keeps. The scan Lambda (``fanout``, ``worker``, ``tick``)
+routes every repo through the same ``repo_work``, ``identity_problem`` and eligibility caches.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Literal, NamedTuple, NoReturn
 
 from greenlight import drain, github_client, merge_authz, review, writers
 from greenlight.constants import REPO_CONFIG_PATH, TARGET_BRANCH
+from greenlight.guards import IterationTimeout
 from greenlight.repo_config import is_primary, read_settings
-from greenlight.scan_memory import ScanMemory
+from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
 from greenlight.snapshot_cache import SnapshotCache
+from greenlight.state_store import EligibilityKey, StoreError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -35,11 +41,10 @@ if TYPE_CHECKING:
     from greenlight.config import Config
     from greenlight.merge_authz import MergeRulesSnapshot
     from greenlight.quota import RequestMeter
-    from greenlight.repo_config import Eligibility, MinimumRole, RepoEntry
+    from greenlight.repo_config import RepoEntry
     from greenlight.review import RunFn, ScanOptions
     from greenlight.review_finish import BuildClient
-
-    EligibilityCaches = dict[tuple[str, Eligibility, MinimumRole], SnapshotCache[Github, MergeRulesSnapshot]]
+    from greenlight.state_store import StateStore
 
 logger = logging.getLogger(__name__)
 
@@ -56,15 +61,22 @@ class RepoIdentity(NamedTuple):
     full_name: str
     private: bool
     default_branch: str
+    archived: bool = False
 
 
 def fetch_identity(client: Github, repo: str) -> RepoIdentity:
     """What GitHub reports for ``repo`` (``GET /repos/{repo}``), its canonical name included."""
     _headers, data = client.requester.requestJsonAndCheck("GET", f"/repos/{repo}")
     full_name, private, default_branch = data.get("full_name"), data.get("private"), data.get("default_branch")
-    if not isinstance(full_name, str) or not isinstance(private, bool) or not isinstance(default_branch, str):
+    archived = data.get("archived", False)
+    if (
+        not isinstance(full_name, str)
+        or not isinstance(private, bool)
+        or not isinstance(default_branch, str)
+        or not isinstance(archived, bool)
+    ):
         raise ValueError(f"GET /repos/{repo} returned an unexpected shape")
-    return RepoIdentity(full_name, private, default_branch)
+    return RepoIdentity(full_name, private, default_branch, archived)
 
 
 def identity_problem(entry: RepoEntry, identity: RepoIdentity) -> str | None:
@@ -73,6 +85,8 @@ def identity_problem(entry: RepoEntry, identity: RepoIdentity) -> str | None:
         return f"GitHub names it {identity.full_name!r}; scan it by that exact name"
     if identity.private:
         return "it is private"
+    if identity.archived:
+        return "it is archived"
     if identity.default_branch != TARGET_BRANCH:
         return f"its default branch is {identity.default_branch!r}, not {TARGET_BRANCH!r}"
     return None
@@ -128,31 +142,51 @@ def eligibility_client(entry: RepoEntry, token: str, *, meter: RequestMeter | No
     return lambda: github_client.build_client(token, meter=meter)
 
 
+def _stored_snapshot(store: StateStore, key: EligibilityKey) -> tuple[MergeRulesSnapshot, float] | None:
+    """The snapshot ``store`` keeps for ``key`` and when it was fetched; None, logged, when it cannot be had."""
+    try:
+        found = store.read_eligibility(key)
+        return None if found is None else (merge_authz.decode_snapshot(found[0]), found[1])
+    except IterationTimeout:
+        raise
+    except Exception:
+        logger.error("cannot load the stored eligibility snapshot of %s; it is fetched instead", key, exc_info=True)
+        return None
+
+
+def _keep_snapshot(store: StateStore, key: EligibilityKey) -> Callable[[MergeRulesSnapshot, float], None]:
+    def keep(snapshot: MergeRulesSnapshot, fetched_at: float) -> None:
+        try:
+            store.write_eligibility(key, merge_authz.encode_snapshot(snapshot), fetched_at)
+        except StoreError:
+            logger.error("cannot store the eligibility snapshot of %s", key, exc_info=True)
+
+    return keep
+
+
 def eligibility_cache(
-    caches: EligibilityCaches, entry: RepoEntry, ttl_seconds: float
+    store: StateStore, entry: RepoEntry, ttl_seconds: float
 ) -> SnapshotCache[Github, MergeRulesSnapshot]:
-    """``entry``'s cache in ``caches``, made on first use: TTL ``ttl_seconds``, stale for at most three TTLs."""
-    key = (entry.repo, entry.eligibility, entry.minimum_role)
-    cache = caches.get(key)
-    if cache is None:
-        label, fetch = eligibility_resolver(entry)
-        cache = SnapshotCache(
-            fetch,
-            label=label,
-            ttl_seconds=ttl_seconds,
-            max_stale_seconds=_ELIGIBILITY_MAX_STALE_TTLS * ttl_seconds,
-        )
-        caches[key] = cache
-    return cache
+    """``entry``'s cache, starting from the snapshot ``store`` keeps and keeping each fresh one there: TTL
+    ``ttl_seconds``, stale for at most three TTLs."""
+    key = EligibilityKey(entry.repo, entry.eligibility, entry.minimum_role)
+    label, fetch = eligibility_resolver(entry)
+    return SnapshotCache(
+        fetch,
+        label=label,
+        ttl_seconds=ttl_seconds,
+        max_stale_seconds=_ELIGIBILITY_MAX_STALE_TTLS * ttl_seconds,
+        cached=_stored_snapshot(store, key),
+        on_fetch=_keep_snapshot(store, key),
+    )
 
 
 def eligibility_thunk(
-    config: Config, entry: RepoEntry, caches: EligibilityCaches, token: str, *, meter: RequestMeter | None = None
+    config: Config, entry: RepoEntry, store: StateStore, token: str, *, meter: RequestMeter | None = None
 ) -> Callable[[], MergeRulesSnapshot]:
-    """``entry``'s eligibility snapshot through its cache in ``caches``, read with ``token`` when due."""
-    cache = eligibility_cache(caches, entry, config.merge_rules_ttl_seconds)
+    """``entry``'s eligibility snapshot through its cache on ``store``, read with ``token`` when due."""
     build_client = eligibility_client(entry, token, meter=meter)
-    return lambda: cache.snapshot(build_client)
+    return lambda: eligibility_cache(store, entry, config.merge_rules_ttl_seconds).snapshot(build_client)
 
 
 def drain_error(report: drain.DrainReport) -> str | None:
@@ -175,24 +209,61 @@ def scan_repo(
     config: Config,
     *,
     repo: str,
-    eligibility_caches: EligibilityCaches,
-    memories: dict[str, ScanMemory] | None,
+    store: StateStore,
+    keep_memory: bool,
     pr: int | None = None,
     bot_login: str = "",
     build_github: BuildClient = github_client.build_client,
     run_review: RunFn = review.run,
     run_drain: Callable[..., drain.DrainReport] = drain.drain,
+    clock: Callable[[], float] = time.time,
     **review_kwargs: Unpack[ScanOptions],
 ) -> None:
     """Scan ``repo`` once as its config says.
 
-    ``memories`` is None for ``--pr``; ``review_kwargs`` go to ``review.run``.
+    ``keep_memory`` is False for ``--pr``, which neither loads nor saves the repo's memory; ``review_kwargs``
+    go to ``review.run``.
     """
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
+    memory = decode_memory(store.read_repo(repo).memory, repo) if keep_memory else None
+    try:
+        _scan(
+            config,
+            repo=repo,
+            token=token,
+            store=store,
+            memory=memory,
+            pr=pr,
+            bot_login=bot_login,
+            build_github=build_github,
+            run_review=run_review,
+            run_drain=run_drain,
+            **review_kwargs,
+        )
+    finally:
+        if memory is not None:
+            completed = memory.drain_completed_by() is not None
+            blob = encode_memory(memory, repo)
+            store.save_memory(repo, blob, owner=None, now=clock(), tick=None, drain_complete=completed)
+
+
+def _scan(
+    config: Config,
+    *,
+    repo: str,
+    token: str,
+    store: StateStore,
+    memory: ScanMemory | None,
+    pr: int | None,
+    bot_login: str,
+    build_github: BuildClient,
+    run_review: RunFn,
+    run_drain: Callable[..., drain.DrainReport],
+    **review_kwargs: Unpack[ScanOptions],
+) -> None:
     dispatch_token = config.dispatch_or_scan_token
-    memory = None if memories is None else memories.setdefault(repo, ScanMemory())
     client = build_github(token)
     try:
         settings = read_settings(client, repo, last=None if memory is None else memory.last_settings)
@@ -238,7 +309,7 @@ def scan_repo(
             pr=pr,
             bot_login=bot_login,
             build_github=build_github,
-            resolve_merge_rules=eligibility_thunk(config, entry, eligibility_caches, token),
+            resolve_merge_rules=eligibility_thunk(config, entry, store, token),
             memory=memory,
             dispatch_token=dispatch_token,
             **review_kwargs,

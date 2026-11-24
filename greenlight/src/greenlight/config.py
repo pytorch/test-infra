@@ -18,6 +18,8 @@ _DEFAULT_BACKOFF_MAX_SECONDS = 60.0
 _DEFAULT_MERGE_RULES_TTL_SECONDS = 600.0
 _DEFAULT_REVIEW_WINDOW_HOURS = 24.0
 _DEFAULT_DRCI_POKE_DELAY_SECONDS = 10.0
+# The scan Lambda's reserved concurrency less two: the planner and one overlapping planner.
+_DEFAULT_MAX_WORKERS = 3
 
 # darwin setitimer and Event.wait overflow for values near their 2**63-nanosecond
 # ceiling; 30 days sits safely below that yet exceeds any realistic interval or runtime.
@@ -53,6 +55,19 @@ def _read_float(env: Mapping[str, str], key: str, default: float) -> float:
         raise ValueError(f"{key} must be a number, got {raw!r}") from exc
 
 
+def _read_count(env: Mapping[str, str], key: str, default: int) -> int:
+    raw = _clean(env.get(key))
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{key} must be an integer, got {raw!r}") from exc
+    if value < 0:
+        raise ValueError(f"{key} must not be negative, got {value}")
+    return value
+
+
 def _validate_bound(name: str, value: float, *, allow_zero: bool, max_value: float = _MAX_SECONDS) -> None:
     if not math.isfinite(value):
         raise ValueError(f"{name} must be finite, got {value}")
@@ -76,6 +91,8 @@ class Config:
     merge_rules_ttl_seconds: float = _DEFAULT_MERGE_RULES_TTL_SECONDS
     review_window_hours: float = _DEFAULT_REVIEW_WINDOW_HOURS
     drci_poke_delay_seconds: float = _DEFAULT_DRCI_POKE_DELAY_SECONDS
+    state_table: str | None = None
+    max_workers: int = _DEFAULT_MAX_WORKERS
     github_token: str | None = field(default=None, repr=False)
     dispatch_token: str | None = field(default=None, repr=False)
     drci_token: str | None = field(default=None, repr=False)
@@ -85,6 +102,7 @@ class Config:
         # Canonicalize string options here so env, CLI, and direct construction share one rule.
         object.__setattr__(self, "log_level", _normalize_log_level(self.log_level))
         object.__setattr__(self, "lock_path", _clean(self.lock_path))
+        object.__setattr__(self, "state_table", _clean(self.state_table))
         object.__setattr__(self, "github_token", _clean(self.github_token))
         object.__setattr__(self, "dispatch_token", _clean(self.dispatch_token))
         object.__setattr__(self, "drci_token", _clean(self.drci_token))
@@ -95,6 +113,8 @@ class Config:
         for name in _NON_NEGATIVE_FIELDS:
             value = getattr(self, name)
             _validate_bound(name, value, allow_zero=True)
+        if self.max_workers < 0:
+            raise ValueError(f"max_workers must not be negative, got {self.max_workers}")
         _validate_bound(
             "review_window_hours", self.review_window_hours, allow_zero=False, max_value=_MAX_REVIEW_WINDOW_HOURS
         )
@@ -133,6 +153,8 @@ class Config:
             drci_poke_delay_seconds=_read_float(
                 source, "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", _DEFAULT_DRCI_POKE_DELAY_SECONDS
             ),
+            state_table=source.get("PYTORCH_GREENLIGHT_STATE_TABLE"),
+            max_workers=_read_count(source, "PYTORCH_GREENLIGHT_MAX_WORKERS", _DEFAULT_MAX_WORKERS),
             github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN"),
             dispatch_token=source.get("PYTORCH_GREENLIGHT_DISPATCH_TOKEN"),
             drci_token=source.get("PYTORCH_GREENLIGHT_DRCI_TOKEN"),

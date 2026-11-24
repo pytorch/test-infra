@@ -5,7 +5,7 @@ import http.server
 import json
 import logging
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import github
 import pytest
@@ -15,6 +15,7 @@ from urllib3.exceptions import MaxRetryError, ProtocolError
 from urllib3.util.retry import Retry
 
 from greenlight import github_client, quota
+from greenlight.constants import QUOTA_REFRESH_REQUESTS
 from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
@@ -269,7 +270,8 @@ def test_exhausted_retries_count_only_the_attempts_made(github_at, retry_sleeps)
 
 def test_a_429_on_the_patient_client_latches_at_once_and_the_next_request_is_refused(github_at, retry_sleeps, caplog):
     server = github_at([(429, {"Retry-After": "30"})])
-    meter = _meter()
+    tick = quota.TickMeter(clock=lambda: 1000.0)
+    meter = tick.meter(_REPO)
     client = github_client.build_authz_client("tok", meter=meter)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RetryError) as excinfo:
@@ -279,6 +281,7 @@ def test_a_429_on_the_patient_client_latches_at_once_and_the_next_request_is_ref
     assert server.hits == 1
     assert retry_sleeps == []
     assert meter.latch.is_set()
+    assert tick.latch_until == 1030.0
     assert meter.stopped == quota.RATE_LIMIT
     assert "pytorch/vision: GitHub answered 429, a rate limit" in caplog.text
     with pytest.raises(quota.RateLimitStop) as refused:
@@ -510,3 +513,198 @@ def test_phase_b_stops_below_the_floor_and_never_on_an_unknown_estimate():
 
 def test_phase_b_names_the_deadline_first_when_every_stop_applies():
     assert _stop(now=200.0, request_budget=1, phase_b=1, remaining=10) == "past its deadline"
+
+
+@pytest.mark.parametrize(
+    ("headers", "until"),
+    [
+        pytest.param({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1500"}, 1500.0, id="reset"),
+        pytest.param({"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1500"}, 1500.0, id="reset-any-case"),
+        pytest.param(
+            {"x-ratelimit-remaining": "3", "x-ratelimit-reset": "1500", "retry-after": "20"}, 1020.0, id="not-0"
+        ),
+        pytest.param({"Retry-After": "45"}, 1045.0, id="retry-after"),
+        pytest.param({"retry-after": "soon"}, 1060.0, id="unparsable"),
+        pytest.param({}, 1060.0, id="default"),
+        pytest.param(None, 1060.0, id="no-headers"),
+        pytest.param({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "99999"}, 1900.0, id="clamped"),
+        pytest.param({"retry-after": "3600"}, 1900.0, id="retry-after-clamped"),
+    ],
+)
+def test_a_rate_limit_waits_until_its_reset_else_retry_after_else_a_minute_never_past_fifteen(headers, until):
+    assert quota.rate_limit_until(headers, 1000.0) == until
+
+
+def test_the_headers_of_a_rate_limit_failure_are_found_when_it_carries_some():
+    assert quota.rate_limit_headers(GithubException(429, None, {"retry-after": "5"})) == {"retry-after": "5"}
+    assert quota.rate_limit_headers(GithubException(429, None, None)) is None
+    assert quota.rate_limit_headers(ValueError("x")) is None
+
+
+def test_the_latch_keeps_the_latest_wait_any_rate_limit_asked_for():
+    tick = quota.TickMeter(clock=lambda: 1000.0)
+    assert tick.latch_until is None
+
+    tick.note_rate_limit({"retry-after": "120"})
+    tick.note_rate_limit({"retry-after": "30"})
+
+    assert tick.latch.is_set()
+    assert tick.latch_until == 1120.0
+
+
+def test_a_latch_set_without_headers_waits_the_default_from_the_first_ask():
+    clock = iter([1000.0, 5000.0])
+    tick = quota.TickMeter(clock=lambda: next(clock))
+    tick.latch.set()
+
+    assert tick.latch_until == 1060.0
+    assert tick.latch_until == 1060.0
+
+
+def test_a_metered_retry_records_the_wait_a_rate_limit_response_asks_for():
+    tick = quota.TickMeter(clock=lambda: 1000.0)
+    meter = tick.meter(_REPO)
+
+    class _Response:
+        status = 403
+        headers: ClassVar[dict[str, str]] = {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1300"}
+
+    with pytest.raises(MaxRetryError):
+        meter.retry(Retry(total=2)).increment("GET", "/x", response=_Response())  # type: ignore[arg-type]
+
+    assert tick.latch_until == 1300.0
+    assert meter.stopped == quota.RATE_LIMIT
+
+
+def test_the_gauge_reads_again_after_its_refresh_interval_of_requests():
+    tick = quota.TickMeter()
+    meter = tick.meter(_REPO)
+    readings = iter([(4000, 5000), (2000, 5000)])
+    gauge = quota.QuotaGauge(tick, lambda: next(readings), refresh_every=3)
+    gauge.refresh()
+
+    meter.count()
+    meter.count()
+    assert gauge.remaining() == 3998
+    meter.count()
+    assert gauge.remaining() == 2000
+    assert quota.QuotaGauge(tick, None)._refresh_every == QUOTA_REFRESH_REQUESTS == 25
+
+
+def test_a_failed_read_is_tried_again_only_after_another_interval():
+    tick = quota.TickMeter()
+    meter = tick.meter(_REPO)
+    reads: list[int] = []
+
+    def read() -> tuple[int, int]:
+        reads.append(tick.total)
+        if len(reads) > 1:
+            raise ConnectionError("down")
+        return 4000, 5000
+
+    gauge = quota.QuotaGauge(tick, read, refresh_every=2)
+    gauge.refresh()
+    for _ in range(5):
+        meter.count()
+        gauge.remaining()
+
+    assert reads == [0, 2, 4]
+    assert gauge.remaining() == 3995
+
+
+def test_a_gauge_reading_in_one_thread_is_not_read_again_by_another():
+    tick = quota.TickMeter()
+    reading = threading.Event()
+    release = threading.Event()
+    reads: list[int] = []
+
+    def read() -> tuple[int, int]:
+        reads.append(1)
+        reading.set()
+        release.wait(5)
+        return 4000, 5000
+
+    gauge = quota.QuotaGauge(tick, read)
+    first = threading.Thread(target=gauge.refresh)
+    first.start()
+    reading.wait(5)
+    gauge.refresh()
+    release.set()
+    first.join()
+
+    assert reads == [1]
+    assert gauge.remaining() == 4000
+
+
+class _Pool:
+    """One installation's quota, spent by every invocation's requests."""
+
+    def __init__(self, remaining: int) -> None:
+        self.remaining = remaining
+        self.lock = threading.Lock()
+
+    def spend(self, meter: quota.RequestMeter) -> None:
+        meter.count()
+        with self.lock:
+            self.remaining -= 1
+
+    def read(self) -> tuple[int, int]:
+        with self.lock:
+            return self.remaining, 5000
+
+
+def test_concurrent_gauges_on_one_quota_pool_see_what_the_others_spent():
+    pool = _Pool(4000)
+    ticks = [quota.TickMeter() for _ in range(3)]
+    gauges = [quota.QuotaGauge(tick, pool.read) for tick in ticks]
+    for gauge in gauges:
+        gauge.refresh()
+    meters = [tick.meter(f"pytorch/repo{index}") for index, tick in enumerate(ticks)]
+    stops = [
+        quota.phase_b_stop(meter, gauge=gauge, floor=3000, deadline=None, request_budget=None)
+        for meter, gauge in zip(meters, gauges, strict=True)
+    ]
+
+    for _ in range(950):
+        pool.spend(meters[0])
+        pool.spend(meters[1])
+    assert stops[2]() is None
+    assert gauges[2].remaining() == 4000
+
+    stopped_at = None
+    for spent in range(1, QUOTA_REFRESH_REQUESTS + 1):
+        pool.spend(meters[2])
+        if (reason := stops[2]()) is not None:
+            stopped_at = spent
+            break
+
+    assert stopped_at == QUOTA_REFRESH_REQUESTS
+    assert reason == "the installation has 2075 requests left, below the floor of 3000"
+    assert gauges[0].remaining() == pool.remaining
+
+
+def test_concurrent_gauges_in_threads_never_read_the_pool_below_what_it_holds():
+    pool = _Pool(5000)
+    ticks = [quota.TickMeter() for _ in range(4)]
+    gauges = [quota.QuotaGauge(tick, pool.read) for tick in ticks]
+    for gauge in gauges:
+        gauge.refresh()
+    estimates: list[list[int]] = [[] for _ in ticks]
+
+    def spend(index: int) -> None:
+        meter = ticks[index].meter(f"pytorch/repo{index}")
+        for _ in range(200):
+            pool.spend(meter)
+            remaining = gauges[index].remaining()
+            assert remaining is not None
+            estimates[index].append(remaining)
+
+    workers = [threading.Thread(target=spend, args=(index,)) for index in range(4)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join()
+
+    assert pool.remaining == 4200
+    assert all(gauge.remaining() >= pool.remaining for gauge in gauges)  # type: ignore[operator]
+    assert all(len(found) == 200 for found in estimates)

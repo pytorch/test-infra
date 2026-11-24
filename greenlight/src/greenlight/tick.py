@@ -1,390 +1,244 @@
-"""One scan tick over every repo the repos config serves: each repo's safety work, then its optional work.
+"""One repo's run inside a scan invocation: its safety work (Phase A), then its optional work (Phase B).
 
-``run_tick`` (``review --all-repos``) gets the dispatch token, reads the repos config with it, then
-runs two phases over the served and safety-only entries (``repo_scan.scanned_entries``: the primary
-first), each entry's work given by ``repo_scan.repo_work``:
+The planner (``fanout``) runs pytorch/pytorch's; a worker (``worker``) runs any other repo's. An
+``Invocation`` holds what every run of one Lambda invocation shares: its ``quota.TickMeter`` (the request
+counts and the rate-limit latch), its ``QuotaGauge``, its errors (``tick_outcomes.Outcomes``), its start
+and its ``ExitStack``. A ``RepoRun`` routes its repo by ``repo_scan.repo_work``:
 
-- **Phase A**, safety work, never stopped by a budget or a floor: a ``pytorchbot`` repo runs
-  ``review.prepare`` (the revert guard and the ineligible revoke), an ``off`` repo its drain slice, a
-  ``gate`` repo nothing yet. A safety-only entry stops here.
-- **Phase B**, optional work: the primary finishes its prepared scan under ``QUOTA_FLOOR_PRIMARY``;
-  then each other served ``active`` or ``shadow`` repo, in order, prepares and finishes its scan
-  within ``OTHER_REPO_TIME_BUDGET`` and ``OTHER_REPO_REQUEST_BUDGET``, under ``QUOTA_FLOOR_OTHERS``, and
-  never past ``TICK_DEADLINE`` from the tick's start. A repo whose turn starts past that, or once a
-  positive ``--max`` is used up, gets none.
-
-A dispatch token that cannot be had is the tick's error: the config is not read, so the tick serves
-only the built-in ``pytorch/pytorch`` entry and runs only its safety work, on its repo token; no other
-repo gets any work, so no drain runs, and Phase B is skipped, since nothing can be dispatched.
+- **Phase A**, safety work, never stopped by a budget or a floor: an ``off`` repo runs its drain slice, a
+  ``pytorchbot`` repo ``review.prepare`` (the revert guard and the ineligible revoke), a ``gate`` repo
+  nothing yet. A safety-only repo stops here.
+- **Phase B**, optional work: ``review.prepare`` (unless Phase A prepared it) and ``review_finish.finish``,
+  stopped ``WORKER_DEADLINE`` after the invocation started, below the quota floor (``QUOTA_FLOOR_PRIMARY``
+  for the primary, ``QUOTA_FLOOR_OTHERS`` for the others) and, for a repo other than the primary, once its
+  Phase B spent ``OTHER_REPO_REQUEST_BUDGET`` requests.
 
 Every GitHub client of a repo shares its ``quota.RequestMeter``; its Phase B ``stop`` raises
-``RepoBudgetExceeded`` before the next request, which ends that repo's optional work: a cut. The PRs
-that work failed on before a cut or a rate limit are the repo's error. The dispatch cap (``--max``)
-is shared (``tick_outcomes.DispatchShare``). A rate limit sets the tick's latch, which every meter then
-refuses, and the tick skips every repo and phase left; any other failure is that repo's error and
-the tick goes on (``tick_outcomes.Outcomes``). A repo whose token or live checks fail
-(``RepoUnavailable``) gets no work. The tick logs each repo's request counts and the installation's
-quota, then raises one error naming every repo's error, every config problem and the rate limit.
+``RepoBudgetExceeded`` before the next request, which ends that repo's optional work: a cut. A rate limit
+sets the invocation's latch, which every meter then refuses. ``RepoRun.close`` raises, as the repo's
+error, the safety work's failures of a prepared scan Phase B did not finish, and logs the repo's request
+counts per phase with the installation's quota.
 """
 
 from __future__ import annotations
 
-import contextlib
 import dataclasses
 import functools
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from greenlight import drain, github_client, repo_scan, review, review_finish
 from greenlight.constants import (
-    DISPATCH_REPO,
     OTHER_REPO_REQUEST_BUDGET,
-    OTHER_REPO_TIME_BUDGET,
     QUOTA_FLOOR_OTHERS,
     QUOTA_FLOOR_PRIMARY,
-    TICK_DEADLINE,
+    WORKER_DEADLINE,
 )
-from greenlight.guards import IterationTimeout
 from greenlight.quota import QuotaGauge, TickMeter, core_quota, phase_b_stop
-from greenlight.repo_config import BUILTIN_CONFIG, is_primary
-from greenlight.repo_scan import RepoUnavailable
-from greenlight.scan_memory import ScanMemory
-from greenlight.tick_outcomes import RATE_LIMITED, DispatchShare, Outcomes
+from greenlight.repo_config import is_primary
+from greenlight.tick_outcomes import Outcomes
 
 if TYPE_CHECKING:
+    import contextlib
     from collections.abc import Callable
     from datetime import datetime
 
     from github import Github
 
     from greenlight.config import Config
-    from greenlight.quota import RequestMeter
-    from greenlight.repo_config import RepoConfig, RepoEntry
-    from greenlight.repo_scan import EligibilityCaches
+    from greenlight.repo_config import RepoEntry
     from greenlight.review_finish import PreparedScan
-    from greenlight.snapshot_cache import SnapshotCache
+    from greenlight.scan_memory import ScanMemory
+    from greenlight.state_store import StateStore
 
 logger = logging.getLogger(__name__)
 
 
-class TokenSource(Protocol):
-    def dispatch_token(self) -> str:
-        """The token for the repos config, the dispatch and the review runs, all on ``DISPATCH_REPO``."""
+@dataclass(frozen=True)
+class Seams:
+    """The I/O a scan invocation runs through; tests replace them."""
 
-    def repo_token(self, entry: RepoEntry) -> str:
-        """``entry``'s token once its live checks pass; ``RepoUnavailable`` otherwise."""
-
-
-class EnvTokens:
-    """Tokens from the environment: the scan token for every repo, the dispatch token or else the scan token."""
-
-    def __init__(self, config: Config, build_github: Callable[[str], Github] = github_client.build_client) -> None:
-        self._config = config
-        self._build_github = build_github
-
-    def _scan_token(self) -> str:
-        if not self._config.github_token:
-            raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
-        return self._config.github_token
-
-    def dispatch_token(self) -> str:
-        self._scan_token()
-        return self._config.dispatch_or_scan_token
-
-    def repo_token(self, entry: RepoEntry) -> str:
-        token = self._scan_token()
-        client = self._build_github(token)
-        try:
-            repo_scan.check_identity(entry, client)
-        finally:
-            github_client.close_client(client)
-        return token
+    build_github: Callable[..., Github] = github_client.build_client
+    run_prepare: Callable[..., PreparedScan | None] = review.prepare
+    run_finish: Callable[..., int] = review_finish.finish
+    run_drain: Callable[..., drain.DrainReport] = drain.drain
+    read_quota: Callable[[Github], tuple[int, int]] = core_quota
+    monotonic: Callable[[], float] = time.monotonic
+    clock: Callable[[], float] = time.time
+    now: Callable[[], datetime] = review._utcnow
 
 
-def _quota_text(reading: tuple[int | None, int | None]) -> str:
-    remaining, limit = reading
+def _quota_text(remaining: int | None, limit: int | None) -> str:
     return "unknown" if remaining is None or limit is None else f"{remaining} of {limit}"
 
 
 @dataclass
-class _Tick:
-    """One tick's shared state and its per-repo steps."""
+class Invocation:
+    """What every repo run of one scan invocation shares."""
 
+    stack: contextlib.ExitStack
+    seams: Seams = field(default_factory=Seams)
+    meter: TickMeter = field(init=False)
+    outcomes: Outcomes = field(init=False)
+    gauge: QuotaGauge = field(init=False)
+    started: float = field(init=False)
+    start_quota: str = "unknown"
+
+    def __post_init__(self) -> None:
+        self.started = self.seams.monotonic()
+        self.meter = TickMeter(self.seams.clock)
+        self.outcomes = Outcomes(self.meter)
+        self.gauge = QuotaGauge(self.meter, None)
+
+    def metered(self, repo: str) -> Callable[..., Github]:
+        """The client builder of ``repo``'s work: every client it builds counts on ``repo``'s meter."""
+        return functools.partial(self.seams.build_github, meter=self.meter.meter(repo))
+
+    def watch_quota(self, token: str) -> None:
+        """Read the installation's quota with ``token`` from now on, starting now."""
+        client = self.seams.build_github(token)
+        self.stack.callback(github_client.close_client, client)
+        self.gauge = QuotaGauge(self.meter, functools.partial(self.seams.read_quota, client))
+        self.gauge.refresh()
+        self.start_quota = self.quota()
+
+    def quota(self) -> str:
+        return _quota_text(self.gauge.remaining(), self.gauge.limit)
+
+
+@dataclass
+class RepoRun:
+    """One repo's run: ``config`` carries its repo token and the dispatch token (None when it could not be had)."""
+
+    invocation: Invocation
     config: Config
-    tokens: TokenSource
-    dispatch_token: str | None
-    eligibility_caches: EligibilityCaches
-    memories: dict[str, ScanMemory]
+    entry: RepoEntry
+    served: bool
+    memory: ScanMemory
+    store: StateStore
     bot_login: str
+    max_dispatches: int | None
     ref: str
     timeout_minutes: int
-    build_github: Callable[..., Github]
-    run_prepare: Callable[..., PreparedScan | None]
-    run_finish: Callable[..., int]
-    run_drain: Callable[..., drain.DrainReport]
-    monotonic: Callable[[], float]
-    now: Callable[[], datetime]
-    stack: contextlib.ExitStack
-    meter: TickMeter
-    gauge: QuotaGauge
-    started: float
-    outcomes: Outcomes
-    repo_tokens: dict[str, str] = field(default_factory=dict)
-    prepared: dict[str, PreparedScan] = field(default_factory=dict)
-    finished: set[str] = field(default_factory=set)
+    prepared: PreparedScan | None = None
+    finished: bool = False
 
-    def metered(self, meter: RequestMeter) -> Callable[..., Github]:
-        return functools.partial(self.build_github, meter=meter)
+    @property
+    def repo(self) -> str:
+        return self.entry.repo
 
-    def take_token(self, entry: RepoEntry) -> None:
-        try:
-            self.repo_tokens[entry.repo] = self.tokens.repo_token(entry)
-        except RepoUnavailable as exc:
-            self.outcomes.error(entry.repo, f"no work this tick: {exc}")
+    @property
+    def work(self) -> repo_scan.RepoWork:
+        return repo_scan.repo_work(self.entry, served=self.served)
 
-    def repo_config(self, repo: str) -> Config:
-        """The tick's config with ``repo``'s token as the scan token."""
-        return dataclasses.replace(self.config, github_token=self.repo_tokens[repo], dispatch_token=self.dispatch_token)
-
-    def prepare(self, entry: RepoEntry, memory: ScanMemory, max_dispatches: int | None) -> PreparedScan | None:
-        repo = entry.repo
-        config = self.repo_config(repo)
-        meter = self.meter.meter(repo)
-        prepared = self.run_prepare(
-            config,
-            entry=entry,
-            stack=self.stack,
+    def _prepare(self, max_dispatches: int | None) -> PreparedScan | None:
+        token = self.config.github_token
+        if token is None:
+            raise ValueError(f"{self.repo}: a run needs its repo token")
+        meter = self.invocation.meter.meter(self.repo)
+        self.prepared = self.invocation.seams.run_prepare(
+            self.config,
+            entry=self.entry,
+            stack=self.invocation.stack,
             max_dispatches=max_dispatches,
             ref=self.ref,
             timeout_minutes=self.timeout_minutes,
             bot_login=self.bot_login,
-            build_github=self.metered(meter),
-            resolve_merge_rules=repo_scan.eligibility_thunk(
-                config, entry, self.eligibility_caches, self.repo_tokens[repo], meter=meter
-            ),
-            memory=memory,
-            cancel_event=self.meter.latch,
-            dispatch_token=self.dispatch_token,
+            build_github=self.invocation.metered(self.repo),
+            resolve_merge_rules=repo_scan.eligibility_thunk(self.config, self.entry, self.store, token, meter=meter),
+            memory=self.memory,
+            cancel_event=self.invocation.meter.latch,
+            dispatch_token=self.config.dispatch_token,
         )
-        if prepared is not None:
-            self.prepared[repo] = prepared
-        return prepared
+        return self.prepared
 
-    def drain(self, entry: RepoEntry, memory: ScanMemory) -> None:
-        report = self.run_drain(
-            self.repo_config(entry.repo),
-            repo=entry.repo,
-            memory=memory,
+    def _drain(self) -> None:
+        report = self.invocation.seams.run_drain(
+            self.config,
+            repo=self.repo,
+            memory=self.memory,
             bot_login=self.bot_login,
-            build_github=self.metered(self.meter.meter(entry.repo)),
-            cancel_event=self.meter.latch,
-            dispatch_token=self.dispatch_token,
+            build_github=self.invocation.metered(self.repo),
+            cancel_event=self.invocation.meter.latch,
+            dispatch_token=self.config.dispatch_token,
         )
         if (problem := repo_scan.drain_error(report)) is not None:
-            self.outcomes.error(entry.repo, problem)
+            self.invocation.outcomes.error(self.repo, problem)
 
-    def phase_a(self, entry: RepoEntry, served: bool) -> None:
-        repo = entry.repo
-        work = repo_scan.repo_work(entry, served=served)
-        memory = self.memories.setdefault(repo, ScanMemory())
+    def phase_a(self) -> None:
+        work, outcomes = self.work, self.invocation.outcomes
         if work.kind != "drain":
-            memory.clear_drain()
-        if work.kind == "none" or self.outcomes.skipped(repo, "Phase A"):
-            return
-        self.outcomes.attempt(repo, "its token", lambda: self.take_token(entry))
-        if repo not in self.repo_tokens:
+            self.memory.clear_drain()
+        if work.kind == "none" or outcomes.skipped(self.repo, "Phase A"):
             return
         if work.kind == "drain":
-            self.gauge.refresh()
-            self.outcomes.attempt(repo, "Phase A (drain)", lambda: self.drain(entry, memory))
-        elif entry.safety == "pytorchbot":
-            self.gauge.refresh()
-            self.outcomes.attempt(repo, "Phase A (safety work)", lambda: self.prepare(entry, memory, 0))
+            self.invocation.gauge.refresh()
+            outcomes.attempt(self.repo, "Phase A (drain)", self._drain)
+        elif self.entry.safety == "pytorchbot":
+            self.invocation.gauge.refresh()
+            outcomes.attempt(self.repo, "Phase A (safety work)", lambda: self._prepare(0))
 
-    def phase_b(self, entry: RepoEntry, share: int | None, *, used_up: bool = False) -> int:
-        """``entry``'s optional work under at most ``share`` dispatches; how many it dispatched.
-
-        A repo other than the primary gets no turn once the tick's positive ``--max`` is ``used_up``.
-        """
-        repo = entry.repo
-        if self.outcomes.skipped(repo, "Phase B"):
-            return 0
-        memory = self.memories[repo]
-        full_tick_due = memory.full_tick_due(self.now())
-        meter = self.meter.meter(repo)
-        if is_primary(repo):
-            floor, deadline, budget = QUOTA_FLOOR_PRIMARY, None, None
-        else:
-            if used_up:
-                self.outcomes.shortfall(repo, "no Phase B turn: --max was used up", full_tick_due=full_tick_due)
-                return 0
-            turn_start = self.monotonic()
-            tick_deadline = self.started + TICK_DEADLINE.total_seconds()
-            if turn_start >= tick_deadline:
-                self.outcomes.shortfall(
-                    repo, "no Phase B turn: the tick's deadline had passed", full_tick_due=full_tick_due
-                )
-                return 0
-            deadline = min(turn_start + OTHER_REPO_TIME_BUDGET.total_seconds(), tick_deadline)
-            floor, budget = QUOTA_FLOOR_OTHERS, OTHER_REPO_REQUEST_BUDGET
-        self.gauge.refresh()
+    def phase_b(self) -> None:
+        """The repo's optional work, when it has any."""
+        invocation, outcomes = self.invocation, self.invocation.outcomes
+        if not self.work.optional or outcomes.skipped(self.repo, "Phase B"):
+            return
+        if self.config.dispatch_token is None:
+            logger.warning("%s: no Phase B: without the dispatch token no review can be dispatched", self.repo)
+            return
+        full_tick_due = self.memory.full_tick_due(invocation.seams.now())
+        meter = invocation.meter.meter(self.repo)
+        floor, budget = (
+            (QUOTA_FLOOR_PRIMARY, None) if is_primary(self.repo) else (QUOTA_FLOOR_OTHERS, OTHER_REPO_REQUEST_BUDGET)
+        )
+        invocation.gauge.refresh()
         meter.phase = "B"
         meter.stop = phase_b_stop(
-            meter, gauge=self.gauge, floor=floor, deadline=deadline, request_budget=budget, monotonic=self.monotonic
+            meter,
+            gauge=invocation.gauge,
+            floor=floor,
+            deadline=invocation.started + WORKER_DEADLINE.total_seconds(),
+            request_budget=budget,
+            monotonic=invocation.seams.monotonic,
         )
 
         def work() -> None:
-            prepared = self.prepared.get(repo) or self.prepare(entry, memory, share)
+            prepared = self.prepared or self._prepare(self.max_dispatches)
             if prepared is None:
                 return
-            prepared.max_dispatches = share
-            self.run_finish(prepared, optional=True)
+            prepared.max_dispatches = self.max_dispatches
+            invocation.seams.run_finish(prepared, optional=True)
 
-        outcome = self.outcomes.attempt(repo, "Phase B", work, full_tick_due=full_tick_due)
-        prepared = self.prepared.get(repo)
+        outcome = outcomes.attempt(self.repo, "Phase B", work, full_tick_due=full_tick_due)
         if outcome in ("done", "failed"):
-            self.finished.add(repo)
-        elif prepared is not None:
-            self.outcomes.failed_before(repo, outcome, prepared.optional_failed)
-        return 0 if prepared is None else prepared.dispatched
+            self.finished = True
+        elif self.prepared is not None:
+            outcomes.failed_before(self.repo, outcome, self.prepared.optional_failed)
 
-    def report_safety_failures(self) -> None:
-        """Raise, as each repo's error, the safety work's failures of every prepared scan Phase B did not finish."""
-        for repo, prepared in self.prepared.items():
-            if repo not in self.finished:
-                self.outcomes.attempt(
-                    repo, "Phase A (safety work)", functools.partial(self.run_finish, prepared, optional=False)
-                )
-
-    def optional_work(self, entries: tuple[tuple[RepoEntry, bool], ...], max_dispatches: int | None) -> None:
-        optional = [entry for entry, served in entries if repo_scan.repo_work(entry, served=served).optional]
-        primary = [entry for entry in optional if is_primary(entry.repo) and entry.repo in self.prepared]
-        others = [entry for entry in optional if not is_primary(entry.repo) and entry.repo in self.repo_tokens]
-        share = DispatchShare(max_dispatches, others=bool(others))
-        for entry in primary:
-            share.spend(self.phase_b(entry, share.primary()))
-        for entry in others:
-            share.spend(self.phase_b(entry, share.left(), used_up=share.used_up()))
-
-    def run(self, entries: tuple[tuple[RepoEntry, bool], ...], max_dispatches: int | None) -> None:
-        for entry, served in entries:
-            self.phase_a(entry, served)
-        if self.dispatch_token is None:
-            logger.warning("no Phase B this tick: without the dispatch token no review can be dispatched")
-        else:
-            self.optional_work(entries, max_dispatches)
-        self.report_safety_failures()
-
-
-def _dispatch_token(tokens: TokenSource, outcomes: Outcomes) -> str | None:
-    """The tick's dispatch token, or None, recorded as the tick's error, when it cannot be had."""
-    minted: list[str] = []
-    outcomes.attempt(DISPATCH_REPO, "the dispatch token", lambda: minted.append(tokens.dispatch_token()))
-    return minted[0] if minted else None
-
-
-def _read_repo_config(
-    cache: SnapshotCache[Github, RepoConfig],
-    dispatch_token: str | None,
-    build_github: Callable[..., Github],
-    outcomes: Outcomes,
-) -> RepoConfig:
-    """The repos config read with ``dispatch_token``, its problems in ``outcomes.errors``.
-
-    Nothing is read without a dispatch token or once the latch is set, and a rate limit sets the latch:
-    each serves the built-in.
-    """
-    if dispatch_token is None or outcomes.tick.latch.is_set():
-        why = "there is no dispatch token" if dispatch_token is None else RATE_LIMITED
-        logger.warning("repos config not read: %s; serving only the built-in entry", why)
-        return BUILTIN_CONFIG
-    errors = outcomes.errors
-    try:
-        repo_config = repo_scan.read_config(cache, lambda: build_github(dispatch_token), errors)
-    except IterationTimeout:
-        raise
-    except Exception as exc:
-        if not github_client.is_rate_limit_error(exc):
-            raise
-        outcomes.tick.latch.set()
-        logger.warning("repos config not read: %s", RATE_LIMITED)
-        errors.append(f"repos config not read: {RATE_LIMITED}")
-        return BUILTIN_CONFIG
-    errors.extend(problem for problem in repo_config.problems if problem not in errors)
-    return repo_config
-
-
-def run_tick(
-    config: Config,
-    *,
-    tokens: TokenSource,
-    config_cache: SnapshotCache[Github, RepoConfig],
-    eligibility_caches: EligibilityCaches,
-    memories: dict[str, ScanMemory],
-    bot_login: str,
-    max_dispatches: int | None,
-    ref: str,
-    timeout_minutes: int,
-    build_github: Callable[..., Github] = github_client.build_client,
-    run_prepare: Callable[..., PreparedScan | None] = review.prepare,
-    run_finish: Callable[..., int] = review_finish.finish,
-    run_drain: Callable[..., drain.DrainReport] = drain.drain,
-    read_quota: Callable[[Github], tuple[int, int]] = core_quota,
-    monotonic: Callable[[], float] = time.monotonic,
-    now: Callable[[], datetime] = review._utcnow,
-) -> None:
-    """Run one tick over every served and safety-only repo; raise one error naming every problem found."""
-    started = monotonic()
-    meter = TickMeter()
-    outcomes = Outcomes(meter)
-    dispatch_token = _dispatch_token(tokens, outcomes)
-    with contextlib.ExitStack() as stack:
-        read: Callable[[], tuple[int, int]] | None = None
-        if dispatch_token is not None:
-            quota_client = build_github(dispatch_token)
-            stack.callback(github_client.close_client, quota_client)
-            read = functools.partial(read_quota, quota_client)
-        gauge = QuotaGauge(meter, read)
-        gauge.refresh()
-        start_quota = (gauge.remaining(), gauge.limit)
-        repo_config = _read_repo_config(config_cache, dispatch_token, build_github, outcomes)
-        entries = repo_scan.scanned_entries(repo_config)
-        _Tick(
-            config=config,
-            tokens=tokens,
-            dispatch_token=dispatch_token,
-            eligibility_caches=eligibility_caches,
-            memories=memories,
-            bot_login=bot_login,
-            ref=ref,
-            timeout_minutes=timeout_minutes,
-            build_github=build_github,
-            run_prepare=run_prepare,
-            run_finish=run_finish,
-            run_drain=run_drain,
-            monotonic=monotonic,
-            now=now,
-            stack=stack,
-            meter=meter,
-            gauge=gauge,
-            started=started,
-            outcomes=outcomes,
-        ).run(entries, max_dispatches)
-        gauge.refresh()
-        end_quota = (gauge.remaining(), gauge.limit)
-    for entry, _served in entries:
-        repo_meter = meter.meter(entry.repo)
+    def close(self) -> None:
+        """Raise the unfinished safety work's failures as the repo's error, and log the repo's requests."""
+        invocation = self.invocation
+        if self.prepared is not None and not self.finished:
+            invocation.outcomes.attempt(
+                self.repo,
+                "Phase A (safety work)",
+                functools.partial(invocation.seams.run_finish, self.prepared, optional=False),
+            )
+        invocation.gauge.refresh()
+        meter = invocation.meter.meter(self.repo)
         logger.info(
             "%s: %d GitHub request(s) in Phase A, %d in Phase B; the installation had %s requests left at the "
-            "tick's start, %s at its end",
-            entry.repo,
-            repo_meter.requests("A"),
-            repo_meter.requests("B"),
-            _quota_text(start_quota),
-            _quota_text(end_quota),
+            "invocation's start, %s at the run's end",
+            self.repo,
+            meter.requests("A"),
+            meter.requests("B"),
+            invocation.start_quota,
+            invocation.quota(),
         )
-    outcomes.name_the_rate_limit()
-    if outcomes.errors:
-        raise RuntimeError("; ".join(outcomes.errors))
+
+
+def run_config(config: Config, repo_token: str, dispatch_token: str | None) -> Config:
+    """``config`` with ``repo_token`` as the scan token and ``dispatch_token`` as the dispatch token."""
+    return dataclasses.replace(config, github_token=repo_token, dispatch_token=dispatch_token)

@@ -451,3 +451,51 @@ def test_resolve_merge_rules_reads_the_named_repo_and_names_it_in_errors():
         merge_authz.resolve_merge_rules(_client("a: 1\n"), "pytorch/vision")
     with pytest.raises(ValueError, match=r"pytorch/vision/\.github/merge_rules\.yaml: merge rule must be a mapping"):
         merge_authz.resolve_merge_rules(_client("- 1\n"), "pytorch/vision")
+
+
+def _codec_snapshot() -> merge_authz.MergeRulesSnapshot:
+    return merge_authz.MergeRulesSnapshot(
+        authorized=frozenset({"alice", "bob"}),
+        rules=(
+            merge_authz.compile_rule("docs", ("docs/**", "-docs/private/*"), frozenset({"Alice"})),
+            merge_authz.compile_rule("broken", ("src/{a,b}",), frozenset({"Bob"})),
+            merge_authz.MergeRule("unshaped", (), frozenset({"Bob"}), covers_all=False),
+            merge_authz.compile_rule("superusers", ("*",), frozenset({"Bob"})),
+        ),
+    )
+
+
+def test_the_snapshot_codec_round_trips_rules_in_order_with_their_validity():
+    snapshot = _codec_snapshot()
+
+    restored = merge_authz.decode_snapshot(merge_authz.encode_snapshot(snapshot))
+
+    assert restored.authorized == snapshot.authorized
+    assert [rule.name for rule in restored.rules] == ["docs", "broken", "unshaped", "superusers"]
+    assert [rule.valid for rule in restored.rules] == [True, False, False, True]
+    assert [rule.approvers for rule in restored.rules] == [rule.approvers for rule in snapshot.rules]
+    assert [rule.patterns for rule in restored.rules] == [rule.patterns for rule in snapshot.rules]
+    assert [rule.covers_all for rule in restored.rules] == [False, False, False, True]
+    docs = restored.rules[0]
+    assert docs.covers(["docs/a.md"])
+    assert not docs.covers(["docs/private/x"])
+
+
+def test_an_invalid_rule_stays_invalid_and_never_comes_back_covering_every_file():
+    restored = merge_authz.decode_snapshot(merge_authz.encode_snapshot(_codec_snapshot()))
+
+    for rule in restored.rules[1:3]:
+        assert not rule.valid
+        assert not rule.covers(["anything.py"])
+        assert not rule.covers([])
+
+
+def test_a_snapshot_of_another_version_is_refused():
+    import json
+    import zlib
+
+    blob = zlib.compress(json.dumps({"version": 2, "authorized": [], "rules": []}).encode())
+
+    with pytest.raises(ValueError, match="is not version 1"):
+        merge_authz.decode_snapshot(blob)
+    assert merge_authz.SNAPSHOT_VERSION == 1

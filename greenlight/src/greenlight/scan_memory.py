@@ -1,23 +1,29 @@
-"""What the scan carries for one repo from one tick to the next within a process.
+"""What the scan carries for one repo from one tick to the next, and its stored form.
 
-A fresh process starts cold. It is read and written from the main thread only.
+It is read and written from the main thread only. ``encode_memory`` and ``decode_memory`` are the form
+the state store keeps between invocations (``state_store``): versioned JSON, zlib-compressed, the
+approvers digest of the fingerprint results stored once. A form over ``MEMORY_MAX_BYTES`` is saved without
+its fingerprint results, logged as an error; a blob of another version, or one that does not decode,
+starts the repo cold.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
+import zlib
 from dataclasses import dataclass, field
-from datetime import timedelta
-from typing import TYPE_CHECKING
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any, cast
 
-from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE
+from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE, MEMORY_MAX_BYTES
+from greenlight.repo_config import RepoEntry, Settings
+from greenlight.review_gate import ReviewSkip
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
-    from datetime import datetime
 
-    from greenlight.repo_config import Settings
     from greenlight.scan_runner import FingerprintResult
 
 logger = logging.getLogger(__name__)
@@ -213,3 +219,159 @@ class FingerprintCache:
         if updated_at is None or head_sha is None:
             return None
         return _Key(updated_at, head_sha, self._digest)
+
+
+MEMORY_VERSION = 1
+
+
+def _time(value: datetime | None) -> str | None:
+    return None if value is None else value.isoformat()
+
+
+def _parse_time(value: object) -> datetime | None:
+    return None if value is None else datetime.fromisoformat(str(value))
+
+
+def _settings_form(settings: Settings | None) -> dict[str, Any] | None:
+    if settings is None:
+        return None
+    entry = settings.entry
+    return {
+        "repo": settings.repo,
+        "kind": settings.kind,
+        "entry": None if entry is None else {name: getattr(entry, name) for name in entry.__dataclass_fields__},
+        "served": settings.served,
+        "problem": settings.problem,
+    }
+
+
+def _settings(form: Mapping[str, Any] | None) -> Settings | None:
+    if form is None:
+        return None
+    entry = form["entry"]
+    return Settings(
+        str(form["repo"]),
+        form["kind"],
+        None if entry is None else RepoEntry(**entry),
+        served=bool(form["served"]),
+        problem=form["problem"],
+    )
+
+
+def _result_form(result: FingerprintResult) -> dict[str, list[str]]:
+    if isinstance(result, ReviewSkip):
+        return {"skip": [result.reason, result.detail]}
+    return {"hash": [result[0], result[1]]}
+
+
+def _result(form: Mapping[str, list[str]]) -> FingerprintResult:
+    if "skip" in form:
+        reason, detail = form["skip"]
+        return ReviewSkip(str(reason), str(detail))
+    head_sha, eval_hash = form["hash"]
+    return str(head_sha), str(eval_hash)
+
+
+def _drain_form(current: DrainPass | None) -> dict[str, Any] | None:
+    if current is None:
+        return None
+    return {
+        "number": current.number,
+        "blocker": current.blocker,
+        "recorded": sorted(current.recorded),
+        "checked": sorted(current.checked),
+        "attempted": sorted(current.attempted.items()),
+        "attempts": current.attempts,
+        "dismissed": current.dismissed,
+        "failures": current.failures,
+    }
+
+
+def _drain(form: Mapping[str, Any] | None) -> DrainPass | None:
+    if form is None:
+        return None
+    return DrainPass(
+        int(form["number"]),
+        form["blocker"],
+        recorded=frozenset(int(number) for number in form["recorded"]),
+        checked={int(number) for number in form["checked"]},
+        attempted={int(number): int(attempt) for number, attempt in form["attempted"]},
+        attempts=int(form["attempts"]),
+        dismissed=int(form["dismissed"]),
+        failures=int(form["failures"]),
+    )
+
+
+def _form(memory: ScanMemory, *, fingerprints: bool) -> dict[str, Any]:
+    digests: list[str] = []
+    rows: list[list[Any]] = []
+    for number, entry in sorted(memory._fingerprints.items()) if fingerprints else ():
+        key = entry.key
+        if key.approvers_digest not in digests:
+            digests.append(key.approvers_digest)
+        digest = digests.index(key.approvers_digest)
+        rows.append([number, key.updated_at.isoformat(), key.head_sha, digest, _result_form(entry.result)])
+    return {
+        "version": MEMORY_VERSION,
+        "last_full_tick_started": _time(memory._last_full_tick_started),
+        "digests": digests,
+        "fingerprints": rows,
+        "off_since": _time(memory._off_since),
+        "drain_passes": memory._drain_passes,
+        "drain_pass": _drain_form(memory._drain_pass),
+        "drain_completed_by": memory._drain_completed_by,
+        "last_settings": _settings_form(memory.last_settings),
+    }
+
+
+def _compress(form: dict[str, Any]) -> bytes:
+    return zlib.compress(json.dumps(form, separators=(",", ":")).encode())
+
+
+def encode_memory(memory: ScanMemory, repo: str) -> bytes:
+    """``memory``'s stored form; without its fingerprint results when it would pass ``MEMORY_MAX_BYTES``."""
+    blob = _compress(_form(memory, fingerprints=True))
+    if len(blob) > MEMORY_MAX_BYTES:
+        logger.error(
+            "%s: its scan memory is %d bytes, over %d; saved without its %d fingerprint result(s)",
+            repo,
+            len(blob),
+            MEMORY_MAX_BYTES,
+            len(memory._fingerprints),
+        )
+        blob = _compress(_form(memory, fingerprints=False))
+    return blob
+
+
+def _restore(form: Mapping[str, Any]) -> ScanMemory:
+    memory = ScanMemory()
+    memory._last_full_tick_started = _parse_time(form["last_full_tick_started"])
+    digests = [str(digest) for digest in form["digests"]]
+    for number, updated_at, head_sha, digest, result in form["fingerprints"]:
+        key = _Key(cast("datetime", _parse_time(updated_at)), str(head_sha), digests[int(digest)])
+        memory._fingerprints[int(number)] = _Entry(key, _result(result))
+    memory._off_since = _parse_time(form["off_since"])
+    memory._drain_passes = int(form["drain_passes"])
+    memory._drain_pass = _drain(form["drain_pass"])
+    completed_by = form["drain_completed_by"]
+    memory._drain_completed_by = None if completed_by is None else int(completed_by)
+    memory.last_settings = _settings(form["last_settings"])
+    return memory
+
+
+def decode_memory(blob: bytes | None, repo: str) -> ScanMemory:
+    """The memory ``encode_memory`` stored as ``blob``; a cold one for None, another version or a bad blob."""
+    if blob is None:
+        return ScanMemory()
+    try:
+        form = json.loads(zlib.decompress(blob))
+        version = form.get("version") if isinstance(form, dict) else None
+        if version != MEMORY_VERSION:
+            logger.warning(
+                "%s: stored scan memory has version %r, not %d; starting cold", repo, version, MEMORY_VERSION
+            )
+            return ScanMemory()
+        return _restore(form)
+    except Exception:
+        logger.error("%s: cannot decode its stored scan memory; starting cold", repo, exc_info=True)
+        return ScanMemory()

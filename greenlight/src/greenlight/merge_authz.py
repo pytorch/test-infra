@@ -10,14 +10,19 @@ The same fetch keeps every rule as a ``MergeRule``: its approvers in exact case 
 patterns compiled with trymerge's own semantics, so a rule can be asked whether it covers all of
 a PR's files (``changed_files``) the way trymerge asks at land time.
 
-The scan reads them through a ``snapshot_cache.SnapshotCache`` (``repo_scan``).
+The scan reads them through a ``snapshot_cache.SnapshotCache`` (``repo_scan``), which keeps a snapshot
+in the state store in the form ``encode_snapshot`` gives: a rule's name, patterns, approvers and validity.
+``decode_snapshot`` compiles a valid rule again and keeps an invalid one invalid, so an invalid rule never
+comes back covering every file.
 """
 
 from __future__ import annotations
 
 import itertools
+import json
 import logging
 import re
+import zlib
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
@@ -145,6 +150,35 @@ class MergeRulesSnapshot:
 
     authorized: frozenset[str]
     rules: tuple[MergeRule, ...]
+
+
+SNAPSHOT_VERSION = 1
+
+
+def encode_snapshot(snapshot: MergeRulesSnapshot) -> bytes:
+    """``snapshot``'s stored form: versioned JSON, zlib-compressed."""
+    rules = [
+        {"name": rule.name, "patterns": list(rule.patterns), "approvers": sorted(rule.approvers), "valid": rule.valid}
+        for rule in snapshot.rules
+    ]
+    form = {"version": SNAPSHOT_VERSION, "authorized": sorted(snapshot.authorized), "rules": rules}
+    return zlib.compress(json.dumps(form, separators=(",", ":")).encode())
+
+
+def decode_snapshot(blob: bytes) -> MergeRulesSnapshot:
+    """The snapshot ``encode_snapshot`` stored; raises ``ValueError`` on another version."""
+    form = json.loads(zlib.decompress(blob))
+    if not isinstance(form, dict) or form.get("version") != SNAPSHOT_VERSION:
+        raise ValueError(f"a stored eligibility snapshot is not version {SNAPSHOT_VERSION}")
+    rules: list[MergeRule] = []
+    for rule in form["rules"]:
+        name, patterns = str(rule["name"]), tuple(str(pattern) for pattern in rule["patterns"])
+        approvers = frozenset(str(login) for login in rule["approvers"])
+        if rule["valid"] is True:
+            rules.append(compile_rule(name, patterns, approvers))
+        else:
+            rules.append(MergeRule(name, patterns, approvers, covers_all=False))
+    return MergeRulesSnapshot(authorized=frozenset(str(login) for login in form["authorized"]), rules=tuple(rules))
 
 
 def _rule_from_yaml(rule: Mapping[str, object], approvers: frozenset[str]) -> MergeRule:

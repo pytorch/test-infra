@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import http.server
 import json
-import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
@@ -11,6 +10,7 @@ from github import Auth, Github, GithubException
 
 from greenlight import app_tokens, github_client
 from greenlight.app_tokens import (
+    CONTENTS_TOKEN_PERMISSIONS,
     DISPATCH_TOKEN_PERMISSIONS,
     LISTING_TOKEN_PERMISSIONS,
     REPO_TOKEN_PERMISSIONS,
@@ -18,20 +18,19 @@ from greenlight.app_tokens import (
 )
 from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
-from greenlight.repo_config import BUILTIN_PYTORCH, RepoConfig, RepoEntry
-from greenlight.repo_scan import RepoUnavailable
+from greenlight.repo_scan import RepoIdentity, RepoUnavailable
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _INSTALLATION = 42
 _MINT_URL = f"/app/installations/{_INSTALLATION}/access_tokens"
-_VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow")
-_AUDIO = RepoEntry("pytorch/audio", "greenlight", "gate", "merge_rules", "shadow")
 
 
-def _listed(full_name: str, *, private: bool = False, branch: str = "main") -> dict[str, object]:
-    return {"full_name": full_name, "private": private, "default_branch": branch}
+def _listed(
+    full_name: str, *, private: bool = False, branch: str = "main", archived: bool = False
+) -> dict[str, object]:
+    return {"full_name": full_name, "private": private, "default_branch": branch, "archived": archived}
 
 
 class _Integration:
@@ -50,7 +49,9 @@ class _Integration:
         failure = self.failures.get(key)
         if failure is not None:
             raise failure
-        return {}, {"token": "listing" if key is None else "token-" + ",".join(key)}
+        if key is None:
+            return {}, {"token": "listing"}
+        return {}, {"token": f"{input['permissions'].get('pull_requests', 'contents')}-" + ",".join(key)}
 
 
 class _Installation:
@@ -114,125 +115,51 @@ def test_the_dispatch_token_is_minted_once_for_test_infra_with_the_dispatch_perm
     integration = _Integration()
     tokens = AppTokens(integration, _INSTALLATION)  # type: ignore[arg-type]
 
-    assert tokens.dispatch_token() == "token-test-infra"
-    assert tokens.dispatch_token() == "token-test-infra"
+    assert tokens.dispatch_token() == "contents-test-infra"
+    assert tokens.dispatch_token() == "contents-test-infra"
 
     assert integration.mints == [{"permissions": DISPATCH_TOKEN_PERMISSIONS, "repositories": ["test-infra"]}]
 
 
-def test_a_repo_token_is_minted_for_that_repo_alone_after_one_paginated_listing(installation):
-    server = installation(
-        [_listed(TARGET_REPO), _listed("pytorch/audio"), _listed("pytorch/other"), _listed("pytorch/vision")]
-    )
+def test_a_repo_token_is_minted_for_that_repo_alone_with_the_repo_permissions():
     integration = _Integration()
-    tokens = _tokens(integration, server)
+    tokens = AppTokens(integration, _INSTALLATION)  # type: ignore[arg-type]
 
-    assert tokens.repo_token(_VISION) == "token-vision"
-    assert tokens.repo_token(BUILTIN_PYTORCH) == "token-pytorch"
+    assert tokens.repo_token("pytorch/vision") == "write-vision"
+    assert tokens.repo_token(TARGET_REPO) == "write-pytorch"
 
     assert integration.mints == [
-        {"permissions": LISTING_TOKEN_PERMISSIONS},
         {"permissions": REPO_TOKEN_PERMISSIONS, "repositories": ["vision"]},
         {"permissions": REPO_TOKEN_PERMISSIONS, "repositories": ["pytorch"]},
     ]
-    assert [path for path, _auth in server.requests] == [
-        "/installation/repositories",
-        "/installation/repositories?page=2",
-    ]
-    assert {auth for _path, auth in server.requests} == {"token listing"}
 
 
-@pytest.mark.parametrize(
-    ("listed", "reason"),
-    [
-        pytest.param([_listed(TARGET_REPO)], "the GitHub App is not installed on it", id="not-installed"),
-        pytest.param([_listed("pytorch/vision", private=True)], "it is private", id="private"),
-        pytest.param([_listed("pytorch/Vision")], "GitHub names it 'pytorch/Vision'", id="non-canonical"),
-        pytest.param([_listed("pytorch/vision", branch="master")], "its default branch is 'master'", id="non-main"),
-    ],
-)
-def test_a_repo_the_listing_refuses_gets_no_token(installation, listed, reason):
-    integration = _Integration()
-    tokens = _tokens(integration, installation(listed))
-
-    with pytest.raises(RepoUnavailable, match=reason):
-        tokens.repo_token(_VISION)
-
-    assert integration.mints == [{"permissions": LISTING_TOKEN_PERMISSIONS}]
-
-
-@pytest.mark.parametrize("cause", ["mint", "listing"])
-def test_a_failed_listing_still_mints_the_primary_and_refuses_the_others(installation, caplog, cause):
-    integration = _Integration({None: GithubException(500, {"message": "down"})} if cause == "mint" else None)
-    server = installation([], status=404 if cause == "listing" else 200)
-    tokens = _tokens(integration, server)
-
-    with caplog.at_level(logging.WARNING, logger="greenlight"):
-        with pytest.raises(RepoUnavailable, match="the installation listing failed"):
-            tokens.repo_token(_VISION)
-        assert tokens.repo_token(BUILTIN_PYTORCH) == "token-pytorch"
-        with pytest.raises(RepoUnavailable, match="the installation listing failed"):
-            tokens.repo_token(_AUDIO)
-
-    assert [mint.get("repositories") for mint in integration.mints] == [None, ["pytorch"]]
-    assert "minting its token without the live checks" in caplog.text
-    assert any(record.exc_info for record in caplog.records if "cannot list" in record.getMessage())
-
-
-def test_a_422_mint_failure_refuses_that_repo_only(installation):
-    integration = _Integration(
-        {
-            ("vision",): GithubException(
-                422,
-                {
-                    "message": "There is at least one repository that does not exist or is not accessible to the "
-                    "parent installation."
-                },
-            )
-        }
-    )
-    tokens = _tokens(integration, installation([_listed("pytorch/vision"), _listed("pytorch/audio")]))
+def test_a_422_mint_failure_refuses_that_repo_only(caplog):
+    message = "There is at least one repository that does not exist or is not accessible to the parent installation."
+    integration = _Integration({("vision",): GithubException(422, {"message": message})})
+    tokens = AppTokens(integration, _INSTALLATION)  # type: ignore[arg-type]
 
     with pytest.raises(RepoUnavailable, match="cannot mint its installation token: 422"):
-        tokens.repo_token(_VISION)
-    assert tokens.repo_token(_AUDIO) == "token-audio"
+        tokens.repo_token("pytorch/vision")
+    assert tokens.repo_token("pytorch/audio") == "write-audio"
+    assert any(record.exc_info for record in caplog.records if "cannot mint" in record.getMessage())
 
 
-def test_a_rate_limit_on_the_listing_is_raised_as_it_is_for_every_repo(installation):
-    integration = _Integration()
-    tokens = _tokens(integration, installation([], status=429))
-
-    for entry in (_VISION, BUILTIN_PYTORCH):
-        with pytest.raises(GithubException) as excinfo:
-            tokens.repo_token(entry)
-        assert github_client.is_rate_limit_error(excinfo.value)
-
-    assert [mint.get("repositories") for mint in integration.mints] == [None, None]
-
-
-def test_a_rate_limit_minting_a_repo_token_is_raised_as_it_is(installation):
+def test_a_rate_limit_minting_a_repo_token_is_raised_as_it_is():
     integration = _Integration({("vision",): GithubException(429, {"message": "secondary rate limit"})})
-    tokens = _tokens(integration, installation([_listed("pytorch/vision")]))
 
     with pytest.raises(GithubException) as excinfo:
-        tokens.repo_token(_VISION)
+        AppTokens(integration, _INSTALLATION).repo_token("pytorch/vision")  # type: ignore[arg-type]
 
     assert not isinstance(excinfo.value, RepoUnavailable)
     assert github_client.is_rate_limit_error(excinfo.value)
 
 
-def test_an_iteration_timeout_listing_the_installation_is_never_swallowed():
-    tokens = AppTokens(_Integration({None: IterationTimeout("late")}), _INSTALLATION)  # type: ignore[arg-type]
+def test_an_iteration_timeout_minting_a_repo_token_is_never_swallowed():
+    tokens = AppTokens(_Integration({("vision",): IterationTimeout("late")}), _INSTALLATION)  # type: ignore[arg-type]
 
     with pytest.raises(IterationTimeout):
-        tokens.repo_token(_VISION)
-
-
-def test_an_iteration_timeout_minting_a_repo_token_is_never_swallowed(installation):
-    tokens = _tokens(_Integration({("vision",): IterationTimeout("late")}), installation([_listed("pytorch/vision")]))
-
-    with pytest.raises(IterationTimeout):
-        tokens.repo_token(_VISION)
+        tokens.repo_token("pytorch/vision")
 
 
 def test_a_repo_outside_the_installations_account_gets_no_token():
@@ -240,8 +167,92 @@ def test_a_repo_outside_the_installations_account_gets_no_token():
     tokens = AppTokens(integration, _INSTALLATION, owner="other")  # type: ignore[arg-type]
 
     with pytest.raises(RepoUnavailable, match="not in other"):
-        tokens.repo_token(_VISION)
+        tokens.repo_token("pytorch/vision")
     assert integration.mints == []
+
+
+def test_the_installation_is_listed_once_paginated_with_the_listing_token(installation):
+    server = installation(
+        [
+            _listed(TARGET_REPO),
+            _listed("pytorch/Audio", private=True),
+            _listed("pytorch/old", archived=True),
+            _listed("pytorch/vision", branch="master"),
+        ]
+    )
+    integration = _Integration()
+
+    listing = _tokens(integration, server).installation()
+
+    assert listing == {
+        "pytorch/pytorch": RepoIdentity(TARGET_REPO, False, "main", False),
+        "pytorch/audio": RepoIdentity("pytorch/Audio", True, "main", False),
+        "pytorch/old": RepoIdentity("pytorch/old", False, "main", True),
+        "pytorch/vision": RepoIdentity("pytorch/vision", False, "master", False),
+    }
+    assert integration.mints == [{"permissions": LISTING_TOKEN_PERMISSIONS}]
+    assert [path for path, _auth in server.requests] == [
+        "/installation/repositories",
+        "/installation/repositories?page=2",
+    ]
+    assert {auth for _path, auth in server.requests} == {"token listing"}
+
+
+def test_the_installation_listing_uses_the_builder_it_is_given(installation):
+    server = installation([_listed("pytorch/vision")])
+    built: list[str] = []
+
+    def build(token: str) -> Github:
+        built.append(token)
+        client: Github = server.build(token)
+        return client
+
+    listing = AppTokens(_Integration(), _INSTALLATION).installation(build)  # type: ignore[arg-type]
+
+    assert set(listing) == {"pytorch/vision"}
+    assert built == ["listing"]
+
+
+@pytest.mark.parametrize("status", [404, 429])
+def test_a_failed_listing_is_raised_as_it_is(installation, status):
+    tokens = _tokens(_Integration(), installation([], status=status))
+
+    with pytest.raises(GithubException) as excinfo:
+        tokens.installation()
+
+    assert excinfo.value.status == status
+    assert github_client.is_rate_limit_error(excinfo.value) is (status == 429)
+
+
+def test_contents_tokens_share_one_mint_per_500_repos(monkeypatch):
+    monkeypatch.setattr(app_tokens, "_MAX_TOKEN_REPOSITORIES", 2)
+    integration = _Integration()
+    tokens = AppTokens(integration, _INSTALLATION)  # type: ignore[arg-type]
+
+    minted = tokens.contents_tokens(["pytorch/audio", "pytorch/data", "pytorch/vision"])
+
+    assert minted == {
+        "pytorch/audio": "contents-audio,data",
+        "pytorch/data": "contents-audio,data",
+        "pytorch/vision": "contents-vision",
+    }
+    assert integration.mints == [
+        {"permissions": CONTENTS_TOKEN_PERMISSIONS, "repositories": ["audio", "data"]},
+        {"permissions": CONTENTS_TOKEN_PERMISSIONS, "repositories": ["vision"]},
+    ]
+    assert tokens.contents_tokens([]) == {}
+
+
+def test_a_failed_contents_mint_is_raised_as_it_is():
+    integration = _Integration({("vision",): GithubException(429, {"message": "secondary rate limit"})})
+
+    with pytest.raises(GithubException):
+        AppTokens(integration, _INSTALLATION).contents_tokens(["pytorch/vision"])  # type: ignore[arg-type]
+
+
+def test_the_contents_token_reads_contents_only():
+    assert CONTENTS_TOKEN_PERMISSIONS == {"contents": "read"}
+    assert app_tokens._MAX_TOKEN_REPOSITORIES == 500
 
 
 def test_a_mint_answer_without_a_token_fails():
@@ -250,14 +261,6 @@ def test_a_mint_answer_without_a_token_fails():
 
     with pytest.raises(ValueError, match="installation token response is missing required key 'token'"):
         AppTokens(integration, _INSTALLATION).dispatch_token()  # type: ignore[arg-type]
-
-
-def test_repo_token_names_lists_the_served_then_the_safety_only_repos_primary_first():
-    config = RepoConfig(
-        served=(_VISION, BUILTIN_PYTORCH), safety_only=((_AUDIO, "unknown key(s) ['x']"),), refused=(("x", "y"),)
-    )
-
-    assert app_tokens.repo_token_names(config) == "pytorch,vision,audio"
 
 
 def test_require_key_names_the_missing_key_and_its_source():
