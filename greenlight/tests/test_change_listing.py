@@ -21,9 +21,11 @@ from greenlight.constants import (
 )
 from greenlight.fingerprint_cache import FingerprintCache
 from greenlight.guards import IterationTimeout
+from greenlight.pr_listing import candidate_fields
 from greenlight.pr_view import READ_ALONE_MAX_ATTEMPTS, PRView, cohort_digest
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
+from greenlight.state import PRState
 from tests.change_helpers import NOW, RECENT, FreshnessStub, record
 
 if TYPE_CHECKING:
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
     from github import Github
 
     from greenlight.change_listing import Listing
-    from greenlight.pr_listing import OpenPR
+    from greenlight.pr_listing import Candidates, OpenPR
 
 _NOW = NOW
 _WINDOW = timedelta(hours=24)
@@ -79,9 +81,11 @@ class _Sources:
             raise self.marker_errors.pop(0)
         return {number: self.markers.get(number, self.unknown_marker) for number in numbers}
 
-    def read_freshness(self):
+    def read_freshness(self, repo):
         if self.clickhouse_forbidden:
             pytest.fail("the tick read HUD ClickHouse's freshness")
+        if repo != TARGET_REPO:
+            pytest.fail(f"the tick read the freshness of {repo}")
         self.events.append("freshness")
         if self.hang_freshness is not None:
             self.hang_freshness.wait(_HANG_SECONDS)
@@ -95,8 +99,8 @@ class _Sources:
             raise self.open_error
         return list(self.open)
 
-    def list_recent(self, _client, repo, *, cutoff, state):
-        self.events.append(f"list recent {repo} {state} since {cutoff:%H:%M}")
+    def list_recent(self, _client, repo, *, cutoff):
+        self.events.append(f"list recent {repo} since {cutoff:%H:%M}")
         if self.recent_error is not None:
             raise self.recent_error
         return list(self.recent)
@@ -242,7 +246,7 @@ def test_the_next_tick_reads_the_markers_before_its_listings_and_walks_back_from
     assert sources.events == [
         f"markers {TARGET_REPO} [1]",
         "freshness",
-        f"list recent {TARGET_REPO} all since {previous - LISTING_OVERLAP:%H:%M}",
+        f"list recent {TARGET_REPO} since {previous - LISTING_OVERLAP:%H:%M}",
         f"list reverted {TARGET_REPO} ['alice']",
     ]
     assert listing.kind == "fast"
@@ -509,7 +513,7 @@ def test_a_draft_marked_ready_that_the_walk_missed_is_read_alone_and_is_a_candid
         listing = _list(memory, sources)
 
     assert sources.events[:2] == [f"markers {TARGET_REPO} [1]", "freshness"]
-    assert sources.events[2].startswith(f"list recent {TARGET_REPO} all")
+    assert sources.events[2].startswith(f"list recent {TARGET_REPO} since")
     assert sources.events[3:] == [f"read {TARGET_REPO} #1", f"list reverted {TARGET_REPO} ['alice']"]
     assert listing.candidates.numbers == [1]
     assert listing.candidates.updated_at == {1: _EVENT}
@@ -760,7 +764,24 @@ def test_with_no_usable_view_and_no_sweep_due_the_tick_is_a_github_fast_tick(cap
     assert not memory.view.built
     assert not memory.wide_due(_NOW)
     assert memory.full_tick_interval == FULL_TICK_INTERVAL
-    assert f"{TARGET_REPO}: fast tick from GitHub, no usable view" in caplog.text
+    assert (
+        f"{TARGET_REPO}: event tick from GitHub, no usable view; 1 PR(s) listed, 0 read alone, 1 candidate(s), "
+        "0 PR(s) whose marker changed" in caplog.text
+    )
+
+
+@pytest.mark.parametrize("cause", ["not-stored", "no-digest"])
+def test_with_no_usable_view_the_sweep_is_due_a_full_tick_interval_after_the_last_full_tick(cause):
+    sources = _Sources()
+    sources.open = [record(1)]
+    memory = _unusable(cause)
+    memory.mark_full_tick(_NOW - FULL_TICK_INTERVAL)
+
+    listing = _list(memory, sources)
+
+    assert listing.kind == "full"
+    assert sources.events == ["freshness", f"list open {TARGET_REPO}", f"markers {TARGET_REPO} [1]"]
+    assert memory.view.usable(_COHORT)
 
 
 def test_a_view_that_is_never_stored_is_listed_in_full_only_every_full_tick_interval(monkeypatch):
@@ -887,3 +908,131 @@ def test_a_full_ticks_marker_read_that_hangs_is_a_failed_marker_reading(caplog, 
     assert error.exc_info is not None
     assert isinstance(error.exc_info[1], TimeoutError)
     assert "full tick from GitHub, stale: the marker reading failed" in caplog.text
+
+
+def _row(number: int, status: str = "LAND") -> PRState:
+    return PRState(
+        pr_number=number, status=status, eval_hash="a" * 64, head_sha=f"sha{number}", version=RECENT, run_id=1
+    )
+
+
+def _recheck(listing: Listing, memory: ScanMemory | None, sources: _Sources, states: dict[int, PRState]) -> Candidates:
+    return change_listing.recheck_landed(
+        _CLIENT,
+        repo=TARGET_REPO,
+        listing=listing,
+        states=states,
+        memory=memory,
+        authors=_COHORT,
+        now=_NOW,
+        read_record=sources.read_record,
+    )
+
+
+def _wide(*records: OpenPR) -> tuple[_Sources, ScanMemory, Listing]:
+    sources = _Sources()
+    memory = _warm(*records, full_at=_NOW - FULL_TICK_INTERVAL)
+    listing = _list(memory, sources)
+    assert listing.kind == "wide"
+    sources.events.clear()
+    return sources, memory, listing
+
+
+def test_a_wide_tick_rereads_its_land_prs_and_drops_the_author_of_one_whose_base_is_now_refused(caplog):
+    sources, memory, listing = _wide(record(1), record(2), record(3))
+    retargeted = replace(record(1, updated_at=_EVENT), base_accepted=False, base_ref="release/2.10")
+    sources.single = {1: retargeted, 2: record(2, updated_at=_EVENT, author="Alice")}
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        candidates = _recheck(listing, memory, sources, {1: _row(1), 2: _row(2), 3: _row(3, "NO_LAND")})
+
+    assert _reads(sources) == [1, 2]
+    assert candidates.numbers == [1, 2, 3]
+    assert candidates.authors == {2: "Alice", 3: "alice"}
+    assert candidates.updated_at == {1: _EVENT, 2: _EVENT, 3: RECENT}
+    assert candidates.heads == listing.candidates.heads
+    assert memory.view.records[1] == retargeted
+    assert f"{TARGET_REPO}: wide tick rechecked 2 LAND PR(s) from GitHub" in caplog.text
+
+
+def test_a_land_pr_whose_fresh_record_names_an_author_outside_the_cohort_loses_its_author():
+    sources, memory, listing = _wide(record(1))
+    sources.single = {1: record(1, author="carol")}
+
+    assert _recheck(listing, memory, sources, {1: _row(1)}).authors == {}
+
+
+def test_a_fresh_record_that_lags_the_listing_keeps_the_listed_updated_at():
+    sources, memory, listing = _wide(record(1))
+    sources.single = {1: record(1, updated_at=_IDLE)}
+
+    assert _recheck(listing, memory, sources, {1: _row(1)}).updated_at == {1: RECENT}
+
+
+@pytest.mark.parametrize(
+    ("full_at", "kind"),
+    [pytest.param(_NOW - timedelta(minutes=2), "fast", id="event"), pytest.param(_NOW - _SWEEP, "full", id="full")],
+)
+def test_only_a_wide_tick_rereads_its_land_prs(full_at, kind):
+    sources = _Sources()
+    sources.open = [record(1)]
+    memory = _warm(record(1), full_at=full_at)
+    listing = _list(memory, sources)
+    sources.events.clear()
+
+    assert listing.kind == kind
+    assert _recheck(listing, memory, sources, {1: _row(1)}) is listing.candidates
+    assert _reads(sources) == []
+
+
+def test_a_scan_without_memory_rereads_nothing():
+    sources = _Sources()
+    listing = change_listing.Listing(candidate_fields([record(1)]), "wide", {})
+
+    assert _recheck(listing, None, sources, {1: _row(1)}) is listing.candidates
+    assert _reads(sources) == []
+
+
+def test_a_candidate_whose_latest_row_is_not_a_land_is_not_read():
+    sources, memory, listing = _wide(record(1), record(2))
+
+    candidates = _recheck(listing, memory, sources, {1: _row(1, "NO_LAND")})
+
+    assert _reads(sources) == []
+    assert candidates == listing.candidates
+
+
+def test_a_failed_reread_is_logged_and_keeps_the_pr_as_listed(caplog):
+    sources, memory, listing = _wide(record(1))
+    sources.single_errors = {1: RuntimeError("502 from GitHub")}
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        candidates = _recheck(listing, memory, sources, {1: _row(1)})
+
+    assert candidates == listing.candidates
+    [error] = [entry for entry in caplog.records if entry.levelno == logging.ERROR]
+    assert error.getMessage() == f"{TARGET_REPO}: cannot read PR #1, whose latest recorded row is a LAND"
+    assert error.exc_info is not None
+
+
+def test_a_rate_limit_rereading_a_land_pr_raises():
+    sources, memory, listing = _wide(record(1), record(2))
+    error = GithubException(429, {"message": "secondary rate limit"})
+    sources.single_errors = {1: error}
+
+    with pytest.raises(GithubException) as raised:
+        _recheck(listing, memory, sources, {1: _row(1), 2: _row(2)})
+
+    assert raised.value is error
+    assert _reads(sources) == [1]
+
+
+def test_a_reread_that_names_no_author_or_finds_the_pr_closed_leaves_it_as_listed():
+    sources, memory, listing = _wide(record(1), record(2))
+    sources.single = {1: None, 2: replace(record(2), state="closed", base_accepted=False)}
+
+    candidates = _recheck(listing, memory, sources, {1: _row(1), 2: _row(2)})
+
+    assert _reads(sources) == [1, 2]
+    assert candidates == listing.candidates
+    assert sorted(memory.view.records) == [1, 2]

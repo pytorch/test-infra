@@ -66,7 +66,11 @@ def _connect_seam(client: _FakeClient) -> tuple[Callable[[], Client], list[int]]
 
 
 def _freshness_row(**overrides: object) -> dict[str, object]:
-    row: dict[str, object] = {"server_now": _SERVER_NOW, **dict.fromkeys(TABLES, _SERVER_NOW)}
+    row: dict[str, object] = {
+        "server_now": _SERVER_NOW,
+        **dict.fromkeys(TABLES, _SERVER_NOW),
+        "repo_comment": _SERVER_NOW,
+    }
     return row | overrides
 
 
@@ -154,7 +158,7 @@ def test_markers_read_each_table_by_its_repo_through_its_cheapest_columns():
     "read",
     [
         pytest.param(lambda connect: change_feed.read_markers(_REPO, [7], connect=connect), id="markers"),
-        pytest.param(lambda connect: change_feed.read_freshness(connect=connect), id="freshness"),
+        pytest.param(lambda connect: change_feed.read_freshness(_REPO, connect=connect), id="freshness"),
     ],
 )
 def test_reads_run_under_the_change_feed_time_limit_and_close_the_connection(read):
@@ -171,7 +175,7 @@ def test_reads_run_under_the_change_feed_time_limit_and_close_the_connection(rea
     "read",
     [
         pytest.param(lambda: change_feed.read_markers(_REPO, [7]), id="markers"),
-        pytest.param(change_feed.read_freshness, id="freshness"),
+        pytest.param(lambda: change_feed.read_freshness(_REPO), id="freshness"),
     ],
 )
 def test_reads_default_to_a_client_with_the_change_feed_timeout(monkeypatch, read):
@@ -193,7 +197,7 @@ def test_reads_default_to_a_client_with_the_change_feed_timeout(monkeypatch, rea
     "read",
     [
         pytest.param(lambda connect: change_feed.read_markers(_REPO, [7], connect=connect), id="markers"),
-        pytest.param(lambda connect: change_feed.read_freshness(connect=connect), id="freshness"),
+        pytest.param(lambda connect: change_feed.read_freshness(_REPO, connect=connect), id="freshness"),
     ],
 )
 def test_read_errors_propagate_and_close_the_connection(read):
@@ -267,6 +271,9 @@ def test_marker_newest_is_its_latest_pull_request_event_or_comment(pr_updated_at
 def test_the_tables_read_are_the_ones_table_stale_after_names():
     assert tuple(constants.TABLE_STALE_AFTER) == TABLES
     assert tuple(change_feed._EVENT_TIMES) == TABLES
+    assert set(change_feed._EVENT_TIMES) == set(TABLES)
+    parts = [re.findall(r"FROM default\.(\w+) WHERE", part) for part in change_feed._PARTS]
+    assert sorted(table for [table] in parts) == sorted(TABLES)
     assert sorted(re.findall(r"FROM default\.(\w+) WHERE", change_feed._MARKERS_SQL)) == sorted(TABLES)
     assert re.findall(r"FROM default\.(\w+)\) AS", change_feed._FRESHNESS_SQL) == list(TABLES)
 
@@ -275,7 +282,7 @@ def test_freshness_reads_each_tables_newest_event_dropping_future_rows():
     client = _FakeClient([_freshness_row()])
     connect, _ = _connect_seam(client)
 
-    change_feed.read_freshness(connect=connect)
+    change_feed.read_freshness(_REPO, connect=connect)
 
     query, params, _ = client.calls[0]
     assert query.startswith("SELECT now() AS server_now, ")
@@ -283,7 +290,24 @@ def test_freshness_reads_each_tables_newest_event_dropping_future_rows():
         kept = f"{event_time} <= now() + toIntervalSecond(%(future_tolerance)s)"
         assert f"(SELECT maxIfOrNull({event_time}, {kept}) FROM default.{table}) AS {table}" in query  # noqa: S608
     assert "least(" not in query
-    assert params == {"future_tolerance": int(constants.FUTURE_EVENT_TOLERANCE.total_seconds())}
+    assert params == {
+        "issue_prefix": f"https://api.github.com/repos/{_REPO}/issues/",
+        "future_tolerance": int(constants.FUTURE_EVENT_TOLERANCE.total_seconds()),
+    }
+
+
+def test_freshness_reads_the_repos_newest_issue_comment_by_its_issue_url_prefix():
+    client = _FakeClient([_freshness_row()])
+    connect, _ = _connect_seam(client)
+
+    change_feed.read_freshness(_REPO, connect=connect)
+
+    query, params, _ = client.calls[0]
+    kept = "maxIfOrNull(updated_at, updated_at <= now() + toIntervalSecond(%(future_tolerance)s))"
+    where = "startsWith(issue_url, %(issue_prefix)s)"
+    assert f"(SELECT {kept} FROM default.issue_comment WHERE {where}) AS repo_comment" in query  # noqa: S608
+    marker_params = _read_markers_query([7])[1]
+    assert params["issue_prefix"] == marker_params["issue_prefix"]
 
 
 def test_freshness_parses_its_row_with_times_naive_utc_and_missing_tables_none():
@@ -296,7 +320,7 @@ def test_freshness_parses_its_row_with_times_naive_utc_and_missing_tables_none()
     client = _FakeClient([row])
     connect, _ = _connect_seam(client)
 
-    freshness = change_feed.read_freshness(connect=connect)
+    freshness = change_feed.read_freshness(_REPO, connect=connect)
 
     assert freshness == Freshness(
         server_now=datetime(2026, 11, 17, 10, 0),
@@ -306,15 +330,20 @@ def test_freshness_parses_its_row_with_times_naive_utc_and_missing_tables_none()
             "pull_request_review": datetime(2026, 11, 17, 9, 57),
             "pull_request_review_comment": _SERVER_NOW,
         },
+        repo_comment=_SERVER_NOW,
     )
     assert tuple(freshness.newest) == TABLES
 
 
 def _freshness(**ages: timedelta | None) -> Freshness:
-    newest = {
-        table: None if (age := ages.get(table, timedelta(minutes=1))) is None else _SERVER_NOW - age for table in TABLES
-    }
-    return Freshness(server_now=_SERVER_NOW, newest=newest)
+    """A reading whose tables, and ``repo`` for the repo's newest issue comment, are each ``ages`` old (None: no row);
+    a minute old when not given."""
+
+    def at(name: str) -> datetime | None:
+        age = ages.get(name, timedelta(minutes=1))
+        return None if age is None else _SERVER_NOW - age
+
+    return Freshness(server_now=_SERVER_NOW, newest={table: at(table) for table in TABLES}, repo_comment=at("repo"))
 
 
 @pytest.mark.parametrize(
@@ -402,3 +431,22 @@ def test_a_bounded_call_still_running_at_its_deadline_raises_without_waiting_for
 
     assert not isinstance(raised.value, IterationTimeout)
     assert elapsed < 5
+
+
+@pytest.mark.parametrize(
+    ("ages", "problem"),
+    [
+        pytest.param({"repo": constants.REPO_STALE_AFTER}, None, id="exactly-at-the-limit"),
+        pytest.param(
+            {"repo": constants.REPO_STALE_AFTER + timedelta(seconds=1)},
+            "the repo's newest issue comment is 4501 s old, over 4500 s",
+            id="past-the-limit",
+        ),
+        pytest.param({"repo": None}, "the repo has no issue comment", id="none"),
+        pytest.param(
+            {"repo": None, "pull_request": None}, "pull_request has no row", id="an-org-wide-reason-comes-first"
+        ),
+    ],
+)
+def test_a_repo_whose_newest_issue_comment_is_old_or_missing_is_stale_after_the_org_wide_checks(ages, problem):
+    assert _freshness(**ages).problem() == problem

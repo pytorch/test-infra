@@ -15,19 +15,10 @@ lags its ``updated_at``; and a PR idle longer than the review window whose revie
 failed, cancelled or stuck one is retried at the first full listing after its timeout, and an in-flight
 one whose fingerprint changed without bumping ``updated_at`` is re-dispatched there.
 
-On a ``clickhouse`` repo, a full listing (its sweep, every ``full_tick_minutes`` while HUD's webhook
-tables are fresh) rebuilds the repo's view of its open PRs (``pr_view``), and between sweeps a walk of
-every PR, open or closed, back to the previous listing's start less ``LISTING_OVERLAP`` updates the
-view, while the open ``Reverted`` PRs join each tick's candidates without entering it. Every
-``FULL_TICK_INTERVAL`` a wide tick hands the scan every candidate in the view, so the revert guard and
-the retry of unfinished reviews reach as far as a ``github`` repo's full listing. A PR whose place in
-the updated order lags enters the review window through its marker's newest non-bot comment or
-``pull_request`` event, and a cohort PR whose marker shows a ``pull_request`` event its record lacks is
-read alone (``read_record``). What waits for the sweep, and only on a PR whose latest recorded row is not a
-``LAND`` (``scan_memory`` revalidates those every ``FULL_TICK_INTERVAL``): an issue comment deletion
-that does not bump ``updated_at``; an approver's login rename; and a non-bumping event (a review
-dismissal, an inline comment edit) whose webhook HUD lost, or that a stalled stream holds below its
-table's threshold.
+On a ``clickhouse`` repo, ``change_listing`` builds the repo's view of its open PRs from the unfiltered
+records: every open PR (``list_open_records``), the walk of every PR, open or closed, updated since a
+cutoff (``list_recent_records``), and one PR read alone (``read_record``). ``change_listing`` and
+CHANGE_DETECTION.md describe its ticks.
 """
 
 from __future__ import annotations
@@ -192,14 +183,14 @@ def read_record(client: Github, repo: str, number: int) -> OpenPR | None:
     return _record(pull, repo, pull)
 
 
-def list_recent_records(client: _RepoClient, repo: str, *, cutoff: datetime, state: str) -> list[OpenPR]:
-    """Every PR in ``state`` (``open``, ``closed`` or ``all``) updated after ``cutoff`` (naive UTC), whoever wrote it.
+def list_recent_records(client: _RepoClient, repo: str, *, cutoff: datetime) -> list[OpenPR]:
+    """Every PR, open or closed, updated after ``cutoff`` (naive UTC), whoever wrote it.
 
     The walk goes most recently updated first and stops at the first PR updated at or before ``cutoff``;
     PyGithub requests each page only when the walk reaches it, so no later page is fetched. A PR with no
     ``updated_at`` never stops it.
     """
-    return _by_number(_walk_updated(client, repo, cutoff=cutoff, state=state))
+    return _by_number(_walk_updated(client, repo, cutoff=cutoff, state="all"))
 
 
 def list_recently_updated_prs(

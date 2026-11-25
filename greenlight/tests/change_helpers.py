@@ -55,7 +55,7 @@ class FreshnessStub:
         return self._problem
 
 
-def fresh() -> Freshness:
+def fresh(_repo: str) -> Freshness:
     """A ``read_freshness`` seam whose reading is always fresh."""
     return cast("Freshness", FreshnessStub())
 
@@ -91,7 +91,7 @@ class Pull:
 class ListingClient:
     """A client whose every repo lists ``pulls`` as the pulls endpoint would, and no ``Reverted`` PR.
 
-    ``listed`` records each listing asked for.
+    ``listed`` records each listing asked for, and each PR read alone.
     """
 
     def __init__(self, pulls: list[Pull]) -> None:
@@ -100,6 +100,11 @@ class ListingClient:
 
     def get_repo(self, _name: str) -> ListingClient:
         return self
+
+    def get_pull(self, number: int) -> Pull:
+        self.listed.append(f"pull {number}")
+        [pull] = [pull for pull in self.pulls if pull.number == number]
+        return pull
 
     def get_pulls(self, state: str = "", sort: str = "", direction: str = "") -> list[Pull]:
         self.listed.append(f"pulls {state}")

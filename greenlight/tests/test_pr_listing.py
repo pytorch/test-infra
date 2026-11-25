@@ -221,7 +221,7 @@ def test_every_pulls_endpoint_record_carries_the_branch_names_its_base_was_judge
 
     records = [
         *pr_listing.list_open_records(client, TARGET_REPO),
-        *pr_listing.list_recent_records(client, TARGET_REPO, cutoff=_CUTOFF, state="all"),
+        *pr_listing.list_recent_records(client, TARGET_REPO, cutoff=_CUTOFF),
         *pr_listing.list_open_prs_by_authors(client, TARGET_REPO, ["alice"]),
         pr_listing.read_record(cast("Github", single), TARGET_REPO, 1),
     ]
@@ -691,7 +691,7 @@ def test_the_open_records_keep_every_author_and_draft_in_one_default_traversal()
     assert client.repo.get_pulls_calls == [{"state": "open", "sort": None, "direction": None}]
 
 
-def test_the_recent_records_walk_the_asked_state_most_recently_updated_first_and_stop_at_the_cutoff():
+def test_the_recent_records_walk_open_and_closed_prs_most_recently_updated_first_and_stop_at_the_cutoff():
     repo = _FakeRepo(
         [
             [
@@ -704,7 +704,7 @@ def test_the_recent_records_walk_the_asked_state_most_recently_updated_first_and
         ]
     )
 
-    records = pr_listing.list_recent_records(_FakeClient(repo), TARGET_REPO, cutoff=_CUTOFF, state="all")
+    records = pr_listing.list_recent_records(_FakeClient(repo), TARGET_REPO, cutoff=_CUTOFF)
 
     assert [(record.number, record.state, record.draft) for record in records] == [
         (1, "closed", False),

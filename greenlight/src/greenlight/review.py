@@ -17,9 +17,10 @@ scan. ``memory`` and the repo's change source decide how much a listing scan lis
 completes, and again ``FULL_TICK_INTERVAL`` (less ``FULL_TICK_TOLERANCE``) after the start of the
 last full tick that completed, and the fast ticks in between list the recently updated PRs plus the
 open Reverted-labelled ones (``pr_listing``); a ``clickhouse`` repo lists from its view of its open
-PRs, which HUD ClickHouse's markers steer. ``memory=None`` makes every tick full. All GitHub,
-ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable without any
-of them.
+PRs, which HUD ClickHouse's markers steer, and its wide tick reads each LAND candidate's base and author
+afresh before judging it (``change_listing.recheck_landed``). ``memory=None`` makes every tick full.
+All GitHub, ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable
+without any of them.
 
 ``prepare`` runs the safety work: both authz gates (``authz_gates``) once the merge rules resolve,
 the listing, the state read, the revert guard, the recency filter and the ineligible revoke.
@@ -103,7 +104,7 @@ if TYPE_CHECKING:
         fetch: FetchFn
         fetch_updated: FetchUpdatedFn
         read_markers: ReadMarkersFn
-        read_freshness: Callable[[], Freshness]
+        read_freshness: Callable[[str], Freshness]
         fetch_labels: Callable[[Github, str, int], tuple[str, ...]]
         fingerprint: FingerprintFn
         read_state: Callable[[str, Sequence[int]], dict[int, PRState]]
@@ -194,7 +195,7 @@ def prepare(
     fetch: FetchFn = default_fetch,
     fetch_updated: FetchUpdatedFn = default_fetch_updated,
     read_markers: ReadMarkersFn = change_feed.read_markers,
-    read_freshness: Callable[[], Freshness] = change_feed.read_freshness,
+    read_freshness: Callable[[str], Freshness] = change_feed.read_freshness,
     fetch_labels: Callable[[Github, str, int], tuple[str, ...]] = revert_guard.fetch_pr_labels,
     fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
@@ -264,9 +265,12 @@ def prepare(
         read_markers=read_markers,
         read_freshness=read_freshness,
     )
-    candidates = listing.candidates
-    pr_numbers, updated_at_by_number, labels_by_number = candidates.numbers, candidates.updated_at, candidates.labels
+    pr_numbers = listing.candidates.numbers
     states = read_state(repo, pr_numbers)
+    candidates = change_listing.recheck_landed(
+        client, repo=repo, listing=listing, states=states, memory=memory, authors=evaluable, now=listed_at
+    )
+    updated_at_by_number, labels_by_number = candidates.updated_at, candidates.labels
     evaluated_at = now()
     failed: list[int] = []
     # Owned here (not inside the helpers) so finish can read it back after the fan-out: a rate limit

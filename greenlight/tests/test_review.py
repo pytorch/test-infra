@@ -3750,3 +3750,52 @@ def test_prepare_of_a_clickhouse_repo_hands_its_listing_kind_and_markers_to_the_
     assert event.head_sha_by_number == {1: "sha1"}
     assert reads == [[1, 2], [1, 2]]
     assert client.listed == ["pulls open", "pulls all", "issues open ['Reverted']"]
+
+
+def test_a_wide_tick_revokes_the_approval_of_a_land_pr_retargeted_where_the_walk_and_hud_missed_it(make_config):
+    entry = replace(BUILTIN_PYTORCH, change_source="clickhouse")
+    client = ListingClient([Pull(1, _NEW, author="albanD"), Pull(2, _NEW, author="albanD")])
+    memory = ScanMemory()
+    dismissals: list[tuple[int, str]] = []
+
+    def dismiss(pr: _FakePR, *, bot_login: str, message: str) -> list[int]:
+        dismissals.append((pr.number, message))
+        return [901]
+
+    def prepare(at: datetime) -> review_finish.PreparedScan:
+        with contextlib.ExitStack() as stack:
+            prepared = review.prepare(
+                make_config(github_token="t"),
+                entry=entry,
+                stack=stack,
+                build_github=lambda _token, **_kwargs: cast("Github", client),
+                fetch=_unreachable_listing,
+                fetch_updated=_unreachable_listing,
+                read_markers=lambda _repo, numbers: dict.fromkeys(numbers, Marker(reviews=1)),
+                read_freshness=fresh,
+                read_state=lambda _repo, numbers: {
+                    number: _state(number, STATUS_LAND, _HASH_A, _NEW) for number in numbers
+                },
+                read_reverted=_no_reverted,
+                get_pr=_target_pr("albanD"),
+                dismiss_approvals=dismiss,
+                bot_login="greenlight-app[bot]",
+                resolve_merge_rules=_merge_rules,
+                now=lambda: at,
+                memory=memory,
+                dispatch_token="t",
+            )
+        assert prepared is not None
+        return prepared
+
+    full = prepare(_NOW)
+    memory.mark_full_tick(_NOW)
+    # PR1 moves to a release branch without a new updated_at the walk could see or a HUD row.
+    client.pulls[0].base = replace(client.pulls[0].base, ref="release/2.10")
+    wide = prepare(_NOW + FULL_TICK_INTERVAL)
+
+    assert (full.kind, full.fingerprint_numbers, full.ineligible) == ("full", [1, 2], [])
+    assert wide.kind == "wide"
+    assert (wide.fingerprint_numbers, wide.ineligible) == ([2], [1])
+    assert dismissals == [(1, ineligible_approvals._NO_LONGER_ELIGIBLE_MESSAGE)]
+    assert client.listed[-3:] == ["issues open ['Reverted']", "pull 1", "pull 2"]

@@ -161,6 +161,10 @@ TABLE_STALE_AFTER: dict[str, timedelta] = {
     "pull_request_review": timedelta(minutes=75),
     "pull_request_review_comment": timedelta(minutes=120),
 }
+# A clickhouse repo's own HUD events count as stale once its newest issue comment is older than this: set above
+# pytorch/pytorch's longest gap between issue-comment events over two weeks (64 minutes). A repo quieter than that
+# reads stale and polls.
+REPO_STALE_AFTER = timedelta(minutes=75)
 # A webhook row dated further ahead than this is ignored when taking a table's newest event.
 FUTURE_EVENT_TOLERANCE = timedelta(minutes=5)
 CHANGE_FEED_MAX_EXECUTION_SECONDS = 10

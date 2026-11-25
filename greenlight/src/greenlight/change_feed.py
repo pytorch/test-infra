@@ -2,8 +2,8 @@
 
 pytorchbot's webhooks reach four tables (``TABLES``) through DynamoDB. ``read_markers`` reads, in one query, a
 ``Marker`` per PR: what changes whenever a non-bot event lands on the PR. ``read_freshness`` reads each table's newest
-event org-wide and ClickHouse's own clock, so ``Freshness.problem`` judges staleness on the server's clock, not the
-host's.
+event org-wide, the repo's own newest issue comment and ClickHouse's own clock, so ``Freshness.problem`` judges
+staleness on the server's clock, not the host's; the repo's comment catches HUD losing that repo's events alone.
 
 Both reads run under ``CHANGE_FEED_MAX_EXECUTION_SECONDS`` on a client that gives up after
 ``CHANGE_FEED_TIMEOUT_SECONDS``; every error propagates. The review tables are sorted by ``tupleElement(pull_request,
@@ -27,6 +27,7 @@ from greenlight.constants import (
     CHANGE_FEED_MAX_EXECUTION_SECONDS,
     CHANGE_FEED_TIMEOUT_SECONDS,
     FUTURE_EVENT_TOLERANCE,
+    REPO_STALE_AFTER,
     STALE_AFTER,
     TABLE_STALE_AFTER,
 )
@@ -65,13 +66,16 @@ EMPTY_MARKER = Marker()
 
 @dataclass(frozen=True, slots=True)
 class Freshness:
-    """Each table's newest event org-wide (``TABLES``; None when it has none), and ClickHouse's own clock."""
+    """Each table's newest event org-wide (``TABLES``; None when it has none), the repo's newest issue comment
+    (None when it has none), and ClickHouse's own clock."""
 
     server_now: datetime
     newest: Mapping[str, datetime | None]
+    repo_comment: datetime | None
 
     def problem(self) -> str | None:
-        """Why the tables count as stale (``STALE_AFTER``, ``TABLE_STALE_AFTER``), or None when they are fresh."""
+        """Why the tables count as stale (``STALE_AFTER``, ``TABLE_STALE_AFTER``), then the repo
+        (``REPO_STALE_AFTER``), or None when they are fresh."""
         times = [moment for moment in self.newest.values() if moment is not None]
         if times and (age := self.server_now - max(times)) > STALE_AFTER:
             return f"the newest event over all tables is {_seconds(age)} old, over {_seconds(STALE_AFTER)}"
@@ -81,6 +85,10 @@ class Freshness:
                 return f"{table} has no row"
             if (age := self.server_now - newest) > TABLE_STALE_AFTER[table]:
                 return f"{table}'s newest event is {_seconds(age)} old, over {_seconds(TABLE_STALE_AFTER[table])}"
+        if self.repo_comment is None:
+            return "the repo has no issue comment"
+        if (age := self.server_now - self.repo_comment) > REPO_STALE_AFTER:
+            return f"the repo's newest issue comment is {_seconds(age)} old, over {_seconds(REPO_STALE_AFTER)}"
         return None
 
 
@@ -155,7 +163,15 @@ def _newest(table: str) -> str:
     return f"(SELECT {_kept_max(_EVENT_TIMES[table])} FROM default.{table}) AS {table}"  # noqa: S608
 
 
-_FRESHNESS_SQL = f"SELECT now() AS server_now, {', '.join(_newest(table) for table in TABLES)}"
+_REPO_COMMENT = "repo_comment"
+
+
+def _repo_comment() -> str:
+    where = "startsWith(issue_url, %(issue_prefix)s)"
+    return f"(SELECT {_kept_max('updated_at')} FROM default.issue_comment WHERE {where}) AS {_REPO_COMMENT}"  # noqa: S608
+
+
+_FRESHNESS_SQL = f"SELECT now() AS server_now, {', '.join(_newest(table) for table in TABLES)}, {_repo_comment()}"
 _FUTURE: dict[str, object] = {"future_tolerance": int(FUTURE_EVENT_TOLERANCE.total_seconds())}
 
 
@@ -173,6 +189,10 @@ def _time(value: datetime | None) -> datetime | None:
     return None if value is None else naive_utc(value)
 
 
+def _issue_prefix(repo: str) -> str:
+    return f"https://api.github.com/repos/{repo}/issues/"
+
+
 def read_markers(
     repo: str, numbers: Collection[int], *, connect: Callable[[], Client] | None = None
 ) -> dict[int, Marker]:
@@ -184,7 +204,7 @@ def read_markers(
         "known": known,
         "repo": repo,
         "pr_prefix": f"{repo}/",
-        "issue_prefix": f"https://api.github.com/repos/{repo}/issues/",
+        "issue_prefix": _issue_prefix(repo),
         "bot_logins": tuple(sorted(BOT_LOGINS)),
         "bot_suffix": BOT_LOGIN_SUFFIX,
         **_FUTURE,
@@ -203,10 +223,14 @@ def read_markers(
     return markers
 
 
-def read_freshness(*, connect: Callable[[], Client] | None = None) -> Freshness:
-    """The four tables' freshness, read now."""
-    (row,) = _query(_FRESHNESS_SQL, dict(_FUTURE), connect)
-    return Freshness(server_now=naive_utc(row["server_now"]), newest={table: _time(row[table]) for table in TABLES})
+def read_freshness(repo: str, *, connect: Callable[[], Client] | None = None) -> Freshness:
+    """The four tables' freshness and ``repo``'s newest issue comment, read now."""
+    (row,) = _query(_FRESHNESS_SQL, {"issue_prefix": _issue_prefix(repo), **_FUTURE}, connect)
+    return Freshness(
+        server_now=naive_utc(row["server_now"]),
+        newest={table: _time(row[table]) for table in TABLES},
+        repo_comment=_time(row[_REPO_COMMENT]),
+    )
 
 
 def call_bounded[T](fn: Callable[..., T], *args: object, seconds: float) -> T:
