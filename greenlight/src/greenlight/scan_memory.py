@@ -18,16 +18,17 @@ import logging
 import zlib
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
 
 from greenlight.constants import FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE, MEMORY_MAX_BYTES
+from greenlight.fingerprint_cache import Entry, Key
 from greenlight.pr_view import PRView, marker_form, marker_from_form, required_time, time_form, time_from_form
 from greenlight.review_gate import ReviewSkip
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
-    from greenlight.change_feed import Marker
     from greenlight.scan_runner import FingerprintResult
     from greenlight.state_store import StateStore
 
@@ -35,24 +36,6 @@ logger = logging.getLogger(__name__)
 
 # A clickhouse repo's event tick is a fast one.
 TickKind = Literal["full", "wide", "fast"]
-
-
-@dataclass(frozen=True, slots=True)
-class _Key:
-    """What a fingerprint result was computed under: the PR as listed before its fetch, the approvers, and
-    the PR's HUD ClickHouse marker as last read (None on a ``github`` repo)."""
-
-    updated_at: datetime
-    head_sha: str
-    approvers_digest: str
-    marker: Marker | None
-
-
-@dataclass(frozen=True, slots=True)
-class _Entry:
-    key: _Key
-    result: FingerprintResult
-    stored_at: datetime
 
 
 @dataclass(slots=True)
@@ -122,7 +105,7 @@ class ScanMemory:
         self._last_wide_tick_started: datetime | None = None
         self.full_tick_interval = FULL_TICK_INTERVAL
         self.view = PRView()
-        self._fingerprints: dict[int, _Entry] = {}
+        self._fingerprints: dict[int, Entry] = {}
         self._off_since: datetime | None = None
         self._drain_passes = 0
         self._drain_pass: DrainPass | None = None
@@ -140,6 +123,14 @@ class ScanMemory:
     def full_tick_due(self, now: datetime) -> bool:
         """Whether this tick is a full or a wide one: either must complete."""
         return self.sweep_due(now) or self.wide_due(now)
+
+    @property
+    def fingerprints(self) -> Mapping[int, Entry]:
+        """The fingerprint results kept, by PR, read-only; ``replace_fingerprints`` sets them."""
+        return MappingProxyType(self._fingerprints)
+
+    def replace_fingerprints(self, entries: Mapping[int, Entry]) -> None:
+        self._fingerprints = dict(entries)
 
     def mark_full_tick(self, started_at: datetime) -> None:
         self._last_full_tick_started = started_at
@@ -309,7 +300,7 @@ def save_memory(
     store.save_memory(repo, encode_memory(memory, repo), owner=owner, now=now, tick=tick, drain_complete=completed)
 
 
-def _fingerprint(row: Sequence[Any], digests: Sequence[str], version: int) -> tuple[int, _Entry]:
+def _fingerprint(row: Sequence[Any], digests: Sequence[str], version: int) -> tuple[int, Entry]:
     """A stored fingerprint row's PR and entry. A row of the previous version holds no marker and no time
     it was stored at: its marker is None, and it dates from the epoch, so a LAND revalidation counts it as
     old."""
@@ -320,8 +311,8 @@ def _fingerprint(row: Sequence[Any], digests: Sequence[str], version: int) -> tu
     else:
         number, updated_at, head_sha, digest, result = row
         key_marker, stored = None, _FORWARD_STORED_AT
-    key = _Key(required_time(updated_at), str(head_sha), digests[int(digest)], key_marker)
-    return int(number), _Entry(key, _result(result), stored)
+    key = Key(required_time(updated_at), str(head_sha), digests[int(digest)], key_marker)
+    return int(number), Entry(key, _result(result), stored)
 
 
 def _restore(form: Mapping[str, Any], repo: str, version: int) -> ScanMemory:

@@ -318,7 +318,7 @@ def test_fingerprint_results_already_stored_survive_a_stop_that_ends_the_fan_out
     with pytest.raises(quota.RepoBudgetExceeded), prepared.stack:
         review_finish.finish(prepared)
 
-    assert set(memory._fingerprints) == {1}
+    assert set(memory.fingerprints) == {1}
     assert dispatched == []
     assert memory.full_tick_due(_NOW + timedelta(minutes=1))
 
@@ -363,7 +363,7 @@ def test_a_stopped_fast_tick_keeps_the_earlier_results_of_the_prs_it_never_looke
     with contextlib.suppress(quota.RepoBudgetExceeded), prepared.stack:
         review_finish.finish(prepared)
 
-    assert set(memory._fingerprints) == kept
+    assert set(memory.fingerprints) == kept
 
 
 @pytest.mark.parametrize(

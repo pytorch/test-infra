@@ -121,6 +121,20 @@ def test_the_recent_walk_adds_only_the_cohorts_open_prs_and_removes_any_closed_p
     assert view.to_form()["reads"] == []
 
 
+def test_the_recent_walk_removes_an_open_pr_whose_author_left_the_cohort_by_a_login_rename():
+    view = _built(record(7), record(8))
+    view.note({7: Marker(reviews=1), 8: Marker(reviews=1)}, _NOW)
+    view.record_read(7, _NOW, caught_up=False)
+
+    view.apply([record(7, author="alice-renamed")], _NOW + timedelta(minutes=2), _COHORT)
+
+    # The stored record would keep the PR eligible under the old login until the next full listing.
+    assert sorted(view.records) == [8]
+    assert view.seen(7) is None
+    assert view.to_form()["reads"] == []
+    assert [record.number for record in view.candidates(_COHORT, now=_NOW, window=None)] == [8]
+
+
 def test_a_reopened_pr_comes_back_with_the_walk():
     view = _built(record(1))
     view.apply([record(1, state="closed")], _NOW + timedelta(minutes=2), _COHORT)

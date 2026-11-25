@@ -3,7 +3,8 @@
 The records (``pr_listing.OpenPR``) come from GitHub listings only and hold the evaluation cohort's PRs,
 drafts included. A full listing replaces them with its cohort authors' PRs and records the cohort's
 digest (``rebuild``, ``cohort_digest``); the recent walk of open and closed PRs adds or replaces the open
-ones a cohort author wrote and removes every PR it sees closed or merged, whoever wrote it (``apply``).
+ones a cohort author wrote and removes every other PR it sees: closed or merged, whoever wrote it, or
+open under an author outside the cohort, as after a login rename (``apply``).
 ``listed_at`` is the start of the last listing that updated the view, and the view is built once a
 listing has. A tick can use it only while its cohort has the digest the last full listing recorded
 (``usable``), so a cohort change waits for the next full listing.
@@ -166,16 +167,16 @@ class PRView:
         self.digest = cohort_digest(admitted)
 
     def apply(self, records: Iterable[OpenPR], listed_at: datetime, cohort: Iterable[str]) -> None:
-        """Take the recent walk: an open record a cohort author wrote replaces or adds its PR; a closed one
-        removes its PR, with its marker and read state, whoever wrote it."""
+        """Take the recent walk: an open record a cohort author wrote replaces or adds its PR; any other record,
+        closed or by an author outside the cohort, removes its PR, with its marker and read state."""
         admitted = lowered(cohort)
         for record in records:
-            if record.state != "open":
+            if record.state == "open" and record.author.lower() in admitted:
+                self.records[record.number] = record
+            else:
                 self.records.pop(record.number, None)
                 self._markers.pop(record.number, None)
                 self._reads.pop(record.number, None)
-            elif record.author.lower() in admitted:
-                self.records[record.number] = record
         self.listed_at = listed_at
 
     def note(self, markers: Mapping[int, Marker], now: datetime) -> set[int]:

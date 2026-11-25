@@ -1,15 +1,16 @@
-"""One listing tick's view of the fingerprint results its ``ScanMemory`` keeps (``FingerprintCache``)."""
+"""A fingerprint result as a ``ScanMemory`` keeps it (``Key``, ``Entry``), and one listing tick's view of them
+(``FingerprintCache``)."""
 
 from __future__ import annotations
 
 import hashlib
 import logging
+from dataclasses import dataclass
 from datetime import timedelta
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL
-from greenlight.scan_memory import _Entry, _Key
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -24,6 +25,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _NO_MARKERS: Markers = MappingProxyType({})
+
+
+@dataclass(frozen=True, slots=True)
+class Key:
+    """What a fingerprint result was computed under: the PR as listed before its fetch, the approvers, and
+    the PR's HUD ClickHouse marker as last read (None on a ``github`` repo)."""
+
+    updated_at: datetime
+    head_sha: str
+    approvers_digest: str
+    marker: Marker | None
+
+
+@dataclass(frozen=True, slots=True)
+class Entry:
+    key: Key
+    result: FingerprintResult
+    stored_at: datetime
 
 
 class FingerprintCache:
@@ -54,14 +73,14 @@ class FingerprintCache:
         revalidate: frozenset[int] = frozenset(),
     ) -> None:
         self._memory = memory
-        self._previous = memory._fingerprints if reuse else {}
+        self._previous: Mapping[int, Entry] = memory.fingerprints if reuse else {}
         self._digest = hashlib.sha256("\n".join(sorted(authorized_logins)).encode()).hexdigest()
         self._updated_at = updated_at
         self._head_sha = head_sha
         self._now = now
         self._markers = markers
         self._revalidate = revalidate
-        self._kept: dict[int, _Entry] = {}
+        self._kept: dict[int, Entry] = {}
         self._looked_up: set[int] = set()
         self._reused = 0
         self._fetched = 0
@@ -100,7 +119,7 @@ class FingerprintCache:
             return
         if isinstance(result, tuple) and result[0] != key.head_sha:
             return
-        self._kept[number] = _Entry(key, result, self._now)
+        self._kept[number] = Entry(key, result, self._now)
 
     def commit(self, *, partial: bool = False) -> None:
         untouched = (
@@ -108,13 +127,13 @@ class FingerprintCache:
             if partial
             else {}
         )
-        self._memory._fingerprints = untouched | self._kept
+        self._memory.replace_fingerprints(untouched | self._kept)
         logger.info("fingerprints: %d reused from the cache, %d fetched fresh", self._reused, self._fetched)
 
-    def _key(self, number: int) -> _Key | None:
+    def _key(self, number: int) -> Key | None:
         updated_at = self._updated_at.get(number)
         head_sha = self._head_sha.get(number)
         if updated_at is None or head_sha is None:
             return None
         seen = self._markers.get(number)
-        return _Key(updated_at, head_sha, self._digest, None if seen is None else seen[0])
+        return Key(updated_at, head_sha, self._digest, None if seen is None else seen[0])

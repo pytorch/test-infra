@@ -505,8 +505,8 @@ def test_the_memory_codec_round_trips_every_part_of_the_memory():
     assert restored._last_full_tick_started == memory._last_full_tick_started
     assert restored._last_wide_tick_started == _STARTED + timedelta(minutes=15)
     assert restored.full_tick_interval == timedelta(hours=4)
-    assert restored._fingerprints == memory._fingerprints
-    assert {number: (entry.key.marker, entry.stored_at) for number, entry in restored._fingerprints.items()} == {
+    assert restored.fingerprints == memory.fingerprints
+    assert {number: (entry.key.marker, entry.stored_at) for number, entry in restored.fingerprints.items()} == {
         1: (None, _STARTED),
         2: (_VIEW_MARKER, _STARTED + timedelta(minutes=1)),
     }
@@ -541,7 +541,7 @@ def test_a_cold_memory_round_trips_cold():
     restored = decode_memory(encode_memory(ScanMemory(), _REPO), _REPO)
 
     assert restored.full_tick_due(_STARTED)
-    assert restored._fingerprints == {}
+    assert restored.fingerprints == {}
     assert restored.drain_pass() is None
     assert not restored.view.built
     assert restored.full_tick_interval == FULL_TICK_INTERVAL
@@ -619,7 +619,7 @@ def test_a_version_two_memory_is_read_forward_without_a_view():
         1, "2 run(s) unfinished", frozenset({3, 7}), {3}, {3: 1, 9: 2}, attempts=2, dismissed=1, failures=1
     )
     assert restored.drain_completed_by() == 4
-    assert {number: (entry.key.marker, entry.stored_at) for number, entry in restored._fingerprints.items()} == {
+    assert {number: (entry.key.marker, entry.stored_at) for number, entry in restored.fingerprints.items()} == {
         1: (None, datetime(1970, 1, 1)),
         2: (None, datetime(1970, 1, 1)),
     }
@@ -631,7 +631,7 @@ def test_a_version_two_memory_is_read_forward_without_a_view():
 
 
 def test_no_memory_starts_cold():
-    assert decode_memory(None, _REPO)._fingerprints == {}
+    assert decode_memory(None, _REPO).fingerprints == {}
 
 
 @pytest.mark.parametrize("version", [1, 4, 99, None])
@@ -687,7 +687,7 @@ def test_a_blob_that_does_not_decode_starts_cold_and_logs_the_error(caplog, blob
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         restored = decode_memory(blob, _REPO)
 
-    assert restored._fingerprints == {}
+    assert restored.fingerprints == {}
     assert not restored.view.built
     [record] = [record for record in caplog.records if "cannot decode its stored scan memory" in record.getMessage()]
     assert record.exc_info
@@ -704,7 +704,7 @@ def test_a_memory_over_the_size_cap_is_saved_without_its_fingerprints(monkeypatc
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         restored = decode_memory(encode_memory(memory, _REPO), _REPO)
 
-    assert restored._fingerprints == {}
+    assert restored.fingerprints == {}
     assert restored.view.to_form() == memory.view.to_form()
     assert restored.drain_completed_by() == 4
     assert restored._last_full_tick_started == _STARTED
@@ -724,7 +724,7 @@ def test_a_memory_still_over_the_size_cap_without_its_fingerprints_is_saved_with
     restored = decode_memory(blob, _REPO)
 
     assert len(blob) == smallest
-    assert restored._fingerprints == {}
+    assert restored.fingerprints == {}
     assert not restored.view.built
     assert restored.drain_completed_by() == 4
     assert restored._last_wide_tick_started == _STARTED + timedelta(minutes=15)
@@ -746,5 +746,18 @@ def test_a_memory_over_the_size_cap_in_its_smallest_form_is_still_encoded(monkey
     restored = decode_memory(encode_memory(memory, _REPO), _REPO)
 
     assert restored.drain_completed_by() == 4
-    assert restored._fingerprints == {}
+    assert restored.fingerprints == {}
     assert not restored.view.built
+
+
+def test_the_fingerprint_entries_are_read_only_outside_replace_fingerprints():
+    memory = _cached()
+    entries = dict(memory.fingerprints)
+
+    with pytest.raises(TypeError):
+        memory.fingerprints[2] = entries[1]  # type: ignore[index]
+    memory.replace_fingerprints(entries)
+    entries.clear()
+
+    assert set(memory.fingerprints) == {1}
+    assert _tick(memory).lookup(1) == _RESULT
