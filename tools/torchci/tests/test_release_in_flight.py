@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import main, TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -27,6 +27,7 @@ from analytics.github_analyze import (  # noqa: E402
     release_only_changes_step_rows,
     releases_in_flight,
     releases_just_shipped,
+    recently_shipped_releases,
     revert_step_rows,
     write_step_summary,
 )
@@ -160,6 +161,11 @@ class ReleasesInFlight(TestCase):
             releases_just_shipped(self.repo(), ["2.16.0", "2.12.0"]),
             [],
         )
+
+    def test_the_latest_shipped_release_is_found_after_its_milestone_closes(self):
+        self.branch("release/2.15", "main", "2.15.0a0")
+        self.tag("v2.15.0")
+        self.assertEqual(recently_shipped_releases(self.repo()), ["2.15.0"])
 
     def test_nothing_is_just_shipped_without_a_main_version(self):
         self.assertEqual(
@@ -392,6 +398,91 @@ class GithubRefCli(TestCase):
         self.assertEqual(release, "2.15.0")
         self.assertFalse(write)
         self.assertEqual(config["branch"], "release/2.15")
+
+    def args(self, **overrides):
+        values = {
+            "remote": "origin",
+            "repo_path": "/tmp/test-infra",
+            "in_flight": False,
+            "analyze_stacks": False,
+            "analyze_missing_reverts_from_branch": False,
+            "write_to_clickhouse": False,
+            "release": None,
+            "release_only_changes": False,
+            "missing_in_branch": False,
+            "missing_in_release": False,
+            "milestone_id": "1",
+            "branch": None,
+            "minor_release": None,
+            "date": None,
+            "issue_num": None,
+            "analyze_reverts": False,
+            "contributor_stats": False,
+            "print_reverts": False,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_analyze_stacks_initializes_the_repository(self):
+        repo = MagicMock()
+        args = self.args(analyze_stacks=True)
+        with (
+            patch.object(github_analyze, "parse_arguments", return_value=args),
+            patch.object(github_analyze, "github_repo", return_value=(repo, "origin")),
+            patch.object(github_analyze, "analyze_stacks") as analyze,
+        ):
+            github_analyze.main()
+        analyze.assert_called_once_with(repo)
+
+    def test_missing_reverts_analysis_initializes_the_repository(self):
+        repo = MagicMock()
+        args = self.args(
+            analyze_missing_reverts_from_branch=True, branch="release/2.15"
+        )
+        with (
+            patch.object(github_analyze, "parse_arguments", return_value=args),
+            patch.object(github_analyze, "github_repo", return_value=(repo, "origin")),
+            patch.object(
+                github_analyze, "analyze_reverts_missing_from_branch"
+            ) as analyze,
+        ):
+            github_analyze.main()
+        analyze.assert_called_once_with(repo, "release/2.15")
+
+    def test_default_stats_use_the_selected_remote(self):
+        repo = MagicMock()
+        repo._run_git_log.return_value = []
+        args = self.args()
+        with (
+            patch.object(github_analyze, "parse_arguments", return_value=args),
+            patch.object(github_analyze, "github_repo", return_value=(repo, "origin")),
+            patch.object(github_analyze, "print_monthly_stats") as print_stats,
+        ):
+            github_analyze.main()
+        repo._run_git_log.assert_called_once_with("origin/main")
+        print_stats.assert_called_once_with([])
+
+
+class RecentlyShippedGithubRefs(TestCase):
+    def test_closed_milestones_keep_final_tag_evidence_current(self):
+        config = {"branch": "release/2.15", "steps": []}
+        with (
+            patch.object(github_analyze, "gh_get_milestones", return_value=[]),
+            patch.object(github_analyze, "releases_in_flight", return_value=[]),
+            patch.object(github_analyze, "releases_just_shipped", return_value=[]),
+            patch.object(
+                github_analyze, "recently_shipped_releases", return_value=["2.15.0"]
+            ),
+            patch(
+                "torchci.release_portal_config.load_resolved", return_value=config
+            ) as load,
+            patch.object(github_analyze, "record_github_ref_steps") as record,
+        ):
+            self.assertTrue(
+                github_analyze.analyze_releases_in_flight(MagicMock(), False)
+            )
+        load.assert_called_once_with("2.15.0")
+        record.assert_called_once_with("2.15.0", config, False)
 
 
 class _Commit:
