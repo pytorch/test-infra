@@ -1,0 +1,43 @@
+{
+  "name": "hooks",
+  "version": "0.8.18",
+  "description": "Three projects are included - k8s: a kubernetes hook implementation that spins up pods dynamically to run a job - docker: A hook implementation of the runner's docker implementation  - A hook lib, which contains shared typescript definitions and utilities that the other packages consume",
+  "main": "",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "npm run test --prefix packages/docker && npm run test --prefix packages/k8s",
+    "bootstrap": "npm install --prefix packages/hooklib && npm ci --prefix packages/k8s && npm ci --prefix packages/docker",
+    "format": "prettier --write '**/*.ts'",
+    "format-check": "prettier --check '**/*.ts'",
+    "lint": "eslint packages/**/*.ts",
+    "lint:fix": "eslint packages/**/*.ts --fix",
+    "build-all": "npm run build --prefix packages/hooklib && npm run build --prefix packages/k8s && npm run build --prefix packages/docker"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/actions/runner-container-hooks.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/actions/runner-container-hooks/issues"
+  },
+  "homepage": "https://github.com/actions/runner-container-hooks#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.14",
+    "@typescript-eslint/eslint-plugin": "^8.37.0",
+    "@typescript-eslint/parser": "^8.37.0",
+    "eslint": "^9.31.0",
+    "eslint-plugin-github": "^6.0.0",
+    "globals": "^15.12.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "eslint-plugin-jest": "^29.0.1"
+  }
+}
