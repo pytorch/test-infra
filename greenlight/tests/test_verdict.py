@@ -648,8 +648,9 @@ def test_mismatched_head_land_still_records_and_approves(make_config, tmp_path):
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    # A moved head no longer aborts: the row is emitted and the PR is approved.
-    assert rec.events == ["emit", "review:APPROVE", "comment"]
+    # A moved head no longer aborts: the row is emitted and the reviewed head approved, an approval the re-read
+    # then withdraws, since that head is no longer the PR's.
+    assert rec.events == ["emit", "review:APPROVE", "dismiss:1001", "comment"]
     assert _decode(emit.row_gzip)["head_sha"] == "expected-sha"  # the INPUT head_sha is stored verbatim
     assert pr.created_reviews[0][0] == "APPROVE"
 
@@ -938,7 +939,9 @@ def test_full_land_approves_with_empty_body(make_config, tmp_path):
     assert pr.created_reviews == [("APPROVE", "")]
 
 
-def test_full_land_skips_reapproval_when_already_approved(make_config, tmp_path, caplog):
+def test_full_land_skips_reapproval_when_already_approved(make_config, tmp_path, caplog, set_repo_settings):
+    entry = repo_config.RepoEntry("r", "greenlight", "pytorchbot", "merge_rules", "active")
+    set_repo_settings("r", repo_config.Settings("r", "valid", entry, served=True))
     rec = _Recorder()
     emit = _FakeEmit(rec)
     reviews = [_FakeReview(1, _BOT, "APPROVED", rec, "h")]
@@ -950,8 +953,8 @@ def test_full_land_skips_reapproval_when_already_approved(make_config, tmp_path,
     with caplog.at_level(logging.INFO, logger="greenlight"):
         verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    # A live greenlight approval already stands on the reviewed head: no second APPROVE review is posted
-    # (the prior one is left intact), yet the canonical comment is still upserted and the skip is logged.
+    # On a pytorchbot repo a live greenlight approval already standing on the reviewed head is kept: no second
+    # APPROVE review is posted, yet the canonical comment is still upserted and the skip is logged.
     assert pr.created_reviews == []
     assert reviews[0].dismissed_with is None
     assert rec.events == ["emit", "comment"]
@@ -1893,7 +1896,7 @@ def test_a_dry_run_verdict_writes_no_label(make_config, tmp_path, status, reason
 @pytest.mark.parametrize(
     ("status", "reason", "expected"),
     [
-        pytest.param("LAND", "clean", ["emit", "review:APPROVE"], id="land"),
+        pytest.param("LAND", "clean", ["emit", "review:APPROVE", "dismiss:1001"], id="land"),
         pytest.param("NO_LAND", "unclear_intent", ["emit"], id="no-land"),
     ],
 )
@@ -1963,7 +1966,13 @@ def test_a_verdict_on_a_closed_pr_records_and_leaves_its_labels_alone(make_confi
 @pytest.mark.parametrize(
     ("status", "reason", "labels", "expected"),
     [
-        pytest.param("LAND", "clean", (), ["emit", "label+:GL/approved", "comment"], id="add-fails"),
+        pytest.param(
+            "LAND",
+            "clean",
+            (),
+            ["emit", "dismiss:1", "review:APPROVE", "label+:GL/approved", "comment"],
+            id="add-fails",
+        ),
         pytest.param(
             "NO_LAND",
             "unclear_intent",
@@ -2725,3 +2734,22 @@ def test_a_re_land_after_a_push_on_pytorch_dismisses_the_old_approval_and_posts_
     assert old.dismissed_with == land_approval.SUPERSEDED_MESSAGE
     assert pr.review_commits == ["new-head"]
     assert rec.events == ["emit", "dismiss:1", "review:APPROVE"]
+
+
+def test_a_gate_repo_land_replaces_an_approval_already_standing_on_the_reviewed_head(make_config, tmp_path):
+    rec = _Recorder()
+    standing = _FakeReview(1, _BOT, "APPROVED", rec, "h")
+    pr = _FakePR("h", rec, reviews=[standing], author=_TRUSTED_AUTHOR)
+
+    verdict.run(
+        _land(tmp_path),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    # The new approval postdates the review it records, so the backing check waits for its LAND row.
+    assert standing.dismissed_with == land_approval.SUPERSEDED_MESSAGE
+    assert pr.review_commits == ["h"]
+    assert rec.events == ["emit", "dismiss:1", "review:APPROVE", "comment"]

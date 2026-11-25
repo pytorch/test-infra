@@ -81,7 +81,7 @@ def parse_target(repo: str, pr: str, head_sha: str, timeout_minutes: str) -> Gat
     validate_head_sha(head_sha)
     return GateTarget(
         repo=repo,
-        pr=_positive(pr, "pr"),
+        pr=int(workflow_target.require_pr(pr)),
         head_sha=head_sha,
         timeout_minutes=_positive(timeout_minutes, "timeout-minutes", GATE_TIMEOUT_MINUTES_MAX),
     )

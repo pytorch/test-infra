@@ -12,19 +12,17 @@ uploads it to ``s3://gha-artifacts/``, where the clickhouse-replicator-s3 path i
 ``misc.greenlight_pr_state``) and then updates GitHub with a defanged copy of the message. Both LAND
 and NO_LAND upsert one canonical verdict comment -- edited in place across runs, found by a hidden
 marker and restricted to greenlight's own account (``bot_login``); a LAND that is not shadow
-additionally approves the PR through ``land_approval`` (pinned to the reviewed head, left as it is when
-greenlight's counted review and every live approval already stand there, withdrawn when a re-read finds the
-PR moved), and
-NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
-A LAND or NO_LAND is shadow when ``--shadow`` is passed, the repo's settings read from its own
-``.github/greenlight/config.yml`` on its default branch (``repo_config``) are safety-only or not
-``active``, on a ``gate`` repo a LAND that ``land_approval.gate_backs`` refuses (a ``bot_login`` other than
-``approvals.GREENLIGHT_LOGIN``, the account the merge gate and the scan judge, or branch rules that do not
-enforce the gate), or when ``author_eligibility.has_eligible_author`` finds that the entry's eligibility
-source (a valid merge rule, or write permission) does not qualify its author, or finds the PR off the
-reviewed head or on a base the entry's safety refuses;
-a failed check fails the command before the row is written, after a NO_LAND, or a LAND passed
-``--shadow``, has already dismissed. A
+additionally approves the PR through ``land_approval`` (pinned to the reviewed head, on a ``pytorchbot``
+repo left as it is when greenlight's counted review and every live approval already stand there, withdrawn
+when a re-read finds the PR moved), and NO_LAND additionally dismisses greenlight's own prior approval
+(both matched by ``bot_login``). A LAND or NO_LAND is shadow when ``--shadow`` is passed, the repo's
+settings read from its own ``.github/greenlight/config.yml`` on its default branch (``repo_config``) are
+safety-only or not ``active``, on a ``gate`` repo a LAND that ``land_approval.gate_backs`` refuses (a
+``bot_login`` other than ``approvals.GREENLIGHT_LOGIN``, the account the merge gate and the scan judge, or
+branch rules that do not enforce the gate), or when ``author_eligibility.has_eligible_author`` finds that
+the entry's eligibility source (a valid merge rule, or write permission) does not qualify its author, or
+finds the PR off the reviewed head or on a base the entry's safety refuses; a failed check fails the
+command before the row is written, after a NO_LAND, or a LAND passed ``--shadow``, has already dismissed. A
 shadow verdict carries no authority, and that is absolute rather than forward-looking: no approving
 review is ever posted for one, any prior greenlight approval is dismissed on the LAND path as well
 as the NO_LAND one, before the row is emitted, so a failed emit never leaves that approval standing,
@@ -274,7 +272,7 @@ def _run_full(
         not _authoritative(request, entry, served)
         or (
             status == STATUS_LAND
-            and entry.strict_base
+            and entry.safety == "gate"
             and not land_approval.gate_backs(token, request.repo, bot_login=request.bot_login)
         )
         or not has_eligible_author(
@@ -325,6 +323,7 @@ def _run_full(
                 head_sha=request.head_sha,
                 bot_login=request.bot_login,
                 strict_base=entry.strict_base,
+                keep_standing=entry.safety != "gate",
             )
     if not shadow:
         verdict_labels.label_verdict(pr, status, reviewed_head=request.head_sha, number=request.pr_number)

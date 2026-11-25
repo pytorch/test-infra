@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 from github import GithubException
 
-from greenlight import cli, gate_check
+from greenlight import cli, gate_check, workflow_target
 from greenlight.approvals import GREENLIGHT_LOGIN, ReviewReader
 from greenlight.constants import (
     GATE_POLL_DELAYS,
@@ -299,6 +299,21 @@ def test_parser_defaults_the_timeout():
 
 def test_parser_accepts_the_maximum_timeout():
     assert gate_check.parse_target(REPO, "7", HEAD, "340").timeout_minutes == 340
+
+
+@pytest.mark.parametrize("pr", ["1", "7", "190000", "0", "007", "-1", "+1", " 7", "7\n", "7a", "1e3", "١٢", ""])
+def test_the_pr_takes_greenlight_targets_pr_number_rule(pr: str) -> None:
+    try:
+        expected: int | None = int(workflow_target.require_pr(pr))
+    except ValueError:
+        expected = None
+
+    if expected is None:
+        with pytest.raises(ValueError, match="pr must be a positive decimal number without leading zeros"):
+            gate_check.parse_target(REPO, pr, HEAD, "300")
+    else:
+        assert gate_check.parse_target(REPO, pr, HEAD, "300").pr == expected
+    assert (expected is not None) is (pr in {"1", "7", "190000"})
 
 
 @pytest.mark.parametrize("repo", ["pytorch/pytorch", "pytorch/PyTorch", "pytorch/test-infra", "pytorch/a.b_c-d"])

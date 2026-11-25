@@ -104,9 +104,15 @@ def _input_repo(repo: str) -> str:
     return _require_repo(repo)
 
 
-def _require_pr_and_head(pr: str, head_sha: str) -> None:
+def require_pr(pr: str) -> str:
+    """``pr`` when it is a positive decimal number without leading zeros; ``ValueError`` otherwise."""
     if not _PR_RE.fullmatch(pr):
         raise ValueError(f"pr must be a positive decimal number without leading zeros, got {pr!r}")
+    return pr
+
+
+def _require_pr_and_head(pr: str, head_sha: str) -> None:
+    require_pr(pr)
     validate_head_sha(head_sha)
 
 

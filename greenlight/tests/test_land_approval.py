@@ -95,7 +95,9 @@ class _Client:
         return self.fresh
 
 
-def _approve(client: _Client, pr: _PR, *, strict_base: bool = True, bot_login: str = _BOT) -> None:
+def _approve(
+    client: _Client, pr: _PR, *, strict_base: bool = True, keep_standing: bool | None = None, bot_login: str = _BOT
+) -> None:
     land_approval.approve(
         cast("VerdictClient", client),
         cast("VerdictPR", cast("Any", pr)),
@@ -104,6 +106,7 @@ def _approve(client: _Client, pr: _PR, *, strict_base: bool = True, bot_login: s
         head_sha=_HEAD,
         bot_login=bot_login,
         strict_base=strict_base,
+        keep_standing=not strict_base if keep_standing is None else keep_standing,
     )
 
 
@@ -121,7 +124,7 @@ def test_the_approval_is_pinned_to_the_reviewed_head_and_confirmed_by_a_fresh_re
     assert f"approved {_REPO}#7 at {_HEAD}" in caplog.text
 
 
-def test_live_approvals_all_on_the_reviewed_head_are_left_as_they_are(caplog):
+def test_live_approvals_all_on_the_reviewed_head_are_left_as_they_are_on_a_pytorchbot_repo(caplog):
     events: list[str] = []
     standing = [
         _Review(1, _BOT, "APPROVED", _HEAD, events),
@@ -131,12 +134,25 @@ def test_live_approvals_all_on_the_reviewed_head_are_left_as_they_are(caplog):
     pr = _PR(events, reviews=standing)
 
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        _approve(_Client(events), pr)
+        _approve(_Client(events), pr, strict_base=False)
 
     # Nothing to re-read either: no approval was posted.
     assert events == []
     assert pr.review_reads == 1
     assert f"already approved {_REPO}#7 at {_HEAD}; skipping re-approval" in caplog.text
+
+
+def test_a_gate_repo_never_keeps_an_approval_even_one_standing_on_the_reviewed_head():
+    events: list[str] = []
+    standing = _Review(1, _BOT, "APPROVED", _HEAD, events)
+    pr = _PR(events, reviews=[standing])
+
+    _approve(_Client(events, fresh=_PR(events, reviews=pr.reviews)), pr)
+
+    # The new approval postdates any re-review's in-flight ledger rows, so the backing check waits for its LAND.
+    assert events == ["dismiss:1", f"approve:{_HEAD}", "reread:7"]
+    assert standing.dismissed_with == land_approval.SUPERSEDED_MESSAGE
+    assert pr.pinned == [_HEAD]
 
 
 def test_a_live_approval_on_another_commit_dismisses_them_all_and_approves_again_pinned(caplog):
@@ -226,7 +242,34 @@ def test_a_concurrent_record_jobs_approval_on_the_new_head_stands_while_the_one_
     assert pr.reviews[0].dismissed_with == land_approval.MOVED_MESSAGE
     assert stale.dismissed_with == land_approval.MOVED_MESSAGE
     assert (newer.state, newer.dismissed_with, comment.dismissed_with) == ("APPROVED", None, None)
-    assert f"dismissed 2 greenlight approval(s) not on the new head {_NEW} of {_REPO}#7" in caplog.text
+    assert (
+        f"dismissed the approval just posted on {_REPO}#7 and 1 other greenlight approval(s) not on its new head {_NEW}"
+        in caplog.text
+    )
+
+
+def test_a_listing_that_omits_the_approval_just_posted_still_sees_it_dismissed():
+    events: list[str] = []
+    pr = _PR(events)
+    stale = _Review(3, _BOT, "APPROVED", _OLD, events)
+    fresh = _PR(events, head=_NEW, reviews=[stale])
+
+    _approve(_Client(events, fresh=fresh), pr)
+
+    assert events == [f"approve:{_HEAD}", "reread:7", "dismiss:101", "dismiss:3"]
+    assert pr.reviews[0].dismissed_with == land_approval.MOVED_MESSAGE
+
+
+def test_a_lagging_listing_that_still_shows_the_approval_just_posted_does_not_dismiss_it_twice():
+    events: list[str] = []
+    pr = _PR(events)
+    lagging_copy = _Review(101, _BOT, "APPROVED", _HEAD, events)
+    fresh = _PR(events, head=_NEW, reviews=[lagging_copy])
+
+    _approve(_Client(events, fresh=fresh), pr)
+
+    assert events == [f"approve:{_HEAD}", "reread:7", "dismiss:101"]
+    assert lagging_copy.dismissed_with is None
 
 
 @pytest.mark.parametrize("strict_base", [True, False])
@@ -249,18 +292,23 @@ def test_a_head_that_moved_onto_a_refused_base_dismisses_every_live_approval(str
     assert newer.dismissed_with == land_approval.MOVED_MESSAGE
 
 
-def test_a_head_that_moved_with_a_failed_review_listing_raises():
+class _Unlistable(_PR):
+    def get_reviews(self) -> list[_Review]:
+        raise RuntimeError("reviews 502")
+
+
+@pytest.mark.parametrize("fresh", [{"head": _NEW}, {"base": "release/2.9"}], ids=["head-moved", "base-refused"])
+def test_a_failed_listing_after_the_re_read_withdraws_the_approval_just_posted_then_raises(caplog, fresh):
     events: list[str] = []
     pr = _PR(events)
 
-    class _Unlistable(_PR):
-        def get_reviews(self) -> list[_Review]:
-            raise RuntimeError("reviews 502")
+    with caplog.at_level(logging.ERROR, logger="greenlight"), pytest.raises(RuntimeError, match="reviews 502"):
+        _approve(_Client(events, fresh=_Unlistable(events, **fresh)), pr)
 
-    with pytest.raises(RuntimeError, match="reviews 502"):
-        _approve(_Client(events, fresh=_Unlistable(events, head=_NEW)), pr)
-
-    assert events == [f"approve:{_HEAD}", "reread:7"]
+    assert events == [f"approve:{_HEAD}", "reread:7", "dismiss:101"]
+    assert pr.reviews[0].dismissed_with == land_approval.MOVED_MESSAGE
+    [record] = [r for r in caplog.records if "but not every other one" in r.getMessage()]
+    assert record.exc_info is not None
 
 
 @pytest.mark.parametrize(
@@ -349,17 +397,54 @@ def test_a_failed_dismissal_raises(stage):
     assert events[-1].startswith("dismiss:")
 
 
-def test_a_failed_approval_raises_and_reads_nothing_more():
-    events: list[str] = []
+class _Refusing(_PR):
+    def create_review(self, *, commit: Commit, body: str, event: str) -> _Review:
+        raise RuntimeError("approve 422")
 
-    class _Refusing(_PR):
-        def create_review(self, *, commit: Commit, body: str, event: str) -> _Review:
-            raise RuntimeError("approve 422")
+
+def test_a_failed_approval_on_an_unmoved_pr_re_reads_keeps_what_stands_on_its_head_and_raises():
+    events: list[str] = []
+    on_head = _Review(2, _BOT, "APPROVED", _HEAD, events)
 
     with pytest.raises(RuntimeError, match="approve 422"):
-        _approve(_Client(events), _Refusing(events))
+        _approve(_Client(events, fresh=_PR(events, reviews=[on_head])), _Refusing(events))
 
-    assert events == []
+    assert events == ["reread:7"]
+    assert on_head.dismissed_with is None
+
+
+@pytest.mark.parametrize(
+    ("fresh", "dismissed"),
+    [
+        pytest.param({"head": _NEW}, ["dismiss:3"], id="head-moved"),
+        pytest.param({"head": _NEW, "base": "release/2.9"}, ["dismiss:2", "dismiss:3"], id="base-refused"),
+    ],
+)
+def test_a_failed_approval_after_the_pr_moved_dismisses_the_approvals_off_its_head_then_raises(
+    caplog, fresh, dismissed
+):
+    events: list[str] = []
+    newer = _Review(2, _BOT, "APPROVED", _NEW, events)
+    stale = _Review(3, _BOT, "APPROVED", _OLD, events)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError, match="approve 422"):
+        _approve(_Client(events, fresh=_PR(events, reviews=[newer, stale], **fresh)), _Refusing(events))
+
+    assert events == ["reread:7", *dismissed]
+    assert stale.dismissed_with == land_approval.UNPOSTED_MESSAGE
+    assert f"greenlight's approval of {_REPO}#7 failed; dismissed {len(dismissed)} approval(s)" in caplog.text
+
+
+def test_a_failed_cleanup_after_a_failed_approval_is_logged_and_the_approval_error_raised(caplog):
+    events: list[str] = []
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"), pytest.raises(RuntimeError, match="approve 422"):
+        _approve(_Client(events, reread_error=RuntimeError("read 502")), _Refusing(events))
+
+    assert events == ["reread:7"]
+    [record] = [r for r in caplog.records if "after its approval failed" in r.getMessage()]
+    assert record.exc_info is not None
+    assert str(record.exc_info[1]) == "read 502"
 
 
 def test_dismiss_prior_logs_what_it_dismissed(caplog):
