@@ -1,0 +1,9 @@
+Build did NOT complete successfully (86 packages loaded, 12076 targets configured)
+
+CHUNK_SIZE = 4096
+OVERLAP_SIZE = 2048
+TOP_K = 1
+
+Error found in 2nd highest chunk
+
+Top chunk was docker infra errors
