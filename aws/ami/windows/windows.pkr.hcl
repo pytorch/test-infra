@@ -36,6 +36,23 @@ source "amazon-ebs" "windows_ebs_builder" {
   winrm_use_ssl   = true
   winrm_username  = "Administrator"
   skip_create_ami = var.skip_create_ami
+
+  # Allow WinRM (5986) only from the machine running packer, not 0.0.0.0/0.
+  temporary_security_group_source_public_ip = true
+
+  # Packer applies run_tags to the instance and to its temporary security
+  # group and key pair (the AMI inherits them too), so build-windows-ami.yml
+  # can find and remove this run's resources if the job is cancelled or fails
+  # before packer cleans up after itself.
+  run_tags = {
+    "packer-build"  = "windows-gha-ci"
+    "packer-run-id" = var.run_id
+  }
+  run_volume_tags = {
+    "packer-build"  = "windows-gha-ci"
+    "packer-run-id" = var.run_id
+  }
+
   aws_polling {
     # Check every minute for up to 30 min for the AMI to become available.
     # The AWS credentials must outlive provisioning plus this wait (see

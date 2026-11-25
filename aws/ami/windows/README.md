@@ -31,4 +31,18 @@ This AMI will be referencable by when spinning up new EC2 machines.
 packer build -var 'skip_create_ami=false' .
 ```
 
+## Cleanup of builder instances
+The builder instance, its root volume, and packer's temporary `packer_*`
+security group and key pair are tagged `packer-build=windows-gha-ci` and
+`packer-run-id=<run_id>` (`local` unless `PKR_VAR_run_id` is set); the AMI
+inherits the same tags. In CI, `build-windows-ami.yml` sets it to the GitHub
+run ID and, if the job is cancelled or fails, terminates that run's builder and
+deletes its security group and key pair. Packer only removes these itself when
+it exits cleanly. For a local build you interrupt, find leftovers with:
+```
+aws ec2 describe-instances --region us-east-1 \
+  --filters Name=tag:packer-build,Values=windows-gha-ci \
+            Name=instance-state-name,Values=pending,running,stopping,stopped
+```
+
 The resulting AMIs can be found under `us-east-1`  and `us-east-2` with the name prefix of **Windows 2019 GHA CI - {{timestamp}}**.
