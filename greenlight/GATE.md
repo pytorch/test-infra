@@ -77,13 +77,17 @@ required check as a wired gate (below).
 On every repo, `pytorch/pytorch` included (`land_approval.py`, called from `verdict`):
 
 1. The approval is pinned to the reviewed commit (`commit_id`).
-2. Right after approving, the record job reads the PR again; when its head moved, or its base is no
-   longer accepted, it dismisses GreenLight's approvals. When that read fails, it dismisses the review
-   it just created and fails.
-3. It keeps an existing approval only when GreenLight's latest review (the one pytorchbot's trymerge
-   reads) is an approval on the reviewed head and every live GreenLight approval is on that head;
-   otherwise it dismisses them and approves again, pinned. On `pytorch/pytorch` a LAND after a push
-   therefore dismisses the old approval and posts a new one.
+2. Right after approving, the record job reads the PR again. When its head moved, it dismisses the
+   review it just created, then every live GreenLight approval not on the new head; when its base is no
+   longer accepted, every live GreenLight approval. When that read fails, it dismisses the review it just
+   created and fails. When posting the approval fails, it reads the PR and dismisses what the new head or
+   base invalidates, then fails.
+3. On a `pytorchbot` repo it keeps an existing approval only when GreenLight's latest review (the one
+   pytorchbot's trymerge reads) is an approval on the reviewed head and every live GreenLight approval is
+   on that head; otherwise it dismisses them and approves again, pinned, so a LAND after a push dismisses
+   the old approval and posts a new one. On a gate repo it always dismisses and approves again: the new
+   approval is newer than a re-review's in-flight ledger rows, so the backing check waits for its `LAND`
+   instead of withdrawing an older approval.
 4. A `NO_LAND`, or a `LAND` passed `--shadow`, dismisses before any lookup; every dismissal keeps the
    client's retry of server and network errors.
 
