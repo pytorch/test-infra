@@ -112,7 +112,9 @@ columns are read in full; a projection or materialized view keyed by repo and PR
 cluster would bound every read. Each `clickhouse` repo runs a marker query and a freshness query of
 its own (the freshness answer is the same for every repo), which is why the allowlist holds the
 source to `pytorch/pytorch` until one combined marker query and one shared freshness reading per
-tick exist.
+tick exist. A `safety: gate` repo's approval-backing check ([GATE.md](GATE.md)) runs in its worker's
+safety phase apart from change detection, with its own listing and review reads, and logs its own count
+and time.
 
 **Access.** The ClickHouse user the scan Lambda runs with must read the columns `change_feed.py`
 names in the four webhook tables, and set `max_execution_time` per query: keep the profile at

@@ -1,9 +1,9 @@
 # GreenLight's gate (`safety: gate`)
 
 How GreenLight keeps its approval from counting for a commit it did not review, on a repo merged
-through GitHub's own required approvals instead of pytorchbot. `safety` is set per repo in
-`repos.yaml` ([REPOS.md](REPOS.md)); `pytorch/pytorch` keeps `pytorchbot`, whose trymerge reads the
-ledger at land time.
+through GitHub's own required approvals instead of pytorchbot. `safety` is set in each repo's own
+`.github/greenlight/config.yml` ([REPOS.md](REPOS.md)); `pytorch/pytorch` keeps `pytorchbot`, whose
+trymerge reads the ledger at land time.
 
 GitHub counts an approval given on an older commit: unless the repo dismisses stale approvals, an
 approval stays after a push. In pytorch/test-infra (1 approval required, stale dismissal off), 17 of
@@ -104,12 +104,12 @@ On every repo, `pytorch/pytorch` included (`land_approval.py`, called from `verd
 The record job runs the check before its eligibility check, for a `LAND` that would carry authority,
 and approves only as `pytorchgreenlight[bot]`, the account the gate watches; when the gate is not
 enforced, or the job runs as another App, the verdict is recorded in shadow, and a failed read fails
-the command. The scan reads the rules every tick: an `active` gate repo whose gate is not enforced, or
-whose read failed, gets no dispatch that tick (its error), since a shadow review's `LAND` would stay
-decided.
+the command. The scan reads the rules on every run of a gate repo's worker and logs the answer (enforced,
+or the problems): an `active` gate repo whose gate is not enforced, or whose read failed, gets no
+dispatch that run (its error), since a shadow review's `LAND` would stay decided.
 
-**The approval-backing check** (`approval_backing.py`, `backing_judge.py`), in the scan's safety
-phase, for every gate repo that is not `off`. GreenLight's live approval **stands** only when the gate
+**The approval-backing check** (`approval_backing.py`, `backing_judge.py`), in the safety phase of a
+gate repo's worker, for every gate repo that is not `off`. GreenLight's live approval **stands** only when the gate
 is enforced, the approval is on the PR's current head, the base is `main`, and the PR's latest
 non-shadow ledger row (the one pytorch's land guard would read) is a `LAND` for that head. Otherwise
 it is dismissed, after a fresh read of the PR. One wait: an approval on the head whose latest row is
@@ -119,24 +119,29 @@ than the approval, is kept while the ledger holds no row more than 2 minutes new
 `REVERTED` one, withdraws it at once, and a gate found not enforced withdraws every GreenLight approval
 in the repo.
 
-Each tick it lists every open PR (drafts and every author included) and reads GreenLight's reviews,
-with conditional requests, on every PR with a non-shadow verdict or a review in flight whose state
-(updated time, head, base, latest row, the rules' answer) changed since it last read it, on every other
-PR it read before whose state changed (a push, a retarget, a new review), on the PRs left waiting, and
-on a slice of a sweep that reads every open PR within each 15-minute window (an incomplete sweep is the
-repo's error). The Lambda mints new tokens every tick and GitHub ties an ETag to its token, so across ticks
-these reads get no 304: the sweep costs one reviews read per open PR per window (about 1,500 requests an
-hour for 380 open PRs), and a PR's unchanged state is what keeps it from being read in between. When
-ClickHouse cannot be read, it still withdraws approvals on another commit or base, leaves the rest for the
-next tick, and reports the error. It logs, each tick, how many PRs it read and
-how long it took.
+On an `active` repo, each run lists every open PR (drafts and every author included) and reads
+GreenLight's reviews on every PR with a non-shadow verdict or a review in flight whose state (updated
+time, head, base, latest row, the rules' answer) changed since it last read it, on every other PR it read
+before whose state changed (a push, a retarget, a new review), on the PRs left waiting, and on a slice of
+a sweep that reads every open PR within each 15-minute window (a sweep that misses its window is the
+repo's error). A `shadow` repo never gets an approval from GreenLight, so its runs read only the PRs with
+a ledger row (every PR GreenLight ever approved has one) and run no sweep. What the check knows between
+runs is kept in the repo's stored scan memory ([SCAN.md](SCAN.md)). A run starts no read 120 s after its
+invocation started; the changed and waiting PRs get the first half of that, then the sweep's slice, then
+the rest, and a changed or waiting PR left unread is the repo's error (it is read next run). The ledger
+reads have their own 20 s bound. The Lambda mints new tokens every run and GitHub ties an ETag to its
+token, so these reads get no 304: the sweep costs one reviews read per open PR per window (about 1,500
+requests an hour for 380 open PRs), and a PR's unchanged state is what keeps it from being read in
+between. When ClickHouse cannot be read, it still withdraws approvals on another commit or base, leaves
+the rest for the next run, and reports the error. A failed rules read leaves the PRs it reads waiting
+until a read succeeds. It logs, each run, how many PRs it read and how long it took.
 
 **Base rule**: in a gate repo the base must be `main` and the repo's default branch must be `main`,
 in the listing, the `--pr` gate, the record job and its re-read (`merge_authz.accepts_base_for`);
 ghstack and native-stack bases count only on `pytorchbot` repos.
 
 **Windows the gate does not close**, each withdrawn by the record job's re-read or the backing check's
-next tick: an approval posted just after the gate passed on a newer commit (the push race); a PR
+next run: an approval posted just after the gate passed on a newer commit (the push race); a PR
 retargeted from `main` to a branch whose own rules accept one approval but do not require the gate
 (GitHub keeps approvals on a retarget unless the branch dismisses stale ones); an approval an old
 record job posts when re-run by hand after a newer `NO_LAND`, which waits on the ledger like any fresh
@@ -181,8 +186,8 @@ before it goes `active`. None of them blocks the shadow phase from starting:
 
 ## Onboarding a gate repo
 
-1. The `greenlight-scan` Lambda's pinned release includes the gate (this change) before any gate entry
-   is `active`; an older release refuses `gate` with `active`, so no backing check would run.
+1. The `greenlight-scan` Lambda's pinned release includes the gate (this change) before any gate repo
+   is `active`; an older release refuses `gate` with `active` and has no backing check.
 2. The repo's default branch is `main` and uses rulesets only (no classic protection), with at least 1
    required approval, no restriction on who can dismiss reviews, and no merge queue. Record the choice on
    GitHub's native stale dismissal: it closes the gap for human approvals too, and dismisses them.
@@ -190,13 +195,29 @@ before it goes `active`. None of them blocks the shadow phase from starting:
    of `pytorch/test-infra` (no branch). Its bypass actors are only actors that also bypass every rule
    requiring an approval (check every ruleset on the branch with an admin token); otherwise a bypasser
    merges on a stale approval. Open PRs need a push, an update or a reopen to get their first run.
-4. GreenLight's App is installed on the repo; its config entry (`safety: gate`, `mode: shadow`) and its
-   policy file land in test-infra.
-5. In shadow, run the write-access checks above (once, on the first gate repo), and confirm the record
-   job's rules check passes (its log names any missing rule).
-6. The repo fits the scan's safety phase: its open PRs and its open PRs with a verdict are read every
-   tick and every window (about 0.35 s a read); the scan logs both counts and the time each tick.
-7. A config PR flips the entry to `active`.
+4. GreenLight's App is installed on the repo; its own `.github/greenlight/config.yml` (`safety: gate`,
+   `mode: shadow`) and review policy land on its default branch ([REPOS.md](REPOS.md)).
+5. In shadow, run the write-access checks above (once, on the first gate repo), and confirm the scan's
+   rules line for the repo reads enforced (it names any missing rule; the record job does not run the
+   check on a shadow verdict).
+6. The repo fits an active run: its open PRs are swept every 15 minutes and its PRs with a verdict read
+   when they change (about 0.35 s a read, at most 120 s of reads a run), and its stored memory stays under
+   the scan's cap (about 60 bytes a PR); the scan logs the counts and the time each run.
+7. A test-infra PR adds the repo to `GATE_ACTIVE_REPOS` (`greenlight/src/greenlight/constants.py`, under
+   GreenLight's code owners: a repo's maintainers cannot go active alone), then a config PR on the repo
+   flips its file to `active`. For pytorch/test-infra, whose config file lives beside GreenLight's code, a
+   CODEOWNERS line on `/.github/greenlight/` comes first.
 
 **Moving the pin**: review the full diff, between the old and the new SHA, of the workflow and of
 `greenlight/`, then edit the ruleset's SHA in place.
+
+## Leaving
+
+Each of these leaves a gate repo with no scan work at all, so its approvals would stand unchecked; switch
+the repo to `mode: off` and wait for its drain to complete first:
+
+- **Rolling the Lambda back** past the release that accepts `gate` with `active`: once this release has
+  run, the repo's stored last valid config is the active one too, and an older release refuses both.
+- **Removing the repo from `GATE_ACTIVE_REPOS`** while its file says `active`: the same refusal.
+- **Moving its default branch off `main`**: the scan's identity check then refuses the repo, drain
+  included.
