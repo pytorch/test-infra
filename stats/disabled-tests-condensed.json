@@ -1285,6 +1285,13 @@
       "xpu"
     ]
   ],
+  "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
+    "193150",
+    "https://github.com/pytorch/pytorch/issues/193150",
+    [
+      "rocm"
+    ]
+  ],
   "test_pointwise_query_producer_head_dims0_xpu (__main__.TestFlexDecodingXPU)": [
     "198712",
     "https://github.com/pytorch/pytorch/issues/198712",
