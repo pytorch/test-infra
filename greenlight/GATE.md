@@ -164,8 +164,8 @@ Checked read-only on 2026-11-17:
   `job.workflow_sha` the PR's merge commit, and its checkout and `gate-check` run end to end (about 10 s
   to a pass on a PR with no GreenLight approval).
 
-**Open: checks that need write access** (a sandbox repo with the org ruleset, or test-infra in shadow,
-before it goes `active`):
+**Checks that need write access**, run in pytorch/test-infra's shadow phase as the first gate repo,
+before it goes `active`. None of them blocks the shadow phase from starting:
 
 1. A ruleset run's `job.workflow_repository`, `job.workflow_file_path` and `job.workflow_sha` (the gate
    logs them) name `pytorch/test-infra`, the gate's path and the pinned SHA. Anything else makes the
@@ -192,8 +192,8 @@ before it goes `active`):
    merges on a stale approval. Open PRs need a push, an update or a reopen to get their first run.
 4. GreenLight's App is installed on the repo; its config entry (`safety: gate`, `mode: shadow`) and its
    policy file land in test-infra.
-5. In shadow, run the open checks above, and confirm the record job's rules check passes (its log names
-   any missing rule).
+5. In shadow, run the write-access checks above (once, on the first gate repo), and confirm the record
+   job's rules check passes (its log names any missing rule).
 6. The repo fits the scan's safety phase: its open PRs and its open PRs with a verdict are read every
    tick and every window (about 0.35 s a read); the scan logs both counts and the time each tick.
 7. A config PR flips the entry to `active`.
