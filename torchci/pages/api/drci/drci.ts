@@ -1700,7 +1700,7 @@ export function constructResultsComment(
       } cancelled. Please retry`,
       cancelledJobs,
       "",
-      true,
+      false,
       relatedJobs,
       relatedIssues,
       relatedInfo

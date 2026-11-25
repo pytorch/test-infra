@@ -1237,6 +1237,18 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     ).toBeTruthy();
   });
 
+  test("Cancelled jobs block merging, so their section is expanded", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 0,
+      failedJobs: [
+        getDummyJob({ name: "cancelledJob", conclusion: "cancelled" }),
+      ],
+    });
+    expect(
+      failureInfoComment.includes("<details open><summary><b>CANCELLED JOB")
+    ).toBeTruthy();
+  });
+
   test("test similar failures marked as flaky", async () => {
     const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
     mock.mockImplementation(() =>
