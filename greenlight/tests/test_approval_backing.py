@@ -1018,8 +1018,8 @@ def test_an_approval_given_during_a_rules_outage_is_judged_with_the_rules_once_r
 
     run.tick(make_config)
 
-    # The rules answer is in every key: 1, 2 and 7 changed, and are read oldest attempt first.
-    assert run.github.read_numbers()[6:11] == [1, 2, 7, 5, 6]
+    # The rules answer is in every key: the ledger PR 7 is read before 1 and 2.
+    assert run.github.read_numbers()[6:11] == [7, 1, 2, 5, 6]
     reason = "GreenLight's gate is not enforced on pytorch/vision: a merge_queue rule applies."
     assert _dismissed(run) == [(7, 1, _PREFIX + reason)]
 

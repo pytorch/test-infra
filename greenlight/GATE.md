@@ -131,9 +131,10 @@ a sweep that reads every open PR within each 15-minute window (a sweep that miss
 repo's error). A `shadow` repo never gets an approval from GreenLight, so its runs read only the PRs with
 a ledger row (every PR GreenLight ever approved has one) and run no sweep. What the check knows between
 runs is kept in the repo's stored scan memory ([SCAN.md](SCAN.md)). A run starts no read 120 s after its
-invocation started; the changed and waiting PRs get the first half of that (the ones never tried first,
-then the one tried longest ago), then the sweep's slice, then the rest, and a changed or waiting PR left
-unread is the repo's error (it is read next run). The ledger
+invocation started; the changed and waiting PRs get the first half of that (the PRs with a ledger row and
+the waiting ones before the others, and in each group the ones never tried first, then the one tried
+longest ago), then the sweep's slice, then the rest, and a changed or waiting PR left unread is the repo's
+error (it is read next run). The ledger
 reads have their own 20 s bound. The Lambda mints new tokens every run and GitHub ties an ETag to its
 token, so these reads get no 304: the sweep costs one reviews read per open PR per window (about 1,500
 requests an hour for 380 open PRs), and a PR's unchanged state is what keeps it from being read in
@@ -147,7 +148,8 @@ in the listing, the `--pr` gate, the record job and its re-read (`merge_authz.ac
 ghstack and native-stack bases count only on `pytorchbot` repos.
 
 **Windows the gate does not close**, each withdrawn by the record job's re-read or the backing check's
-next run: an approval posted just after the gate passed on a newer commit (the push race); a PR
+next run: an approval posted just after the gate passed on a newer commit (the push race, including a
+post whose response was lost and whose review the re-read's listing does not show yet); a PR
 retargeted from `main` to a branch whose own rules accept one approval but do not require the gate
 (GitHub keeps approvals on a retarget unless the branch dismisses stale ones); an approval an old
 record job posts when re-run by hand after a newer `NO_LAND`, which waits on the ledger like any fresh

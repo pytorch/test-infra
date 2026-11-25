@@ -33,8 +33,9 @@ never read waits for the sweep.
 
 No review read starts once ``deadline`` has passed. The changed and waiting PRs are read first, within half the
 time left; then the sweep's slice, in its order; then the rest of the changed and waiting PRs, so neither starves
-the other. The changed and waiting PRs are read in ``BackingMemory.reading_order``, never attempted first, then
-the oldest attempt first, so PRs whose reads keep failing slowly cannot use up every run's time. A changed or
+the other. The changed ledger PRs and the waiting ones come before the other changed PRs, each group in
+``BackingMemory.reading_order``, never attempted first, then the oldest attempt first, so PRs whose reads keep
+failing slowly cannot use up every run's time. A changed or
 waiting PR the deadline left unread is the repo's error; it keeps its earlier key (or none), a waiting one stays
 waiting, and an unread sweep PR stays pending, so the next run reads them.
 
@@ -188,8 +189,8 @@ def _key(pull: PullRequest, ledger: Ledger | None, kept: BackingKey | None, rule
 
 def _changed(
     keys: dict[int, BackingKey], kept: dict[int, BackingKey], ledger: Ledger | None, *, others: bool
-) -> list[int]:
-    """The ledger PRs whose key is not the kept one, then, when ``others``, every other PR whose kept key is not
+) -> tuple[list[int], list[int]]:
+    """The ledger PRs whose key is not the kept one, and, when ``others``, every other PR whose kept key is not
     its key. With the ledger unknown, the PRs whose kept key holds a row stand for the ledger PRs."""
 
     def drives(number: int) -> bool:
@@ -200,7 +201,10 @@ def _changed(
 
     driven = sorted(number for number in keys if drives(number))
     rest = sorted(number for number in keys.keys() - set(driven) if number in kept) if others else []
-    return [number for number in [*driven, *rest] if keys[number] != kept.get(number)]
+    return (
+        [number for number in driven if keys[number] != kept.get(number)],
+        [number for number in rest if keys[number] != kept.get(number)],
+    )
 
 
 def _halfway(deadline: float | None, monotonic: Callable[[], float]) -> float | None:
@@ -289,9 +293,10 @@ def check(
             cancel_event=cancel_event,
             monotonic=monotonic,
         )
-        changed = _changed(keys, kept, ledger, others=window is not None)
+        driven, rest = _changed(keys, kept, ledger, others=window is not None)
         waiting = sorted(number for number in backing.waiting if number in pulls)
-        first = backing.reading_order(dict.fromkeys([*changed, *waiting]))
+        priority = backing.reading_order(dict.fromkeys([*driven, *waiting]))
+        first = [*priority, *backing.reading_order(number for number in rest if number not in set(priority))]
         first_reads = run.read_all(first, until=_halfway(deadline, monotonic))
         sweep_reads: list[int] = []
         if window is not None:
@@ -307,7 +312,7 @@ def check(
         github_client.close_client(client)
     unread_waiting = {number for number in backing.waiting if number in pulls and number not in run.checked}
     backing.waiting = frozenset(run.waiting | unread_waiting)
-    changed_reads = len(set(first_reads) & set(changed))
+    changed_reads = len(set(first_reads) & {*driven, *rest})
     decode_error, backing.decode_error = backing.decode_error, None
     reads = (changed_reads, len(sweep_reads))
     report = _report(repo, backing, rules, pulls, run, reads, decode_error, errors, monotonic() - started)
