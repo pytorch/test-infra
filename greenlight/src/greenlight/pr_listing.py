@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from greenlight.constants import REVERTED_LABELS
-from greenlight.merge_authz import accepts_refs, native_stack_trunk
+from greenlight.merge_authz import accepts_refs, is_target_branch, native_stack_trunk
 from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
@@ -236,17 +236,28 @@ def default_fetch_updated(client: Github, repo: str, authors: frozenset[str], cu
     return _by_number([*walked, *reverted])
 
 
-def candidate_fields(open_prs: Sequence[OpenPR]) -> Candidates:
-    """``open_prs`` as the scan's candidates; a PR on a base ``merge_authz.accepts_base`` refuses gets no author."""
+def _base_refused(open_pr: OpenPR, *, strict_base: bool) -> bool:
+    if strict_base:
+        return not is_target_branch(open_pr.base_ref)
+    return open_pr.base_accepted is False
+
+
+def candidate_fields(open_prs: Sequence[OpenPR], *, strict_base: bool = False) -> Candidates:
+    """``open_prs`` as the scan's candidates; a PR on a base the repo's rule refuses gets no author.
+
+    The rule is ``merge_authz.accepts_refs``, or under ``strict_base`` (a ``gate`` repo)
+    ``merge_authz.is_target_branch`` on the stored ``base_ref``, which also refuses a PR listed with no base.
+    """
+    refused = {open_pr.number for open_pr in open_prs if _base_refused(open_pr, strict_base=strict_base)}
     for open_pr in open_prs:
         logger.debug("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
-        if open_pr.base_accepted is False:
+        if open_pr.number in refused:
             logger.info("PR #%d by %s: base not accepted", open_pr.number, open_pr.author)
     return Candidates(
         [open_pr.number for open_pr in open_prs],
         {open_pr.number: open_pr.updated_at for open_pr in open_prs},
         {open_pr.number: open_pr.labels for open_pr in open_prs},
-        {open_pr.number: open_pr.author for open_pr in open_prs if open_pr.base_accepted is not False},
+        {open_pr.number: open_pr.author for open_pr in open_prs if open_pr.number not in refused},
         {open_pr.number: open_pr.head_sha for open_pr in open_prs},
     )
 
@@ -260,14 +271,15 @@ def candidate_numbers(
     fetch: FetchFn,
     cutoff: datetime | None,
     fetch_updated: FetchUpdatedFn,
+    strict_base: bool = False,
 ) -> Candidates:
     """Return the candidate PR numbers with their ``updated_at``, labels, author, and head.
 
     With no ``cutoff`` the listing is full (``fetch``); with one it is fast (``fetch_updated``). The
     ``--pr`` path has no listing to read labels, an author or a head from, so it returns none: the one
     caller that needs labels (``revert_guard``) fetches that single PR's, and the PR's author and
-    authority come from its gate. A PR listed on a base ``merge_authz.accepts_base`` refuses is still a
-    candidate but gets no author, so the scan treats it as shadow.
+    authority come from its gate. A PR listed on a base the repo's rule refuses (``candidate_fields``, with
+    ``strict_base``) is still a candidate but gets no author, so the scan treats it as shadow.
     """
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, repo)
@@ -279,4 +291,4 @@ def candidate_numbers(
         open_prs = fetch_updated(client, repo, authors, cutoff)
         tick = f"fast tick, updated since {cutoff:%Y-%m-%d %H:%M:%S} UTC"
     logger.info("found %d open PR(s) from %d author(s) in %s (%s)", len(open_prs), len(authors), repo, tick)
-    return candidate_fields(open_prs)
+    return candidate_fields(open_prs, strict_base=strict_base)

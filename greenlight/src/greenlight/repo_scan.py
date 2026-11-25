@@ -8,14 +8,19 @@ the last file read), stores the updated record, and checks the rest of GitHub's 
 (``check_identity``: the exact canonical name, default branch ``main``: ``accepts_base`` judges bases
 against ``main``, so a repo on another default branch would get no reviews). Then it does the work
 ``repo_work`` gives its entry: the drain when its mode is ``off``; the review (``review.run``), whole when
-served and only its safety work when safety-only; or nothing for a safety-only ``gate`` entry, which has
-no safety work yet. A repo whose settings give no entry (no file, a refused file, an unreadable one), or
-one that fails a live check, gets no work at all. Every problem the settings carry fails the scan, after
-the work they still allow ran. The dispatch and the drain's read of the review runs use the dispatch token
+served and only its safety work when safety-only. A ``gate`` entry that is not off first runs the
+approval-backing check (``backs_approvals``, ``approval_backing``), its safety work, which is all a
+safety-only one gets; an ``active`` one whose check could not read its branch rules, or found
+GreenLight's gate not enforced, is not reviewed (``dispatch_refusal``). An entry that does not back
+approvals forgets the check's memory (``ScanMemory.clear_backing``). ``--pr`` runs no backing check. A
+repo whose settings give no entry (no file, a refused file, an unreadable one), or one that fails a live
+check, gets no work at all. Every problem the settings carry fails the scan, after the work they still
+allow ran. The dispatch and the drain's read of the review runs use the dispatch token
 (``Config.dispatch_or_scan_token``): both are on ``DISPATCH_REPO``. A listing scan loads the repo's memory
 from the store and saves it back, with no lease; each eligibility source is read through a
 ``SnapshotCache`` whose snapshot the store keeps. The scan Lambda (``fanout``, ``worker``, ``tick``)
-routes every repo through the same ``repo_work``, ``identity_problem`` and eligibility caches.
+routes every repo through the same ``repo_work``, ``backs_approvals``, ``dispatch_refusal``,
+``identity_problem`` and eligibility caches.
 """
 
 from __future__ import annotations
@@ -24,7 +29,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Literal, NamedTuple, NoReturn
 
-from greenlight import config_cache, drain, github_client, merge_authz, review, writers
+from greenlight import approval_backing, config_cache, drain, github_client, merge_authz, review, writers
 from greenlight.constants import REPO_CONFIG_PATH, TARGET_BRANCH
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import is_primary
@@ -38,6 +43,7 @@ if TYPE_CHECKING:
 
     from github import Github
 
+    from greenlight.approval_backing import BackingReport
     from greenlight.config import Config
     from greenlight.merge_authz import MergeRulesSnapshot
     from greenlight.quota import RequestMeter
@@ -109,7 +115,7 @@ def check_identity(entry: RepoEntry, identity: RepoIdentity) -> None:
 class RepoWork(NamedTuple):
     """What a scan does for an entry: its ``kind`` of work, and whether its review goes past the safety work."""
 
-    kind: Literal["drain", "review", "none"]
+    kind: Literal["drain", "review", "backing"]
     optional: bool
 
 
@@ -117,20 +123,41 @@ def repo_work(entry: RepoEntry, *, served: bool) -> RepoWork:
     """The work of ``entry``, served or safety-only, on either entry point (``scan_repo``, ``tick``).
 
     ``off`` drains. A ``pytorchbot`` entry, or a served ``gate`` one, is reviewed, past its safety work
-    only when served. A safety-only ``gate`` entry gets nothing: a gate repo has no safety work yet.
+    only when served. A safety-only ``gate`` entry gets its approval-backing check alone.
     """
     if entry.mode == "off":
         return RepoWork("drain", optional=False)
     if entry.safety == "pytorchbot" or served:
         return RepoWork("review", optional=served)
-    return RepoWork("none", optional=False)
+    return RepoWork("backing", optional=False)
 
 
 def has_work(work: RepoWork, *, drain_complete: bool) -> bool:
     """Whether a scan Lambda run of a repo with ``work`` has anything to do: an ``off`` repo whose stored drain
     is complete has not, until its settings stop saying ``off`` and a run forgets the drain
     (``ScanMemory.clear_drain``)."""
-    return work.kind != "none" and not (work.kind == "drain" and drain_complete)
+    return not (work.kind == "drain" and drain_complete)
+
+
+def backs_approvals(entry: RepoEntry) -> bool:
+    """Whether ``entry`` runs the approval-backing check as its safety work: a ``gate`` entry that is not off."""
+    return entry.safety == "gate" and entry.mode != "off"
+
+
+def dispatch_refusal(entry: RepoEntry, report: BackingReport | None) -> str | None:
+    """Why ``entry`` may not be reviewed this run, or None.
+
+    Only an ``active`` gate entry is refused: when its backing ``report`` (None: the check did not finish)
+    has no rules answer, or says GreenLight's gate is not enforced on it.
+    """
+    if entry.safety != "gate" or entry.mode != "active":
+        return None
+    rules = None if report is None else report.rules
+    if rules is None:
+        return "no dispatch this run: the rules could not be read"
+    if not rules.enforced:
+        return f"no dispatch this run: GreenLight's gate is not enforced on {entry.repo}: {'; '.join(rules.problems)}"
+    return None
 
 
 def eligibility_resolver(entry: RepoEntry) -> tuple[str, Callable[[Github], MergeRulesSnapshot]]:
@@ -230,6 +257,7 @@ def scan_repo(
     build_github: BuildClient = github_client.build_client,
     run_review: RunFn = review.run,
     run_drain: Callable[..., drain.DrainReport] = drain.drain,
+    run_backing: Callable[..., BackingReport] = approval_backing.check,
     clock: Callable[[], float] = time.time,
     **review_kwargs: Unpack[ScanOptions],
 ) -> None:
@@ -256,6 +284,7 @@ def scan_repo(
             build_github=build_github,
             run_review=run_review,
             run_drain=run_drain,
+            run_backing=run_backing,
             clock=clock,
             **review_kwargs,
         )
@@ -289,6 +318,7 @@ def _scan(
     build_github: BuildClient,
     run_review: RunFn,
     run_drain: Callable[..., drain.DrainReport],
+    run_backing: Callable[..., BackingReport],
     clock: Callable[[], float],
     **review_kwargs: Unpack[ScanOptions],
 ) -> None:
@@ -315,6 +345,13 @@ def _scan(
     work = repo_work(entry, served=settings.served)
     if memory is not None and work.kind != "drain":
         memory.clear_drain()
+    refusal = None
+    if memory is not None and not backs_approvals(entry):
+        memory.clear_backing()
+    elif memory is not None:
+        backing = run_backing(config, entry=entry, memory=memory, bot_login=bot_login, build_github=build_github)
+        errors.extend(backing.errors)
+        refusal = dispatch_refusal(entry, backing)
     if work.kind == "drain":
         if memory is None:
             logger.warning("%s is off: --pr reviews nothing", repo)
@@ -329,8 +366,11 @@ def _scan(
             )
             if (problem := drain_error(report)) is not None:
                 errors.append(problem)
-    elif work.kind == "none":
-        logger.warning("%s: a safety-only gate entry has no safety work yet; nothing runs for it", repo)
+    elif work.kind == "backing":
+        if memory is None:
+            logger.warning("%s: a safety-only gate entry is not reviewed: --pr does nothing", repo)
+    elif refusal is not None:
+        errors.append(refusal)
     else:
         run_review(
             config,

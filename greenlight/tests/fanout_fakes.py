@@ -8,8 +8,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from greenlight import drain, quota, tick
+from greenlight import approval_backing, drain, quota, tick
 from greenlight.constants import REPO_CONFIG_PATH, TARGET_REPO
+from greenlight.gate_rules import GateRules
 from greenlight.repo_scan import RepoIdentity
 from greenlight.state_store import InProcessStore, StoreError
 
@@ -173,6 +174,8 @@ class World:
     failures: dict[str, BaseException] = field(default_factory=dict)
     quota_reading: tuple[int, int] = (5000, 5000)
     drain_failed: tuple[int, ...] = ()
+    backing_errors: tuple[str, ...] = ()
+    backing_kwargs: dict[str, dict[str, Any]] = field(default_factory=dict)
     clock: list[float] = field(default_factory=lambda: [START])
     monotonic: list[float] = field(default_factory=lambda: [0.0])
     read_seconds: float = 0.0
@@ -212,6 +215,12 @@ class World:
         self._fail(f"drain {repo}")
         return drain.DrainReport(1, 0, 0, False, "x", self.drain_failed)
 
+    def backing(self, config: Any, *, entry: RepoEntry, **kwargs: Any) -> approval_backing.BackingReport:
+        self.events.append(f"backing {entry.repo} {entry.mode}")
+        self.backing_kwargs[entry.repo] = {"config": config, **kwargs}
+        self._fail(f"backing {entry.repo}")
+        return approval_backing.BackingReport(GateRules(enforced=True), 0, 0, 0, 0, 0, 0, 0, 0, (), self.backing_errors)
+
     def read_quota(self, _client: Any) -> tuple[int, int]:
         return self.quota_reading
 
@@ -226,6 +235,7 @@ class World:
             run_prepare=self.prepare,
             run_finish=self.finish,
             run_drain=self.drain,
+            run_backing=self.backing,
             read_quota=self.read_quota,
             monotonic=lambda: self.monotonic[0],
             clock=self.now,

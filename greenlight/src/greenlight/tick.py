@@ -7,8 +7,12 @@ errors (``tick_outcomes.Outcomes``), its start and its ``ExitStack``. A ``RepoRu
 ``repo_scan.repo_work``:
 
 - **Phase A**, safety work, never stopped by a budget or a floor: an ``off`` repo runs its drain slice, a
-  ``pytorchbot`` repo ``review.prepare`` (the revert guard and the ineligible revoke), a ``gate`` repo
-  nothing yet. A safety-only repo stops here.
+  ``pytorchbot`` repo ``review.prepare`` (the revert guard and the ineligible revoke), any other ``gate``
+  repo its approval-backing check (``approval_backing``), which starts no read ``BACKING_DEADLINE`` after
+  the invocation started and whose report's errors are the repo's. An ``active`` gate repo whose check
+  could not read its branch rules, or found GreenLight's gate not enforced, is held
+  (``repo_scan.dispatch_refusal``), which is its error. A repo that does not back approvals forgets the
+  check's memory (``ScanMemory.clear_backing``). A safety-only repo stops here.
 - **Phase B**, optional work: ``review.prepare`` (unless Phase A prepared it) and ``review_finish.finish``,
   stopped ``WORKER_DEADLINE`` after the invocation started, below the quota floor (``QUOTA_FLOOR_PRIMARY``
   for the primary, ``QUOTA_FLOOR_OTHERS`` for the others) and, for a repo other than the primary, once its
@@ -34,8 +38,9 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from greenlight import drain, github_client, repo_scan, review, review_finish
+from greenlight import approval_backing, drain, github_client, repo_scan, review, review_finish
 from greenlight.constants import (
+    BACKING_DEADLINE,
     OTHER_REPO_REQUEST_BUDGET,
     QUOTA_FLOOR_OTHERS,
     QUOTA_FLOOR_PRIMARY,
@@ -53,6 +58,7 @@ if TYPE_CHECKING:
 
     from github import Github
 
+    from greenlight.approval_backing import BackingReport
     from greenlight.config import Config
     from greenlight.repo_config import RepoEntry
     from greenlight.review_finish import PreparedScan
@@ -72,6 +78,7 @@ class Seams:
     run_prepare: Callable[..., PreparedScan | None] = review.prepare
     run_finish: Callable[..., None] = review_finish.finish
     run_drain: Callable[..., drain.DrainReport] = drain.drain
+    run_backing: Callable[..., BackingReport] = approval_backing.check
     read_quota: Callable[[Github], tuple[int, int]] = core_quota
     monotonic: Callable[[], float] = time.monotonic
     clock: Callable[[], float] = time.time
@@ -179,16 +186,43 @@ class RepoRun:
         if (problem := repo_scan.drain_error(report)) is not None:
             self.invocation.outcomes.error(self.repo, problem)
 
+    def _back(self) -> BackingReport:
+        invocation = self.invocation
+        seams = invocation.seams
+        report = seams.run_backing(
+            self.config,
+            entry=self.entry,
+            memory=self.memory,
+            bot_login=self.bot_login,
+            build_github=invocation.metered(self.repo),
+            cancel_event=invocation.meter.latch,
+            now=seams.now,
+            deadline=invocation.started + BACKING_DEADLINE.total_seconds(),
+            monotonic=seams.monotonic,
+        )
+        for error in report.errors:
+            invocation.outcomes.error(self.repo, error)
+        return report
+
     def phase_a(self) -> None:
         work, outcomes = self.work, self.invocation.outcomes
+        backs = repo_scan.backs_approvals(self.entry)
         if work.kind != "drain":
             self.memory.clear_drain()
-        if work.kind == "none" or outcomes.skipped(self.repo, "Phase A"):
+        if not backs:
+            self.memory.clear_backing()
+        if outcomes.skipped(self.repo, "Phase A"):
             return
         if work.kind == "drain":
             self.invocation.gauge.refresh()
             outcomes.attempt(self.repo, "Phase A (drain)", self._drain)
-        elif self.entry.safety == "pytorchbot":
+        elif backs:
+            self.invocation.gauge.refresh()
+            report = outcomes.result(self.repo, "Phase A (approval backing)", self._back)
+            if (refusal := repo_scan.dispatch_refusal(self.entry, report)) is not None:
+                outcomes.error(self.repo, refusal)
+                self.hold(refusal)
+        else:
             self.invocation.gauge.refresh()
             outcomes.attempt(self.repo, "Phase A (safety work)", lambda: self._prepare(0))
 

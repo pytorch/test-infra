@@ -568,6 +568,7 @@ def _candidates(
     full: list[OpenPR] | None = None,
     fast: list[OpenPR] | None = None,
     repo: str = TARGET_REPO,
+    strict_base: bool = False,
 ) -> tuple[tuple[object, ...], list[str]]:
     calls: list[str] = []
 
@@ -587,6 +588,7 @@ def _candidates(
         fetch=fetch,
         cutoff=cutoff,
         fetch_updated=fetch_updated,
+        strict_base=strict_base,
     )
     return result, calls
 
@@ -792,3 +794,38 @@ def test_read_record_builds_one_pr_as_the_listings_build_each_record():
 
 def test_read_record_of_a_pr_that_names_no_author_is_none():
     assert pr_listing.read_record(cast("Github", _SinglePullRepo(_FakePull(7, None))), TARGET_REPO, 7) is None
+
+
+def test_strict_base_candidate_fields_hand_an_author_only_to_a_pr_listed_on_main(caplog):
+    prs = [
+        replace(_open_pr(1), base_ref="main"),
+        replace(_open_pr(2), base_ref="gh/alice/1/base", head_ref="gh/alice/1/head"),
+        replace(_open_pr(3), base_ref="alice/part-1", stack_trunk="main"),
+        replace(_open_pr(4, base_accepted=None), base_ref=None),
+        replace(_open_pr(5, base_accepted=False), base_ref="main"),
+    ]
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        candidates = pr_listing.candidate_fields(prs, strict_base=True)
+
+    # A gate repo has no trymerge to land a ghstack or native stack, and an issues-endpoint PR's base is
+    # unknown: each stays a candidate (revert guard, revoke) but gets no author, so it is never dispatched.
+    assert candidates.numbers == [1, 2, 3, 4, 5]
+    assert candidates.authors == {1: "alice", 5: "alice"}
+    assert [f"PR #{number} by alice: base not accepted" in caplog.text for number in range(1, 6)] == [
+        False,
+        True,
+        True,
+        True,
+        False,
+    ]
+
+
+def test_candidate_numbers_threads_strict_base_to_the_candidates():
+    listed = [replace(_open_pr(1), base_ref="main"), replace(_open_pr(2), base_ref="gh/alice/1/base")]
+
+    (_numbers, _updated, _labels, lenient, _heads), _calls = _candidates(full=listed)
+    (_numbers, _updated, _labels, strict, _heads), _calls = _candidates(full=listed, strict_base=True)
+
+    assert lenient == {1: "alice", 2: "alice"}
+    assert strict == {1: "alice"}
