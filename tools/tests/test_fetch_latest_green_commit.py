@@ -1,6 +1,11 @@
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List
 from unittest import main, mock, TestCase
 
+from tools.scripts import fetch_latest_green_commit as updater
 from tools.scripts.fetch_latest_green_commit import is_green, WorkflowCheck
 
 
@@ -230,6 +235,152 @@ class TestPrintCommits(TestCase):
         workflow_checks = mock_get_commit_results()
         result = is_green("sha", requires + [""], workflow_checks)
         self.assertTrue(result[0])
+
+
+@mock.patch.object(updater, "fetch_unstable_issues", return_value=[])
+class TestRunSummary(TestCase):
+    @staticmethod
+    def check(
+        sha: str, workflow: str, job: str, status: str, id_: int
+    ) -> dict[str, Any]:
+        return {
+            "sha": sha,
+            "workflowName": workflow,
+            "name": f"{workflow} / {job}",
+            "jobName": job,
+            "conclusion": status,
+            "htmlUrl": f"https://github.com/pytorch/executorch/actions/runs/{id_}/job/{id_}",
+            "run_attempt": 2,
+        }
+
+    def test_all_blockers_and_conflicting_runs_in_one_summary(
+        self, _unstable: Any
+    ) -> None:
+        rows = [
+            self.check("abcd", "trunk", "VKML <linux>", "failure", 1),
+            self.check("abcd", "trunk", "VKML <linux>", "success", 2),
+            self.check("abcd", "pull", "unittest", "pending", 3),
+            self.check("abcd", "Apple", "test", "cancelled", 4),
+            self.check("abcd", "Lint", "lint", "success", 5),
+            self.check("abcd", "Build documentation", "docs", "success", 6),
+            self.check("abcd", "pull", "unstable job", "failure", 7),
+            self.check("abcd", "periodic", "test", "failure", 8),
+        ]
+        required = [
+            "pull",
+            "lint",
+            "trunk",
+            "Build documentation",
+            "^Apple$",
+            "viable-strict-gate",
+        ]
+        self.assertEqual(
+            is_green("abcd", required, rows),
+            (False, "trunk was not successful, trunk / VKML <linux> failed"),
+        )
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "summary.md"
+            updater.write_run_summary(path, ["abcd", "ef01"], required, rows, None)
+            summary = path.read_text(encoding="utf-8")
+        self.assertEqual(summary.count("<details"), 2)
+        head = summary.split("<details>", 1)[0]
+        for expected in (
+            "<code>abcd</code>",
+            "<strong>failure</strong>",
+            "<strong>pending</strong>",
+            "<strong>cancelled</strong>",
+            "missing required workflows: viable-strict-gate",
+            "VKML &lt;linux&gt;",
+            "/actions/runs/1/job/1",
+            "/actions/runs/2/job/2",
+            "(attempt 2); also passed:",
+        ):
+            self.assertIn(expected, head)
+        self.assertNotIn("unstable job", summary)
+        self.assertNotIn("periodic", summary)
+        self.assertIn("<code>ef01</code>", summary)
+
+    def test_overlapping_requirements_report_a_failed_job_once(
+        self, _unstable: Any
+    ) -> None:
+        rows = [self.check("abcd", "trunk", "test", "failure", 1)]
+        blockers = list(updater.iter_blockers(rows, ["trunk", "^trunk$", "lint"]))
+        self.assertEqual(len(blockers), 2)
+        self.assertEqual(blockers[0][1], rows[0])
+        self.assertEqual(blockers[1], ("missing required workflows: lint", None))
+
+    def test_unexpected_job_url_is_not_linked(self, _unstable: Any) -> None:
+        row = self.check("abcd", "pull", "<unittest>", "failure", 1)
+        row["htmlUrl"] = "https://example.invalid/actions/runs/1/job/1"
+        self.assertEqual(
+            updater.describe_check(row), "pull / &lt;unittest&gt; (attempt 2)"
+        )
+
+    def test_pytorch_selects_first_green_and_ignores_executorch_gate(
+        self, _unstable: Any
+    ) -> None:
+        required = ["pull", "trunk", "lint", "docs-build"]
+        rows = [self.check("abcd", "pull", "tests", "pending", 1)] + [
+            self.check("ef01", workflow, "job", "success", i)
+            for i, workflow in enumerate(required, start=2)
+        ]
+        commits = ["abcd", "ef01", "2345"]
+        with redirect_stderr(StringIO()):
+            selected = updater.get_latest_green_commit(commits, required, rows)
+        self.assertEqual(selected, "ef01")
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "summary.md"
+            updater.write_run_summary(path, commits, required, rows, selected)
+            summary = path.read_text(encoding="utf-8")
+        self.assertIn("Selected `ef01`", summary)
+        self.assertIn("<code>abcd</code>", summary)
+        self.assertNotIn("2345", summary)
+        self.assertNotIn("viable-strict-gate", summary)
+
+    def test_cli_writes_summary_without_changing_selected_sha(
+        self, _unstable: Any
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "summary.md"
+            with (
+                mock.patch.object(updater, "get_latest_commits", return_value=["abcd"]),
+                mock.patch.object(
+                    updater,
+                    "query_commits",
+                    return_value=[self.check("abcd", "pull", "test", "success", 1)],
+                ) as query,
+                mock.patch.object(
+                    updater.sys, "argv", ["updater", "--required-checks", '["pull"]']
+                ),
+                mock.patch.dict(updater.os.environ, {"GITHUB_STEP_SUMMARY": str(path)}),
+                redirect_stdout(StringIO()) as stdout,
+                redirect_stderr(StringIO()),
+            ):
+                updater.main()
+            self.assertEqual(stdout.getvalue(), "abcd\n")
+            self.assertIn("Selected `abcd`", path.read_text(encoding="utf-8"))
+            query.assert_called_once_with(["abcd"])
+
+    def test_summary_failure_does_not_change_cli_result(self, _unstable: Any) -> None:
+        with (
+            mock.patch.object(updater, "get_latest_commits", return_value=["abcd"]),
+            mock.patch.object(updater, "query_commits", return_value=[]),
+            mock.patch.object(
+                updater, "write_run_summary", side_effect=OSError
+            ) as write,
+            mock.patch.object(
+                updater.sys, "argv", ["updater", "--required-checks", "pull"]
+            ),
+            mock.patch.dict(updater.os.environ, {"GITHUB_STEP_SUMMARY": "unused.md"}),
+            redirect_stdout(StringIO()) as stdout,
+            redirect_stderr(StringIO()) as stderr,
+        ):
+            updater.main()
+        write.assert_called_once()
+        self.assertEqual(stdout.getvalue(), "None\n")
+        self.assertIn(
+            "Could not write the viable/strict run summary", stderr.getvalue()
+        )
 
 
 if __name__ == "__main__":
