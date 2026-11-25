@@ -18,6 +18,11 @@ import { z } from "zod/v4";
 // imports this module into the browser.
 export const COST_PAGE_PATH = "/tests/{organization}/{repo}/cost";
 
+// The page's path for a repository given as owner/name, with no parameters.
+export function costPagePath(repo: string): string {
+  return `/tests/${repo}/cost`;
+}
+
 const DAY = "\\d{4}-\\d{2}-\\d{2}";
 const DAY_RANGE = new RegExp(`^${DAY}(\\.\\.${DAY})?$`);
 const RANGE_ERROR =

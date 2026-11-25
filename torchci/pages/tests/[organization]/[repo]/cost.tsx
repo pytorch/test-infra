@@ -1,6 +1,5 @@
 import { Stack } from "@mui/material";
 import CoverageBanner from "components/tests/cost/banner/CoverageBanner";
-import CostHeading from "components/tests/cost/CostHeading";
 import DrillTable from "components/tests/cost/drill/DrillTable";
 import ScopeHead from "components/tests/cost/drill/ScopeHead";
 import ScopeTrail from "components/tests/cost/drill/ScopeTrail";
@@ -11,6 +10,7 @@ import RateStrip from "components/tests/cost/rates/RateStrip";
 import ScopeKeys from "components/tests/cost/ScopeKeys";
 import TrendsPanel from "components/tests/cost/trends/TrendsPanel";
 import WorkflowsCard from "components/tests/cost/WorkflowsCard";
+import HubTabs from "components/tests/HubTabs";
 import LoadError from "components/tests/LoadError";
 import PageColumn from "components/tests/PageColumn";
 import {
@@ -69,8 +69,9 @@ function datesOf(answer: RunnerHours): string {
     : range;
 }
 
-// Where a repository's test-job runner-hours go: the title row (workflow
-// scope, rates file), the headline facts, the coverage banner of what share
+// Where a repository's test-job runner-hours go: the hub's row (HubTabs),
+// which is the page's title, with the workflow scope and the rates file at
+// its right end, then the headline facts, the coverage banner of what share
 // of org CI the page covers, then Trends: the A/B picker over owner- or
 // machine-stacked bars, with the drill-down (trail, head, table) inside it,
 // every part following the trail. The workflows card comes last, folded,
@@ -256,38 +257,35 @@ export default function Page() {
     (p) => workflows.length > 0 && isScope(workflows, p.workflows)
   );
 
-  const heading = (
-    <CostHeading
-      repo={repo}
-      keys={
-        <>
-          <ScopeKeys
-            presets={answer?.workflow_presets ?? []}
-            scope={workflows}
-            scopeLabel={workflowScope ?? "all workflows"}
-            onScopeChange={setWorkflows}
-            showCustom
-          />
-          <RatesControl
-            rates={rates}
-            error={ratesError}
-            dragging={dragging}
-            exampleLabels={(labels ?? []).slice(0, 2)}
-            onFiles={takeRates}
-            onClear={() => {
-              setRates(null);
-              setRatesError(null);
-            }}
-            onDismissError={() => setRatesError(null)}
-          />
-        </>
-      }
-    />
+  // The hub's row is the page's title; its choices are the two that apply to
+  // everything the page shows.
+  const row = (
+    <HubTabs repo={repo} current="cost">
+      <ScopeKeys
+        presets={answer?.workflow_presets ?? []}
+        scope={workflows}
+        scopeLabel={workflowScope ?? "all workflows"}
+        onScopeChange={setWorkflows}
+        showCustom
+      />
+      <RatesControl
+        rates={rates}
+        error={ratesError}
+        dragging={dragging}
+        exampleLabels={(labels ?? []).slice(0, 2)}
+        onFiles={takeRates}
+        onClear={() => {
+          setRates(null);
+          setRatesError(null);
+        }}
+        onDismissError={() => setRatesError(null)}
+      />
+    </HubTabs>
   );
   return (
     <PageColumn>
+      {row}
       <Stack spacing={1.5}>
-        {heading}
         <PageFacts
           trend={factsTrend}
           scope={preset?.label ?? workflowScope ?? "all workflows"}

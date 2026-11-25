@@ -18,6 +18,7 @@ import {
 } from "lib/api/tests/cost/contracts";
 import {
   COST_PAGE_PARAMETER_DEFINITIONS,
+  costPagePath,
   showMax,
 } from "lib/api/tests/cost/page";
 import {
@@ -191,6 +192,9 @@ export function costUrlParams(query: CostQuery) {
     COST_PAGE_PARAMETER_DEFINITIONS
   );
 }
+
+// The page's path, for the hub's tabs (HubTabs).
+export { costPagePath };
 
 // The GET /api/tests/cost request: the repository and the window.
 export function costApiUrl(repo: string, window: CostWindow): string {

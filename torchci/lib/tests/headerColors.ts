@@ -13,7 +13,7 @@ export function headerBandColor(theme: Theme): string {
 }
 
 // A step darker than the band: a pill or badge in the band's grey under the
-// pointer (InlinePill, the grid's variables badge).
+// pointer (FactPill, the grid's variables badge).
 export function headerBandHoverColor(theme: Theme): string {
   return theme.palette.mode === "dark"
     ? theme.palette.grey[700]

@@ -177,11 +177,11 @@ describe("HubTabs", () => {
   });
 
   test("holds the tabs' places, leading nowhere, until the repository is known", () => {
-    const { html, links } = rendered({ repo: undefined, current: "cost" });
+    const { html, nav, links } = rendered({ repo: undefined, current: "cost" });
     expect(links).toHaveLength(0);
     // The repository's place is held; the tabs already say their pages.
     expect(html.match(/<span class="MuiSkeleton-root/g)).toHaveLength(1);
-    expect(words(html)).toBe("Tests Cost");
+    expect(words(nav)).toBe("Tests Cost");
     expect(html).not.toContain("href=");
     expect(html).not.toContain("aria-current");
   });
@@ -216,9 +216,10 @@ describe("the row as the page's title", () => {
     expect(HEADING.exec(html)?.[1]).toBe("Tests");
   });
 
-  test("leaves the heading to a page that still has a title of its own", () => {
-    // The cost page's sentence is its heading until it moves to the row.
-    expect(rendered({ repo: REPO, current: "cost" }).html).not.toContain("<h1");
+  test("gives every page in the tabs its heading", () => {
+    const { html } = rendered({ repo: REPO, current: "cost" });
+    expect(HEADING.exec(html)?.[1]).toBe("Cost of pytorch/pytorch");
+    expect(html.match(/<h1\b/g)).toHaveLength(1);
   });
 
   test("sets the page's choices at the row's right end, after the tabs", () => {

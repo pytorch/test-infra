@@ -20,10 +20,6 @@ const PAGES: readonly {
   // The page's path for a repository given as owner/name, with no
   // parameters: the page as a reader arrives on it.
   path: (_repo: string) => string;
-  // The page still opens with a title sentence of its own under the row,
-  // which is its heading. The cost page does until it is moved to the
-  // row's pattern; a new page has none.
-  ownTitle?: boolean;
 }[] = [
   {
     id: "tests",
@@ -36,7 +32,6 @@ const PAGES: readonly {
     label: "Cost",
     icon: ReceiptLongOutlinedIcon,
     path: costPagePath,
-    ownTitle: true,
   },
 ];
 
@@ -124,7 +119,7 @@ export default function HubTabs({
         },
       }}
     >
-      {own !== undefined && own.ownTitle !== true && (
+      {own !== undefined && (
         <Box component="h1" sx={VISUALLY_HIDDEN}>
           {repo === undefined ? own.label : `${own.label} of ${repo}`}
         </Box>

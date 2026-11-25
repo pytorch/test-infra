@@ -75,7 +75,7 @@ function chipLines(rates: RatesSet): string[] {
   ];
 }
 
-// The title row's rates control: one grey pill joining a link to download
+// The hub row's rates control: one grey pill joining a link to download
 // the internal rates file and "Add rates…", which turns into a chip naming
 // the loaded rates.json (and its rates.meta.json) with ✕, and into "Drop
 // rates files to load" while files are dragged over the page (the page owns

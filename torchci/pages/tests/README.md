@@ -89,11 +89,10 @@ the page that shows it as `hud_url`.
   content starts under it. A choice that narrows one part of a page stays
   with that part, as a column's filter stays in its header. A page added
   to the hub is one more entry in `PAGES` and starts this way. The cost
-  page predates the rule and still opens with a title sentence under the
-  row. It was left as it is on 2026-11-24 and is to be brought over: its
-  window becomes a `HubSelect` in the row, `ownTitle` leaves its entry in
-  `PAGES`, and `CostHeading`, `InlineSelect` and `InlinePill`, which
-  nothing else uses, go. The row's details are under
+  page's two choices, the workflow scope and the rates file, are its own
+  controls rather than `HubSelect`s: the scope is a row of keys, its presets
+  in sight, and the rates file is a file to add, not a choice from a menu.
+  The row's details are under
   [Rendering decisions](#rendering-decisions). The rule is for the pages
   in the tabs: a test's page and a commit's are each about one thing and
   open with a breadcrumb back to these (`PageHeader`).
@@ -557,9 +556,8 @@ the page that shows it as `hud_url`.
   the row's `nav`; the choices are a group beside it, labelled "Page
   choices"; and ahead of both the row holds the page's `h1`, "Tests of
   pytorch/pytorch", clipped to a pixel: read out and not seen, since the
-  page's own tab and the repository beside it say the same to the eye. A
-  page that still has a title sentence, the cost page, is marked `ownTitle`
-  in `PAGES` and gets no such heading, so no page has two. The tabs' line
+  page's own tab and the repository beside it say the same to the eye.
+  The cost page's is "Cost of pytorch/pytorch". The tabs' line
   is 52px and the row's hairline is its last pixel, drawn by the row
   (`::before`, ahead of the tabs, so the rule of the page's own tab lies on
   it) and not as the row's border: when the row is too narrow for the tabs
@@ -1645,10 +1643,11 @@ browser from `GET /api/tests/cost/trend`, `/scope`, `/series`, `/cases`,
 section has the method. The old `/cost/v2` path redirects here with its
 query.
 
-- Title row (`CostHeading`): "Runner-hours of pytorch/pytorch", then the
-  workflow scope chips (All workflows, the API's presets such as PR Critical
-  Path, and Custom while the workflows card sets one; `ScopeKeys`) and the
-  rates control (`RatesControl`): "Download rates", a link to the internal
+- The hub's row (`HubTabs`), Cost its own tab, is the title (Best Practice
+  has the rule). At its right end are the workflow scope keys (All
+  workflows, the API's presets such as PR Critical Path, and Custom while
+  the workflows card sets one; `ScopeKeys`) and the rates control
+  (`RatesControl`): "Download rates", a link to the internal
   rates file that opens in a new tab, "Add rates…" and Format. A rates.json
   (with its optional rates.meta.json), picked or dropped anywhere on the page,
   is read in the browser into the page's memory: never sent, stored or put in

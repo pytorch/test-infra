@@ -538,7 +538,7 @@ export function cadenceOf(
 
 // The control's chip: "rates.json · 4 weekly periods · Oct 19 – Nov 15 ·
 // generated Nov 19"; "rates.json · one set for every day". short keeps the
-// file and its periods, for the title row (the rest goes in its tooltip).
+// file and its periods, for the hub's row (the rest goes in its tooltip).
 export function ratesChip(set: RatesSet, short = false): string {
   if (set.legacy) return `${set.file} · one set for every day`;
   const n = set.periods.length;
