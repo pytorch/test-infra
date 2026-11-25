@@ -192,13 +192,6 @@
       "linux"
     ]
   ],
-  "test_combo_kernel_per_config_subkernel_r0_r1 (__main__.ComboKernelTests)": [
-    "198180",
-    "https://github.com/pytorch/pytorch/issues/198180",
-    [
-      "xpu"
-    ]
-  ],
   "test_compile_backward_bmm_cuda_float32 (__main__.TestNestedTensorOpInfoCUDA)": [
     "200403",
     "https://github.com/pytorch/pytorch/issues/200403",
@@ -1284,13 +1277,6 @@
       "linux",
       "mac",
       "macos"
-    ]
-  ],
-  "test_partitioner_activation_memory_budget_with_unbacked_symints_xpu (__main__.ReproTestsDeviceXPU)": [
-    "203837",
-    "https://github.com/pytorch/pytorch/issues/203837",
-    [
-      "xpu"
     ]
   ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
