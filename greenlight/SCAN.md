@@ -75,7 +75,8 @@ never starts waits for the next tick's plan.
 
 - **Phase A, safety work**, never stopped by a budget or a quota floor: an `off` repo runs its
   drain slice, a `pytorchbot` repo lists its PRs and runs the revert guard and the ineligible
-  revoke (`review.prepare`), a `gate` repo has no Phase A work yet. A safety-only repo stops here.
+  revoke (`review.prepare`; a `clickhouse` repo's listing reads HUD ClickHouse first), a `gate`
+  repo has no Phase A work yet. A safety-only repo stops here.
 - **Phase B, optional work**: `review.prepare` (unless Phase A ran it) and `review_finish.finish`
   (fingerprint fan-out, dispatch, label pass). It starts no GitHub request 240 s after its
   invocation started (`WORKER_DEADLINE`), nor below `QUOTA_FLOOR_PRIMARY` (1000) requests left on
@@ -117,9 +118,11 @@ idempotent, and the record job checks the author's eligibility live before it ap
 in-process one with the same semantics. Items are keyed by the string attribute `pk`:
 
 - `repo#<repo>`: the repo's lease (`lease_owner`, `lease_expires`); its scan memory (`memory`:
-  when its last full tick that completed started, the fingerprint results fast ticks reuse and its
-  drain's progress, compressed; a memory over 300 KB is saved without its fingerprint results; a
-  memory of another version starts cold); the last tick a run completed and when (`last_tick`,
+  when its last full and wide ticks that completed started, the fingerprint results later ticks
+  reuse, its drain's progress and, on a `clickhouse` repo, its view of its open PRs with their
+  markers ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)), compressed; a memory over 300 KB is saved
+  without its fingerprint results, then without its view too; a memory stored by the release before
+  is read forward without a view, and one of any other version starts cold); the last tick a run completed and when (`last_tick`,
   `last_completed_at`); whether its drain is complete (`drain_complete`); and its config cache
   (`cfg_*`: the last file read with its ETag and size, when it was last read or revalidated, why
   the last read was not a usable file, the last valid text, when a read was last tried, plus
@@ -206,7 +209,8 @@ on with its own latch.
 **Isolation.** `pytorch/pytorch` runs in the planner and every other repo in its own worker
 invocation. Within one, a repo's stop is checked before each request and each retry, but cannot
 interrupt a request already sent or a ClickHouse read (bounded by its own timeouts: connect 10 s,
-read 60 s). Any other failure in a step is logged with its traceback and becomes the repo's error.
+read 60 s; a `clickhouse` repo's change-feed reads are abandoned after 20 s instead,
+[CHANGE_DETECTION.md](CHANGE_DETECTION.md)). Any other failure in a step is logged with its traceback and becomes the repo's error.
 Repos other than `pytorch/pytorch` read their eligibility with the fail-fast client.
 `pytorch/pytorch`'s patient client waits out, in its Phase A only (which has no deadline), a 429
 asking to wait no longer than its retry's cap (60 s), counted as a retry; any other rate limit, or
@@ -271,7 +275,9 @@ Beyond the variables the README lists for every path, the Lambda reads `SECRET_S
    tag alone: an older release relies on a concurrency of 1 for its single-flight.
 5. Any time after step 2, land in `pytorch/pytorch` its own `.github/greenlight/config.yml`
    (`status_comment: drci`, `safety: pytorchbot`, `eligibility: merge_rules`, `mode: active`), a
-   CODEOWNERS line protecting it, and a CI step running `greenlight check-config` on it.
+   CODEOWNERS line protecting it, and a CI step running `greenlight check-config` on it. Its
+   `change_source: clickhouse` line waits for a pinned release that knows the key and for the scan's
+   ClickHouse access ([CHANGE_DETECTION.md](CHANGE_DETECTION.md), "Access").
 6. Other `pytorch` repos opt in themselves ([REPOS.md](REPOS.md), "Opting a repo in"): a repo admin
    (or, where the org restricts that, a `pytorch` org admin) adds the repo to the App's `pytorch`
    installation, then the repo commits its file, in `mode: shadow` first.

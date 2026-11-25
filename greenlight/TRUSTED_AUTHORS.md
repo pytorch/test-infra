@@ -52,7 +52,8 @@ head branch named like a ghstack head passes whatever repository it comes from.
 Where it is checked:
 
 - **The scan** judges each PR's base from the pull request listing's own payload, with no extra
-  request (`pr_listing`; a `clickhouse` repo's view keeps that payload, `pr_view`), and `authority.Authority` answers per PR, at most once per pass, from the
+  request (`pr_listing`; a `clickhouse` repo's stored view keeps the branch names it read and judges them again by
+  the same rule when loaded, `pr_view`), and `authority.Authority` answers per PR, at most once per pass, from the
   merge rules and that listing, with no GitHub call. A PR listed on a base trymerge refuses is
   shadow. A PR from the issues endpoint, which carries no base (the fast tick's `Reverted`-labelled
   supplement), is judged by its author alone.

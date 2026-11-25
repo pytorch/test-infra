@@ -17,6 +17,8 @@ safety: gate                  # pytorchbot | gate
 eligibility: merge_rules      # merge_rules | write_permission
 mode: shadow                  # shadow | active | off
 # minimum_role: maintain      # write | maintain; optional, only with eligibility: write_permission
+# change_source: clickhouse   # github | clickhouse; optional, default github
+# full_tick_minutes: 240      # 60 to 1440; optional, only with change_source: clickhouse
 ```
 
 - `status_comment`: `drci` leaves the status to Dr. CI's comment (and pokes Dr. CI after each
@@ -32,6 +34,16 @@ mode: shadow                  # shadow | active | off
 - `mode`: see "Modes" below.
 - `minimum_role`: optional, for `eligibility: write_permission` only. `write` (the default when the
   key is absent) counts push access; `maintain` counts only the maintain and admin roles.
+- `change_source` (optional, default `github`): how the scan finds the PRs that changed. `github`
+  polls GitHub's listings; `clickhouse` reads HUD ClickHouse's webhook tables and GitHub's recently
+  updated PRs, for a repo HUD covers, and only for the repos in
+  `constants.CLICKHOUSE_CHANGE_SOURCE_REPOS` ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)).
+- `full_tick_minutes` (optional, only with `change_source: clickhouse`, an integer from 60 to 1440,
+  default 240): the repo's full tick, its reconciliation sweep. A `github` repo keeps a full tick
+  every 15 minutes.
+
+An older pinned scan release reads either of the last two as an unknown key: add them only once
+the pinned release knows them.
 
 ## Opting a repo in
 
@@ -47,8 +59,8 @@ repo opts in by itself, with no change to GreenLight:
    "Reviewing a repo's PRs"). Without a valid one every review of the repo declines with a
    `review_error` `NO_LAND`.
 
-The file names no repo: it belongs to the repo it sits in. Every value is read as a string: a bare
-`off` is the mode `off`, not a YAML boolean. `greenlight check-config PATH --repo OWNER/NAME`
+The file names no repo: it belongs to the repo it sits in. Every value but `full_tick_minutes`, an
+integer, is read as a string: a bare `off` is the mode `off`, not a YAML boolean. `greenlight check-config PATH --repo OWNER/NAME`
 validates a file offline as the scan would read it, printing every problem and exiting non-zero on
 any.
 
@@ -72,7 +84,10 @@ Every problem is logged and reported by the scan.
   `pytorch/pytorch` also: a field missing or outside its values; `pytorchbot` outside
   `constants.PYTORCHBOT_GUARDED_REPOS`; `drci` outside `constants.DRCI_STATUS_COMMENT_REPOS`;
   `safety: gate` with `mode: active`, which this release cannot serve safely; `minimum_role` with
-  any `eligibility` but `write_permission`. Only `minimum_role` may be absent.
+  any `eligibility` but `write_permission`; `clickhouse` outside
+  `constants.CLICKHOUSE_CHANGE_SOURCE_REPOS`; `full_tick_minutes` that is not an integer from 60 to
+  1440, or without `change_source: clickhouse`. Only `minimum_role`, `change_source` and
+  `full_tick_minutes` may be absent.
 - **safety-only**: the repo gets its safety work by its known fields and nothing else. An unknown
   key makes a repo safety-only so a newer config never takes safety work away from an older pinned
   release, and an older release never serves a file it does not fully understand.
@@ -94,7 +109,8 @@ The primary repo is never refused. Its `status_comment`, `safety`, `eligibility`
 are pinned to the built-in entry (`drci`, `pytorchbot`, `merge_rules`, `write`, mode `active`): a
 different or missing value is logged and ignored (an absent `minimum_role` is not reported), so a
 config edit cannot widen whom GreenLight approves there. Unknown keys on it are logged and ignored
-too; only its `mode` comes from the file. Its file spells out
+too; only its `mode`, `change_source` and `full_tick_minutes` come from the file, and a bad value of
+either of the last two is logged and ignored, its built-in value (`github`, 240) kept. Its file spells out
 the built-in values with mode `active`, and `greenlight check-config` reports every value it pins
 or ignores as a problem, so a CI check running it can keep the file truthful.
 
@@ -306,11 +322,12 @@ cohort keeps an approval already given until it is dismissed by hand.
 
 ## Modules
 
-The modules the per-repo config, the drain and the scan Lambda added to `src/greenlight/` (the rest
-are in README.md's "Layout"):
+The modules the per-repo config, the drain, the scan Lambda and change detection added to
+`src/greenlight/` (the rest are in README.md's "Layout"):
 
 - `repo_config.py`: judges a repo's config file (`Settings`), for the scan, the verdict, the markers
-  and `check-config`; `config_contents.py`: the one judgement of the contents API's answer.
+  and `check-config`; `config_yaml.py`: its strict YAML loader; `config_contents.py`: the one
+  judgement of the contents API's answer.
 - `repo_scan.py`: one repo's decisions on both entry points: its settings, the live checks, its
   eligibility cache, then its work (`repo_work`: a drain, a review or none); `scan_repo` is the
   CLI's scan.
@@ -318,7 +335,12 @@ are in README.md's "Layout"):
   `review_finish.py`: its optional work (fingerprint fan-out, dispatch, label pass, refusals) and
   its error aggregation.
 - `drain.py`: the `off` drain; `scan_memory.py` keeps its progress between ticks, with the
-  stored form the state store keeps.
+  stored form the state store keeps; `fingerprint_cache.py`: one listing tick's reuse of the kept
+  fingerprint results.
+- `change_listing.py`: a listing tick's kind and candidates by the repo's `change_source`;
+  `change_feed.py`: HUD ClickHouse's webhook tables, each PR's marker and the tables' freshness;
+  `pr_view.py`: a `clickhouse` repo's view of its open PRs and their last markers, and its stored
+  form ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)).
 - `snapshot_cache.py`: the TTL cache each repo's eligibility source is read through.
 - `workflow_target.py`: `greenlight target`, the reviewer workflow's input gate ("Reviewing a repo's PRs").
 - `writers.py`: `write_permission` eligibility: the holders of the repo's minimum role as one rule
