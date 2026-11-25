@@ -2,10 +2,11 @@
 
 ``TickReads`` reads each PR's GreenLight reviews at most once a run, judges every live approval with
 ``backing_judge.judge`` on the run's ledger, rules and clock, and dismisses the unbacked ones after judging them
-again on a fresh read of the PR. A read whose judgement settles stores the PR's key in the memory's; a PR judged
-waiting or unknown, or read while the rules answer is unknown, joins ``waiting``, so it is judged again once the
-rules can be read. A rate limit sets ``cancel_event`` through ``latch.latch_rate_limit``, keeping the wait the
-response asked for.
+again on a fresh read of the PR. Every read records its attempt in the memory (``BackingMemory.attempt``). A read
+whose judgement settles stores the PR's key in the memory's; a PR judged waiting or unknown joins ``waiting``. While
+the rules answer is unknown no read settles: a PR left with a live GreenLight approval joins ``waiting``, so it is
+judged again once the rules can be read, and one without keeps its earlier key, or none. A rate limit sets
+``cancel_event`` through ``latch.latch_rate_limit``, keeping the wait the response asked for.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
 
     from greenlight.approvals import PullFacts, ReviewReader, ReviewRecord
     from greenlight.backing_judge import Judgement
-    from greenlight.backing_memory import BackingKey
+    from greenlight.backing_memory import BackingKey, BackingMemory
     from greenlight.drain_pass import DrainPass
     from greenlight.gate_rules import GateRules
     from greenlight.state import PRState
@@ -60,8 +61,9 @@ class TickReads:
     """One run's reads and dismissals on a gate repo; every judgement uses the run's ledger, rules and clock.
 
     ``sweep`` is None when the run sweeps nothing (a ``shadow`` entry). ``ledger`` is None when it could not be
-    read, ``rules`` when they could not. ``keys`` holds each open PR's key this run; ``kept`` is the memory's,
-    where a settled read stores its PR's key. ``monotonic`` is the clock ``read_all``'s ``until`` is on.
+    read, ``rules`` when they could not. ``keys`` holds each open PR's key this run; ``backing`` is the memory a
+    settled read stores its PR's key in and every read its attempt. ``monotonic`` is the clock ``read_all``'s
+    ``until`` is on.
     """
 
     repo: str
@@ -72,7 +74,7 @@ class TickReads:
     ledger: Ledger | None
     rules: GateRules | None
     keys: dict[int, BackingKey]
-    kept: dict[int, BackingKey]
+    backing: BackingMemory
     now: datetime
     bot_login: str
     cancel_event: threading.Event
@@ -112,6 +114,7 @@ class TickReads:
 
     def read(self, number: int) -> None:
         self.tried.add(number)
+        self.backing.attempt(number)
         if self.sweep is not None:
             self.sweep.attempt(number)
         try:
@@ -125,19 +128,18 @@ class TickReads:
             self.failed.append(number)
             return
         pull = self.pulls[number]
-        judged = {
-            self.judge(approval, number, pull.head.sha, pull.base.ref).state
-            for approval in approvals.live_approvals(reviews, self.bot_login)
-        }
+        live = approvals.live_approvals(reviews, self.bot_login)
+        dismissed_before = self.dismissed
+        judged = {self.judge(approval, number, pull.head.sha, pull.base.ref).state for approval in live}
         if "unbacked" in judged:
             if not self.dismiss(number, reviews):
                 return
         elif judged & _UNSETTLED:
             self.waiting.add(number)
-        if self.rules is None:
+        if self.rules is None and len(live) > self.dismissed - dismissed_before:
             self.waiting.add(number)
-        if number not in self.waiting:
-            self.kept[number] = self.keys[number]
+        if number not in self.waiting and self.rules is not None:
+            self.backing.keys[number] = self.keys[number]
         self.checked.add(number)
         if self.sweep is not None:
             self.sweep.checked.add(number)

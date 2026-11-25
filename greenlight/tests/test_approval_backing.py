@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import re
 import threading
 from dataclasses import dataclass
@@ -85,13 +86,18 @@ def _row(number: int, status: str, *, head: str = _HEAD, version: datetime = _RO
 
 
 class _GitHub:
-    """A client and its requester: PR and review reads answer 304 to a current ETag; dismissals are recorded."""
+    """A client and its requester: PR and review reads answer 304 to a current ETag; dismissals are recorded.
+
+    A failing read in ``slow`` takes that many seconds before it fails (``stalled`` sums them).
+    """
 
     def __init__(self) -> None:
         self.requester = self
         self.reviews: dict[int, list[dict[str, Any]]] = {}
         self.fresh: dict[int, tuple[str, str]] = {}
         self.errors: dict[tuple[str, int], BaseException] = {}
+        self.slow: dict[tuple[str, int], float] = {}
+        self.stalled = 0.0
         self.reads: list[tuple[str, int, int]] = []
         self.dismissals: list[tuple[int, int, str]] = []
         self.closed = 0
@@ -102,6 +108,7 @@ class _GitHub:
     def _answer(self, kind: str, number: int, body: Any, headers: dict[str, str] | None) -> tuple[dict[str, Any], Any]:
         error = self.errors.get((kind, number))
         if error is not None:
+            self.stalled += self.slow.get((kind, number), 0.0)
             raise error
         etag = '"' + hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest() + '"'
         if headers is not None and headers.get("If-None-Match") == etag:
@@ -148,7 +155,8 @@ class _GitHub:
 class _Run:
     """Runs of the check against fakes; ``pulls`` is what the listing returns and also each PR's fresh read.
 
-    Its monotonic clock is the number of GitHub reads so far: each read takes one second.
+    Its monotonic clock is the number of GitHub reads so far, each taking one second, plus the time slow failures
+    took.
     """
 
     def __init__(
@@ -194,7 +202,7 @@ class _Run:
         return self.rules
 
     def monotonic(self) -> float:
-        return float(len(self.github.reads))
+        return float(len(self.github.reads)) + self.github.stalled
 
     def tick(
         self,
@@ -379,7 +387,8 @@ def test_unknown_rules_are_an_error_and_the_approvals_are_judged_on_the_rest(mak
     assert report.rules is None
     assert report.errors == ("GreenLight's gate rules on pytorch/vision could not be read: rules page 1 is not a list",)
     assert [(number, review) for number, review, _message in _dismissed(run)] == [(8, 2)]
-    assert (run.memory.backing.waiting, run.memory.backing.keys) == (frozenset({7, 8}), {})
+    # 8 is left with no live approval for the rules to judge, so only 7 waits; neither settles a key.
+    assert (run.memory.backing.waiting, run.memory.backing.keys) == (frozenset({7}), {})
     assert any(record.exc_info for record in caplog.records if "cannot read GreenLight's gate rules" in record.message)
 
 
@@ -973,7 +982,8 @@ def test_every_run_out_of_time_still_reaches_the_last_pending_pr_across_stored_m
 
 def _rules_outage(make_config: Any, recovered: GateRules) -> _Run:
     """Run 1 reads 7 and the sweep's 1 and 2 under enforced rules; run 2 cannot read the rules, while 7 gets a new
-    approval, and reads 7 and the sweep's 3 and 4; run 3 reads the rules as ``recovered``."""
+    approval, and reads 7 and the sweep's 3 and 4, without approvals, so only 7 waits and none stores a key; run 3
+    reads the rules as ``recovered``."""
     run = _Run([_pull(n) for n in range(1, 15)], rows={7: _row(7, STATUS_LAND)})
     _sweep_checked(run, 7)
     run.tick(make_config)
@@ -984,19 +994,19 @@ def _rules_outage(make_config: Any, recovered: GateRules) -> _Run:
     outage = run.tick(make_config)
     assert run.github.read_numbers() == [7, 1, 2, 7, 3, 4]
     assert _dismissed(run) == []
-    assert (outage.rules, run.memory.backing.waiting) == (None, frozenset({3, 4, 7}))
+    assert (outage.rules, run.memory.backing.waiting) == (None, frozenset({7}))
     assert {number: key.rules_state for number, key in run.memory.backing.keys.items()} == {1: True, 2: True, 7: True}
     run.rules = recovered
     run.clock += TICK_INTERVAL
     return run
 
 
-def test_after_a_rules_outage_only_the_prs_read_during_it_are_read_again(make_config):
+def test_after_a_rules_outage_only_the_prs_with_an_approval_read_during_it_are_read_again(make_config):
     run = _rules_outage(make_config, _ENFORCED)
 
     report = run.tick(make_config)
 
-    assert run.github.read_numbers()[6:] == [7, 3, 4, 5, 6]
+    assert run.github.read_numbers()[6:] == [7, 5, 6]
     assert (report.waiting, report.errors, _dismissed(run)) == (0, (), [])
     assert run.memory.backing.keys[7].updated_at == _NOW
     assert {key.rules_state for key in run.memory.backing.keys.values()} == {True}
@@ -1008,7 +1018,8 @@ def test_an_approval_given_during_a_rules_outage_is_judged_with_the_rules_once_r
 
     run.tick(make_config)
 
-    assert run.github.read_numbers()[6:11] == [7, 1, 2, 3, 4]
+    # The rules answer is in every key: 1, 2 and 7 changed, and are read oldest attempt first.
+    assert run.github.read_numbers()[6:11] == [1, 2, 7, 5, 6]
     reason = "GreenLight's gate is not enforced on pytorch/vision: a merge_queue rule applies."
     assert _dismissed(run) == [(7, 1, _PREFIX + reason)]
 
@@ -1062,3 +1073,132 @@ def test_a_rate_limit_keeps_the_wait_its_response_asked_for(make_config, site):
 
     assert latch.is_set()
     assert latch.until == 1090.0
+
+
+def test_a_run_records_when_it_ran_unless_a_rate_limit_ends_it_before_the_ledger_read(make_config):
+    run = _Run([_pull(1)])
+    run.tick(make_config)
+    assert run.memory.backing.checked_at == _NOW
+    run.clock += TICK_INTERVAL
+    run.rules = RateLimitExceededException(403, {"message": "rate limit"}, {})
+
+    run.tick(make_config, cancel_event=threading.Event())
+
+    assert run.memory.backing.checked_at == _NOW
+
+
+def test_a_decode_note_outlives_a_run_that_raises_and_is_carried_by_a_run_the_latch_ends(make_config):
+    note = "its stored approval-backing memory did not decode (KeyError('sweep')); it started cold"
+    run = _Run([_pull(1)])
+    run.memory.backing = BackingMemory(decode_error=note)
+    run.github.errors[("reviews", 1)] = IterationTimeout("late")
+    with pytest.raises(IterationTimeout):
+        run.tick(make_config)
+    assert run.memory.backing.decode_error == note
+    run.github.errors.clear()
+    latch = threading.Event()
+    latch.set()
+
+    report = run.tick(make_config, cancel_event=latch)
+
+    backing = run.memory.backing
+    assert (report.errors, backing.decode_error) == ((note,), None)
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        ("base", "the base is release/2.9, not main"),
+        ("rules", "GreenLight's gate is not enforced on pytorch/vision: a merge_queue rule applies"),
+        ("head", f"it was given on {_HEAD}, not on the head {_OLD}"),
+        ("updated_at", None),
+    ],
+)
+def test_a_shadow_repo_whose_ledger_is_down_still_withdraws_an_approval_kept_from_an_active_period(
+    make_config, change, reason
+):
+    run = _Run([_pull(n) for n in range(1, 15)], reviews={7: [_review(1)]}, rows={7: _row(7, STATUS_LAND)})
+    run.tick(make_config)
+    kept = run.memory.backing.keys[7]
+    assert kept.gate_row == (STATUS_LAND, 9, _ROW_TIME)
+    assert run.github.read_numbers() == [7, 1, 2]
+    run.entry = _SHADOW
+    run.gates_error = RuntimeError("clickhouse down")
+    _changed_key(run, change)
+    run.clock += TICK_INTERVAL
+
+    report = run.tick(make_config)
+
+    assert run.github.read_numbers()[3:] == [7]
+    assert (report.changed_reads, report.sweep_number) == (1, 0)
+    assert report.errors == ("GreenLight's ledger on pytorch/vision could not be read: clickhouse down",)
+    if reason is None:
+        # Nothing moved that dismisses it, and no kept row backs it: it waits, its kept key untouched.
+        assert (_dismissed(run), run.memory.backing.waiting, run.memory.backing.keys[7]) == ([], frozenset({7}), kept)
+    else:
+        assert _dismissed(run) == [(7, 1, f"{_PREFIX}{reason}.")]
+        assert run.memory.backing.waiting == frozenset()
+
+
+def test_prs_whose_reads_keep_failing_slowly_cannot_starve_a_later_changed_pr(make_config):
+    # A shadow repo runs no sweep, so only the changed reads can reach 7.
+    rows = {number: _row(number, STATUS_LAND) for number in (1, 2, 3, 7)}
+    run = _Run([_pull(n) for n in (1, 2, 3, 7)], reviews={7: [_review(1, commit=_OLD)]}, rows=rows, entry=_SHADOW)
+    for number in (1, 2, 3):
+        run.github.errors[("reviews", number)] = ValueError("502 after 30 s")
+        run.github.slow[("reviews", number)] = 30.0
+    reports = []
+    for _ in range(2):
+        reports.append(run.tick(make_config, reads=50))
+        run.memory = decode_memory(encode_memory(run.memory, _REPO), _REPO)
+        run.clock += TICK_INTERVAL
+
+    assert [report.failed for report in reports] == [(1, 2), (3, 1)]
+    assert reports[0].errors[0] == "the deadline left 2 changed or waiting PR(s) unread: [3, 7]"
+    assert _dismissed(run) == [(7, 1, f"{_PREFIX}it was given on {_OLD}, not on the head {_HEAD}.")]
+    assert run.memory.backing.attempted == {1: 5, 2: 2, 3: 3, 7: 4}
+    assert run.memory.backing.reading_order([1, 2, 3]) == [2, 3, 1]
+
+
+def test_a_closed_prs_attempt_is_forgotten(make_config):
+    run = _Run([_pull(7), _pull(8)], rows={7: _row(7, STATUS_LAND), 8: _row(8, STATUS_LAND)}, entry=_SHADOW)
+    run.tick(make_config)
+    assert (run.memory.backing.attempted, run.memory.backing.attempts) == ({7: 1, 8: 2}, 2)
+    run.pulls = [_pull(8)]
+
+    run.tick(make_config)
+
+    assert (run.memory.backing.attempted, run.memory.backing.attempts) == ({8: 2}, 2)
+
+
+def test_a_rules_outage_waits_only_on_the_prs_with_an_approval_so_its_reads_stay_bounded(make_config):
+    pulls = [_pull(n) for n in range(1, 41)]
+    rows = {5: _row(5, STATUS_LAND), 30: _row(30, STATUS_LAND)}
+    run = _Run(pulls, reviews={5: [_review(1)], 30: [_review(2)]}, rows=rows, rules=ValueError("rules down"))
+    reads = []
+    for _ in range(7):
+        before = len(run.github.reads)
+        report = run.tick(make_config)
+        reads.append(len(run.github.reads) - before)
+        assert (report.changed_reads, report.waiting) == (2, 2)
+        assert reads[-1] == 2 + report.sweep_reads <= 2 + math.ceil(len(pulls) / 7)
+        assert (run.memory.backing.waiting, run.memory.backing.keys) == (frozenset({5, 30}), {})
+        run.memory = decode_memory(encode_memory(run.memory, _REPO), _REPO)
+        run.clock += TICK_INTERVAL
+
+    assert sum(reads) == 2 * 7 + 38
+    assert _dismissed(run) == []
+
+
+def test_a_pr_without_an_approval_read_while_the_rules_are_unknown_keeps_its_earlier_key(make_config):
+    run = _Run([_pull(7)], rows={7: _row(7, STATUS_LAND)}, entry=_SHADOW)
+    run.tick(make_config)
+    kept = run.memory.backing.keys[7]
+    run.pulls[0].updated_at = _NOW
+    run.rules = ValueError("rules down")
+    run.clock += TICK_INTERVAL
+
+    report = run.tick(make_config)
+
+    assert run.github.read_numbers() == [7, 7]
+    assert (report.waiting, run.memory.backing.waiting, run.memory.backing.keys) == (0, frozenset(), {7: kept})

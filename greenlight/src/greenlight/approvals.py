@@ -195,12 +195,16 @@ def payload_is[T](value: object, kind: type[T]) -> TypeGuard[T]:
     return isinstance(value, kind) and (kind is bool or not isinstance(value, bool))
 
 
-def payload_required[T](data: dict[str, Any], key: str, kind: type[T], what: str) -> T:
-    """``data[key]`` as a ``kind`` (``payload_is``); ``ValueError`` naming ``what`` when it is absent or not one."""
-    value = data.get(key)
+def payload_value[T](value: object, kind: type[T], what: str) -> T:
+    """``value`` as a ``kind`` (``payload_is``); ``ValueError`` naming ``what`` when it is not one."""
     if not payload_is(value, kind):
-        raise ValueError(f"{what} field {key!r} is not a {kind.__name__}: {value!r}")
+        raise ValueError(f"{what} is not a {kind.__name__}: {value!r}")
     return value
+
+
+def payload_required[T](data: dict[str, Any], key: str, kind: type[T], what: str) -> T:
+    """``data[key]`` as a ``kind`` (``payload_value``); ``ValueError`` naming ``what`` when it is absent or not one."""
+    return payload_value(data.get(key), kind, f"{what} field {key!r}")
 
 
 def payload_optional[T](data: dict[str, Any], key: str, kind: type[T], what: str) -> T | None:

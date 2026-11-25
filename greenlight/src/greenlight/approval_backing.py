@@ -33,8 +33,10 @@ never read waits for the sweep.
 
 No review read starts once ``deadline`` has passed. The changed and waiting PRs are read first, within half the
 time left; then the sweep's slice, in its order; then the rest of the changed and waiting PRs, so neither starves
-the other. A changed or waiting PR the deadline left unread is the repo's error; it keeps its earlier key (or
-none), a waiting one stays waiting, and an unread sweep PR stays pending, so the next run reads them.
+the other. The changed and waiting PRs are read in ``BackingMemory.reading_order``, never attempted first, then
+the oldest attempt first, so PRs whose reads keep failing slowly cannot use up every run's time. A changed or
+waiting PR the deadline left unread is the repo's error; it keeps its earlier key (or none), a waiting one stays
+waiting, and an unread sweep PR stays pending, so the next run reads them.
 
 ``backing_reads.TickReads`` reads them and ``backing_judge.judge`` decides each live approval. Before dismissing,
 the PR is read fresh and every live approval is judged again on its fresh head and base; those still unbacked
@@ -43,12 +45,14 @@ judgement settles (backed, nothing live, or its dismissals done) keeps the PR's 
 unknown is read again next run.
 
 Listing failures raise. A ClickHouse failure, a read that does not finish in time included, is the repo's error
-and the check goes on without the ledger: no PR is a ledger PR, each key keeps the row it was kept with, and an
-approval the ledger would decide is unknown, so only the rules, its commit and its base dismiss it. A rate limit
-on any GitHub read sets ``cancel_event`` (``latch.latch_rate_limit``) and ends the check. Any other failure
-reading the rules leaves their answer unknown (None): judging goes on without it, each key keeps the rules
-answer it was kept with, and a PR read meanwhile settles no key and waits for a run that reads the rules. A
-stored backing memory that did not decode (``BackingMemory.decode_error``) is an error of the next report.
+and the check goes on without the ledger: the PRs whose kept key holds a row stand for the ledger PRs, so a
+``shadow`` repo still reads an approval left from an active period once its key changes; each key keeps the row
+it was kept with, and an approval the ledger would decide is unknown, never backed by a kept row, so only the
+rules, its commit and its base dismiss it. A rate limit on any GitHub read sets ``cancel_event``
+(``latch.latch_rate_limit``) and ends the check. Any other failure reading the rules leaves their answer unknown
+(None): judging goes on without it, each key keeps the rules answer it was kept with, and a PR read meanwhile
+settles no key; one with a live GreenLight approval waits for a run that reads the rules. A stored backing memory
+that did not decode (``BackingMemory.decode_error``) is an error of the next report.
 """
 
 from __future__ import annotations
@@ -122,10 +126,10 @@ def _sweep_slice(
     return [number for number in pending if number not in tried][:size], late
 
 
-def _drop_interrupted_sweep(repo: str, backing: BackingMemory, at: datetime) -> None:
-    """Drop the sweep under way when the check did not run for a whole window (the repo was off, or its token
-    could not be had), so the next sweep starts over instead of reporting the gap as an incomplete sweep."""
-    last, backing.checked_at = backing.checked_at, at
+def _drop_interrupted_sweep(repo: str, backing: BackingMemory, last: datetime | None, at: datetime) -> None:
+    """Drop the sweep under way when the check, last run at ``last``, did not run for a whole window before ``at``
+    (the repo was off, or its token could not be had), so the next sweep starts over instead of reporting the gap
+    as an incomplete sweep."""
     if backing.sweep is not None and last is not None and at - last > FULL_TICK_INTERVAL:
         logger.info("%s: the approval-backing check last ran at %s; starting a new sweep", repo, last)
         backing.end_sweep()
@@ -186,8 +190,15 @@ def _changed(
     keys: dict[int, BackingKey], kept: dict[int, BackingKey], ledger: Ledger | None, *, others: bool
 ) -> list[int]:
     """The ledger PRs whose key is not the kept one, then, when ``others``, every other PR whose kept key is not
-    its key."""
-    driven = sorted(number for number in keys if ledger is not None and ledger.drives(number))
+    its key. With the ledger unknown, the PRs whose kept key holds a row stand for the ledger PRs."""
+
+    def drives(number: int) -> bool:
+        if ledger is not None:
+            return ledger.drives(number)
+        key = kept.get(number)
+        return key is not None and key.gate_row is not None
+
+    driven = sorted(number for number in keys if drives(number))
     rest = sorted(number for number in keys.keys() - set(driven) if number in kept) if others else []
     return [number for number in [*driven, *rest] if keys[number] != kept.get(number)]
 
@@ -242,9 +253,11 @@ def check(
         pulls = {pull.number: pull for pull in list_prs(client, repo)}
         at = now()
         kept = backing.keys = {number: key for number, key in backing.keys.items() if number in pulls}
+        backing.attempted = {number: seq for number, seq in backing.attempted.items() if number in pulls}
         rules = _attempt(lambda: read_rules(client, repo), "GreenLight's gate rules", repo, cancel_event, errors)
         if cancel_event.is_set():
-            return _report(repo, backing, rules, pulls, None, (0, 0), errors, monotonic() - started)
+            decode_error, backing.decode_error = backing.decode_error, None
+            return _report(repo, backing, rules, pulls, None, (0, 0), decode_error, errors, monotonic() - started)
 
         def read_ledger() -> Ledger:
             gates, verdicts = read_gates(repo, sorted(pulls))
@@ -257,7 +270,8 @@ def check(
             cancel_event,
             errors,
         )
-        _drop_interrupted_sweep(repo, backing, at)
+        last, backing.checked_at = backing.checked_at, at
+        _drop_interrupted_sweep(repo, backing, last, at)
         window = _sweep(repo, backing, at, ledger, sweeping=entry.mode == "active")
         keys = {number: _key(pull, ledger, kept.get(number), rules) for number, pull in pulls.items()}
         run = TickReads(
@@ -269,14 +283,15 @@ def check(
             ledger=ledger,
             rules=rules,
             keys=keys,
-            kept=kept,
+            backing=backing,
             now=at,
             bot_login=bot_login,
             cancel_event=cancel_event,
             monotonic=monotonic,
         )
         changed = _changed(keys, kept, ledger, others=window is not None)
-        first = list(dict.fromkeys([*changed, *sorted(number for number in backing.waiting if number in pulls)]))
+        waiting = sorted(number for number in backing.waiting if number in pulls)
+        first = backing.reading_order(dict.fromkeys([*changed, *waiting]))
         first_reads = run.read_all(first, until=_halfway(deadline, monotonic))
         sweep_reads: list[int] = []
         if window is not None:
@@ -293,7 +308,9 @@ def check(
     unread_waiting = {number for number in backing.waiting if number in pulls and number not in run.checked}
     backing.waiting = frozenset(run.waiting | unread_waiting)
     changed_reads = len(set(first_reads) & set(changed))
-    report = _report(repo, backing, rules, pulls, run, (changed_reads, len(sweep_reads)), errors, monotonic() - started)
+    decode_error, backing.decode_error = backing.decode_error, None
+    reads = (changed_reads, len(sweep_reads))
+    report = _report(repo, backing, rules, pulls, run, reads, decode_error, errors, monotonic() - started)
     if window is not None and not window[0].pending(pulls):
         backing.end_sweep()
     return report
@@ -314,12 +331,13 @@ def _report(
     pulls: dict[int, PullRequest],
     run: TickReads | None,
     reads: tuple[int, int],
+    decode_error: str | None,
     errors: list[str],
     elapsed: float,
 ) -> BackingReport:
-    if backing.decode_error is not None:
-        errors.insert(0, backing.decode_error)
-        backing.decode_error = None
+    """The run's report, logged; ``decode_error`` (why the stored memory did not decode) goes first among its
+    errors."""
+    errors = errors if decode_error is None else [decode_error, *errors]
     failed = tuple(run.failed) if run is not None else ()
     if failed:
         errors.append(f"the approval-backing check failed on {len(failed)} PR(s): {list(failed)}")

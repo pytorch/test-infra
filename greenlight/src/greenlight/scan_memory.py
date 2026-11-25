@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
 
-from greenlight.backing_memory import BACKING_VERSION, BackingMemory, backing_form, backing_from_form
+from greenlight.backing_memory import BackingMemory, BackingVersionError, backing_form, backing_from_form
 from greenlight.constants import FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE, MEMORY_MAX_BYTES
 from greenlight.drain_pass import DrainPass, drain_pass_form, drain_pass_from_form
 from greenlight.fingerprint_cache import Entry, Key
@@ -278,18 +278,10 @@ def _backing(form: object, repo: str) -> BackingMemory:
     if form is None:
         return BackingMemory()
     try:
-        if not isinstance(form, dict):
-            raise TypeError(f"the stored approval-backing memory is not an object: {type(form).__name__}")
-        version = form.get("version")
-        if version != BACKING_VERSION:
-            logger.warning(
-                "%s: stored approval-backing memory has version %r, not %d; starting it cold",
-                repo,
-                version,
-                BACKING_VERSION,
-            )
-            return BackingMemory()
         return backing_from_form(form)
+    except BackingVersionError as exc:
+        logger.warning("%s: %s; starting it cold", repo, exc)
+        return BackingMemory()
     except Exception as exc:
         logger.error("%s: cannot decode its stored approval-backing memory; starting it cold", repo, exc_info=True)
         return BackingMemory(

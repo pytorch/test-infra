@@ -22,6 +22,7 @@ from greenlight.approvals import (
     payload_is,
     payload_optional,
     payload_required,
+    payload_value,
 )
 from greenlight.cohort import GREENLIGHT_APP_SLUG
 from tests.test_github_client import _FakeActor, _FakeVerdictPR, _FakeVerdictReview
@@ -354,6 +355,15 @@ def test_pull_facts_reject_a_bad_payload(payload: object) -> None:
 )
 def test_payload_is_counts_a_json_boolean_only_as_a_bool(value: object, kind: type, passes: bool) -> None:
     assert payload_is(value, kind) is passes
+
+
+def test_payload_value_names_what_is_not_of_its_kind():
+    assert payload_value(3, int, "thing") == 3
+    assert payload_value(False, bool, "thing") is False
+    with pytest.raises(ValueError, match=r"^thing is not a int: True$"):
+        payload_value(True, int, "thing")
+    with pytest.raises(ValueError, match=r"^thing is not a str: None$"):
+        payload_value(None, str, "thing")
 
 
 def test_payload_required_names_the_field_it_rejects():

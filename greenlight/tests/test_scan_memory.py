@@ -548,6 +548,7 @@ def _with_backing(memory: ScanMemory) -> ScanMemory:
     }
     backing.checked_at = _STARTED
     backing.waiting = frozenset({6})
+    backing.attempt(6)
     sweep = backing.start_sweep(_STARTED - timedelta(minutes=4), recorded=frozenset({5}))
     sweep.attempt(5)
     sweep.checked.add(5)
@@ -581,6 +582,7 @@ def test_the_memory_codec_round_trips_the_backing_memory_with_the_rest():
 
     assert restored.backing == memory.backing
     assert restored.backing.sweep_started_at == _STARTED - timedelta(minutes=4)
+    assert (restored.backing.attempted, restored.backing.attempts) == ({6: 1}, 1)
     assert restored.fingerprints == memory.fingerprints
     assert restored.view.to_form() == memory.view.to_form()
     assert (restored.drain_pass(), restored.drain_completed_by()) == (memory.drain_pass(), 4)
@@ -719,14 +721,16 @@ def _kept_apart_from_its_backing(restored: ScanMemory) -> None:
     assert (restored.drain_pass(), restored.drain_completed_by()) == (memory.drain_pass(), 4)
 
 
-@pytest.mark.parametrize("version", [0, 2, None])
+@pytest.mark.parametrize("version", [0, 2, True, None])
 def test_another_backing_version_starts_the_backing_memory_cold_alone(caplog, version):
     with caplog.at_level(logging.WARNING, logger="greenlight"):
         restored = decode_memory(_backing_blob({"version": version, "keys": "anything"}), _REPO)
 
     assert restored.backing == BackingMemory()
+    assert restored.backing.decode_error is None
     _kept_apart_from_its_backing(restored)
     assert f"stored approval-backing memory has version {version!r}, not 1; starting it cold" in caplog.text
+    assert [record for record in caplog.records if record.levelno >= logging.ERROR] == []
 
 
 def _broken_backing(**changes: Any) -> dict[str, Any]:
