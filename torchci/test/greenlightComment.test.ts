@@ -4,6 +4,7 @@ import {
   buildGreenlightOpenedLine,
   buildGreenlightSections,
 } from "lib/greenlight/greenlightComment";
+import * as greenlightConfig from "lib/greenlight/greenlightConfig";
 import * as greenlightEligibility from "lib/greenlight/greenlightEligibility";
 import { renderGreenlightEligibility } from "lib/greenlight/greenlightEligibility";
 import * as greenlightRender from "lib/greenlight/greenlightRender";
@@ -673,6 +674,101 @@ describe("buildGreenlightSections", () => {
   });
 });
 
+// A repo configured `status_comment: drci` other than the primary one. No such repo
+// is configured yet, so the repo gate is widened for these tests alone.
+const OTHER_DRCI_REPO = "executorch";
+
+function widenGreenlightRepos(): jest.SpyInstance {
+  const realGate = greenlightConfig.isGreenlightRepo;
+  return jest
+    .spyOn(greenlightConfig, "isGreenlightRepo")
+    .mockImplementation(
+      (owner, repo) =>
+        greenlightConfig.greenlightRepoKey(owner, repo) ===
+          `pytorch/${OTHER_DRCI_REPO}` || realGate(owner, repo)
+    );
+}
+
+describe("buildGreenlightSections on a drci repo other than the primary", () => {
+  let queryClickhouseSaved: jest.SpyInstance;
+  let octokit: ReturnType<typeof fakeOctokit>;
+  let gateFactory: jest.SpyInstance;
+
+  beforeEach(() => {
+    widenGreenlightRepos();
+    queryClickhouseSaved = jest
+      .spyOn(clickhouse, "queryClickhouseSaved")
+      .mockResolvedValue([]);
+    octokit = fakeOctokit();
+    gateFactory = jest
+      .spyOn(greenlightEligibility, "greenlightEligibilityGate")
+      .mockReturnValue(jest.fn().mockResolvedValue("waiting"));
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  async function build(headShaByPr: Map<number, string>) {
+    return buildGreenlightSections(
+      "pytorch",
+      OTHER_DRCI_REPO,
+      headShaByPr,
+      octokit as unknown as Octokit
+    );
+  }
+
+  it("renders the recorded verdict into the repo's Dr.CI section, keyed by its own repo", async () => {
+    queryClickhouseSaved.mockResolvedValue([LAND_ROW]);
+
+    const sections = await build(heads(LAND_ROW));
+
+    expect(queryClickhouseSaved).toHaveBeenCalledWith("greenlight_pr_states", {
+      repo: `pytorch/${OTHER_DRCI_REPO}`,
+      prNumbers: [LAND_ROW.pr_number],
+    });
+    expect(sections.get(LAND_ROW.pr_number)).toBe(
+      greenlightRender.renderGreenlightSection(
+        {
+          repo: `pytorch/${OTHER_DRCI_REPO}`,
+          prNumber: LAND_ROW.pr_number,
+          status: LAND_ROW.status,
+          reason: LAND_ROW.reason,
+          message: LAND_ROW.message,
+          headSha: LAND_ROW.head_sha,
+          evalJob: LAND_ROW.eval_job,
+          version: LAND_ROW.version,
+        },
+        new Date(),
+        LAND_ROW.head_sha
+      )
+    );
+  });
+
+  // The eligibility line reads the primary repo's merge rules, which say nothing
+  // about this repo's authors.
+  it("renders nothing for a PR with no state or only shadow state, and builds no eligibility gate", async () => {
+    queryClickhouseSaved.mockResolvedValue([LAND_ROW, SHADOW_ROW]);
+
+    const sections = await build(heads(LAND_ROW, SHADOW_ROW, NO_STATE_PR));
+
+    expect([...sections.keys()]).toEqual([LAND_ROW.pr_number]);
+    expect(gateFactory).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
+  });
+
+  it("keeps a verdict on an earlier commit, marked outdated", async () => {
+    queryClickhouseSaved.mockResolvedValue([NO_LAND_ROW]);
+
+    const sections = await build(pushed(NO_LAND_ROW));
+
+    expect(sections.get(NO_LAND_ROW.pr_number)).toContain(
+      greenlightRender.GREENLIGHT_OUTDATED_HEADLINE_PREFIX
+    );
+    expect(gateFactory).not.toHaveBeenCalled();
+  });
+});
+
 describe("buildGreenlightOpenedLine", () => {
   const PAYLOAD_PR = { number: 31, user: { login: "alice" } };
   let check: jest.Mock;
@@ -709,7 +805,9 @@ describe("buildGreenlightOpenedLine", () => {
   it.each([
     ["a synchronize event", "synchronize", "pytorch"],
     ["a repo that is not a greenlight repo", "opened", "vision"],
+    ["a drci repo other than the primary", "opened", OTHER_DRCI_REPO],
   ])("renders nothing and checks nothing for %s", async (_, action, repo) => {
+    widenGreenlightRepos();
     const line = await buildGreenlightOpenedLine(
       "pytorch",
       repo,

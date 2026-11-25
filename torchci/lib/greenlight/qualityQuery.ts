@@ -2,14 +2,13 @@
 
 import { LARGE_WINDOW_DAYS } from "components/common/timeWindow";
 import { fetcher } from "lib/GeneralUtils";
-import { GREENLIGHT_REPOS } from "lib/greenlight/greenlightConfig";
+import { GREENLIGHT_PRIMARY_REPO } from "lib/greenlight/greenlightConfig";
 import type { ChartGranularity } from "lib/greenlight/qualityCharts";
 import { effectiveWindowDays } from "lib/greenlight/qualityFigures";
 import useSWR from "swr";
 
-// The page has no repo picker. GreenLight evaluates a single repo and the
-// ledger is keyed by it, so the read-back gate's list is the only source.
-export const GREENLIGHT_QUALITY_REPO = GREENLIGHT_REPOS[0];
+// The page has no repo picker: it reads the ledger of the primary repo alone.
+export const GREENLIGHT_QUALITY_REPO = GREENLIGHT_PRIMARY_REPO;
 
 export const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
