@@ -165,6 +165,9 @@ TABLE_STALE_AFTER: dict[str, timedelta] = {
 FUTURE_EVENT_TOLERANCE = timedelta(minutes=5)
 CHANGE_FEED_MAX_EXECUTION_SECONDS = 10
 CHANGE_FEED_TIMEOUT_SECONDS = 15
+# A tick's HUD ClickHouse reading is abandoned after this long: the client's timeouts bound neither its connection
+# set-up, nor its retries, nor a response that keeps trickling in.
+CHANGE_FEED_DEADLINE_SECONDS = 20
 # The recent listing walks back to the previous listing's start less this much, so an updated_at that GitHub shows
 # late is still caught.
 LISTING_OVERLAP = timedelta(minutes=10)

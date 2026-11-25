@@ -5,12 +5,13 @@ import dataclasses
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from github import GithubException, RateLimitExceededException
 
-from greenlight import drain, fanout_repos, merge_authz, quota, review_finish, tick
+from greenlight import drain, fanout_repos, merge_authz, quota, review, review_finish, tick
+from greenlight.change_feed import Marker
 from greenlight.constants import (
     OTHER_REPO_REQUEST_BUDGET,
     QUOTA_FLOOR_OTHERS,
@@ -24,10 +25,15 @@ from greenlight.guards import IterationTimeout
 from greenlight.latch import SharedLatch
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_gate import HUMAN_APPROVED, ReviewSkip
-from greenlight.scan_memory import ScanMemory
+from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
+from greenlight.state import PRState
 from greenlight.state_store import InProcessStore, StoreError
 from greenlight.tick_outcomes import RATE_LIMITED, Outcomes
+from tests.change_helpers import ListingClient, Pull, fresh
 from tests.test_review_finish import prepared_scan
+
+if TYPE_CHECKING:
+    from github import Github
 
 _NOW = datetime(2026, 11, 24, 12, 0, 0)
 _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow")
@@ -659,3 +665,86 @@ def test_a_latch_set_by_a_failed_read_of_the_shared_one_is_named_by_that_failure
     outcomes.name_the_rate_limit()
 
     assert outcomes.errors == [_UNREADABLE, RATE_LIMITED]
+
+
+def test_a_clickhouse_primary_refetches_only_the_pr_whose_marker_changed_without_an_update(make_config):
+    entry = dataclasses.replace(BUILTIN_PYTORCH, change_source="clickhouse")
+    updated = _NOW - timedelta(hours=1)
+    github = ListingClient([Pull(number, updated) for number in (1, 2, 3)])
+    markers = dict.fromkeys((1, 2, 3), Marker(reviews=1))
+    hashed = "a" * 64
+    states = {
+        number: PRState(
+            pr_number=number, status="NO_LAND", eval_hash=hashed, head_sha=f"sha{number}", version=updated, run_id=1
+        )
+        for number in (1, 2, 3)
+    }
+    snapshot = merge_authz.MergeRulesSnapshot(
+        authorized=frozenset({"alice"}), rules=(merge_authz.compile_rule("all", ["*"], frozenset({"alice"})),)
+    )
+    clock = [_NOW]
+    fingerprinted: list[list[int]] = []
+    dispatched: list[int] = []
+
+    def fingerprint(_client, _repo, number, _authorized, _skip):
+        fingerprinted[-1].append(number)
+        return (f"sha{number}", hashed)
+
+    def run_prepare(config, **kwargs):
+        kwargs.update(
+            resolve_merge_rules=lambda: snapshot,
+            read_markers=lambda _repo, numbers: {number: markers[number] for number in numbers},
+            read_freshness=fresh,
+            fingerprint=fingerprint,
+            read_state=lambda _repo, numbers: {number: states[number] for number in numbers},
+            read_reverted=lambda _repo, _numbers: set(),
+            dispatch=lambda _client, number, *_args, **_kwargs: dispatched.append(number),
+            emit_dispatched=lambda **_kwargs: None,
+            poke_drci=lambda *_args: None,
+            label_prs=lambda _label_pass: None,
+            now=lambda: clock[0],
+        )
+        return review.prepare(config, **kwargs)
+
+    stored = encode_memory(ScanMemory(), TARGET_REPO)
+
+    def run(at: datetime) -> list[int]:
+        nonlocal stored
+        clock[0] = at
+        fingerprinted.append([])
+        seams = tick.Seams(
+            build_github=lambda *_args, **_kwargs: cast("Github", github),
+            run_prepare=run_prepare,
+            run_finish=review_finish.finish,
+            read_quota=lambda _client: (5000, 5000),
+            clock=lambda: 1000.0,
+            now=lambda: at,
+        )
+        with contextlib.ExitStack() as stack:
+            repo_run = tick.RepoRun(
+                tick.Invocation(stack, seams),
+                tick.run_config(make_config(), "repo-token", "dispatch"),
+                entry,
+                True,
+                decode_memory(stored, TARGET_REPO),
+                InProcessStore(),
+                "bot[bot]",
+                30,
+                "main",
+                45,
+            )
+            assert _all(repo_run) == []
+        stored = encode_memory(repo_run.memory, TARGET_REPO)
+        return sorted(fingerprinted[-1])
+
+    full = run(_NOW)
+    event = run(_NOW + timedelta(minutes=2))
+    markers[2] = Marker(reviews=2)
+    dismissed = run(_NOW + timedelta(minutes=4))
+
+    # The first tick lists in full and keeps nothing, its markers first seen then; the second keeps
+    # every fetch. The third sees a dismissal on PR2 that moved no updated_at: only PR2 is refetched.
+    assert (full, event, dismissed) == ([1, 2, 3], [1, 2, 3], [2])
+    reverted = "issues open ['Reverted']"
+    assert github.listed == ["pulls open", "pulls all", reverted, "pulls all", reverted]
+    assert dispatched == []

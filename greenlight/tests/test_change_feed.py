@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, cast
 
@@ -9,6 +11,7 @@ from clickhouse_connect.driver.binding import bind_query
 
 from greenlight import change_feed, clickhouse_client, constants, pr_hash
 from greenlight.change_feed import EMPTY_MARKER, TABLES, Freshness, Marker
+from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -365,3 +368,37 @@ def test_a_table_past_its_own_limit_is_stale_while_another_is_recent(table):
     assert problem == (
         f"{table}'s newest event is {int(limit.total_seconds()) + 1} s old, over {int(limit.total_seconds())} s"
     )
+
+
+def test_a_bounded_call_returns_what_its_function_returns():
+    assert change_feed.call_bounded(lambda left, right: left + right, 1, 2, seconds=5) == 3
+
+
+def test_a_bounded_call_raises_its_functions_exception_again():
+    error = IterationTimeout("iteration exceeded 600 seconds")
+
+    def fail() -> None:
+        raise error
+
+    with pytest.raises(IterationTimeout) as raised:
+        change_feed.call_bounded(fail, seconds=5)
+
+    assert raised.value is error
+
+
+def test_a_bounded_call_still_running_at_its_deadline_raises_without_waiting_for_it():
+    release = threading.Event()
+    before = set(threading.enumerate())
+    started = time.monotonic()
+    try:
+        with pytest.raises(TimeoutError, match=r"did not finish within 0\.1 s") as raised:
+            change_feed.call_bounded(release.wait, 10, seconds=0.1)
+        elapsed = time.monotonic() - started
+        [thread] = [thread for thread in threading.enumerate() if thread not in before]
+        assert thread.daemon
+        assert thread.is_alive()
+    finally:
+        release.set()
+
+    assert not isinstance(raised.value, IterationTimeout)
+    assert elapsed < 5

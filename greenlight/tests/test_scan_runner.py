@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
     from github import Github
 
-    from greenlight.scan_memory import FingerprintCache
+    from greenlight.fingerprint_cache import FingerprintCache
 
 # post_refusals threads the client straight through to the get_pr seam and never inspects it.
 _CLIENT = cast("Github", object())

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, cast
@@ -8,7 +10,7 @@ from typing import TYPE_CHECKING, cast
 import pytest
 from github import GithubException
 
-from greenlight import change_listing, quota
+from greenlight import change_listing, quota, scan_memory
 from greenlight.change_feed import EMPTY_MARKER, Marker
 from greenlight.constants import (
     FINGERPRINT_QUIET,
@@ -17,12 +19,16 @@ from greenlight.constants import (
     LISTING_OVERLAP,
     TARGET_REPO,
 )
+from greenlight.fingerprint_cache import FingerprintCache
 from greenlight.guards import IterationTimeout
+from greenlight.pr_view import READ_ALONE_MAX_ATTEMPTS, PRView, cohort_digest
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
-from greenlight.scan_memory import FingerprintCache, ScanMemory
+from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
 from tests.change_helpers import NOW, RECENT, FreshnessStub, record
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from github import Github
 
     from greenlight.change_listing import Listing
@@ -37,6 +43,8 @@ _SWEEP = timedelta(minutes=FULL_TICK_MINUTES_DEFAULT)
 _IDLE = _NOW - timedelta(days=3)
 # A PR HUD has rows for, whose rows show nothing newer than any listing here.
 _SEEN = Marker(pr_updated_at=_IDLE - timedelta(days=1), reviews=1)
+# A hanging read gives up after this long, so a tick that waited for it fails its time check instead of hanging.
+_HANG_SECONDS = 10
 
 
 class _Sources:
@@ -54,23 +62,37 @@ class _Sources:
         self.freshness_error: BaseException | None = None
         self.problem_error: Exception | None = None
         self.recent_error: Exception | None = None
+        self.open_error: Exception | None = None
         self.single: dict[int, OpenPR | None] = {}
         self.single_errors: dict[int, Exception] = {}
+        self.clickhouse_forbidden = False
+        self.hang_markers: threading.Event | None = None
+        self.hang_freshness: threading.Event | None = None
 
     def read_markers(self, repo, numbers):
+        if self.clickhouse_forbidden:
+            pytest.fail("the tick read HUD ClickHouse's markers")
         self.events.append(f"markers {repo} {list(numbers)}")
+        if self.hang_markers is not None:
+            self.hang_markers.wait(_HANG_SECONDS)
         if self.marker_errors:
             raise self.marker_errors.pop(0)
         return {number: self.markers.get(number, self.unknown_marker) for number in numbers}
 
     def read_freshness(self):
+        if self.clickhouse_forbidden:
+            pytest.fail("the tick read HUD ClickHouse's freshness")
         self.events.append("freshness")
+        if self.hang_freshness is not None:
+            self.hang_freshness.wait(_HANG_SECONDS)
         if self.freshness_error is not None:
             raise self.freshness_error
         return FreshnessStub(self.freshness_problem, self.problem_error)
 
     def list_open(self, _client, repo):
         self.events.append(f"list open {repo}")
+        if self.open_error is not None:
+            raise self.open_error
         return list(self.open)
 
     def list_recent(self, _client, repo, *, cutoff, state):
@@ -106,12 +128,13 @@ def _list(
     now: datetime = _NOW,
     entry: RepoEntry = _CLICKHOUSE,
     pr: int | None = None,
+    authors: frozenset[str] = _COHORT,
 ) -> Listing:
     return change_listing.list_candidates(
         _CLIENT,
         entry=entry,
         pr=pr,
-        authors=_COHORT,
+        authors=authors,
         memory=memory,
         now=now,
         window=_WINDOW,
@@ -129,12 +152,12 @@ def _list(
 def _warm(*records: OpenPR, full_at: datetime = _NOW - timedelta(minutes=2)) -> ScanMemory:
     """A memory whose view a completed full tick at ``full_at`` built from ``records``."""
     memory = ScanMemory()
-    memory.view.rebuild(records, full_at)
+    memory.view.rebuild(records, full_at, _COHORT)
     memory.mark_full_tick(full_at)
     return memory
 
 
-def test_a_cold_start_lists_every_open_pr_and_reads_the_markers_after_the_listing(caplog):
+def test_a_cold_start_lists_every_open_pr_and_keeps_and_reads_the_cohorts_after_the_listing(caplog):
     sources = _Sources()
     sources.open = [record(1), record(2, author="carol"), record(3, draft=True)]
     sources.markers = {1: Marker(comments=1)}
@@ -143,17 +166,18 @@ def test_a_cold_start_lists_every_open_pr_and_reads_the_markers_after_the_listin
     with caplog.at_level(logging.INFO, logger="greenlight"):
         listing = _list(memory, sources)
 
-    assert sources.events == ["freshness", f"list open {TARGET_REPO}", f"markers {TARGET_REPO} [1, 2, 3]"]
+    assert sources.events == ["freshness", f"list open {TARGET_REPO}", f"markers {TARGET_REPO} [1, 3]"]
     assert listing.kind == "full"
     assert listing.candidates.numbers == [1]
     assert listing.candidates.heads == {1: "sha1"}
     assert listing.markers == {1: (Marker(comments=1), _NOW)}
-    assert sorted(memory.view.records) == [1, 2, 3]
+    assert sorted(memory.view.records) == [1, 3]
     assert memory.view.listed_at == _NOW
+    assert memory.view.usable(_COHORT)
     assert memory.full_tick_interval == _SWEEP
     assert (
         f"{TARGET_REPO}: full tick from ClickHouse; 3 PR(s) listed, 0 read alone, 1 candidate(s), "
-        "3 PR(s) whose marker changed" in caplog.text
+        "2 PR(s) whose marker changed" in caplog.text
     )
 
 
@@ -570,26 +594,88 @@ def test_a_rate_limit_reading_a_pr_alone_raises_as_a_listings_does():
     ]
 
 
-def test_a_pr_read_alone_is_read_again_only_once_its_marker_moves_and_a_failed_read_is_retried():
+def _reads(sources: _Sources) -> list[int]:
+    """The PRs read alone since ``sources.events`` was last cleared, in order; clears it."""
+    read = [int(event.rsplit("#", 1)[1]) for event in sources.events if event.startswith("read")]
+    sources.events.clear()
+    return read
+
+
+def _tick(memory: ScanMemory, sources: _Sources, number: int) -> list[int]:
+    """List at the ``number``-th tick after ``_NOW``, two minutes apart; the PRs it read alone."""
+    _list(memory, sources, now=_NOW + timedelta(minutes=2 * number))
+    return _reads(sources)
+
+
+def _lagging(sources: _Sources, *numbers: int) -> None:
+    """Each read alone of ``numbers`` returns the record as the view holds it, still behind its marker."""
+    for number in numbers:
+        sources.single[number] = record(number, updated_at=_IDLE, draft=True)
+
+
+def test_reads_alone_go_never_tried_first_then_the_oldest_attempt_first_across_ticks(monkeypatch):
+    monkeypatch.setattr(change_listing, "_STALE_RECORD_READS", 2)
+    sources, memory = _missed(1, 2, 3)
+    _lagging(sources, 1, 2, 3)
+
+    assert [_tick(memory, sources, number) for number in range(3)] == [[1, 2], [3, 1], [2, 3]]
+
+
+def test_a_pr_whose_read_alone_fails_goes_behind_the_rest_and_is_retried(monkeypatch, caplog):
+    monkeypatch.setattr(change_listing, "_STALE_RECORD_READS", 1)
     sources, memory = _missed(1, 2)
-    sources.single[1] = record(1, updated_at=_IDLE, draft=True)
-    sources.single_errors = {2: RuntimeError("502 from GitHub")}
+    sources.single_errors = {1: RuntimeError("502 from GitHub")}
 
-    _list(memory, sources)
-    sources.events.clear()
-    _list(memory, sources, now=_NOW + timedelta(minutes=2))
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        reads = [_tick(memory, sources, number) for number in range(3)]
 
-    # PR1's read returned a record still behind its marker (a row dated ahead of GitHub, say): it is not read
-    # again at the same marker, while PR2's read failed and is retried.
-    assert [event for event in sources.events if event.startswith("read")] == [f"read {TARGET_REPO} #2"]
-    sources.events.clear()
+    # PR1's failed read counts as an attempt, so PR2 is read before PR1 is tried again.
+    assert reads == [[1], [2], [1]]
+    errors = [entry.getMessage() for entry in caplog.records if entry.levelno == logging.ERROR]
+    assert errors == [f"{TARGET_REPO}: cannot read PR #1, whose marker is newer than its record"] * 2
+
+
+def test_a_record_read_alone_still_behind_its_marker_stays_pending_and_is_read_again_next_tick():
+    sources, memory = _missed(1)
+    _lagging(sources, 1)
+
+    assert [_tick(memory, sources, number) for number in range(2)] == [[1], [1]]
+    assert memory.view.records[1].draft
+
+
+def test_a_record_read_alone_that_caught_up_is_not_read_again_until_its_marker_moves():
+    sources, memory = _missed(1)
+
+    assert [_tick(memory, sources, number) for number in range(2)] == [[1], []]
+
     sources.markers[1] = Marker(pr_updated_at=_EVENT + timedelta(minutes=1))
-    _list(memory, sources, now=_NOW + timedelta(minutes=4))
+    assert _tick(memory, sources, 2) == [1]
 
-    assert [event for event in sources.events if event.startswith("read")] == [
-        f"read {TARGET_REPO} #1",
-        f"read {TARGET_REPO} #2",
-    ]
+
+def test_the_last_attempt_at_a_marker_gives_its_read_up_with_a_warning(caplog):
+    sources, memory = _missed(1)
+    _lagging(sources, 1)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        reads = [_tick(memory, sources, number) for number in range(READ_ALONE_MAX_ATTEMPTS + 1)]
+
+    assert reads == [[1]] * READ_ALONE_MAX_ATTEMPTS + [[]]
+    [warning] = [entry for entry in caplog.records if entry.levelno == logging.WARNING]
+    assert warning.getMessage() == (
+        f"{TARGET_REPO}: gave up reading PR #1 alone at its marker's pull_request event of {_EVENT} after "
+        f"{READ_ALONE_MAX_ATTEMPTS} attempts"
+    )
+
+
+def test_a_read_that_keeps_failing_is_given_up_too(caplog):
+    sources, memory = _missed(1)
+    sources.single_errors = {1: RuntimeError("502 from GitHub")}
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        reads = [_tick(memory, sources, number) for number in range(READ_ALONE_MAX_ATTEMPTS + 1)]
+
+    assert reads == [[1]] * READ_ALONE_MAX_ATTEMPTS + [[]]
+    assert [entry.levelno for entry in caplog.records].count(logging.WARNING) == 1
 
 
 def test_an_iteration_timeout_reading_a_pr_alone_propagates():
@@ -625,3 +711,179 @@ def test_nothing_is_read_alone_while_the_reading_is_stale(stale):
     _list(memory, sources)
 
     assert not [event for event in sources.events if event.startswith("read")]
+
+
+def _round_trip(memory: ScanMemory) -> ScanMemory:
+    """``memory`` as the state store gives it back to the next tick."""
+    return decode_memory(encode_memory(memory, TARGET_REPO), TARGET_REPO)
+
+
+def _finished(memory: ScanMemory, listing: Listing, at: datetime) -> None:
+    """Mark the tick's full or wide listing done, as a finished scan does (``review_finish``)."""
+    if listing.kind == "full":
+        memory.mark_full_tick(at)
+    elif listing.kind == "wide":
+        memory.mark_wide_tick(at)
+
+
+def _unusable(cause: str) -> ScanMemory:
+    """A memory whose last full tick started two minutes ago, its sweep every ``full_tick_minutes``, whose
+    view the tick cannot use."""
+    memory = _warm(record(1))
+    memory.full_tick_interval = _SWEEP
+    if cause == "not-stored":
+        memory.view = PRView()
+    elif cause == "no-digest":
+        memory.view.digest = None
+    return memory
+
+
+@pytest.mark.parametrize(
+    ("cause", "authors"),
+    [
+        pytest.param("not-stored", _COHORT, id="view-not-stored"),
+        pytest.param("no-digest", _COHORT, id="view-without-a-digest"),
+        pytest.param("cohort", frozenset({"alice", "bob"}), id="cohort-change"),
+    ],
+)
+def test_with_no_usable_view_and_no_sweep_due_the_tick_is_a_github_fast_tick(caplog, cause, authors):
+    sources = _Sources()
+    sources.clickhouse_forbidden = True
+    sources.recent = [record(4)]
+    memory = _unusable(cause)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        listing = _list(memory, sources, authors=authors)
+
+    assert sources.events == [f"fetch_updated {TARGET_REPO} since {_NOW - _WINDOW:%Y-%m-%d %H:%M}"]
+    assert (listing.kind, listing.candidates.numbers, listing.markers) == ("fast", [4], {})
+    assert not memory.view.built
+    assert not memory.wide_due(_NOW)
+    assert memory.full_tick_interval == FULL_TICK_INTERVAL
+    assert f"{TARGET_REPO}: fast tick from GitHub, no usable view" in caplog.text
+
+
+def test_a_view_that_is_never_stored_is_listed_in_full_only_every_full_tick_interval(monkeypatch):
+    monkeypatch.setattr(scan_memory, "MEMORY_MAX_BYTES", 1)
+    sources = _Sources()
+    sources.open = [record(1)]
+    memory = ScanMemory()
+    kinds: list[str] = []
+
+    for minutes in range(0, 32, 2):
+        at = _NOW + timedelta(minutes=minutes)
+        listing = _list(memory, sources, now=at)
+        kinds.append(listing.kind)
+        _finished(memory, listing, at)
+        memory = _round_trip(memory)
+        assert not memory.view.built
+
+    assert kinds == ["full"] + ["fast"] * 7 + ["full"] + ["fast"] * 7
+    assert sources.events.count("freshness") == 2
+
+
+def test_a_cohort_change_lists_from_github_until_the_full_tick_rebuilds_the_view_for_it():
+    sources = _Sources()
+    sources.open = [record(1), record(2, author="bob"), record(3, author="carol")]
+    memory = _unusable("cohort")
+    widened = frozenset({"alice", "bob"})
+
+    fast = _list(memory, sources, authors=widened)
+    sources.events.clear()
+    full_at = _NOW - timedelta(minutes=2) + FULL_TICK_INTERVAL
+    full = _list(memory, sources, now=full_at, authors=widened)
+
+    assert fast.kind == "fast"
+    assert full.kind == "full"
+    assert sources.events == ["freshness", f"list open {TARGET_REPO}", f"markers {TARGET_REPO} [1, 2]"]
+    assert full.candidates.numbers == [1, 2]
+    assert memory.view.digest == cohort_digest(widened)
+    assert memory.view.usable(widened)
+    assert not memory.view.usable(_COHORT)
+
+
+def test_a_full_listing_that_raises_after_a_cohort_change_leaves_the_view_it_found():
+    sources = _Sources()
+    error = GithubException(429, {"message": "secondary rate limit"})
+    sources.open_error = error
+    memory = _warm(record(1), full_at=_NOW - FULL_TICK_INTERVAL)
+    widened = frozenset({"alice", "bob"})
+
+    with pytest.raises(GithubException) as raised:
+        _list(memory, sources, authors=widened)
+
+    assert raised.value is error
+    assert sources.events == ["freshness", f"list open {TARGET_REPO}"]
+    assert memory.view.digest == cohort_digest(_COHORT)
+    assert sorted(memory.view.records) == [1]
+    assert not memory.view.usable(widened)
+
+
+@pytest.fixture
+def hang(monkeypatch: pytest.MonkeyPatch) -> Iterator[threading.Event]:
+    """An event a fake read blocks on, released when the test ends; the reading deadline is cut to 0.1 s."""
+    monkeypatch.setattr(change_listing, "CHANGE_FEED_DEADLINE_SECONDS", 0.1)
+    release = threading.Event()
+    yield release
+    release.set()
+
+
+def _timed(caplog: pytest.LogCaptureFixture, memory: ScanMemory, sources: _Sources) -> tuple[Listing, float]:
+    started = time.monotonic()
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        listing = _list(memory, sources)
+    return listing, time.monotonic() - started
+
+
+@pytest.mark.parametrize("read", ["hang_markers", "hang_freshness"])
+def test_a_reading_that_hangs_is_stale_at_its_deadline_and_the_tick_still_lists(caplog, hang, read):
+    sources = _Sources()
+    setattr(sources, read, hang)
+    sources.recent = [record(2)]
+    memory = _warm(record(1))
+    memory.view.note({1: Marker(reviews=1)}, _NOW - timedelta(minutes=10))
+
+    listing, elapsed = _timed(caplog, memory, sources)
+
+    assert elapsed < _HANG_SECONDS / 2
+    assert listing.kind == "fast"
+    assert listing.candidates.numbers == [1, 2]
+    assert listing.markers[1] == (Marker(reviews=1), _NOW - timedelta(minutes=10))
+    assert memory.full_tick_interval == FULL_TICK_INTERVAL
+    [error] = [entry for entry in caplog.records if entry.levelno == logging.ERROR]
+    assert error.getMessage() == (
+        f"{TARGET_REPO}: cannot read the HUD ClickHouse markers of 1 PR(s) and the tables' freshness in time"
+    )
+    assert error.exc_info is not None
+    assert "event tick from GitHub, stale: the reading did not finish in time" in caplog.text
+
+
+def test_a_full_ticks_freshness_read_that_hangs_is_a_failed_freshness_reading(caplog, hang):
+    sources = _Sources()
+    sources.hang_freshness = hang
+    sources.open = [record(1)]
+
+    listing, elapsed = _timed(caplog, ScanMemory(), sources)
+
+    assert elapsed < _HANG_SECONDS / 2
+    assert (listing.kind, listing.candidates.numbers) == ("full", [1])
+    assert sources.events == ["freshness", f"list open {TARGET_REPO}", f"markers {TARGET_REPO} [1]"]
+    assert "full tick from GitHub, stale: the freshness reading failed" in caplog.text
+
+
+def test_a_full_ticks_marker_read_that_hangs_is_a_failed_marker_reading(caplog, hang):
+    sources = _Sources()
+    sources.hang_markers = hang
+    sources.open = [record(1)]
+    memory = ScanMemory()
+
+    listing, elapsed = _timed(caplog, memory, sources)
+
+    assert elapsed < _HANG_SECONDS / 2
+    assert (listing.kind, listing.candidates.numbers, listing.markers) == ("full", [1], {1: None})
+    assert memory.view.seen(1) is None
+    [error] = [entry for entry in caplog.records if entry.levelno == logging.ERROR]
+    assert error.getMessage() == f"{TARGET_REPO}: cannot read the HUD ClickHouse markers of 1 PR(s)"
+    assert error.exc_info is not None
+    assert isinstance(error.exc_info[1], TimeoutError)
+    assert "full tick from GitHub, stale: the marker reading failed" in caplog.text

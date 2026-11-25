@@ -10,12 +10,14 @@ Both reads run under ``CHANGE_FEED_MAX_EXECUTION_SECONDS`` on a client that give
 'number')``, which reads the whole ``pull_request`` Tuple whenever a filter can use the index, so they are filtered on
 the subcolumn ``pull_request.number`` and scanned in full: two narrow columns cost far less than the Tuple.
 clickhouse_connect inlines bound parameters into the SQL text, which ClickHouse caps (``max_query_size``), so the PR
-numbers are bound once, as ``known``.
+numbers are bound once, as ``known``. ``call_bounded`` runs a read on a thread of its own and gives up waiting for it
+after a deadline, which those time limits do not guarantee.
 """
 
 from __future__ import annotations
 
 import functools
+import threading
 from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING, Any
 
@@ -205,3 +207,29 @@ def read_freshness(*, connect: Callable[[], Client] | None = None) -> Freshness:
     """The four tables' freshness, read now."""
     (row,) = _query(_FRESHNESS_SQL, dict(_FUTURE), connect)
     return Freshness(server_now=naive_utc(row["server_now"]), newest={table: _time(row[table]) for table in TABLES})
+
+
+def call_bounded[T](fn: Callable[..., T], *args: object, seconds: float) -> T:
+    """``fn(*args)`` run on a daemon thread: its value, or its exception raised again here.
+
+    Raises ``TimeoutError`` once ``fn`` has run ``seconds`` without returning; its thread is left to end on its own,
+    and what it returns or raises after that is dropped.
+    """
+    done = threading.Event()
+    returned: list[T] = []
+    raised: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            returned.append(fn(*args))
+        except BaseException as exc:
+            raised.append(exc)
+        finally:
+            done.set()
+
+    threading.Thread(target=run, name="greenlight-change-feed", daemon=True).start()
+    if not done.wait(seconds):
+        raise TimeoutError(f"a HUD ClickHouse read did not finish within {seconds} s")
+    if raised:
+        raise raised[0]
+    return returned[0]
