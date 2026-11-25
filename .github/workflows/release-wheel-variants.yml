@@ -56,11 +56,11 @@ jobs:
     steps:
       - name: Generate matrix
         id: generate
-        run: |
+        env:
           # Use inputs if available (workflow_dispatch), otherwise use defaults for PR
-          ARCHS_INPUT="${{ inputs.architectures || 'cpu' }}"
-          PLATFORMS_INPUT="${{ inputs.platforms || 'manylinux_2_28_x86_64' }}"
-
+          ARCHS_INPUT: ${{ inputs.architectures || 'cpu' }}
+          PLATFORMS_INPUT: ${{ inputs.platforms || 'manylinux_2_28_x86_64' }}
+        run: |
           # Convert comma-separated inputs to JSON arrays
           ARCHS=$(echo "${ARCHS_INPUT}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
           PLATFORMS=$(echo "${PLATFORMS_INPUT}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
@@ -133,10 +133,12 @@ jobs:
           pip install --no-deps -e .
 
       - name: Verify variant-repack installation
+        env:
+          PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
         run: |
           variant_repack --version
           echo "Available configs:"
-          ls -la variant-repack/configs/torch-${{ inputs.pytorch_release || '2.10' }}/
+          ls -la "variant-repack/configs/torch-${PYTORCH_RELEASE}/"
 
       - name: Configure AWS credentials
         # Only configure AWS for workflow_dispatch with dry_run=false
@@ -149,9 +151,10 @@ jobs:
 
       - name: Determine version suffix
         id: version-suffix
+        env:
+          ARCH: ${{ matrix.arch }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
-          ARCH="${{ matrix.arch }}"
-          PLATFORM="${{ matrix.platform }}"
           case "${ARCH}" in
             cpu)
               # macOS wheels don't have +cpu suffix
