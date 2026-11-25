@@ -955,11 +955,32 @@ def test_a_wide_tick_rereads_its_land_prs_and_drops_the_author_of_one_whose_base
     assert f"{TARGET_REPO}: wide tick rechecked 2 LAND PR(s) from GitHub" in caplog.text
 
 
-def test_a_land_pr_whose_fresh_record_names_an_author_outside_the_cohort_loses_its_author():
+def test_a_land_pr_whose_fresh_record_names_an_author_outside_the_cohort_loses_its_author_but_stays_in_the_view():
+    sources, memory, listing = _wide(record(1))
+    stored = memory.view.records[1]
+    sources.single = {1: record(1, author="carol", updated_at=_EVENT)}
+
+    candidates = _recheck(listing, memory, sources, {1: _row(1)})
+
+    assert candidates.authors == {}
+    assert memory.view.records[1] == stored
+
+
+def test_a_land_pr_renamed_out_of_the_cohort_is_reread_and_loses_its_author_again_at_the_next_wide_tick():
     sources, memory, listing = _wide(record(1))
     sources.single = {1: record(1, author="carol")}
 
-    assert _recheck(listing, memory, sources, {1: _row(1)}).authors == {}
+    first = _recheck(listing, memory, sources, {1: _row(1)})
+    memory.mark_wide_tick(_NOW)
+    memory = _round_trip(memory)
+    later = _list(memory, sources, now=_NOW + FULL_TICK_INTERVAL)
+    second = _recheck(later, memory, sources, {1: _row(1)})
+
+    # The first tick's revoke failed, say: the stored view still holds PR1, so the next wide tick retries it.
+    assert later.kind == "wide"
+    assert later.candidates.authors == {1: "alice"}
+    assert (first.authors, second.authors) == ({}, {})
+    assert _reads(sources) == [1, 1]
 
 
 def test_a_fresh_record_that_lags_the_listing_keeps_the_listed_updated_at():

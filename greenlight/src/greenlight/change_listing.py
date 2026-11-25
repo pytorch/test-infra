@@ -205,10 +205,11 @@ def recheck_landed(
 
     ``authors`` is the tick's evaluation cohort and ``now`` the clock its listing started at. Any other tick
     returns the candidates as listed. On a wide tick each candidate whose latest recorded row in ``states``
-    is a LAND is read alone; an open record goes into the view, and the PR loses its author when its base
-    is refused or its author is outside the cohort, so the ineligible revoke reaches it, else takes the
-    record's author and the later ``updated_at``. A failed read (logged) or a record that is None or closed
-    leaves the PR as listed; a rate limit raises.
+    is a LAND is read alone. The PR loses its author when its base is refused or its author is outside the
+    cohort, so the ineligible revoke reaches it, else takes the record's author and the later ``updated_at``.
+    An open record by a cohort author goes into the view; one by another author leaves the view's record as
+    it was, so a revoke that fails is retried at every wide tick until the sweep's rebuild drops the PR. A
+    failed read (logged) or a record that is None or closed leaves the PR as listed; a rate limit raises.
     """
     candidates = listing.candidates
     if listing.kind != "wide" or memory is None:
@@ -222,8 +223,10 @@ def recheck_landed(
         _read, record = _read_alone(client, repo, number, read_record, "whose latest recorded row is a LAND")
         if record is None or record.state != "open":
             continue
-        memory.view.apply([record], now, authors)
-        if record.base_accepted is False or record.author.lower() not in cohort:
+        in_cohort = record.author.lower() in cohort
+        if in_cohort:
+            memory.view.apply([record], now, authors)
+        if record.base_accepted is False or not in_cohort:
             authored.pop(number, None)
         else:
             authored[number] = record.author
