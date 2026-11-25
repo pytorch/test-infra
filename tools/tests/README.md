@@ -9,4 +9,4 @@ To run these tests locally, run the same commands that tests.yml workflow execut
 1. From the test-infra directory, create a new virtual environment: `python -m venv .venv/`
 2. Activate it: `source .venv/bin/activate`
 3. Install any pip packages you need. If you need something beyond what `.github/workflows/tests.yml` installs, please update the list in that workflow
-4. Run your tests from the test-infra dir with: `python3 -m unittest discover -vs tools/tests -p 'test_*.py'`
+4. Run your tests from the test-infra dir with: `PYTHONPATH=tools/scripts python3 -m unittest discover -vs tools/tests -p 'test_*.py'`. `PYTHONPATH` must include `tools/scripts`, because some tests import modules from there directly.
