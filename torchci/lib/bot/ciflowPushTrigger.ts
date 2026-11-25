@@ -381,7 +381,17 @@ async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
       continue;
     }
 
+    // Tag the commit this run was for. If the PR head has moved on since,
+    // leave it to the workflow_run of the newer commit.
     const headSha = prData.data.head.sha;
+    if (headSha !== payload.workflow_run.head_sha) {
+      context.log.info(
+        `PR #${prNum} head ${headSha} differs from workflow_run head ` +
+          `${payload.workflow_run.head_sha}, skipping tag sync`
+      );
+      continue;
+    }
+
     const tags = ciflowLabels.map((l: string) => labelToTag(l, prNum));
     const promises = tags.map(
       async (tag: string) => await syncTag(context as any, tag, headSha)
