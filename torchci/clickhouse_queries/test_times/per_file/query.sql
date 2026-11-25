@@ -1,3 +1,14 @@
+-- Per-file test time for each build environment and test config, from ci.runs
+-- for the jobs on the most recent viable/strict commits.
+--
+-- Within a job, a file's time is the sum of its test case durations plus the
+-- gaps between consecutive cases capped at 5 seconds. The short gaps are
+-- process spawn and setup that case timestamps miss (e.g. distributed tests);
+-- longer gaps (e.g. run_test.py running other files between a file's serial and
+-- parallel passes) are not the file's time. Cases that overlap under
+-- pytest-xdist add no gap, so the time stays summed test time, which
+-- run_test.py divides by the worker count. Each run sums its jobs, and the
+-- result is the median over runs.
 WITH most_recent_strict_commits AS (
     SELECT push.head_commit.id AS sha
     FROM
@@ -8,51 +19,110 @@ WITH most_recent_strict_commits AS (
     ORDER BY
         push.head_commit.timestamp DESC
     LIMIT
-        3
+        10
 ),
 
 job AS (
-    SELECT DISTINCT
-        j.name,
-        j.id,
-        j.run_id
+    SELECT
+        j.id AS id,
+        any(j.name) AS name,
+        any(j.run_id) AS run_id,
+        min(j.started_at) AS started_at
     FROM
         default.workflow_job j
     WHERE j.id IN (
         SELECT id FROM materialized_views.workflow_job_by_head_sha
         WHERE head_sha IN (SELECT sha FROM most_recent_strict_commits)
     )
+    GROUP BY
+        j.id
 ),
 
-file_duration_per_job AS (
+python_test AS (
     SELECT
-        test_run.invoking_file AS file,
-        SUM(time) AS time,
+        id,
+        file
+    FROM
+        ci.tests FINAL
+    WHERE
+        language = 'python'
+),
+
+-- ci.runs is a ReplacingMergeTree: re-ingested reports can leave duplicate
+-- copies until a merge. Collapse them on the table's sorting key (FINAL over
+-- these jobs is too slow).
+run AS (
+    SELECT
+        tests_id,
+        github_workflow_job_id,
+        started_at,
+        any(ended_at) AS ended_at
+    FROM
+        ci.runs
+    WHERE
+        github_workflow_job_id IN (SELECT id FROM job)
+        AND started_at >= (SELECT MIN(started_at) FROM job)
+    GROUP BY
+        tests_id,
+        environments_id,
+        env_vars_id,
+        started_at,
+        github_workflow_job_id,
+        rerun_number
+),
+
+case_time AS (
+    SELECT
+        r.github_workflow_job_id AS job_id,
+        t.file AS file,
+        dateDiff('millisecond', r.started_at, r.ended_at) / 1000
+        + if(
+            count() OVER w = 0,
+            0,
+            greatest(
+                0,
+                least(
+                    5,
+                    dateDiff(
+                        'millisecond', max(r.ended_at) OVER w, r.started_at
+                    ) / 1000
+                )
+            )
+        ) AS time
+    FROM
+        run r
+    INNER JOIN python_test t ON r.tests_id = t.id
+    WINDOW w AS (
+        PARTITION BY r.github_workflow_job_id, t.file
+        ORDER BY r.started_at
+        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    )
+),
+
+file_duration_per_run AS (
+    SELECT
+        c.file AS file,
+        SUM(c.time) AS time,
         REGEXP_EXTRACT(job.name, '^(.*) /', 1) AS base_name,
         REGEXP_EXTRACT(job.name, '/ test(?:-osdc)? \(([\w-]*),', 1)
             AS test_config
     FROM
-        default.test_run_summary test_run
-    INNER JOIN job ON test_run.job_id = job.id
-    WHERE
-        /* cpp tests do not populate `file` for some reason. */
-        /* Exclude them as we don't include them in our slow test infra */
-        test_run.file != ''
-        AND test_run.workflow_id IN (SELECT run_id FROM job)
+        case_time c
+    INNER JOIN job ON c.job_id = job.id
     GROUP BY
-        test_run.invoking_file,
+        c.file,
         base_name,
         test_config,
         job.run_id
 )
 
 SELECT
-    REPLACE(file, '.', '/') AS file,
+    replaceRegexpAll(file, '^test/|\.py$', '') AS file,
     base_name,
     test_config,
-    AVG(time) AS time
+    quantileExact(0.5)(time) AS time
 FROM
-    file_duration_per_job
+    file_duration_per_run
 GROUP BY
     file,
     base_name,
