@@ -31,6 +31,11 @@ jobs:
       - name: Run `packer init`
         id: packer-init
         working-directory: ./aws/ami/windows
+        env:
+          # packer init looks up plugin releases through the GitHub API.
+          # Unauthenticated calls share the runner IP's 60/hour limit and
+          # often fail with "403 API rate limit exceeded".
+          PACKER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "packer init ."
 
       - name: Run `packer validate`
