@@ -8,7 +8,7 @@ import {
   useTheme,
 } from "@mui/material";
 import CheckMenuItem from "components/tests/CheckMenuItem";
-import type { InlineSelectOption } from "components/tests/InlineSelect";
+import type { HubSelectOption } from "components/tests/HubSelect";
 import {
   headerKeyColors,
   headerKeyFocusRing,
@@ -18,7 +18,7 @@ import { HEADER_FILTER_SIZE } from "lib/tests/layout";
 import { MouseEvent, ReactNode, useId, useState } from "react";
 
 export interface HeaderSelectOption<Value extends string>
-  extends InlineSelectOption<Value> {
+  extends HubSelectOption<Value> {
   // Something small set before the label in the menu: a status's swatch.
   adornment?: ReactNode;
 }

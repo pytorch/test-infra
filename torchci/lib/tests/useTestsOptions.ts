@@ -3,7 +3,7 @@ import { useApiResource } from "lib/tests/useApiResource";
 
 export const TESTS_OPTIONS_URL = "/api/tests/options";
 
-// The choices the title offers, from GET /api/tests/options: the values the
+// The choices the page offers, from GET /api/tests/options: the values the
 // list accepts, their labels and its defaults, read as the hooks read the
 // API (useApiResource): fetched once per page load and shared through SWR's
 // cache, the API letting it be cached briefly too, and asked again on its

@@ -51,11 +51,11 @@ export const testsPagesOpenApi: ApiResource = {
         operationId: "testsPage",
         tags: [PAGES_TAG],
         summary: "HUD page: a repository's tests with their health",
-        description: `The table built on listTests (GET /api/tests), one row per entry. ${PAGE_NATURE} The page reads the parameters below and no other, each spelled, encoded and defaulted exactly as GET /api/tests reads it; a parameter it does not list is ignored, so a link must not carry ${TESTS_PAGE_UNSUPPORTED_PARAMETERS.join(
+        description: `The table built on listTests (GET /api/tests), one row per entry, under a band of the views of getTestOptions (GET /api/tests/options), each a way into the table with its figure from getTestSummary (GET /api/tests/summary). ${PAGE_NATURE} The page reads the parameters below and no other, each spelled, encoded and defaulted exactly as GET /api/tests reads it; a parameter it does not list is ignored, so a link must not carry ${TESTS_PAGE_UNSUPPORTED_PARAMETERS.join(
           ", "
         )}, for which the page has no equivalent, and ${TESTS_PAGE_PAGING_PARAMETERS.join(
           " and "
-        )} have no meaning, since the page pages by itself. A value the catalogs do not hold falls back to the parameter's default. TestListPage.hud_url is this page's URL for a request, or null when the request used a parameter the page lacks.`,
+        )} have no meaning, since the page pages by itself. A value the catalogs do not hold falls back to the parameter's default. TestListPage.hud_url is this page's URL for a request, or null when the request used a parameter the page lacks; TestSummary.hud_url is its URL for a summary's window and languages, and TestViewFigure.hud_url its URL showing a view.`,
         parameters: [
           ...Object.entries(TESTS_PAGE_PATH_PARAMETERS).map(([name, schema]) =>
             pathParameter(name, schema)

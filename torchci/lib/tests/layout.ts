@@ -70,6 +70,10 @@ export const HEADER_TITLE_STYLE = {
   textTransform: "uppercase",
 } as const;
 export const HEADER_TITLE_TOOLTIP_DELAY_MS = 600;
+// A pill's height in pixels: a line of body2 text and its padding. The fact
+// pills of the hub's headers (FactPill) and the cost page's pills share it,
+// and the line above the tests table, which holds "Updated", keeps it.
+export const PILL_HEIGHT = 26;
 // A header's filter key (HeaderFilter): its side in pixels, the funnel with
 // its padding and edge, which the header leaves room for plus a gap; and
 // how far it sits in from the header's right edge.

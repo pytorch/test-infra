@@ -71,8 +71,7 @@ interface NameFilterChipProps {
 // beneath the text: the filter's title muted, the value, and a button that
 // takes the filter out of the URL. No menu sets these; a link does, the
 // API's hud_url for one, and the chip shows what the link asked for. The
-// chip is a pill in the band's grey, the grey of the title's pills and the
-// view chips.
+// chip is a pill in the band's grey, the grey of the hub's pills.
 function NameFilterChip({ name, value, onRemove }: NameFilterChipProps) {
   const theme = useTheme();
   const title = NAME_FILTER_TITLES[name];

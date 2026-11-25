@@ -5,7 +5,7 @@ import { BlockColors, Hue, hueColors } from "lib/tests/blockColors";
 // own styles and for the controls set on the band. Every color follows the
 // theme's mode.
 
-// The band itself: the grey of the title's pills.
+// The band itself: the grey of the hub's pills.
 export function headerBandColor(theme: Theme): string {
   return theme.palette.mode === "dark"
     ? theme.palette.grey[800]
@@ -13,7 +13,7 @@ export function headerBandColor(theme: Theme): string {
 }
 
 // A step darker than the band: a pill or badge in the band's grey under the
-// pointer (InlinePill, ViewChips, the grid's variables badge).
+// pointer (InlinePill, the grid's variables badge).
 export function headerBandHoverColor(theme: Theme): string {
   return theme.palette.mode === "dark"
     ? theme.palette.grey[700]
@@ -28,6 +28,30 @@ export function headerRuleColor(theme: Theme): string {
   return theme.palette.mode === "dark"
     ? theme.palette.grey[600]
     : theme.palette.grey[400];
+}
+
+// The accent as text, for words that say they are the active choice: the
+// sorted column's header, the page's own tab, the label of the band's
+// chosen cell. A step darker than the accent in light mode and a step
+// lighter in dark mode: the accent itself reads at 4.6:1 on the light page
+// but at 4.2:1 on the chosen cell's wash there and 4.1:1 on it in dark
+// mode, short of the 4.5:1 small text needs, where these read at 5.1:1 or
+// better on the page and on the wash, and at 4.6:1 or better on the wash
+// under the pointer (test/tests/viewBand.test.tsx measures them, on HUD's
+// own dark palette).
+export function accentTextColor(theme: Theme): string {
+  return theme.palette.mode === "dark"
+    ? theme.palette.primary.light
+    : theme.palette.primary.dark;
+}
+
+// The accent as a fill behind white words, the band's "Showing" button:
+// the accent in light mode, where white reads on it at 4.6:1, and a step
+// darker in dark mode, where white on the accent would read at 3.3:1.
+export function accentFillColor(theme: Theme): string {
+  return theme.palette.mode === "dark"
+    ? theme.palette.primary.dark
+    : theme.palette.primary.main;
 }
 
 // A control set on the band, a key: a rounded square or pill on the page's

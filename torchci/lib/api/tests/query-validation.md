@@ -10,23 +10,24 @@ old result still applies. `yarn test` runs every replay this way
 instead of waiting to be run by hand. The specialized notes beside the queries
 record design experiments; their measurements are historical.
 
-| Queries                                            | Evidence and replay script                                                                                                                         |
-| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tests list, boundary probe, test detail            | [query-validation.json](query-validation.json), `scripts/validateTestsApiQueries.cjs`                                                              |
-| Tests list pages chosen before the catalog joins   | [page-first-query-validation.json](page-first-query-validation.json), `scripts/validateListPageFirstQueries.cjs`                                   |
-| Run bundles, attempt fetch (test and commit pages) | [attempts-query-validation.md](test/runs/attempts-query-validation.md), `scripts/validateRunAttemptsQueries.cjs`                                   |
-| `last_attempt_outcome` filter                      | [last-attempt-outcome-query-validation.md](test/runs/last-attempt-outcome-query-validation.md), `scripts/validateLastAttemptOutcomeQueries.cjs`    |
-| Commit pages reading `FINAL` only at shared starts | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitSharedStartsQueries.cjs`                                          |
-| Commit summary: counts by status and lookups       | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitSummaryQueries.cjs`                                               |
-| Previous-page cursors                              | [bidirectional-pagination-query-validation.md](bidirectional-pagination-query-validation.md), `scripts/validateBidirectionalPaginationQueries.cjs` |
-| Workflow metadata lookup                           | [workflow-query-validation.md](test/runs/workflow-query-validation.md), `scripts/validateRunWorkflowQuery.cjs`                                     |
-| Runs grouped by commit (`group_by=commit`)         | [grid-query-validation.md](test/runs/grid-query-validation.md), `scripts/validateRunGridQuery.cjs`                                                 |
-| Run detail by execution UUID                       | [run/query-validation.md](run/query-validation.md)                                                                                                 |
-| Pull request head: record and the heads' runs      | [pull/query-validation.md](pull/query-validation.md)                                                                                               |
+| Queries                                            | Evidence and replay script                                                                                                                               |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tests list, boundary probe, test detail            | [query-validation.json](query-validation.json), `scripts/validateTestsApiQueries.cjs`                                                                    |
+| Tests list pages chosen before the catalog joins   | [page-first-query-validation.json](page-first-query-validation.json), `scripts/validateListPageFirstQueries.cjs`                                         |
+| Summary figures, read in shared statements         | [summary/query-validation.md](summary/query-validation.md), [query-validation.json](summary/query-validation.json), `scripts/validateSummaryQueries.cjs` |
+| Run bundles, attempt fetch (test and commit pages) | [attempts-query-validation.md](test/runs/attempts-query-validation.md), `scripts/validateRunAttemptsQueries.cjs`                                         |
+| `last_attempt_outcome` filter                      | [last-attempt-outcome-query-validation.md](test/runs/last-attempt-outcome-query-validation.md), `scripts/validateLastAttemptOutcomeQueries.cjs`          |
+| Commit pages reading `FINAL` only at shared starts | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitSharedStartsQueries.cjs`                                                |
+| Commit summary: counts by status and lookups       | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitSummaryQueries.cjs`                                                     |
+| Previous-page cursors                              | [bidirectional-pagination-query-validation.md](bidirectional-pagination-query-validation.md), `scripts/validateBidirectionalPaginationQueries.cjs`       |
+| Workflow metadata lookup                           | [workflow-query-validation.md](test/runs/workflow-query-validation.md), `scripts/validateRunWorkflowQuery.cjs`                                           |
+| Runs grouped by commit (`group_by=commit`)         | [grid-query-validation.md](test/runs/grid-query-validation.md), `scripts/validateRunGridQuery.cjs`                                                       |
+| Run detail by execution UUID                       | [run/query-validation.md](run/query-validation.md)                                                                                                       |
+| Pull request head: record and the heads' runs      | [pull/query-validation.md](pull/query-validation.md)                                                                                                     |
 
 ## Current contract
 
-The list defaults to `window=12h`, `ran_on=main`,
+The list defaults to `window=3h`, `ran_on=main`,
 `sort=-status,-failure_rate,-failed_runs,-last_failed_at,-skip_rate,-mean_passed_duration_milliseconds`
 (the Health header's chain, worst first, so a bare page opens on the failing
 tests) and `limit=25`.
@@ -114,24 +115,49 @@ then fails, and the comparison is repeated rather than relaxed. Cursor cases
 embed the recorded cursor and expire with the entries they point at; record a
 new cursor from a live page rather than editing one.
 
-## List and detail results (2026-11-03)
+## List and detail results (2026-11-25)
 
-Every case returned the same nonempty complete rows in all three executions on 2026-11-03 against `ci` on ClickHouse 26.6.1.2446, at the server's default thread count. Memory is the HTTP summary peak; rows read include the catalog joins. Health granules are the final primary-key selection within the partitions `window` and `ran_on` prune, kept of total.
+Every case returned the same nonempty complete rows in all three executions on 2026-11-25, at the health table's 01:15 UTC refresh, against `ci` on ClickHouse 26.6.1.2455, at the server's default thread count. Memory is the HTTP summary peak; rows read include the catalog joins. Health granules are the final primary-key selection within the partitions `window` and `ran_on` prune, kept of total.
 
-| Case                  | Request                                                                                                                                                    | Rows | Server seconds, median (range) | Rows read, millions | Memory MB | Health granules |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---: | -----------------------------: | ------------------: | --------: | --------------: |
-| `main_default`        | defaults: `window=12h`, `ran_on=main`, `sort=-status,-failure_rate,-failed_runs,-last_failed_at,-skip_rate,-mean_passed_duration_milliseconds`, `limit=25` |   26 |            0.700 (0.672–0.776) |                10.1 |       503 |         985/985 |
-| `main_both_sources`   | `ran_on=main,pull_request`                                                                                                                                 |   26 |            5.086 (4.998–5.616) |                16.7 |       784 |       1773/1773 |
-| `main_filtered`       | `owner=nn`, `accelerator=cuda`, `window=14d`, `sort=-failed_runs,-runs`                                                                                    |   26 |            0.762 (0.595–0.853) |                11.2 |       180 |       1161/1161 |
-| `main_search`         | `search=test/test_nn.py`                                                                                                                                   |   26 |            0.618 (0.571–0.726) |                10.1 |       161 |         985/985 |
-| `main_env_vars`       | `env_vars={"TEST_CONFIG":["default"]}`, `window=1d`, `sort=file,suite,case_name`                                                                           |   26 |            0.843 (0.799–1.117) |                11.5 |       768 |       1084/1084 |
-| `main_second_page`    | defaults continued from the first page cursor                                                                                                              |   26 |            0.886 (0.750–1.149) |                10.1 |       491 |         985/985 |
-| `main_boundary_probe` | previous-direction probe the second page issues, one row                                                                                                   |    1 |            0.674 (0.559–0.848) |                10.1 |       465 |         985/985 |
-| `detail`              | test `12347295505799784290`                                                                                                                                |  332 |            0.136 (0.128–0.461) |                 0.1 |        21 |        12/12635 |
+| Case                  | Request                                                                                                                                                   | Rows | Server seconds, median (range) | Rows read, millions | Memory MB | Health granules |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---: | -----------------------------: | ------------------: | --------: | --------------: |
+| `main_default`        | defaults: `window=3h`, `ran_on=main`, `sort=-status,-failure_rate,-failed_runs,-last_failed_at,-skip_rate,-mean_passed_duration_milliseconds`, `limit=25` |   26 |            0.964 (0.727–1.119) |                 7.3 |       623 |         512/512 |
+| `main_both_sources`   | `ran_on=main,pull_request`                                                                                                                                |   26 |            2.909 (2.899–3.765) |                10.8 |       991 |         938/938 |
+| `main_filtered`       | `owner=nn`, `accelerator=cuda`, `window=14d`, `sort=-failed_runs,-runs`                                                                                   |   26 |            1.465 (0.943–1.757) |                16.1 |       257 |       1607/1607 |
+| `main_search`         | `search=test/test_nn.py`                                                                                                                                  |   26 |            0.811 (0.734–0.914) |                 7.3 |       200 |         512/512 |
+| `main_env_vars`       | `env_vars={"TEST_CONFIG":["default"]}`, `window=1d`, `sort=file,suite,case_name`                                                                          |   26 |            1.584 (1.379–1.868) |                10.2 |      1055 |         682/682 |
+| `main_second_page`    | defaults continued from the first page cursor                                                                                                             |   26 |            0.795 (0.703–1.375) |                 7.3 |       606 |         512/512 |
+| `main_boundary_probe` | previous-direction probe the second page issues, one row                                                                                                  |    1 |            0.853 (0.848–0.904) |                 7.3 |       599 |         512/512 |
+| `detail`              | test `12347295505799784290`                                                                                                                               |  145 |            0.081 (0.076–0.433) |                 0.1 |        35 |        12/11092 |
 
-The default page reads the whole `(main, 12h)` partition, 985 granules on 2026-11-03, and sorts its rows by the six-field health chain before taking 26, so its cost is still the partition size rather than the page; since 2026-11-03 it reads one source's rows as they are and joins the catalogs to the page's rows alone (see History), and the boundary probe a cursor page issues reads and sorts the same rows for one. Both sources still combine two partitions' rows by configuration, 5.1 seconds. The detail query prunes health to 12 granules through its test ID. On 2026-10-26 the same cases took 5.0, 5.4, 1.1, 0.6, 6.8, 5.0, 4.6 and 0.08 seconds; the 2026-11-03 comparison of the old and new list SQL at the heavy workload's four threads is [the page-first evidence](page-first-query-validation.json).
+The default page reads the whole `(main, 3h)` partition, 512 granules on 2026-11-25, and sorts its rows by the six-field health chain before taking 26, so its cost is still the partition size rather than the page; since 2026-11-03 it reads one source's rows as they are and joins the catalogs to the page's rows alone (see History), and the boundary probe a cursor page issues reads and sorts the same rows for one. Both sources still combine two partitions' rows by configuration, 2.9 seconds over the two 3-hour partitions. The detail query prunes health to 12 granules through its test ID. On 2026-11-03, when the default window was 12 hours, the same cases took 0.70, 5.09, 0.76, 0.62, 0.84, 0.89, 0.67 and 0.14 seconds, and on 2026-10-26 5.0, 5.4, 1.1, 0.6, 6.8, 5.0, 4.6 and 0.08. The days do not compare case for case: `main_filtered` and `main_env_vars`, whose requests did not change, took 1.9 times as long on 2026-11-25 as on 2026-11-03, reading 16.1 against 11.2 million rows and 10.2 against 11.5 million. The 2026-11-03 comparison of the old and new list SQL at the heavy workload's four threads is [the page-first evidence](page-first-query-validation.json).
 
 ## History
+
+On 2026-11-24 the default window changed from `12h` to `3h`. No statement's
+text changed: a request that leaves `window` off binds `3h` where it bound
+`12h`. The five cases that leave `window` off, `main_default`,
+`main_both_sources`, `main_search`, `main_second_page` and
+`main_boundary_probe`, were re-recorded, the two cursor cases from fresh live
+pages walked through the local API (the second page shared no row with the
+first, and its previous cursor returned the first page's rows exactly), and
+the whole bundle re-measured on 2026-11-25 within the 01:15 UTC refresh; the
+table above is that run, and the paragraph under it holds the 2026-11-03
+figures. The window is the functional change, so the rows differ by design
+and there is no equivalent baseline to show; the plans still prune to one
+partition, `(main, 3h)`, 3 parts and 512 granules where `(main, 12h)` was 4
+parts and 624 granules at the same refresh. Alternating the old default
+(`window=12h`) and the new one, one statement with the other window bound,
+eight times each within that refresh gave medians of 0.97 seconds of server
+time for 12 hours and 0.73 for 3 (0.71–1.13 against 0.60–1.53), 8.2 against
+7.3 million rows read and 650 against 632 MB. The ranges overlap: the 3-hour
+partition holds 4.28 million rows against 5.22 million, so the gain is small
+and the cost remains the partition. The page-first comparison's cases that
+left `window` off now name the `12h` they were recorded at
+([page-first-query-validation.json](page-first-query-validation.json)): that
+bundle compares two forms of the SQL as measured on 2026-11-03 and was not
+measured again. [The summary's bundle](summary/query-validation.md) was
+recorded again the same night.
 
 On 2026-11-03 the list began choosing its page before it joins the
 catalogs (`buildListQuery` in `query.ts`; [the comparison

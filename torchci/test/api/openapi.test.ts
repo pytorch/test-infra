@@ -205,7 +205,7 @@ describe("GET /api/openapi.json", () => {
     });
     expect(byName.window.schema).toMatchObject({
       type: "string",
-      default: "12h",
+      default: "3h",
       enum: ["3h", "12h", "1d", "3d", "7d", "14d"],
     });
     expect(byName.sort).toMatchObject({

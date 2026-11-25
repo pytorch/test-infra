@@ -113,7 +113,7 @@ describe("app/api/tests", () => {
         ],
         env_vars: { CUDA_VISIBLE_DEVICES: ["", "0,1"] },
         ran_on: ["main", "pull_request"],
-        window: "12h",
+        window: "3h",
         sort: [
           "-failure_rate",
           "-runs",

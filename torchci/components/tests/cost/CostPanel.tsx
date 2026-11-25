@@ -7,7 +7,6 @@ import RatesDropzone, {
 } from "components/tests/cost/RatesDropzone";
 import RatesFormat from "components/tests/cost/RatesFormat";
 import FactPill from "components/tests/FactPill";
-import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import { datesLabel, hoursLabel, rateLabel } from "lib/tests/cost/query";
 import {
   editedRates,
@@ -17,6 +16,7 @@ import {
 } from "lib/tests/cost/rates";
 import type { PreparedHours } from "lib/tests/cost/runnerHours";
 import { headerKeyFocusRing } from "lib/tests/headerColors";
+import { PILL_HEIGHT } from "lib/tests/layout";
 import {
   useCallback,
   useEffect,
@@ -225,7 +225,7 @@ export default function CostPanel({
   );
   // With the window's pill, the first row is the pill's height and the
   // actions are centered on it, so they stay level with the file's name.
-  const firstRow = rates.window === null ? undefined : `${VIEW_CHIP_HEIGHT}px`;
+  const firstRow = rates.window === null ? undefined : `${PILL_HEIGHT}px`;
   const banner = (
     <Box sx={{ typography: "body2", color: "text.secondary" }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", columnGap: 2 }}>

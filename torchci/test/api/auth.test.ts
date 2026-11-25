@@ -45,6 +45,7 @@ const PAGE_ROUTES = [
   "/api/tests/job/{job_id}",
   "/api/tests/options",
   "/api/tests/pull/{number}",
+  "/api/tests/summary",
   "/api/tests/test/{test_id}",
   "/api/tests/test/{test_id}/runs",
 ];

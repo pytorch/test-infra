@@ -1,7 +1,8 @@
 # Tests page
 
 `/tests/[organization]/[repo]` lists a repository's tests: the test hub's main
-page, built on the [HUD API](../../app/api/README.md)'s `GET /api/tests`.
+page, built on the [HUD API](../../app/api/README.md)'s `GET /api/tests`, with
+the figures of the band above its table from `GET /api/tests/summary`.
 `/tests/[organization]/[repo]/test/[test_id]` is one test's own page, built on
 `GET /api/tests/test/{test_id}`; its section is [below](#test-page).
 `/tests/[organization]/[repo]/commit/[sha]` is one commit's page, built on
@@ -11,6 +12,10 @@ section is [below](#commit-page).
 `/tests/[organization]/[repo]/pull/[number]` opens the commit page of a pull
 request's newest head, found by `GET /api/tests/pull/{number}`; its section
 is [below](#pull-request-page).
+`/tests/[organization]/[repo]/cost` says where a repository's runner-hours
+went, from `GET /api/tests/cost`; its section is [below](#cost-page). The
+tests page and the cost page link each other with the tabs at their top
+(`HubTabs`).
 `/tests` redirects to `/tests/pytorch/pytorch` (a `redirects()` entry in
 `next.config.js`), and the HUD navigation bar's Tests link, left of Help, goes
 straight to `/tests/pytorch/pytorch` (`components/layout/NavBar.tsx`). The other
@@ -50,7 +55,7 @@ the page that shows it as `hud_url`.
   same objects. That module is zod and the registry alone; no handler, query
   or database client reaches the client bundle. The page depends on the API's
   response shape and parameter definitions, nothing deeper.
-- Spell out no catalog value. The title's choices, their labels and their
+- Spell out no catalog value. The row's choices, their labels and their
   defaults come from `GET /api/tests/options` at run time
   (`useTestsOptions`), so a window, code source or language added to or
   removed from the API, a device, Python version or workflow newly recorded,
@@ -58,13 +63,40 @@ the page that shows it as `hud_url`.
   The page reads the options first, resolves the URL against them
   (`resolveTestsQuery`), and only then asks for the list, naming its
   `window`, `ran_on`, any `language`, any facet value and any name filter
-  explicitly: the request says exactly what the sentence shows, even if a
+  explicitly: the request says exactly what the row shows, even if a
   deploy lands between the two requests. The page knows the API's parameter
   _names_, the fifteen facets and the four name filters in
   `lib/tests/facets.ts`, each checked by the compiler against the page's
   parameter definitions, and never their catalog values; the labels of the
   environment cells come from the options too. The sort's default,
-  `DEFAULT_TESTS_SORT`, is the API's own `DEFAULT_SORT`.
+  `DEFAULT_TESTS_SORT`, is the API's own `DEFAULT_SORT`. The band's views are
+  the options' as well: a view's name, its caption, what its figure is
+  (`figure.kind`) and what choosing it asks for, and the dots of its cell
+  are read off the statuses its figure counts or its own parameters narrow
+  to (`viewStatuses`), so a view added to the API, renamed or redefined there is
+  a cell with no page change. Only a new
+  kind of figure needs one (`figureText` sets a dash for a kind it does not
+  know).
+- A repository's pages open with the hub's row, and the row is their title.
+  The pages a repository has in the hub, the ones in the tabs, each begin
+  with `HubTabs`: the repository, a tab per page and, at the row's right
+  end, the page's own choices, the ones that apply to everything the page
+  shows, passed as the row's children, each a `HubSelect`: a control that
+  names what it chooses and says the choice, "Window 3 hours". No title
+  sentence follows the row, and no choice is a pill inside running text:
+  the tests page had both until 2026-11-24, and its choices were easy to
+  miss. The row gives the page its `h1`, out of sight, and the page's
+  content starts under it. A choice that narrows one part of a page stays
+  with that part, as a column's filter stays in its header. A page added
+  to the hub is one more entry in `PAGES` and starts this way. The cost
+  page predates the rule and still opens with a title sentence under the
+  row. It was left as it is on 2026-11-24 and is to be brought over: its
+  window becomes a `HubSelect` in the row, `ownTitle` leaves its entry in
+  `PAGES`, and `CostHeading`, `InlineSelect` and `InlinePill`, which
+  nothing else uses, go. The row's details are under
+  [Rendering decisions](#rendering-decisions). The rule is for the pages
+  in the tabs: a test's page and a commit's are each about one thing and
+  open with a breadcrumb back to these (`PageHeader`).
 - Both themes, always. Colors come from the theme palette through
   `useTheme()`: text colors, the divider for hairlines, the greys of the
   pills. Nothing is painted a fixed color.
@@ -82,7 +114,7 @@ the page that shows it as `hud_url`.
   Next.js encodes the commas as `%2C`; that is fine. A sort the
   API accepts but no header stands for, such as `-runs`, still works and shows
   no arrow; an invalid one shows the API's error text above an empty table.
-- `window`, `ran_on` and `language` carry the title's choices in the API's
+- `window`, `ran_on` and `language` carry the row's choices in the API's
   spelling, left off at the defaults:
   `?window=1d&ran_on=main,pull_request&language=python&language=cpp`.
   `language` repeats once per checked language because the API reads a comma
@@ -98,7 +130,7 @@ the page that shows it as `hud_url`.
   They are exact filters ANDed across facets and ORed within one, as the API
   defines them, so a pair chosen from a cell, CUDA with 13.2, is two
   parameters. A value the options do not offer is dropped like any other.
-  The title never shows them: they belong to their columns, and their
+  The row never shows them: they belong to their columns, and their
   headers show them.
 - `file`, `suite`, `case_name` and `declared_case_name` carry the API's exact
   filters on the test's name, repeated once per value and left off when none
@@ -114,7 +146,7 @@ the page that shows it as `hud_url`.
   a `ResizeObserver` and reports how much taller than a key it is, and the
   header band grows by that (`columnHeaderHeightFor`), so the other headers'
   labels and keys stay centered. They go to the API as written, once each, and
-  a view chip clears them as it clears the search. Without them a link for a
+  a view chosen in the band clears them as it clears the search. Without them a link for a
   request filtered by file would have shown the whole table; the API's
   `hud_url` is null rather than that for the list filters the page still
   lacks, the catalog ids and `env_vars`.
@@ -143,26 +175,93 @@ the page that shows it as `hud_url`.
   order the cell sets them; Test Config sorts by `test_config`; Owners by `owner`. A header click
   sorts the whole chain in one direction, so the URL carries all eleven
   fields; a URL ordering by some of them is a sort no header stands for.
-- A view chip (`ViewChips`, with `lib/tests/views.ts`) writes its view's
-  query: the view's `params`, served by `GET /api/tests/options`, are read
-  exactly as a page URL is (`testsQueryFromUrl`, then `resolveTestsQuery`)
-  and written back with `testsUrlParams`, so the URL carries ordinary
-  parameters, never a view id, and a shared link means the same thing after
-  a view's definition changes. Only Blocking viable/strict sets a window, 12
-  hours; choosing any other view keeps the window the reader is in
-  (`chooseView`). Every other parameter the view leaves out returns to its
-  default, the search included, and text still being typed is dropped. A
-  chip stays chosen while every parameter its view sets holds
-  (`activeViewIds`): another filter, a search or a title choice the view
-  leaves out refines it, while changing one the view sets, its sort or code
-  source, leaves it. Of two views that hold, one that sets every parameter
-  the other sets is the more specific and is shown alone, so Blocking
-  viable/strict, which starts from the default sort on main, does not also
-  light Least healthy. A click on a chosen chip returns only that view's
-  parameters to their defaults and keeps the refinements (`withoutView`).
-  The first view, Least healthy, is the list's defaults, so the page opens
-  with it chosen. Options cached from before views existed offer none, and
-  the row is empty.
+- A cell of the band above the table (`ViewBand`, with `lib/tests/views.ts`)
+  writes its view's query: the view's `params`, served by
+  `GET /api/tests/options`, are read exactly as a page URL is
+  (`testsQueryFromUrl`, then `resolveTestsQuery`) and written back with
+  `testsUrlParams`, so the URL carries ordinary parameters, never a view id,
+  and a shared link means the same thing after a view's definition changes.
+  Choosing a view starts from a clean query (`chooseView`): every parameter
+  the view leaves out returns to its default, the search and the name filters
+  included, and text still being typed is dropped. The window and the
+  languages are the exception. They are the reader's, the two of the row's
+  choices that a view can leave alone, so they stay unless the view sets its
+  own. Two views set a window: the first, the default table, the default
+  window of 3 hours, and Blocking viable/strict its 12 hours. Choosing
+  either moves the row's window to its own, and the figures of the cells
+  that follow the row's window with it; clearing Blocking viable/strict
+  returns the window to its default. The band's
+  figures are read over the same two choices, a view's own window standing,
+  so a cell's figure is the figure of what choosing it shows: `test/tests/views.test.ts` holds the page
+  and the API to that, for every view, window and choice of languages.
+- A cell is marked only while the table shows exactly its view
+  (`activeViewIds`): the view, chosen now, would change nothing. A filter, a
+  search, a sort or a code source the view does not ask for unmarks it, so no
+  cell stays marked over a table that shows something else. The chips this
+  band replaced did: a chip stayed chosen while its own parameters held,
+  whatever else narrowed the table. Changing the window or the languages
+  keeps the mark, since they are the reader's, except on a view that sets its
+  own: Blocking viable/strict is unmarked outside its 12 hours, and the
+  first view, Unhealthy, outside the default 3. While the
+  search is being typed no cell is marked, since the table has already left
+  the view the URL still names. A click on the marked cell returns its view's
+  parameters to their defaults (`withoutView`), which leaves the list's
+  defaults in the reader's window and languages. In the default window those
+  defaults are a view too, the first: the page opens with its cell marked,
+  clearing another view there leads to it, and its own cell has nothing to
+  clear, so a click on it while it is marked does nothing
+  (`clearableViewIds`: the marked views whose clearing would change the
+  page). In another window the defaults are no view, and no cell is marked
+  over them. There is no Reset control:
+  the page's own tab leads to the page without parameters. Options cached
+  from before views existed offer none, and the band is not shown.
+- Why the first view is the defaults and not a filter. The defaults list
+  every row, the unhealthy ones first, failing and then flaky (`-status`
+  leads the default sort). For some hours on 2026-11-24 the first cell, then
+  named Failing, was a view of the failing rows alone, `status=failing`:
+  exactly the rows the default table begins with, in the same order. With a
+  page or more of failing rows, choosing it changed nothing a reader could
+  see, and the page opened with no cell marked over a table that showed what
+  the Failing cell promised. So the view is the defaults, marked on arrival,
+  and only its figure is of some of its rows (the view's `figure.params`,
+  which `GET /api/tests/summary` adds to the view's own when it counts). The
+  URL `?status=failing` is the defaults with a filter: it marks no cell.
+- Why the first view names the default window. Until 2026-11-24 it named
+  none: it was the list's defaults in whatever window the page was in, like
+  the views after Blocking viable/strict, so its cell was marked at 12 hours
+  or 7 days, and choosing it kept the page's window. Once the default window
+  was 3 hours and no longer Blocking viable/strict's own, that showed:
+  choosing Blocking viable/strict moved the page to 12 hours, and choosing
+  the first cell after it left the page at 12 hours with the first cell
+  marked. The user, the same day: "the first pill should also be 3 hours
+  instead of 12 hours to match the default table... this doesn't make sense
+  why the default table is highlighting the cell when they differ on the
+  window." The first cell stands for the default table, and that table is
+  of the default window, so the view now says so
+  (`window` in its `params`, `DEFAULT_WINDOW`): choosing it returns the
+  page to 3 hours from any window, no other window marks it, and its figure
+  is of 3 hours whatever the row's window, which is why its caption ends
+  ", 3 hours" as Blocking viable/strict's ends ", 12 hours". The matching
+  code did not change (`chooseView`, `activeViewIds`); the view it was given
+  did. The languages are still the reader's for every view, the first
+  included: with a language chosen the first cell stays marked and counts
+  that language's rows. The four views that name no window still follow the
+  row's.
+- Why the first cell says Unhealthy and counts the flaky rows too. It said
+  Failing, over a count of the failing rows, until later on 2026-11-24: the
+  user found Failing the wrong term for the cell and Unhealthy the better
+  one. The figure was made to count what the new name says, which the user
+  did not ask for in so many words: the failing and the flaky rows
+  (`status=failing&status=flaky`, captioned "failing or flaky" and then
+  the view's window), each with a
+  run that had a failed attempt, which are the rows the default table shows
+  ahead of its healthy ones. Under "Unhealthy", a count of the failing rows
+  alone would say that a flaky row is healthy. The cell has a dot for each
+  of the two statuses. Live at 01:00 UTC on 2026-11-25 (main, 3 hours) the
+  count was 73, 18 failing and 55 flaky. To count the failing rows alone
+  again, change the figure's `status` and caption in
+  `lib/api/tests/options/views.ts` and record the summary's bundle again,
+  since a binding changes.
 - Paging follows the API's cursors one page at a time. The table keeps the
   cursor that fetched each visited page, so previous works; any change of the
   query restarts the walk. That state is derived during render, never synced by an
@@ -246,7 +345,7 @@ the page that shows it as `hud_url`.
   opens the column's facet menu (`FacetMenu`), under a first item, "Any
   environment", that stands for no choice and clears the column's facets.
   The Health and Owners menus list their one facet's values as checkboxes
-  (`CheckMenuItem`, the row the title's multi-select menus render too).
+  (`CheckMenuItem`, the item the menus of the row's choices render too).
   The Environment menu has eleven sections and the Test Config menu two,
   test config and workflow; a list of them all hid the later ones (the
   Workflow heading sat below 37 test configs), so each section is a folded
@@ -261,7 +360,7 @@ the page that shows it as `hud_url`.
   of a header, so a key that let it through would sort the column every time
   it opened its menu); it is taken out of the header's flow (absolutely
   positioned, with the title container padded to make room), so the label and
-  the sort arrow sit as they do in the other headers. The title's three pills
+  the sort arrow sit as they do in the other headers. The row's three choices
   are not involved: a column's filter is set, shown and cleared in that
   column's header.
 - Every token in those three cells is a filter too (`FilterToken`): plain text
@@ -366,18 +465,18 @@ the page that shows it as `hud_url`.
   body's 5px padding and the layout's 2px margin each side, the column's
   16px padding each side and the table's border, leaves 1855px for the
   columns, and they sum to 1840. The table is
-  set like a typeset list, in the voice
-  of the title: a 1px border in HUD's shared `--table-border-color` (set for
+  set like a typeset list: a 1px border in HUD's shared `--table-border-color` (set for
   both modes in `globals.css` and drawn by HUD's other tables; the grid's own
   border color darkens the divider and vanishes on the dark background)
   around the grid's rounded corners, compact rows, hairlines in the palette's divider color
   between rows, no vertical lines in the rows, and emphasis carried by text
-  color. The header is a band in the same grey as the title's pills, clipped
+  color. The header is a band in the grey of the hub's pills (`headerBandColor`), clipped
   above by the box's rounded corners and square below so the first row's
   hairline meets it flush, with bold uppercase muted labels at the grid's own font
   size (0.875rem, as in HUD's other tables) and the
-  grid's own short separator between columns, so the header and the title
-  read as one system. Row and header heights are set in pixels, not through
+  grid's own short separator between columns. The keys set on the band and
+  the controls of the hub's row share one edge and background
+  (`headerKeyColors`), so the page's controls read as one system. Row and header heights are set in pixels, not through
   the grid's `density` setting, which multiplies whatever it is given by a
   hidden factor (`lib/tests/rows.ts`). A row is at least 44 (`minHeight` on
   its cells, which have 3px of padding above and below), which holds the
@@ -436,34 +535,174 @@ the page that shows it as `hud_url`.
   beyond. The label is computed once per timestamp, so a page left open past
   midnight keeps saying "Today" until the row re-mounts. The tooltip gives
   the elapsed time in the caption's words, "3 hours ago".
-- The title is one sentence: "Tests in pytorch/pytorch that ran within the
-  last 12 hours on main in all languages", and the three choices in it are
-  the controls: flat grey pills (`InlinePill`) set in the
-  heading's own font, with a chevron, opening a menu of one list
-  (`InlineSelect`). One choice closes the menu; several keep it open. The
-  title holds only what applies to the whole table, the window, the code
-  sources and the languages; what narrows a column is in that column's
-  header. The pills take their greys from the palette by mode. Until the
-  options arrive, three short pill-shaped skeletons hold their places, and
-  the table shows its loading state.
-- The view chips sit on the caption's line, left of "Updated", 12px above
-  the table, after a muted "Starter queries" label set like "Updated", with no
-  colon, which also names the chips' group for assistive technology: pills in
-  the grey of the title's, filled in the accent color for the view shown, as a
-  header's filter key is while something is chosen, and in no status color,
-  since hue is kept for status. Each chip's description is its tooltip,
-  which is where a view's caveat goes. The line keeps a chip's height
-  (`VIEW_CHIP_HEIGHT`) before the options arrive, so the table does not move
-  when the chips appear.
+- The row (`HubTabs`) is the first thing on the page, and on the cost page:
+  the repository's name, monospace and muted, a link to the tests page; a
+  short divider; one tab per page the repository has in the hub, Tests and
+  Cost, each an icon and a name; and at the right end the page's choices
+  (below). The tabs are links (`next/link`), not the tabs of a tab panel:
+  each leads to another page, opens in a new tab with the modifier keys, and
+  the page's own is `aria-current="page"`. The page's own tab is set in the
+  accent as text (`accentTextColor`) over a 3px accent rule on the row's
+  hairline; the others are muted until the pointer is on them, when a grey
+  rule is drawn out under them. They are bold on purpose, 16px at weight 500
+  with a 20px icon: the cost page had no link to it at all, and quieter tabs
+  were judged too easy to miss (2026-11-24). A tab leads to its page without
+  parameters, so on the tests page the Tests tab is the way back to the
+  list's defaults; the page drops text still being typed into the search
+  when a tab is clicked (`onNavigate`), so that it is not written into the
+  URL after the pause. Until the router knows the repository the tabs are
+  inert and a skeleton holds the name's place. A page added to the hub for a
+  repository is one more entry in `PAGES`.
+- The row is the page's title (Best Practice has the rule). The tabs are
+  the row's `nav`; the choices are a group beside it, labelled "Page
+  choices"; and ahead of both the row holds the page's `h1`, "Tests of
+  pytorch/pytorch", clipped to a pixel: read out and not seen, since the
+  page's own tab and the repository beside it say the same to the eye. A
+  page that still has a title sentence, the cost page, is marked `ownTitle`
+  in `PAGES` and gets no such heading, so no page has two. The tabs' line
+  is 52px and the row's hairline is its last pixel, drawn by the row
+  (`::before`, ahead of the tabs, so the rule of the page's own tab lies on
+  it) and not as the row's border: when the row is too narrow for the tabs
+  and the choices on one line, the choices drop under the tabs, still
+  against the right end, and the hairline stays under the tabs. Measured
+  on 2026-11-24: on the page's defaults the two share the line from a
+  window of about 840px; with the 12-hour window, whose label is the
+  longest, and every code source and language chosen, the widest the
+  choices get (686px), from about 1110px. Narrower still, the
+  choices wrap among themselves.
+- The page's choices (`TestsChoices`) are the three that apply to the whole
+  table, the window, the code sources and the languages, set in the row as
+  three controls (`HubSelect`): "Window 3 hours", "Ran on main", "Language
+  All". Each says what it chooses, muted, then the choice, a step heavier,
+  and a chevron, in a 32px key on the page's background with the header
+  keys' ruled edge (`headerKeyColors`), lifted off the page by a faint
+  shadow; while its menu is open the edge takes the accent and a ring of
+  the accent's wash. Until 2026-11-24 the three were grey pills inside a
+  title sentence, "Tests that ran within the last 12 hours on main in all
+  languages", and set in the heading's own type they were easy to miss. Of
+  the forms a mockup tried, the sentence with bordered controls, segmented
+  buttons with every option on show, and named dropdowns in a row of their
+  own or on the tabs' line, the last was chosen. The row holds only what
+  applies to the whole table; what narrows a column is in that column's
+  header. The values, their labels and the defaults are the options'. The
+  window's menu is one list and closes on a choice. The other two are
+  checkboxes (`CheckMenuItem`) and stay open, each under a line that says
+  how its choices combine: "One or more" for the code sources, whose last
+  ticked source cannot be unticked, since the API requires one
+  (`required`), and "None chosen means all" for the languages, which read
+  "All" with none ticked (`languagesPhrase`). That line is the menu's
+  description (`aria-describedby`), not one of its items. A menu hangs from
+  its control's right edge: the controls are set against the row's right
+  end, so that edge stays put while a choice makes the control wider or
+  narrower under the open menu, where the left edge would slide away from
+  the menu's. A control's name is its words, with no `aria-label` in their
+  place. When a menu opens, the keyboard is on its first item that can be
+  pressed, in the window's on the choice in force: `CheckMenuItem` takes
+  the focus MUI's list hands its first item, without which a menu of
+  checkboxes opened with the focus on its frame, where the arrow keys do
+  nothing, and takes it only as it mounts, so that ticking a second code
+  source, which frees the first, does not pull the focus back to the first.
+  Until the options arrive three placeholders hold the controls' places, as
+  wide as the controls are on the defaults (146, 126 and 128px), and the
+  table shows its loading state.
+- The band (`ViewBand`) sits between the row and the table: the options'
+  views as cells side by side in one frame, the table's border around them
+  and hairlines between them (each cell's shadow, cast into the 1px gap of
+  the grid, so a last row with fewer cells needs no filler). Six across from
+  the `lg` breakpoint, three from `sm`, two below. A cell is one button, the
+  whole of it the target, and two lines: the view's name, with a dot in the
+  hue of each status the cell is about, the ones its figure counts or its
+  view narrows to (`viewStatuses`, `STATUS_HUES`: two for Unhealthy, failing
+  then flaky, one for each view of a single status, none for Slowest and
+  Most CI time); under it the view's figure, 19px and bold, with its caption
+  beside it on the same baseline; and beside both lines, centered on them,
+  a small button that says what a click does, "Show ↓". The drawn button is
+  the cell's own face, not a second control: it is `aria-hidden`, and the
+  cell says its state with `aria-pressed`. Cells without it did not read as
+  something to click (2026-11-24). The two lines are 18 and 26px whatever
+  they hold, so the band is 63px with its frame and nothing below moves
+  when the cells or their figures arrive; six placeholder cells hold its
+  place before the options do. Until 2026-11-24 a cell was three lines, the
+  figure at 28px over the caption, and the band 100px: the cells were
+  judged too big. With the title sentence gone as well, the table starts
+  112px higher, 189px under the top of the row where it was 301px. The
+  caption has what the figure and the button leave of the second line and
+  ends in an ellipsis when that is too little, as the slowest test's name
+  does at any width. The button keeps its word while the cell, inside its
+  padding, is 250px or wider (`WORDED_ACTION_MIN_WIDTH`, a container query
+  on the cell): beside the worded button and its gap, 70px, that leaves
+  180px, which holds a four-digit count (46px), the gap (8px) and the
+  longest caption, "pull and trunk, 12 hours" (125px). In a narrower cell
+  the button is its icon alone, a 24px square. Measured on 2026-11-24 on
+  the page's defaults: at 1920px a cell is 306px and nothing but the
+  slowest test's name is cut; six cells keep the word down to a window of
+  about 1720px; without it every caption fits down to about 1450px; and at
+  1280px, where a cell is 202px, the three longest captions, "pull and
+  trunk, 12 hours", "failing or flaky, 3 hours" (119px, cut by 4px) and "of
+  tests, all attempts", end in an ellipsis. The band
+  replaces a row of chips that sat on the caption's line.
+- The marked cell (URL and state says when a cell is marked) is marked as a
+  whole, not by its button alone: a wash of the accent over the cell, as
+  strong as the theme makes a selected item (`action.selectedOpacity`, 0.08
+  in light mode and 0.16 in dark, and `hoverOpacity` more under the pointer);
+  a 2px accent rule along its foot; its name in the accent as text; and its
+  drawn button filled (`accentFillColor`), reading "✓ Showing". Under the
+  pointer or the keyboard's focus that button reads "× Clear", which is what
+  the next click does, but not straight after the click that chose the view,
+  while the pointer is still on the cell: "Clear" there would read as if the
+  click had done nothing (`fresh`, forgotten when the pointer or the focus
+  leaves the cell; the cell has the `ViewBand-swaps` class while its button
+  swaps). The two faces are stacked in one box, so the cell does not move
+  when one gives way to the other. The defaults' cell, the first, is the
+  exception: marked, it has nothing to clear, so it keeps reading "Showing",
+  has no "Clear" face, does not darken under the pointer and shows the
+  default cursor. The pointer's styles apply only where a
+  pointer can rest (`@media (hover: hover)`), so a touch does not leave a
+  cell looking hovered. `test/tests/viewBand.test.tsx` measures the colors
+  on the page and on the wash in both themes, HUD's own dark palette
+  included: the accent as text reads at 5.1:1 or better on both and at 4.6:1
+  or better on the wash under the pointer, where the accent itself would
+  read at 4.2:1 on the light wash and 4.1:1 on the dark one; white on the
+  button's fill reads at 4.6:1 in light mode and 6.1:1 in dark, where the
+  fill is a step darker than the accent, on which white would read at 3.3:1.
+- A cell's figure comes from `GET /api/tests/summary` (`useTestsSummary`,
+  `lib/tests/figures.ts`): one figure per view, read over the row's window
+  and languages, a view's own window standing. A count is of the list's
+  rows, one per test, environment and test config, not of tests, and the
+  cell's tooltip says so in words after the view's description, which is
+  where a view's caveat goes: "20 rows in the last 3 hours, one per test,
+  environment and test config." The hours there are the figure's own
+  (`window` of the figure), which for the first cell and Blocking
+  viable/strict are their views' whatever the row says, and their captions
+  say so too. A figure is of the rows its view lists,
+  except the first cell's: its view lists every row and its figure counts
+  the unhealthy ones, failing or flaky, the rows that table begins with,
+  which its description says. The Slowest cell's caption is the slowest
+  test's case name, monospace, with the whole name in the tooltip; Most CI
+  time is in whole hours from ten hours up (`totalDurationLabel`). A count of
+  none is muted and its dots grey. While the figures are on their way a
+  skeleton holds each figure's place; if they fail, each cell shows a dash
+  and works as before, and an alert above the band says "Could not load the
+  figures" with a Retry. The figures never hold the table up. The page asks
+  for them once per window and choice of languages and SWR keeps them, so
+  choosing a view asks for nothing; and once more when the table comes to
+  show a later health refresh than the figures were read at
+  (`figuresBehind`), so that a count and the rows under it are of the same
+  data. The API keeps a figure for one health refresh, so the answer to that
+  second request is never one from before the refresh.
 - "Updated n mins ago" (`Updated`) is the table's caption: right-aligned
   just above the grid's top-right corner, in the secondary color, inside
-  `TestsTable`, which has the listing's `refreshed_at`. It counts from the
+  `TestsTable`, which has the listing's `refreshed_at`. It has the line
+  between the band and the table to itself: a summary of the sort and the
+  filters beside it, and a Reset button, were tried in mockups and left out
+  (2026-11-24). The headers say what is sorted and filtered, and the Tests
+  tab leads back to the defaults. It counts from the
   `refreshed_at` of the page's last fetch (`useTimeAgo`) and re-renders every
   ten seconds; its tooltip gives the exact time and the fifteen-minute
   refresh cadence. The page does not poll, so the count grows until a sort or
   page change fetches again. A skeleton as wide as the label holds its row
   before the first page arrives, so the table does not move when the label
-  appears. The title above is the sentence alone.
+  appears.
 - "Loaded in 5.2 s" (`LoadTime`) is the caption that closes the table:
   right-aligned just below the grid's bottom-right corner, under its footer,
   set like "Updated". It says how long the page shown took to arrive, from
@@ -540,11 +779,18 @@ the page that shows it as `hud_url`.
   among healthy tests the mostly skipped come first, then the slowest.
   Ascending is healthiest first. The API puts skipped configurations, which
   have no status rank and no rates, last either way. This chain, worst
-  first, is also the page's default sort, with the 12 hour window, so a
+  first, is also the page's default sort, with the 3 hour window (12 hours
+  from 2026-10-26 until 2026-11-24, 7 days before), so a
   fresh page opens on what is failing now: live on 2026-10-26 (main, 12
   hours) that was 20 failing and 32 flaky configurations before the first
   healthy row, where 7 days showed 137 failing of which 117 had not failed
-  in the last 12 hours. Live on 2026-10-25
+  in the last 12 hours; live at 01:00 UTC on 2026-11-25 (main), 3 hours
+  showed 18 failing and 55 flaky configurations where 12 hours showed 40
+  and 139. The 3 hours are the user's (2026-11-24) and are the API's own
+  default (`DEFAULT_WINDOW`), which the page reads from the options, so a
+  `GET /api/tests` or summary call that names no window changed with the
+  page; a workflow that last ran more than 3 hours ago, as a periodic one
+  may have, is in a wider window. Live on 2026-10-25
   (main, 7 days) a consistently flaky test reads "Flaky 100%" over "31 of 31
   runs", every first attempt failed and every retry passed, and a mostly
   skipped one "Failing 100%" over "1 of 1 run · 62 skipped", which is why
@@ -602,7 +848,7 @@ the grid of its runs by commit.
   the headline carry the one, and the other means nothing to a reader.
 
   - A breadcrumb (MUI `Breadcrumbs`, monospace at HUD's `body2` size, the
-    size of the table's captions and the view chips, secondary tone, `›`
+    size of the table's captions, secondary tone, `›`
     separators in the disabled tone): the repository, the file, the suite,
     each a link back to the list (`headerCrumbs`): the repository to its
     tests, the file to the list searched for its path, as a file clicked in
@@ -623,9 +869,9 @@ the grid of its runs by commit.
     `caseNameDetails`) lists "Declared name" and "Case name" in full, the
     declared name reading "unknown" when the catalog has none, in a tooltip
     wide enough for a long name on a line or two.
-  - A row of facts as pills (`FactPill`): `body2` text in the grey of the
-    title's pills and the table's header band (`headerBandColor`), a view
-    chip's height (`VIEW_CHIP_HEIGHT`), a muted word in title case for what
+  - A row of facts as pills (`FactPill`): `body2` text in the grey of
+    the table's header band (`headerBandColor`), 26px
+    tall (`PILL_HEIGHT`), a muted word in title case for what
     each is and then the value a step heavier. They are read, not pressed,
     so they have no hover and no chevron. The language as the options label
     it (`labelOf`, a skeleton until they arrive, the raw value should they
@@ -657,8 +903,8 @@ the grid of its runs by commit.
   API's error text with a Retry button (`LoadError`), as the list page does;
   a failure of the options has its own Retry, which asks the options again.
 - The page is set in the same column as the list (`PageColumn`), so the two
-  pages share a measure and a reader moving between them sees the title stay
-  put.
+  pages share a measure and a reader moving between them sees the page's
+  edges stay put.
 
 - Under the header, the grid of the test's runs (`RunGrid`; the decisions
   in `lib/tests/grid.ts`, the colors in `lib/tests/gridColors.ts`, the data
@@ -684,8 +930,8 @@ the grid of its runs by commit.
     background with a ruled edge, the choice as text with a chevron,
     "main", "Last 3 days", a menu of one list, the accent edge while open,
     a tooltip naming what it chooses. The code sources key chooses one or
-    both (`ranOnPhrase`, the list title's own phrase: "main and pull
-    requests"), as the list's title combines them: an evidence link from
+    both (`ranOnPhrase`, the phrase of the list's own control: "main and
+    pull requests"), as the list's control combines them: an evidence link from
     the list keeps both, so the grid shows the runs the figure counted,
     and the API takes them comma-separated.
   - An "All outcomes" `HeaderSelect` choosing which outcomes' cells are
@@ -1408,9 +1654,16 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   highlighted machine without a hue takes the accent. Hours whose machine is
   estimated from a runner label are striped in their machine's color;
   Unknown machine is grey stripes at the other angle.
-- The title is a sentence, as the tests page's is: "Runner-hours of
-  pytorch/pytorch over the last 7 days", the window (1, 3 or 7 days) its pill
-  (`InlineSelect`). The facts under it say what the hours cover: the scope (in
+- The page opens with the hub's row (`HubTabs`), Cost marked as the page's
+  own: the way here from the tests page and back. Under it the page still
+  has a title sentence, as the tests page had until 2026-11-24:
+  "Runner-hours over the last 7 days", the window (1, 3 or 7 days) its pill
+  (`InlineSelect`); the row names the repository. The page has not been
+  moved to the rule every page in the tabs is to follow, the row as the
+  title with the page's choices at its right end (Best Practice says what
+  moving it takes); until it is, its entry in `PAGES` is marked `ownTitle`,
+  so the row adds no heading beside the sentence's.
+  The facts under it say what the hours cover: the scope (in
   the accent with a clear button while one is in force), annualized and per
   day runner-hours, the share attributed to owners, and the PR update and PR
   merge signals (pull and trunk on pushes to main, medians with queueing),
@@ -1518,8 +1771,12 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
 - `yarn dev` with the ClickHouse credentials local development uses, then open
   `/tests/pytorch/pytorch` and check both themes, each header in both
   directions, no header label moving when hovered or sorted, the duration
-  header on two lines whether or not it is sorted or hovered, each choice in
-  the title, each header key's menu (the Environment menu's eleven rows in
+  header on two lines whether or not it is sorted or hovered, each of the
+  row's three choices (by the pointer and from the keyboard: Enter or Space
+  opening the menu with the focus on an item, the arrows moving it, Escape
+  closing it with the focus back on the control; the last code source
+  greyed; the menu staying under the control's right edge while a choice
+  changes the control's width), each header key's menu (the Environment menu's eleven rows in
   view at once, a row unfolded and folded again, a low row scrolled up, the
   key filled in the accent once something is chosen, the label still
   sorting), a token clicked in an Environment cell and in a Config cell (the
@@ -1533,10 +1790,32 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   grey; a drag across each selecting its text without leaving the page;
   Cmd-click opening a tab), the softened repeats when sorted by
   Environment, next and
-  previous, a page size change, each view chip (the title, the header keys,
-  the sort arrow and the URL follow; the chip stays chosen through a filter
-  or a window change and leaves when its own sort changes, Least healthy is
-  chosen on a bare URL, Blocking viable/strict leaves outside 12 hours, and a click on a chosen chip keeps the added filter), an
+  previous, a page size change, each cell of the band (the header keys, the
+  sort arrow and the URL follow, the row keeps its window and languages;
+  the cell is marked whole, its button reading Showing until the pointer
+  leaves and Clear when it returns; Unhealthy is marked on a bare URL, reads
+  Showing under the pointer too and ignores a click; the mark goes with any
+  filter, search, sort or code source added, `?status=failing` included, and
+  with any window but the default (`?window=12h` and `?window=7d` mark no
+  cell), and stays through a language change; another view's mark stays
+  through a window or language change, except Blocking viable/strict's
+  outside 12 hours, which choosing it from a bare URL sets in the row;
+  clearing it, or choosing Unhealthy after it, takes the row back to 3
+  hours with Unhealthy marked, and choosing Unhealthy from any window does
+  the same; Unhealthy's figure staying the 3-hour count while the row is in
+  another window; a click on another marked cell returning to the list's
+  defaults in the same window and languages, where Unhealthy is marked
+  again if that window is the default; each figure against the table it
+  leads to, a count being the rows over all the table's pages, Unhealthy's
+  the failing and flaky rows the default table begins with, under two dots;
+  Tab reaching each cell,
+  Enter choosing it; the band three and two cells across in a narrow window;
+  at 1920px no caption cut off but the slowest test's name, and each button
+  with its word, which goes below about 1720px), the row (Cost leading to
+  the cost page and Tests back, the page's own tab clearing every parameter;
+  the choices dropping under the tabs, the hairline staying under the tabs,
+  in a window narrower than about 840px; the cost page's row and title as
+  they were), an
   empty repository (`/tests/pytorch/no-such-repo`), an invalid sort (`?sort=bogus`) and a
   choice the options do not offer (`?window=5d` or `?device_name=none`, which
   show the default), and a URL carrying exact name filters
@@ -1545,7 +1824,7 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   the `hud_url` of `/api/tests?repo=pytorch/pytorch&file=test/test_torch.py`
   opening the same table). `/api/tests/options` itself is a plain JSON page
   to look at. The grid only mounts on the client, so the server-rendered HTML shows
-  the heading alone; judge the table in a browser.
+  the row and the band's placeholders alone; judge the table in a browser.
 - For the test page, open `/tests/pytorch/pytorch/test/<id>` with an id from
   the list (`/api/tests?repo=pytorch/pytorch&limit=1`) and check the header
   in both themes, each crumb's link (the list, then searched by file, then by

@@ -63,10 +63,10 @@ interface ValueItemsProps<Key extends string> {
   lastRef?: MutableRefObject<HTMLLIElement | null>;
 }
 
-// A section's values, each a checkbox item (CheckMenuItem, which the title's
-// menus share), or in a menu of one choice an item marked while chosen, as
-// the menu's first item is. They are direct children of the menu's list, as
-// the arrow keys only reach those.
+// A section's values, each a checkbox item (CheckMenuItem, which the menus
+// of the page's choices share), or in a menu of one choice an item marked
+// while chosen, as the menu's first item is. They are direct children of
+// the menu's list, as the arrow keys only reach those.
 function ValueItems<Key extends string>({
   section,
   chosen,

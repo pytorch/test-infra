@@ -126,7 +126,8 @@ export interface TestsQuery {
   search: string;
 }
 
-// The code sources as the title's sentence says them.
+// The code sources as a control or a sentence says them: "main and pull
+// requests".
 export function ranOnPhrase(
   ranOn: readonly RanOn[],
   options: TestOptions
@@ -138,13 +139,14 @@ export function ranOnPhrase(
   );
 }
 
-// The languages as the title's sentence says them; none chosen means all.
+// The languages as their control says them, after its name, "Language":
+// none chosen means all.
 export function languagesPhrase(
   languages: readonly TestLanguage[],
   options: TestOptions
 ): string {
   return languages.length === 0
-    ? "all languages"
+    ? "All"
     : phraseList(
         menuOrder(languages, options.language.values).map((language) =>
           labelOf(language, options.language.values)
@@ -356,8 +358,8 @@ export interface TestsApiRequest {
 
 // The request for one page. It names the window, the code sources, any
 // languages, any facet values and any name filters explicitly, as resolved
-// from the options, so it asks for exactly what the title says, even if a
-// deploy lands between the two requests.
+// from the options, so it asks for exactly what the page's controls say,
+// even if a deploy lands between the two requests.
 export function testsApiUrl({
   repo,
   query,
