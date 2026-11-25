@@ -103,6 +103,25 @@ DEFAULT_DISPATCH_REF = "main"
 DEFAULT_TIMEOUT_MINUTES = 45
 REPO_CONFIG_PATH = ".github/greenlight/config.yml"
 CONFIG_MAX_BYTES = 8192
+
+GATE_WORKFLOW_PATH = ".github/workflows/greenlight-gate.yml"
+# GitHub's id of DISPATCH_REPO, as a ruleset's workflows rule names its source repository.
+GATE_SOURCE_REPO_ID = 353143803
+GATE_TIMEOUT_MINUTES_DEFAULT = 300
+# Below the gate job's timeout-minutes (350), so the gate fails with its own message rather than being killed.
+GATE_TIMEOUT_MINUTES_MAX = 340
+# Seconds between the gate's checks; the last delay repeats.
+GATE_POLL_DELAYS: tuple[int, ...] = (60, 120, 240, 300)
+# Seconds before the gate re-reads a PR that looked closed.
+GATE_SUPERSEDED_RECHECK = 60
+# Seconds a PR must read open on another head before the gate's run is superseded: a read can lag the push
+# that started the run, and a superseded run fails that head's required check.
+GATE_SUPERSEDED_AFTER = 300
+LEDGER_MARGIN = timedelta(minutes=2)
+BACKING_WAIT_MAX = timedelta(minutes=30)
+# A gate repo's approval-backing check starts no read this long after its invocation started, so the run
+# reaches its memory save inside the 300 s function timeout, with Phase B's WORKER_DEADLINE after it.
+BACKING_DEADLINE = timedelta(seconds=120)
 DRAIN_PRS_PER_TICK = 100
 
 AWS_REGION = "us-east-1"
@@ -214,6 +233,11 @@ DRCI_STATUS_COMMENT_REPOS: frozenset[str] = frozenset(normalize_repo(repo) for r
 # Repos whose config may name change_source: clickhouse. Each one runs its own change queries on HUD's shared
 # ClickHouse cluster every tick, so a repo joins this set only through a test-infra PR.
 CLICKHOUSE_CHANGE_SOURCE_REPOS: frozenset[str] = frozenset({normalize_repo(TARGET_REPO)})
+
+# Repos whose config may name safety: gate with mode: active, so going active is a test-infra change under
+# GreenLight's code owners. Switch a repo to mode: off and wait for its drain before removing it: a refused
+# gate+active file, its stored last valid text included, gives the repo no work at all, drain included.
+GATE_ACTIVE_REPOS: frozenset[str] = frozenset()
 
 # A GitHub App acts through a bot account whose login is ``<app-slug>[bot]``. The verdict writer
 # and the scan's recheck-refusal poster author-scope their comment writes to this login, so it must
