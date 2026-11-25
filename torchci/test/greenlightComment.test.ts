@@ -674,8 +674,8 @@ describe("buildGreenlightSections", () => {
   });
 });
 
-// A repo configured `status_comment: drci` other than the primary one. No such repo
-// is configured yet, so the repo gate is widened for these tests alone.
+// A repo configured `status_comment: drci` other than the primary one. GREENLIGHT_REPOS
+// need not list it, so the repo gate is widened for these tests alone.
 const OTHER_DRCI_REPO = "executorch";
 
 function widenGreenlightRepos(): jest.SpyInstance {

@@ -129,7 +129,9 @@ render is prompt. Shadow rows are never rendered, and only a served, `active` re
    `.github/workflows/update-drci-comments.yml`'s matrix (add it in the same PR if missing): that
    15-minute sweep re-renders a PR after a lost poke. torchci deploys with the merge.
 2. A greenlight-scan release including that PR is pinned. An older release reads `drci` in the
-   repo's file as invalid, so the repo gets no work and every tick fails until the pin moves.
+   repo's file as invalid: a repo it already served keeps only its safety work, under its last valid
+   settings, with no reviews, and the planner fails on the tick the problem first appears, then warns,
+   until the pin moves ([SCAN.md](SCAN.md)).
 3. The repo's own `.github/greenlight/config.yml` switches to `status_comment: drci`, while the repo
    is still in shadow: GreenLight never deletes the comments it already posted, so a repo switched
    later keeps a stale GreenLight comment on its open PRs.
