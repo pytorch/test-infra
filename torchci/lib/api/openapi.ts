@@ -16,6 +16,7 @@ import { testOptionsApiOpenApi } from "lib/api/tests/options/openapi";
 import { PAGES_TAG, testsPagesOpenApi } from "lib/api/tests/pages/openapi";
 import { pullRequestApiOpenApi } from "lib/api/tests/pull/openapi";
 import { runDetailApiOpenApi } from "lib/api/tests/run/openapi";
+import { testSummaryApiOpenApi } from "lib/api/tests/summary/openapi";
 import { testDetailApiOpenApi } from "lib/api/tests/test/openapi";
 import { runsApiOpenApi } from "lib/api/tests/test/runs/openapi";
 import type { z } from "zod/v4";
@@ -32,6 +33,7 @@ export const API_TAG = "tests";
 const RESOURCES: ApiResource[] = [
   testsApiOpenApi,
   testOptionsApiOpenApi,
+  testSummaryApiOpenApi,
   testDetailApiOpenApi,
   runsApiOpenApi,
   commitRunsApiOpenApi,

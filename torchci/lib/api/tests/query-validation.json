@@ -1,6 +1,6 @@
 {
-  "measured_at": "2026-11-03T17:53:14.428Z",
-  "server_version": "26.6.1.2446",
+  "measured_at": "2026-11-25T01:31:43.726Z",
+  "server_version": "26.6.1.2455",
   "database": "ci",
   "settings": {
     "readonly": 2,
@@ -30,7 +30,7 @@
           "ran_on": [
             "main"
           ],
-          "window": "12h",
+          "window": "3h",
           "entries_limit": 26
         }
       },
@@ -103,13 +103,13 @@
             "explain": "                                      window"
           },
           {
-            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                    Parts: 2/52"
+            "explain": "                                    Parts: 3/90"
           },
           {
-            "explain": "                                    Granules: 985/12635"
+            "explain": "                                    Granules: 512/11092"
           },
           {
             "explain": "                                  Partition"
@@ -124,13 +124,13 @@
             "explain": "                                      window"
           },
           {
-            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 3/3"
           },
           {
-            "explain": "                                    Granules: 985/985"
+            "explain": "                                    Granules: 512/512"
           },
           {
             "explain": "                                  PrimaryKey"
@@ -142,19 +142,19 @@
             "explain": "                                      tests_id"
           },
           {
-            "explain": "                                    Condition: (tests_id in 734269-element set)"
+            "explain": "                                    Condition: (tests_id in 1239226-element set)"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 3/3"
           },
           {
-            "explain": "                                    Granules: 985/985"
+            "explain": "                                    Granules: 512/512"
           },
           {
             "explain": "                                    Search Algorithm: generic exclusion search"
           },
           {
-            "explain": "                                  Ranges: 2"
+            "explain": "                                  Ranges: 3"
           },
           {
             "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
@@ -178,13 +178,13 @@
             "explain": "                            Condition: true"
           },
           {
-            "explain": "                            Parts: 6/6"
+            "explain": "                            Parts: 8/8"
           },
           {
-            "explain": "                            Granules: 95/95"
+            "explain": "                            Granules: 160/160"
           },
           {
-            "explain": "                          Ranges: 6"
+            "explain": "                          Ranges: 8"
           },
           {
             "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
@@ -208,16 +208,16 @@
             "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
           },
           {
-            "explain": "                            Parts: 2/2"
+            "explain": "                            Parts: 1/1"
           },
           {
-            "explain": "                            Granules: 2/2"
+            "explain": "                            Granules: 1/1"
           },
           {
             "explain": "                            Search Algorithm: binary search"
           },
           {
-            "explain": "                          Ranges: 2"
+            "explain": "                          Ranges: 1"
           },
           {
             "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -259,50 +259,50 @@
             "explain": "                Condition: true"
           },
           {
-            "explain": "                Parts: 1/1"
+            "explain": "                Parts: 2/2"
           },
           {
-            "explain": "                Granules: 1/1"
+            "explain": "                Granules: 2/2"
           },
           {
-            "explain": "              Ranges: 1"
+            "explain": "              Ranges: 2"
           }
         ],
         "ESTIMATE": [
           {
             "database": "ci",
             "table": "env_vars",
-            "parts": "1",
-            "rows": "59",
-            "marks": "1"
+            "parts": "2",
+            "rows": "112",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "environments",
             "parts": "1",
-            "rows": "64",
+            "rows": "81",
             "marks": "1"
           },
           {
             "database": "ci",
             "table": "owners",
-            "parts": "2",
-            "rows": "2022",
-            "marks": "2"
+            "parts": "1",
+            "rows": "3642",
+            "marks": "1"
           },
           {
             "database": "ci",
             "table": "tests",
-            "parts": "6",
-            "rows": "734269",
-            "marks": "95"
+            "parts": "8",
+            "rows": "1254644",
+            "marks": "160"
           },
           {
             "database": "ci",
             "table": "health",
-            "parts": "2",
-            "rows": "8416953",
-            "marks": "985"
+            "parts": "3",
+            "rows": "4279083",
+            "marks": "512"
           }
         ]
       },
@@ -311,38 +311,38 @@
           "execution": 0,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.671826583,
-            "rows_read": 10124609,
-            "bytes_read": 1171375925
+            "elapsed": 1.118634692,
+            "rows_read": 7276324,
+            "bytes_read": 776797771
           },
-          "memory_usage": "502558569",
-          "digest": "f74a49a157ad324ba58618b4b9d205041930de5895579da12403c6da60b19661"
+          "memory_usage": "614903655",
+          "digest": "f87f0b6b0e8d2d3a03896a3c378477e2d9a1aa76a31c996664cf47c3e9f60551"
         },
         {
           "execution": 1,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.776306825,
-            "rows_read": 10124609,
-            "bytes_read": 1171375925
+            "elapsed": 0.964147578,
+            "rows_read": 7276324,
+            "bytes_read": 776797771
           },
-          "memory_usage": "520291440",
-          "digest": "f74a49a157ad324ba58618b4b9d205041930de5895579da12403c6da60b19661"
+          "memory_usage": "630077817",
+          "digest": "f87f0b6b0e8d2d3a03896a3c378477e2d9a1aa76a31c996664cf47c3e9f60551"
         },
         {
           "execution": 2,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.699530928,
-            "rows_read": 10124609,
-            "bytes_read": 1171375925
+            "elapsed": 0.72724957,
+            "rows_read": 7276324,
+            "bytes_read": 776797771
           },
-          "memory_usage": "479390508",
-          "digest": "f74a49a157ad324ba58618b4b9d205041930de5895579da12403c6da60b19661"
+          "memory_usage": "623272194",
+          "digest": "f87f0b6b0e8d2d3a03896a3c378477e2d9a1aa76a31c996664cf47c3e9f60551"
         }
       ],
       "rows": 26,
-      "digest": "f74a49a157ad324ba58618b4b9d205041930de5895579da12403c6da60b19661",
+      "digest": "f87f0b6b0e8d2d3a03896a3c378477e2d9a1aa76a31c996664cf47c3e9f60551",
       "repeatable_rows": true
     },
     "main_both_sources": {
@@ -360,7 +360,7 @@
             "main",
             "pull_request"
           ],
-          "window": "12h",
+          "window": "3h",
           "entries_limit": 26
         }
       },
@@ -439,13 +439,13 @@
             "explain": "                                          window"
           },
           {
-            "explain": "                                        Condition: and((ran_on in 2-element set), (window in [2, 2]))"
+            "explain": "                                        Condition: and((ran_on in 2-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                        Parts: 9/52"
+            "explain": "                                        Parts: 7/90"
           },
           {
-            "explain": "                                        Granules: 1773/12635"
+            "explain": "                                        Granules: 938/11092"
           },
           {
             "explain": "                                      Partition"
@@ -460,13 +460,13 @@
             "explain": "                                          window"
           },
           {
-            "explain": "                                        Condition: and((ran_on in 2-element set), (window in [2, 2]))"
+            "explain": "                                        Condition: and((ran_on in 2-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                        Parts: 9/9"
+            "explain": "                                        Parts: 7/7"
           },
           {
-            "explain": "                                        Granules: 1773/1773"
+            "explain": "                                        Granules: 938/938"
           },
           {
             "explain": "                                      PrimaryKey"
@@ -478,19 +478,19 @@
             "explain": "                                          tests_id"
           },
           {
-            "explain": "                                        Condition: (tests_id in 734269-element set)"
+            "explain": "                                        Condition: (tests_id in 1239226-element set)"
           },
           {
-            "explain": "                                        Parts: 9/9"
+            "explain": "                                        Parts: 7/7"
           },
           {
-            "explain": "                                        Granules: 1773/1773"
+            "explain": "                                        Granules: 938/938"
           },
           {
             "explain": "                                        Search Algorithm: generic exclusion search"
           },
           {
-            "explain": "                                      Ranges: 9"
+            "explain": "                                      Ranges: 7"
           },
           {
             "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
@@ -514,13 +514,13 @@
             "explain": "                            Condition: true"
           },
           {
-            "explain": "                            Parts: 6/6"
+            "explain": "                            Parts: 8/8"
           },
           {
-            "explain": "                            Granules: 95/95"
+            "explain": "                            Granules: 160/160"
           },
           {
-            "explain": "                          Ranges: 6"
+            "explain": "                          Ranges: 8"
           },
           {
             "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
@@ -544,16 +544,16 @@
             "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
           },
           {
-            "explain": "                            Parts: 2/2"
+            "explain": "                            Parts: 1/1"
           },
           {
-            "explain": "                            Granules: 2/2"
+            "explain": "                            Granules: 1/1"
           },
           {
             "explain": "                            Search Algorithm: binary search"
           },
           {
-            "explain": "                          Ranges: 2"
+            "explain": "                          Ranges: 1"
           },
           {
             "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -595,50 +595,50 @@
             "explain": "                Condition: true"
           },
           {
-            "explain": "                Parts: 1/1"
+            "explain": "                Parts: 2/2"
           },
           {
-            "explain": "                Granules: 1/1"
+            "explain": "                Granules: 2/2"
           },
           {
-            "explain": "              Ranges: 1"
+            "explain": "              Ranges: 2"
           }
         ],
         "ESTIMATE": [
           {
             "database": "ci",
             "table": "env_vars",
-            "parts": "1",
-            "rows": "59",
-            "marks": "1"
+            "parts": "2",
+            "rows": "112",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "environments",
             "parts": "1",
-            "rows": "64",
+            "rows": "81",
             "marks": "1"
           },
           {
             "database": "ci",
             "table": "owners",
-            "parts": "2",
-            "rows": "2022",
-            "marks": "2"
+            "parts": "1",
+            "rows": "3642",
+            "marks": "1"
           },
           {
             "database": "ci",
             "table": "tests",
-            "parts": "6",
-            "rows": "734269",
-            "marks": "95"
+            "parts": "8",
+            "rows": "1254644",
+            "marks": "160"
           },
           {
             "database": "ci",
             "table": "health",
-            "parts": "9",
-            "rows": "15035633",
-            "marks": "1773"
+            "parts": "7",
+            "rows": "7771238",
+            "marks": "938"
           }
         ]
       },
@@ -647,38 +647,38 @@
           "execution": 0,
           "rows": 26,
           "statistics": {
-            "elapsed": 5.086415994,
-            "rows_read": 16743289,
-            "bytes_read": 1988233483
+            "elapsed": 3.76509021,
+            "rows_read": 10768479,
+            "bytes_read": 1185619622
           },
-          "memory_usage": "745696257",
-          "digest": "e8e4ae4b2aceb41160b3b090fb0898f57d28e5955c636b4c31898ee967b13e51"
+          "memory_usage": "1037418880",
+          "digest": "bc5d6c6043b1f004facaae574550e4e36718fe6426746e420877aefb88bbe4c4"
         },
         {
           "execution": 1,
           "rows": 26,
           "statistics": {
-            "elapsed": 5.616304327,
-            "rows_read": 16743289,
-            "bytes_read": 1988233483
+            "elapsed": 2.909270789,
+            "rows_read": 10768479,
+            "bytes_read": 1185619622
           },
-          "memory_usage": "807245119",
-          "digest": "e8e4ae4b2aceb41160b3b090fb0898f57d28e5955c636b4c31898ee967b13e51"
+          "memory_usage": "990666392",
+          "digest": "bc5d6c6043b1f004facaae574550e4e36718fe6426746e420877aefb88bbe4c4"
         },
         {
           "execution": 2,
           "rows": 26,
           "statistics": {
-            "elapsed": 4.99769014,
-            "rows_read": 16743289,
-            "bytes_read": 1988233483
+            "elapsed": 2.899019945,
+            "rows_read": 10768479,
+            "bytes_read": 1185619622
           },
-          "memory_usage": "784023585",
-          "digest": "e8e4ae4b2aceb41160b3b090fb0898f57d28e5955c636b4c31898ee967b13e51"
+          "memory_usage": "927866763",
+          "digest": "bc5d6c6043b1f004facaae574550e4e36718fe6426746e420877aefb88bbe4c4"
         }
       ],
       "rows": 26,
-      "digest": "e8e4ae4b2aceb41160b3b090fb0898f57d28e5955c636b4c31898ee967b13e51",
+      "digest": "bc5d6c6043b1f004facaae574550e4e36718fe6426746e420877aefb88bbe4c4",
       "repeatable_rows": true
     },
     "main_filtered": {
@@ -780,10 +780,10 @@
             "explain": "                                    Condition: and((ran_on in 1-element set), (window in [6, 6]))"
           },
           {
-            "explain": "                                    Parts: 2/52"
+            "explain": "                                    Parts: 10/90"
           },
           {
-            "explain": "                                    Granules: 1161/12635"
+            "explain": "                                    Granules: 1607/11092"
           },
           {
             "explain": "                                  Partition"
@@ -801,10 +801,10 @@
             "explain": "                                    Condition: and((ran_on in 1-element set), (window in [6, 6]))"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 10/10"
           },
           {
-            "explain": "                                    Granules: 1161/1161"
+            "explain": "                                    Granules: 1607/1607"
           },
           {
             "explain": "                                  PrimaryKey"
@@ -819,19 +819,19 @@
             "explain": "                                      environments_id"
           },
           {
-            "explain": "                                    Condition: and((environments_id in 32-element set), (tests_id in 22948-element set))"
+            "explain": "                                    Condition: and((environments_id in 37-element set), (tests_id in 36436-element set))"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 10/10"
           },
           {
-            "explain": "                                    Granules: 1161/1161"
+            "explain": "                                    Granules: 1607/1607"
           },
           {
             "explain": "                                    Search Algorithm: generic exclusion search"
           },
           {
-            "explain": "                                  Ranges: 2"
+            "explain": "                                  Ranges: 10"
           },
           {
             "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -858,13 +858,13 @@
             "explain": "                              Condition: true"
           },
           {
-            "explain": "                              Parts: 6/6"
+            "explain": "                              Parts: 8/8"
           },
           {
-            "explain": "                              Granules: 95/95"
+            "explain": "                              Granules: 160/160"
           },
           {
-            "explain": "                            Ranges: 6"
+            "explain": "                            Ranges: 8"
           },
           {
             "explain": "                        Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
@@ -888,16 +888,16 @@
             "explain": "                              Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
           },
           {
-            "explain": "                              Parts: 2/2"
+            "explain": "                              Parts: 1/1"
           },
           {
-            "explain": "                              Granules: 2/2"
+            "explain": "                              Granules: 1/1"
           },
           {
             "explain": "                              Search Algorithm: binary search"
           },
           {
-            "explain": "                            Ranges: 2"
+            "explain": "                            Ranges: 1"
           },
           {
             "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -939,50 +939,50 @@
             "explain": "                Condition: true"
           },
           {
-            "explain": "                Parts: 1/1"
+            "explain": "                Parts: 2/2"
           },
           {
-            "explain": "                Granules: 1/1"
+            "explain": "                Granules: 2/2"
           },
           {
-            "explain": "              Ranges: 1"
+            "explain": "              Ranges: 2"
           }
         ],
         "ESTIMATE": [
           {
             "database": "ci",
             "table": "env_vars",
-            "parts": "1",
-            "rows": "59",
-            "marks": "1"
+            "parts": "2",
+            "rows": "112",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "environments",
             "parts": "1",
-            "rows": "64",
+            "rows": "81",
             "marks": "1"
           },
           {
             "database": "ci",
             "table": "owners",
-            "parts": "2",
-            "rows": "2022",
-            "marks": "2"
+            "parts": "1",
+            "rows": "3642",
+            "marks": "1"
           },
           {
             "database": "ci",
             "table": "tests",
-            "parts": "6",
-            "rows": "734269",
-            "marks": "95"
+            "parts": "8",
+            "rows": "1254644",
+            "marks": "160"
           },
           {
             "database": "ci",
             "table": "health",
-            "parts": "2",
-            "rows": "9512312",
-            "marks": "1161"
+            "parts": "10",
+            "rows": "13076950",
+            "marks": "1607"
           }
         ]
       },
@@ -991,38 +991,38 @@
           "execution": 0,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.761759106,
-            "rows_read": 11224075,
-            "bytes_read": 1294960974
+            "elapsed": 1.757102322,
+            "rows_read": 16077914,
+            "bytes_read": 1871322871
           },
-          "memory_usage": "160093571",
-          "digest": "87224ca7a19fb71a4d4f4147b22788cbc55c9a292e57192ceda725d6812265ea"
+          "memory_usage": "262409644",
+          "digest": "67c329c896a868e1c66fb9742b8168af0ea0d20d6abc2fce0e1a30acd701d941"
         },
         {
           "execution": 1,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.594847439,
-            "rows_read": 11224075,
-            "bytes_read": 1294960974
+            "elapsed": 0.942888171,
+            "rows_read": 16077914,
+            "bytes_read": 1871322871
           },
-          "memory_usage": "217081741",
-          "digest": "87224ca7a19fb71a4d4f4147b22788cbc55c9a292e57192ceda725d6812265ea"
+          "memory_usage": "256929009",
+          "digest": "67c329c896a868e1c66fb9742b8168af0ea0d20d6abc2fce0e1a30acd701d941"
         },
         {
           "execution": 2,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.85320952,
-            "rows_read": 11224075,
-            "bytes_read": 1294960974
+            "elapsed": 1.465207074,
+            "rows_read": 16077914,
+            "bytes_read": 1871322871
           },
-          "memory_usage": "179919854",
-          "digest": "87224ca7a19fb71a4d4f4147b22788cbc55c9a292e57192ceda725d6812265ea"
+          "memory_usage": "244797977",
+          "digest": "67c329c896a868e1c66fb9742b8168af0ea0d20d6abc2fce0e1a30acd701d941"
         }
       ],
       "rows": 26,
-      "digest": "87224ca7a19fb71a4d4f4147b22788cbc55c9a292e57192ceda725d6812265ea",
+      "digest": "67c329c896a868e1c66fb9742b8168af0ea0d20d6abc2fce0e1a30acd701d941",
       "repeatable_rows": true
     },
     "main_search": {
@@ -1039,9 +1039,9 @@
           "ran_on": [
             "main"
           ],
-          "window": "12h",
-          "entries_limit": 26,
-          "search": "test/test_nn.py"
+          "window": "3h",
+          "search": "test/test_nn.py",
+          "entries_limit": 26
         }
       },
       "plans": {
@@ -1113,13 +1113,13 @@
             "explain": "                                      window"
           },
           {
-            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                    Parts: 2/52"
+            "explain": "                                    Parts: 3/90"
           },
           {
-            "explain": "                                    Granules: 985/12635"
+            "explain": "                                    Granules: 512/11092"
           },
           {
             "explain": "                                  Partition"
@@ -1134,13 +1134,13 @@
             "explain": "                                      window"
           },
           {
-            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 3/3"
           },
           {
-            "explain": "                                    Granules: 985/985"
+            "explain": "                                    Granules: 512/512"
           },
           {
             "explain": "                                  PrimaryKey"
@@ -1152,19 +1152,19 @@
             "explain": "                                      tests_id"
           },
           {
-            "explain": "                                    Condition: (tests_id in 8534-element set)"
+            "explain": "                                    Condition: (tests_id in 15456-element set)"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 3/3"
           },
           {
-            "explain": "                                    Granules: 985/985"
+            "explain": "                                    Granules: 512/512"
           },
           {
             "explain": "                                    Search Algorithm: generic exclusion search"
           },
           {
-            "explain": "                                  Ranges: 2"
+            "explain": "                                  Ranges: 3"
           },
           {
             "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
@@ -1188,13 +1188,13 @@
             "explain": "                            Condition: true"
           },
           {
-            "explain": "                            Parts: 6/6"
+            "explain": "                            Parts: 8/8"
           },
           {
-            "explain": "                            Granules: 95/95"
+            "explain": "                            Granules: 160/160"
           },
           {
-            "explain": "                          Ranges: 6"
+            "explain": "                          Ranges: 8"
           },
           {
             "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
@@ -1218,16 +1218,16 @@
             "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
           },
           {
-            "explain": "                            Parts: 2/2"
+            "explain": "                            Parts: 1/1"
           },
           {
-            "explain": "                            Granules: 2/2"
+            "explain": "                            Granules: 1/1"
           },
           {
             "explain": "                            Search Algorithm: binary search"
           },
           {
-            "explain": "                          Ranges: 2"
+            "explain": "                          Ranges: 1"
           },
           {
             "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -1269,50 +1269,50 @@
             "explain": "                Condition: true"
           },
           {
-            "explain": "                Parts: 1/1"
+            "explain": "                Parts: 2/2"
           },
           {
-            "explain": "                Granules: 1/1"
+            "explain": "                Granules: 2/2"
           },
           {
-            "explain": "              Ranges: 1"
+            "explain": "              Ranges: 2"
           }
         ],
         "ESTIMATE": [
           {
             "database": "ci",
             "table": "env_vars",
-            "parts": "1",
-            "rows": "59",
-            "marks": "1"
+            "parts": "2",
+            "rows": "112",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "environments",
             "parts": "1",
-            "rows": "64",
+            "rows": "81",
             "marks": "1"
           },
           {
             "database": "ci",
             "table": "owners",
-            "parts": "2",
-            "rows": "2022",
-            "marks": "2"
+            "parts": "1",
+            "rows": "3642",
+            "marks": "1"
           },
           {
             "database": "ci",
             "table": "tests",
-            "parts": "6",
-            "rows": "734269",
-            "marks": "95"
+            "parts": "8",
+            "rows": "1254644",
+            "marks": "160"
           },
           {
             "database": "ci",
             "table": "health",
-            "parts": "2",
-            "rows": "8416953",
-            "marks": "985"
+            "parts": "3",
+            "rows": "4279083",
+            "marks": "512"
           }
         ]
       },
@@ -1321,38 +1321,38 @@
           "execution": 0,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.726090086,
-            "rows_read": 10124609,
-            "bytes_read": 1234150586
+            "elapsed": 0.733971703,
+            "rows_read": 7276324,
+            "bytes_read": 890422432
           },
-          "memory_usage": "161054452",
-          "digest": "701a284f5a38e1423fa1084cda0f2b45539393a8fa39f4e53cfb04fb80f688db"
+          "memory_usage": "196872688",
+          "digest": "4d5e5d28381316864abbaf46dd405b8e2e32291a570bd2c6d05e27c7763f9988"
         },
         {
           "execution": 1,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.571292509,
-            "rows_read": 10124609,
-            "bytes_read": 1234150586
+            "elapsed": 0.810801503,
+            "rows_read": 7276324,
+            "bytes_read": 890422432
           },
-          "memory_usage": "170420939",
-          "digest": "701a284f5a38e1423fa1084cda0f2b45539393a8fa39f4e53cfb04fb80f688db"
+          "memory_usage": "203411712",
+          "digest": "4d5e5d28381316864abbaf46dd405b8e2e32291a570bd2c6d05e27c7763f9988"
         },
         {
           "execution": 2,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.618489321,
-            "rows_read": 10124609,
-            "bytes_read": 1234150586
+            "elapsed": 0.913709852,
+            "rows_read": 7276324,
+            "bytes_read": 890422432
           },
-          "memory_usage": "155806952",
-          "digest": "701a284f5a38e1423fa1084cda0f2b45539393a8fa39f4e53cfb04fb80f688db"
+          "memory_usage": "199589405",
+          "digest": "4d5e5d28381316864abbaf46dd405b8e2e32291a570bd2c6d05e27c7763f9988"
         }
       ],
       "rows": 26,
-      "digest": "701a284f5a38e1423fa1084cda0f2b45539393a8fa39f4e53cfb04fb80f688db",
+      "digest": "4d5e5d28381316864abbaf46dd405b8e2e32291a570bd2c6d05e27c7763f9988",
       "repeatable_rows": true
     },
     "main_env_vars": {
@@ -1457,10 +1457,10 @@
             "explain": "                                        Condition: and((ran_on in 1-element set), (window in [3, 3]))"
           },
           {
-            "explain": "                                        Parts: 2/52"
+            "explain": "                                        Parts: 8/90"
           },
           {
-            "explain": "                                        Granules: 1084/12635"
+            "explain": "                                        Granules: 682/11092"
           },
           {
             "explain": "                                      Partition"
@@ -1478,10 +1478,10 @@
             "explain": "                                        Condition: and((ran_on in 1-element set), (window in [3, 3]))"
           },
           {
-            "explain": "                                        Parts: 2/2"
+            "explain": "                                        Parts: 8/8"
           },
           {
-            "explain": "                                        Granules: 1084/1084"
+            "explain": "                                        Granules: 682/682"
           },
           {
             "explain": "                                      PrimaryKey"
@@ -1496,19 +1496,19 @@
             "explain": "                                          env_vars_id"
           },
           {
-            "explain": "                                        Condition: and((env_vars_id in 6-element set), (tests_id in 734269-element set))"
+            "explain": "                                        Condition: and((env_vars_id in 10-element set), (tests_id in 1239226-element set))"
           },
           {
-            "explain": "                                        Parts: 2/2"
+            "explain": "                                        Parts: 8/8"
           },
           {
-            "explain": "                                        Granules: 1084/1084"
+            "explain": "                                        Granules: 682/682"
           },
           {
             "explain": "                                        Search Algorithm: generic exclusion search"
           },
           {
-            "explain": "                                      Ranges: 2"
+            "explain": "                                      Ranges: 8"
           },
           {
             "explain": "                            Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + (Before ORDER BY + (Projection + (Before ORDER BY + )))))))))"
@@ -1532,13 +1532,13 @@
             "explain": "                                      Condition: true"
           },
           {
-            "explain": "                                      Parts: 6/6"
+            "explain": "                                      Parts: 8/8"
           },
           {
-            "explain": "                                      Granules: 95/95"
+            "explain": "                                      Granules: 160/160"
           },
           {
-            "explain": "                                    Ranges: 6"
+            "explain": "                                    Ranges: 8"
           },
           {
             "explain": "                                Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
@@ -1562,16 +1562,16 @@
             "explain": "                                      Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
           },
           {
-            "explain": "                                      Parts: 2/2"
+            "explain": "                                      Parts: 1/1"
           },
           {
-            "explain": "                                      Granules: 2/2"
+            "explain": "                                      Granules: 1/1"
           },
           {
             "explain": "                                      Search Algorithm: binary search"
           },
           {
-            "explain": "                                    Ranges: 2"
+            "explain": "                                    Ranges: 1"
           },
           {
             "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
@@ -1595,13 +1595,13 @@
             "explain": "                            Condition: true"
           },
           {
-            "explain": "                            Parts: 6/6"
+            "explain": "                            Parts: 8/8"
           },
           {
-            "explain": "                            Granules: 95/95"
+            "explain": "                            Granules: 160/160"
           },
           {
-            "explain": "                          Ranges: 6"
+            "explain": "                          Ranges: 8"
           },
           {
             "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
@@ -1625,16 +1625,16 @@
             "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
           },
           {
-            "explain": "                            Parts: 2/2"
+            "explain": "                            Parts: 1/1"
           },
           {
-            "explain": "                            Granules: 2/2"
+            "explain": "                            Granules: 1/1"
           },
           {
             "explain": "                            Search Algorithm: binary search"
           },
           {
-            "explain": "                          Ranges: 2"
+            "explain": "                          Ranges: 1"
           },
           {
             "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -1676,50 +1676,50 @@
             "explain": "                Condition: true"
           },
           {
-            "explain": "                Parts: 1/1"
+            "explain": "                Parts: 2/2"
           },
           {
-            "explain": "                Granules: 1/1"
+            "explain": "                Granules: 2/2"
           },
           {
-            "explain": "              Ranges: 1"
+            "explain": "              Ranges: 2"
           }
         ],
         "ESTIMATE": [
           {
             "database": "ci",
             "table": "env_vars",
-            "parts": "1",
-            "rows": "59",
-            "marks": "1"
+            "parts": "2",
+            "rows": "112",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "environments",
             "parts": "1",
-            "rows": "64",
+            "rows": "81",
             "marks": "1"
           },
           {
             "database": "ci",
             "table": "owners",
-            "parts": "4",
-            "rows": "4044",
-            "marks": "4"
+            "parts": "2",
+            "rows": "7284",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "tests",
-            "parts": "12",
-            "rows": "1468538",
-            "marks": "190"
+            "parts": "16",
+            "rows": "2509288",
+            "marks": "320"
           },
           {
             "database": "ci",
             "table": "health",
-            "parts": "2",
-            "rows": "8773755",
-            "marks": "1084"
+            "parts": "8",
+            "rows": "5489014",
+            "marks": "682"
           }
         ]
       },
@@ -1728,38 +1728,38 @@
           "execution": 0,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.799100452,
-            "rows_read": 11454734,
-            "bytes_read": 1310819088
+            "elapsed": 1.583698761,
+            "rows_read": 10228771,
+            "bytes_read": 1082008037
           },
-          "memory_usage": "767931095",
-          "digest": "31450d5b88cef888665cd22fde4122514f35b051554e964117b557374d9432cb"
+          "memory_usage": "1067000978",
+          "digest": "ce64a714236b890f4ea4d220c20ad3003cb0cfa97259071dda13efcb8b2cd86a"
         },
         {
           "execution": 1,
           "rows": 26,
           "statistics": {
-            "elapsed": 1.117285388,
-            "rows_read": 11454734,
-            "bytes_read": 1310819088
+            "elapsed": 1.378812873,
+            "rows_read": 10228771,
+            "bytes_read": 1082008037
           },
-          "memory_usage": "742959542",
-          "digest": "31450d5b88cef888665cd22fde4122514f35b051554e964117b557374d9432cb"
+          "memory_usage": "1055332449",
+          "digest": "ce64a714236b890f4ea4d220c20ad3003cb0cfa97259071dda13efcb8b2cd86a"
         },
         {
           "execution": 2,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.843391392,
-            "rows_read": 11454734,
-            "bytes_read": 1310819088
+            "elapsed": 1.868146004,
+            "rows_read": 10228771,
+            "bytes_read": 1082008037
           },
-          "memory_usage": "783767250",
-          "digest": "31450d5b88cef888665cd22fde4122514f35b051554e964117b557374d9432cb"
+          "memory_usage": "1051562718",
+          "digest": "ce64a714236b890f4ea4d220c20ad3003cb0cfa97259071dda13efcb8b2cd86a"
         }
       ],
       "rows": 26,
-      "digest": "31450d5b88cef888665cd22fde4122514f35b051554e964117b557374d9432cb",
+      "digest": "ce64a714236b890f4ea4d220c20ad3003cb0cfa97259071dda13efcb8b2cd86a",
       "repeatable_rows": true
     },
     "main_second_page": {
@@ -1777,7 +1777,7 @@
           "ran_on": [
             "main"
           ],
-          "window": "12h",
+          "window": "3h",
           "sort": [
             "-status",
             "-failure_rate",
@@ -1787,17 +1787,17 @@
             "-mean_passed_duration_milliseconds"
           ]
         },
-        "generation": "2026-11-03T17:14:23Z",
+        "generation": "2026-11-25T01:15:00Z",
         "position": {
           "values": [
             "1",
             1,
-            "23",
-            1793723743306,
+            "3",
+            1795563391892,
             0,
             null,
-            "17745945120868668989",
-            "13992165449836525717",
+            "14440482169032114429",
+            "3918732538669420041",
             "1688593832548410197"
           ]
         }
@@ -1809,15 +1809,15 @@
           "ran_on": [
             "main"
           ],
-          "window": "12h",
+          "window": "3h",
           "entries_limit": 26,
           "cursor_0": "1",
           "cursor_1": 1,
-          "cursor_2": "23",
-          "cursor_3": 1793723743306,
+          "cursor_2": "3",
+          "cursor_3": 1795563391892,
           "cursor_4": 0,
-          "cursor_6": "17745945120868668989",
-          "cursor_7": "13992165449836525717",
+          "cursor_6": "14440482169032114429",
+          "cursor_7": "3918732538669420041",
           "cursor_8": "1688593832548410197"
         }
       },
@@ -1890,13 +1890,13 @@
             "explain": "                                      window"
           },
           {
-            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                    Parts: 2/52"
+            "explain": "                                    Parts: 3/90"
           },
           {
-            "explain": "                                    Granules: 985/12635"
+            "explain": "                                    Granules: 512/11092"
           },
           {
             "explain": "                                  Partition"
@@ -1911,13 +1911,13 @@
             "explain": "                                      window"
           },
           {
-            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 3/3"
           },
           {
-            "explain": "                                    Granules: 985/985"
+            "explain": "                                    Granules: 512/512"
           },
           {
             "explain": "                                  PrimaryKey"
@@ -1929,19 +1929,19 @@
             "explain": "                                      tests_id"
           },
           {
-            "explain": "                                    Condition: (tests_id in 734269-element set)"
+            "explain": "                                    Condition: (tests_id in 1239226-element set)"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 3/3"
           },
           {
-            "explain": "                                    Granules: 985/985"
+            "explain": "                                    Granules: 512/512"
           },
           {
             "explain": "                                    Search Algorithm: generic exclusion search"
           },
           {
-            "explain": "                                  Ranges: 2"
+            "explain": "                                  Ranges: 3"
           },
           {
             "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
@@ -1965,13 +1965,13 @@
             "explain": "                            Condition: true"
           },
           {
-            "explain": "                            Parts: 6/6"
+            "explain": "                            Parts: 8/8"
           },
           {
-            "explain": "                            Granules: 95/95"
+            "explain": "                            Granules: 160/160"
           },
           {
-            "explain": "                          Ranges: 6"
+            "explain": "                          Ranges: 8"
           },
           {
             "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
@@ -1995,16 +1995,16 @@
             "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
           },
           {
-            "explain": "                            Parts: 2/2"
+            "explain": "                            Parts: 1/1"
           },
           {
-            "explain": "                            Granules: 2/2"
+            "explain": "                            Granules: 1/1"
           },
           {
             "explain": "                            Search Algorithm: binary search"
           },
           {
-            "explain": "                          Ranges: 2"
+            "explain": "                          Ranges: 1"
           },
           {
             "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -2046,50 +2046,50 @@
             "explain": "                Condition: true"
           },
           {
-            "explain": "                Parts: 1/1"
+            "explain": "                Parts: 2/2"
           },
           {
-            "explain": "                Granules: 1/1"
+            "explain": "                Granules: 2/2"
           },
           {
-            "explain": "              Ranges: 1"
+            "explain": "              Ranges: 2"
           }
         ],
         "ESTIMATE": [
           {
             "database": "ci",
             "table": "env_vars",
-            "parts": "1",
-            "rows": "59",
-            "marks": "1"
+            "parts": "2",
+            "rows": "112",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "environments",
             "parts": "1",
-            "rows": "64",
+            "rows": "81",
             "marks": "1"
           },
           {
             "database": "ci",
             "table": "owners",
-            "parts": "2",
-            "rows": "2022",
-            "marks": "2"
+            "parts": "1",
+            "rows": "3642",
+            "marks": "1"
           },
           {
             "database": "ci",
             "table": "tests",
-            "parts": "6",
-            "rows": "734269",
-            "marks": "95"
+            "parts": "8",
+            "rows": "1254644",
+            "marks": "160"
           },
           {
             "database": "ci",
             "table": "health",
-            "parts": "2",
-            "rows": "8416953",
-            "marks": "985"
+            "parts": "3",
+            "rows": "4279083",
+            "marks": "512"
           }
         ]
       },
@@ -2098,38 +2098,38 @@
           "execution": 0,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.750322363,
-            "rows_read": 10124609,
-            "bytes_read": 1171375925
+            "elapsed": 1.374798303,
+            "rows_read": 7276324,
+            "bytes_read": 776797771
           },
-          "memory_usage": "505390864",
-          "digest": "9a3026834ba13e9d569bc6dd042401a6c1463eefc532677c3c29d03775c685d0"
+          "memory_usage": "606053358",
+          "digest": "1ebcf7f95fefbb2900bfa6c67600422a6100688afa069389bc295f344a185814"
         },
         {
           "execution": 1,
           "rows": 26,
           "statistics": {
-            "elapsed": 1.149253689,
-            "rows_read": 10124609,
-            "bytes_read": 1171375925
+            "elapsed": 0.795261182,
+            "rows_read": 7276324,
+            "bytes_read": 776797771
           },
-          "memory_usage": "477941992",
-          "digest": "9a3026834ba13e9d569bc6dd042401a6c1463eefc532677c3c29d03775c685d0"
+          "memory_usage": "600241059",
+          "digest": "1ebcf7f95fefbb2900bfa6c67600422a6100688afa069389bc295f344a185814"
         },
         {
           "execution": 2,
           "rows": 26,
           "statistics": {
-            "elapsed": 0.885508455,
-            "rows_read": 10124609,
-            "bytes_read": 1171375925
+            "elapsed": 0.703035315,
+            "rows_read": 7276324,
+            "bytes_read": 776797771
           },
-          "memory_usage": "490896009",
-          "digest": "9a3026834ba13e9d569bc6dd042401a6c1463eefc532677c3c29d03775c685d0"
+          "memory_usage": "636111639",
+          "digest": "1ebcf7f95fefbb2900bfa6c67600422a6100688afa069389bc295f344a185814"
         }
       ],
       "rows": 26,
-      "digest": "9a3026834ba13e9d569bc6dd042401a6c1463eefc532677c3c29d03775c685d0",
+      "digest": "1ebcf7f95fefbb2900bfa6c67600422a6100688afa069389bc295f344a185814",
       "repeatable_rows": true
     },
     "main_boundary_probe": {
@@ -2147,7 +2147,7 @@
           "ran_on": [
             "main"
           ],
-          "window": "12h",
+          "window": "3h",
           "sort": [
             "-status",
             "-failure_rate",
@@ -2157,18 +2157,18 @@
             "-mean_passed_duration_milliseconds"
           ]
         },
-        "generation": "2026-11-03T17:14:23Z",
+        "generation": "2026-11-25T01:15:00Z",
         "position": {
           "values": [
             "1",
             1,
-            "21",
-            1793720997323,
+            "1",
+            1795567787697,
             0,
             null,
-            "13246595182008321925",
-            "13992165449836525717",
-            "1688593832548410197"
+            "10358006509906822204",
+            "12865854988840776426",
+            "5832484057136272622"
           ]
         }
       },
@@ -2179,16 +2179,16 @@
           "ran_on": [
             "main"
           ],
-          "window": "12h",
+          "window": "3h",
           "entries_limit": 1,
           "cursor_0": "1",
           "cursor_1": 1,
-          "cursor_2": "21",
-          "cursor_3": 1793720997323,
+          "cursor_2": "1",
+          "cursor_3": 1795567787697,
           "cursor_4": 0,
-          "cursor_6": "13246595182008321925",
-          "cursor_7": "13992165449836525717",
-          "cursor_8": "1688593832548410197"
+          "cursor_6": "10358006509906822204",
+          "cursor_7": "12865854988840776426",
+          "cursor_8": "5832484057136272622"
         }
       },
       "plans": {
@@ -2260,13 +2260,13 @@
             "explain": "                                      window"
           },
           {
-            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                    Parts: 2/52"
+            "explain": "                                    Parts: 3/90"
           },
           {
-            "explain": "                                    Granules: 985/12635"
+            "explain": "                                    Granules: 512/11092"
           },
           {
             "explain": "                                  Partition"
@@ -2281,13 +2281,13 @@
             "explain": "                                      window"
           },
           {
-            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+            "explain": "                                    Condition: and((ran_on in 1-element set), (window in [1, 1]))"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 3/3"
           },
           {
-            "explain": "                                    Granules: 985/985"
+            "explain": "                                    Granules: 512/512"
           },
           {
             "explain": "                                  PrimaryKey"
@@ -2299,19 +2299,19 @@
             "explain": "                                      tests_id"
           },
           {
-            "explain": "                                    Condition: (tests_id in 734269-element set)"
+            "explain": "                                    Condition: (tests_id in 1239226-element set)"
           },
           {
-            "explain": "                                    Parts: 2/2"
+            "explain": "                                    Parts: 3/3"
           },
           {
-            "explain": "                                    Granules: 985/985"
+            "explain": "                                    Granules: 512/512"
           },
           {
             "explain": "                                    Search Algorithm: generic exclusion search"
           },
           {
-            "explain": "                                  Ranges: 2"
+            "explain": "                                  Ranges: 3"
           },
           {
             "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
@@ -2335,13 +2335,13 @@
             "explain": "                            Condition: true"
           },
           {
-            "explain": "                            Parts: 6/6"
+            "explain": "                            Parts: 8/8"
           },
           {
-            "explain": "                            Granules: 95/95"
+            "explain": "                            Granules: 160/160"
           },
           {
-            "explain": "                          Ranges: 6"
+            "explain": "                          Ranges: 8"
           },
           {
             "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
@@ -2365,16 +2365,16 @@
             "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
           },
           {
-            "explain": "                            Parts: 2/2"
+            "explain": "                            Parts: 1/1"
           },
           {
-            "explain": "                            Granules: 2/2"
+            "explain": "                            Granules: 1/1"
           },
           {
             "explain": "                            Search Algorithm: binary search"
           },
           {
-            "explain": "                          Ranges: 2"
+            "explain": "                          Ranges: 1"
           },
           {
             "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -2416,50 +2416,50 @@
             "explain": "                Condition: true"
           },
           {
-            "explain": "                Parts: 1/1"
+            "explain": "                Parts: 2/2"
           },
           {
-            "explain": "                Granules: 1/1"
+            "explain": "                Granules: 2/2"
           },
           {
-            "explain": "              Ranges: 1"
+            "explain": "              Ranges: 2"
           }
         ],
         "ESTIMATE": [
           {
             "database": "ci",
             "table": "env_vars",
-            "parts": "1",
-            "rows": "59",
-            "marks": "1"
+            "parts": "2",
+            "rows": "112",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "environments",
             "parts": "1",
-            "rows": "64",
+            "rows": "81",
             "marks": "1"
           },
           {
             "database": "ci",
             "table": "owners",
-            "parts": "2",
-            "rows": "2022",
-            "marks": "2"
+            "parts": "1",
+            "rows": "3642",
+            "marks": "1"
           },
           {
             "database": "ci",
             "table": "tests",
-            "parts": "6",
-            "rows": "734269",
-            "marks": "95"
+            "parts": "8",
+            "rows": "1254644",
+            "marks": "160"
           },
           {
             "database": "ci",
             "table": "health",
-            "parts": "2",
-            "rows": "8416953",
-            "marks": "985"
+            "parts": "3",
+            "rows": "4279083",
+            "marks": "512"
           }
         ]
       },
@@ -2468,38 +2468,38 @@
           "execution": 0,
           "rows": 1,
           "statistics": {
-            "elapsed": 0.559317948,
-            "rows_read": 10124609,
-            "bytes_read": 587040860
+            "elapsed": 0.903851508,
+            "rows_read": 7276324,
+            "bytes_read": 489700241
           },
-          "memory_usage": "476519767",
-          "digest": "2f657c08d080865543d758edc4784f02ce9ebe1265baecdf3f7e1dfb81378d19"
+          "memory_usage": "620485065",
+          "digest": "b9710866390c85e39e5195ca95aba7f27c0876bc72884fd623b783f0ab21e492"
         },
         {
           "execution": 1,
           "rows": 1,
           "statistics": {
-            "elapsed": 0.67430266,
-            "rows_read": 10124609,
-            "bytes_read": 587040860
+            "elapsed": 0.852697081,
+            "rows_read": 7276324,
+            "bytes_read": 489700241
           },
-          "memory_usage": "462794931",
-          "digest": "2f657c08d080865543d758edc4784f02ce9ebe1265baecdf3f7e1dfb81378d19"
+          "memory_usage": "598655993",
+          "digest": "b9710866390c85e39e5195ca95aba7f27c0876bc72884fd623b783f0ab21e492"
         },
         {
           "execution": 2,
           "rows": 1,
           "statistics": {
-            "elapsed": 0.847908703,
-            "rows_read": 10124609,
-            "bytes_read": 587040860
+            "elapsed": 0.848264752,
+            "rows_read": 7276324,
+            "bytes_read": 489700241
           },
-          "memory_usage": "464814185",
-          "digest": "2f657c08d080865543d758edc4784f02ce9ebe1265baecdf3f7e1dfb81378d19"
+          "memory_usage": "578166376",
+          "digest": "b9710866390c85e39e5195ca95aba7f27c0876bc72884fd623b783f0ab21e492"
         }
       ],
       "rows": 1,
-      "digest": "2f657c08d080865543d758edc4784f02ce9ebe1265baecdf3f7e1dfb81378d19",
+      "digest": "b9710866390c85e39e5195ca95aba7f27c0876bc72884fd623b783f0ab21e492",
       "repeatable_rows": true
     },
     "detail": {
@@ -2568,16 +2568,16 @@
             "explain": "                          Condition: (id in [12347295505799784290, 12347295505799784290])"
           },
           {
-            "explain": "                          Parts: 2/6"
+            "explain": "                          Parts: 6/8"
           },
           {
-            "explain": "                          Granules: 2/95"
+            "explain": "                          Granules: 6/160"
           },
           {
             "explain": "                          Search Algorithm: binary search"
           },
           {
-            "explain": "                        Ranges: 2"
+            "explain": "                        Ranges: 6"
           },
           {
             "explain": "                    Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -2595,13 +2595,13 @@
             "explain": "                          Condition: true"
           },
           {
-            "explain": "                          Parts: 2/2"
+            "explain": "                          Parts: 1/1"
           },
           {
-            "explain": "                          Granules: 2/2"
+            "explain": "                          Granules: 1/1"
           },
           {
-            "explain": "                        Ranges: 2"
+            "explain": "                        Ranges: 1"
           },
           {
             "explain": "                Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
@@ -2628,10 +2628,10 @@
             "explain": "                            Condition: true"
           },
           {
-            "explain": "                            Parts: 52/52"
+            "explain": "                            Parts: 90/90"
           },
           {
-            "explain": "                            Granules: 12635/12635"
+            "explain": "                            Granules: 11092/11092"
           },
           {
             "explain": "                          Partition"
@@ -2640,10 +2640,10 @@
             "explain": "                            Condition: true"
           },
           {
-            "explain": "                            Parts: 52/52"
+            "explain": "                            Parts: 90/90"
           },
           {
-            "explain": "                            Granules: 12635/12635"
+            "explain": "                            Granules: 11092/11092"
           },
           {
             "explain": "                          PrimaryKey"
@@ -2658,10 +2658,10 @@
             "explain": "                            Condition: (tests_id in [12347295505799784290, 12347295505799784290])"
           },
           {
-            "explain": "                            Parts: 12/52"
+            "explain": "                            Parts: 12/90"
           },
           {
-            "explain": "                            Granules: 12/12635"
+            "explain": "                            Granules: 12/11092"
           },
           {
             "explain": "                            Search Algorithm: binary search"
@@ -2709,90 +2709,90 @@
             "explain": "              Condition: true"
           },
           {
-            "explain": "              Parts: 1/1"
+            "explain": "              Parts: 2/2"
           },
           {
-            "explain": "              Granules: 1/1"
+            "explain": "              Granules: 2/2"
           },
           {
-            "explain": "            Ranges: 1"
+            "explain": "            Ranges: 2"
           }
         ],
         "ESTIMATE": [
           {
             "database": "ci",
             "table": "env_vars",
-            "parts": "1",
-            "rows": "59",
-            "marks": "1"
+            "parts": "2",
+            "rows": "112",
+            "marks": "2"
           },
           {
             "database": "ci",
             "table": "environments",
             "parts": "1",
-            "rows": "64",
+            "rows": "81",
             "marks": "1"
           },
           {
             "database": "ci",
             "table": "owners",
-            "parts": "2",
-            "rows": "2022",
-            "marks": "2"
+            "parts": "1",
+            "rows": "3642",
+            "marks": "1"
           },
           {
             "database": "ci",
             "table": "health",
             "parts": "12",
-            "rows": "105576",
+            "rows": "110928",
             "marks": "12"
           },
           {
             "database": "ci",
             "table": "tests",
-            "parts": "2",
-            "rows": "16384",
-            "marks": "2"
+            "parts": "6",
+            "rows": "32820",
+            "marks": "6"
           }
         ]
       },
       "samples": [
         {
           "execution": 0,
-          "rows": 332,
+          "rows": 145,
           "statistics": {
-            "elapsed": 0.461370241,
-            "rows_read": 126126,
-            "bytes_read": 14365684
+            "elapsed": 0.433474319,
+            "rows_read": 147694,
+            "bytes_read": 17636993
           },
-          "memory_usage": "23065637",
-          "digest": "2b20a94aa8fcbae9b8c18d7b074971e0540b750a9f68a1414f9863e58b6ef2cb"
+          "memory_usage": "34799193",
+          "digest": "dc63be5d0d7f4e812df357e22b150b3107f791c7e0d0e7a1b43bd90ba63af386"
         },
         {
           "execution": 1,
-          "rows": 332,
+          "rows": 145,
           "statistics": {
-            "elapsed": 0.128477153,
-            "rows_read": 126126,
-            "bytes_read": 14365684
+            "elapsed": 0.080746075,
+            "rows_read": 147694,
+            "bytes_read": 17636993
           },
-          "memory_usage": "20862849",
-          "digest": "2b20a94aa8fcbae9b8c18d7b074971e0540b750a9f68a1414f9863e58b6ef2cb"
+          "memory_usage": "43847751",
+          "digest": "dc63be5d0d7f4e812df357e22b150b3107f791c7e0d0e7a1b43bd90ba63af386"
         },
         {
           "execution": 2,
-          "rows": 332,
+          "rows": 145,
           "statistics": {
-            "elapsed": 0.135703324,
-            "rows_read": 126126,
-            "bytes_read": 14365684
+            "elapsed": 0.075725578,
+            "rows_read": 147694,
+            "bytes_read": 17636993
           },
-          "memory_usage": "11551384",
-          "digest": "2b20a94aa8fcbae9b8c18d7b074971e0540b750a9f68a1414f9863e58b6ef2cb"
+          "memory_usage": "29977326",
+          "digest": "dc63be5d0d7f4e812df357e22b150b3107f791c7e0d0e7a1b43bd90ba63af386"
         }
       ],
-      "rows": 332,
-      "digest": "2b20a94aa8fcbae9b8c18d7b074971e0540b750a9f68a1414f9863e58b6ef2cb",
+      "rows": 145,
+      "digest": "dc63be5d0d7f4e812df357e22b150b3107f791c7e0d0e7a1b43bd90ba63af386",
       "repeatable_rows": true
     }
   }

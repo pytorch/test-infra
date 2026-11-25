@@ -121,7 +121,12 @@ page of bundles (`lib/api/tests/test/runs/attempts-query-validation.md`), and
 queued, both run lists waited behind tests pages. Leave a query off when it is
 fast: the cost runner-hours read about 0.3 CPU-seconds
 (`lib/api/tests/cost/query-validation.md`), and the catalog, options and test
-detail reads answer in milliseconds. The
+detail reads answer in milliseconds. The summary's statements, three in the
+default window and four in another, stay out too: measured with one thread
+on 2026-11-25 they sum to 1.4 CPU-seconds for the default request, 2.3 for
+12 hours and 3.4 for 14 days
+(`lib/api/tests/summary/query-validation.md`), and the server keeps their
+answers for a minute ([Summary](#summary)). The
 commit runs list is left out deliberately although its upper tail reaches the
 bar, with a median of 2.4 CPU-seconds, one request in ten above 9.7 and a
 worst of 50 (before 2026-11-03, when its jobs began coming from the `head_sha`
@@ -215,7 +220,10 @@ page, bare, which opens the commit page of whatever head is newest when it
 is opened;
 `TestHealthEntry.hud_url` is that page opened on the runs the entry's health
 was counted over, the list's window and code sources with the entry's
-configuration marked; `TestListPage.hud_url` is the table for the request and
+configuration marked; `TestSummary.hud_url` is the table in the request's
+window and languages, which shows the figures above it, and each
+`TestViewFigure.hud_url` the table showing that view, not narrowed by the
+filters its figure adds; `TestListPage.hud_url` is the table for the request and
 `RunGrid.hud_url` the test page for the grid's `ran_on` and `window`. The last
 two are nullable, and null rather than approximate: a link that shows more than
 the request selected is worse than none. The table's is null when the request
@@ -333,6 +341,7 @@ old route in the same change.
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `GET /api/tests`                                         | Repository tests and configuration health in a selected window and code sources                                                                                       | `lib/api/tests/`                   |
 | `GET /api/tests/options`                                 | Values the list offers a reader: fixed and catalog choices, with labels, and views                                                                                    | `lib/api/tests/options/`           |
+| `GET /api/tests/summary`                                 | One figure per view of the options, over a window and languages: how many configurations are failing or flaky, the slowest test, the machine time spent               | `lib/api/tests/summary/`           |
 | `GET /api/tests/test/{test_id}`                          | One catalog test, its owners, and all available configuration health                                                                                                  | `lib/api/tests/test/`              |
 | `GET /api/tests/test/{test_id}/runs`                     | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration                                                 | `lib/api/tests/test/runs/`         |
 | `GET /api/tests/run/{run_id}`                            | One full run bundle, selected by any retained execution UUID; provisional                                                                                             | `lib/api/tests/run/`               |
@@ -354,7 +363,7 @@ The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 
 | Page                                              | Shows                                                                                                                                                                                | Implementation                                                                           |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                                                                                                        | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/`            |
+| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters, under the views' figures from `GET /api/tests/summary`                                                                | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/`            |
 | `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                                                                                         | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                                   |
 | `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's jobs on a timeline and its runs in outcome order: `GET /api/tests/commit/{sha}`, its `/summary`, `/jobs` and `/greenlight`, and for a job `GET /api/tests/job/{job_id}` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
 | `GET /tests/{organization}/{repo}/pull/{number}`  | The commit page of a pull request's newest head, found by `GET /api/tests/pull/{number}`                                                                                             | `pages/tests/[organization]/[repo]/pull/[number].tsx`                                    |
@@ -422,19 +431,166 @@ labelled `none`; their default is always empty, no filter. The
 tests check every offered value against the list's parser. The endpoint takes
 no parameters, answers 500 with `internal_error` when a source cannot be
 read, and is served with the same short cache lifetime as the OpenAPI
-document. HUD's tests page builds every choice in its title from it instead
-of spelling a value out.
+document. HUD's tests page builds every choice it offers from it instead of
+spelling a value out.
 
 `views` names the questions readers ask most, such as the tests flaky on main
-or the slowest tests, each as `{ id, label, description, params }`, where
-`params` are `GET /api/tests` query parameters as a URL spells them (an array
-for a repeated parameter; never `repo`, `limit` or `cursor`; an absent one
-takes the list's default). They are defined in
-`lib/api/tests/options/views.ts`, the first being the list's defaults, and
-the tests parse every view with the list's parser, check that the first
-parses as the defaults, and check that each value of an offered choice is
-offered. The tests page shows them as chips; an API
-caller appends a view's params to its `/api/tests` URL.
+or the slowest tests, each as `{ id, label, description, params, figure }`,
+where `params` are `GET /api/tests` query parameters as a URL spells them (an
+array for a repeated parameter; never `repo`, `limit` or `cursor`; an absent
+one takes the list's default) and `figure` names the one figure that says how
+the view's question stands, `{ kind, caption, params }`: a `count` of the
+entries the view lists, the `slowest` of them, or the `total_duration` of
+them all, with a few words to set under it. A figure's own `params` are
+filters added to the view's, for a figure of some of the entries its view
+lists; they are empty for every view but the first. [Summary](#summary)
+answers the figures. The views are defined in
+`lib/api/tests/options/views.ts`. The first, Unhealthy, is the list's
+defaults (as Least healthy, the first view until 2026-11-24, was), so the
+page a reader arrives on shows a view; every other view narrows or reorders
+the defaults. The defaults list every entry with the unhealthy ones first,
+the failing and then the flaky, which are the entries ahead of the healthy
+ones (a run of theirs had a failed attempt), and Unhealthy's figure counts
+those: its `figure.params` is `status=failing&status=flaky`. For part of
+2026-11-24 the view was named Failing and its figure counted the failing
+entries alone; the name changed, and the count with it, so that the figure
+counts what its name says. A view of the failing entries alone was tried and
+dropped the same day: its first page was the defaults' first page. Two views
+set a `window`: the first, the list's default, 3 hours (12 until
+2026-11-24), and Blocking viable/strict, 12 hours. The first is the default
+table, and that table is of the default window: when it named no window it
+was the defaults in whatever window the caller was in, and the tests page
+marked its cell at 12 hours or 7 days as if the default table were showing.
+A view that sets a window is read over it whatever window is asked for, so
+its caption says which ("failing or flaky, 3 hours"). The other views leave
+the window, and every view leaves `language`, to the reader. The tests
+parse every view with the list's parser, check that the first parses as the
+list's defaults whatever window it is asked in and that no other view parses
+as the defaults of any window, that a view with its own window names it in
+its caption, that each value of an
+offered choice is offered, that a figure's params add filters only (no sort,
+window, code source or language, so what a figure is of is always among
+what its view lists), and that every view names a figure with a caption
+short enough to set under it. The tests page shows the views as the cells of the band above
+its table; an API caller appends a view's params to its `/api/tests` URL.
+
+### Summary
+
+`GET /api/tests/summary?repo=owner/name` answers every view of the options
+with its figure, without listing a page of any: `views[]` in the options'
+order, each `{ id, kind, window, count, duration_milliseconds, test, hud_url }`
+with the fields of the other kinds null, then the page that shows them
+(`hud_url`), `refreshed_at` and `query_duration_ms`. It takes the two list
+parameters a reader chooses and the views leave alone, `window` and
+`language`, validated and defaulted by the list's own definitions
+(`summary/parameters.ts`); what a view sets is not the caller's to say, and
+any other parameter is rejected. A view that sets its own window keeps it,
+and its figure says which in `window`.
+
+A figure is read over what its view lists, narrowed by the filters its own
+`figure.params` adds: all of it for every view but the first, whose figure
+counts the unhealthy entries, failing or flaky, of a list of every entry. `viewListQuery`
+(`summary/summary.ts`) reads the view's params, in the request's window and
+languages, with the list's own parser, which is the request a figure's
+`hud_url` links; `figureListQuery` adds the figure's params, which is the
+request the figure is read over. The figures are read from
+`buildSelection` (`query.ts`), the part of the list's SQL that selects
+rows: the same `combined_health` rows and the same predicates on them, with
+no page, no sort and no catalog join (`summary/query.ts`). So a `count` is
+the number of entries `GET /api/tests` returns for that request over all its
+pages, one per test, environment and env var set, not a number of tests;
+`total_duration` is their `health.total_duration_milliseconds` summed; and
+`slowest` is the test of the entry a list sorted by
+`-mean_passed_duration_milliseconds` shows first, with its catalog row read
+by id in a second statement (joined in the first, the whole catalog
+would be read to name one test). A repository the catalog does not know has
+zero counts and no slowest test, as its list is an empty page. The tests page
+chooses a view the same way (`chooseView` in `lib/tests/views.ts`), and
+`test/tests/views.test.ts` checks, for every view, window and choice of
+languages, that the list request the page makes is the view's, and that the
+figure was read over that request with the figure's own filters added.
+
+Every reader of the tests page asks for the same figures, and each of their
+statements reads a whole health partition, so the server's query cache keeps
+each statement's answer for a minute (`FIGURES_KEPT_SECONDS`), as it keeps
+the options' workflow paths. A kept answer must not outlive the health
+refresh it was read from, or a figure would disagree with the table under it
+for a minute after every refresh. So the summary first reads the health
+table's refresh timestamp, one row, uncached, and binds it into every
+statement, `{generation: String}`, selected back as a constant: the cache
+keys an answer by the statement with its parameters bound, so after a refresh
+the statements are ones it has no answer for. The constant chooses no rows.
+On production (2026-11-24), a statement asked again at the same refresh
+answered in 3 ms from the one kept row, and at another refresh read its 6.5 M
+rows again. A refresh that lands while the figures are being read is the one
+race left: a figure can then be of the refresh after the one in
+`refreshed_at`, as an empty page of the list can. The tests page relies on
+this: when its table comes to show a later refresh than the figures were read
+at, it asks for them again.
+
+Figures over the same rows share a statement. Two list requests that
+differ only in their filters on the combined rows (the status, the workflow
+paths) select the same `combined_health` rows before those filters, so
+`buildFigureStatements` reads those rows once and answers each figure with
+an aggregate over the rows its own filters keep: `countIf` for a count,
+`sumIf` for a total, and for the slowest `max` of the mean with `argMaxIf`
+for its test, ordered by the mean and then by the test's id turned around
+with `bitNot`, so that the smallest id wins a tie as it does in the list.
+With today's views that is three statements for the six figures in the
+default window: Unhealthy, Flaky on main, Slowest and Most CI time over main;
+Blocking viable/strict; and Flaky on PRs. In any other window Unhealthy,
+which keeps the default window, is no longer over the rows of the other three
+and is read alone (`api_tests_summary_unhealthy`), a fourth statement. Each figure's filters are bound
+under names of its own (`figure_<n>_filter_status`), `<n>` being the view's
+position, which also names its columns in the one row a statement answers
+(`figureColumns`); the query id names the views
+(`api_tests_summary_unhealthy__flaky_main__slowest__most_ci_time`). A figure
+whose filters search an array, Blocking viable/strict's workflow paths, has
+a statement to itself, with its other filters as the `WHERE` and the array
+inside the aggregate. A `WHERE` runs before an aggregate's argument is
+computed, so the paths are read only where a row of that status is; written
+as one `WHERE`, the server tested the paths first, on every row. The list's
+own SQL is untouched: `buildHealthFilters` and `withoutHealthFilters`
+(`query.ts`) give the summary a request's filters on the combined rows and
+the request without them, built by the list's own filter code.
+
+Measured on production on 2026-11-24
+([notes](../../lib/api/tests/summary/query-validation.md), with a recorded
+bundle that `scripts/validateSummaryQueries.cjs` replays and `yarn test`
+checks against the builders), against a
+statement per figure, which is how the endpoint was first written: sent
+together, a 12-hour request's statements (the default then) answer in a
+median of 338 ms instead of 831, for 774 ms of server time instead of 2,013,
+and a 14-day request's in 543 ms instead of 863; Blocking viable/strict's
+count alone fell from 767 ms to about 250. Each statement reads one whole
+health partition (4.3 M rows for main in 3 hours, 5.2 M in 12 hours, 13.1 M
+in 14 days) and matches it against the catalog's ids of the repository,
+which is most of its time and what the six statements each repeated. The
+bundle was recorded again on 2026-11-25, once the default window was 3 hours
+and the first figure counted the flaky entries with the failing, neither of
+which changed a statement's text: the default request's three statements
+answered in a median of 364 ms against 832 for the six, and a 12-hour
+request's in 369 against 747, so the default waits as long at 3 hours as it
+did at 12. It was recorded once more an hour later, when the first view kept
+the default window and a request in another window gained its fourth
+statement: alternated ten times each with the three statements from before,
+the four answered in the same time (350 against 348 ms at 12 hours, 420
+against 417 at 14 days) for about 220 ms more of server time and 5.3 M more
+rows read, the 3-hour partition of main read once more. Every figure equals the statement-per-figure
+baseline for 18 production requests (each window, language choices, a second
+repository and an unknown one) and, on an embedded ClickHouse with synthetic
+rows, equals the list's own statement for 52 requests through both code
+sources and every kind of filter. With one thread the three statements
+summed to 1.9 CPU-seconds for a 12-hour request and 3.2 for 14 days, and on
+2026-11-25 the four to 2.3 and 3.4 and the default request's three to 1.4,
+so none runs
+in the [heavy workload](#heavy-queries). The notes also record what was
+tried and not kept: one `UNION ALL` statement (less server time, the same
+wait), matching the catalog with a semi join (inside the noise once the
+statements are sent together, and no longer the list's own selection), and
+other ways to break the slowest's ties. Measure again when a view is added
+or changed: a view of two code sources would be the first statement over
+grouped rows, which was checked for meaning and never timed.
 
 ### Test health
 

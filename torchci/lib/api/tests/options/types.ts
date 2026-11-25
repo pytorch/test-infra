@@ -54,6 +54,19 @@ function catalogChoice(parameter: string, description: string) {
     .describe(description);
 }
 
+// What GET /api/tests/summary answers a view with, the one figure that says
+// how the view's question stands: how many entries it lists, the slowest of
+// them, or the machine time all of them took (summary/types.ts). A figure
+// can be of fewer entries than its view lists: the first view lists every
+// entry, the unhealthy ones first, and its figure counts the unhealthy ones,
+// failing or flaky.
+export const TEST_FIGURE_KINDS = [
+  "count",
+  "slowest",
+  "total_duration",
+] as const;
+export type TestFigureKind = (typeof TEST_FIGURE_KINDS)[number];
+
 export const TestViewSchema = z
   .object({
     id: z
@@ -73,6 +86,27 @@ export const TestViewSchema = z
       .record(z.string(), z.union([z.string(), z.array(z.string())]))
       .describe(
         "Query parameters of GET /api/tests, as a URL spells them: a repeated parameter is an array, ran_on and sort are comma-separated strings. Never repo, limit or cursor. An absent parameter takes the list's default, so the empty object is the list's defaults."
+      ),
+    figure: z
+      .object({
+        kind: z
+          .enum(TEST_FIGURE_KINDS)
+          .describe(
+            "What the figure is: count, how many entries the figure is of; slowest, the largest mean passed duration among them, with its test; total_duration, the machine time all of them took. The figure is of the entries the view lists, narrowed by the figure's own params when it has any."
+          ),
+        caption: z
+          .string()
+          .describe(
+            "A few words to set under the figure, lowercase, saying what it is a figure of, then the view's window when the view sets one, since the figure is then read over it whatever window is asked for: pull and trunk, 12 hours."
+          ),
+        params: z
+          .record(z.string(), z.union([z.string(), z.array(z.string())]))
+          .describe(
+            "Filters of GET /api/tests the figure adds to the view's params, spelled as params spells them, so that the figure is of some of the entries the view lists: status failing and flaky, for the view that lists every entry with the unhealthy ones first and counts those. Never a sort, a window, a code source or a language, which stay the view's. The empty object when the figure is of every entry the view lists."
+          ),
+      })
+      .describe(
+        "The one figure that says how the view's question stands, which GET /api/tests/summary answers for every view at once, and the words to set under it."
       ),
   })
   .describe(
@@ -214,7 +248,7 @@ export const TestOptionsSchema = z
     views: z
       .array(TestViewSchema)
       .describe(
-        "Named queries of GET /api/tests, in the order a page offers them. The first is the list's defaults."
+        "Named queries of GET /api/tests, in the order a page offers them. None is the list's defaults: every view narrows or reorders them. GET /api/tests/summary answers each with a figure."
       ),
   })
   .describe(

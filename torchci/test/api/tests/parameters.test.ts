@@ -16,7 +16,7 @@ describe("test list parameters", () => {
     expect(parse()).toMatchObject({
       repo: "pytorch/pytorch",
       ran_on: ["main"],
-      window: "12h",
+      window: "3h",
       sort: [
         "-status",
         "-failure_rate",

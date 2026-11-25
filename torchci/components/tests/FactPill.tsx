@@ -1,7 +1,6 @@
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import { Box, useTheme } from "@mui/material";
 import { darken } from "@mui/material/styles";
-import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import {
   headerBandColor,
   headerBandHoverColor,
@@ -10,6 +9,7 @@ import {
   PillTone,
   tonePillColors,
 } from "lib/tests/headerColors";
+import { PILL_HEIGHT } from "lib/tests/layout";
 import NextLink from "next/link";
 import { forwardRef, ReactNode } from "react";
 
@@ -66,7 +66,7 @@ export interface FactPillProps {
 }
 
 // One fact of a page header's row, as a pill in the grey of the title's
-// pills and the table's header band, a view chip's height: a mark, when the
+// pills and the table's header band, PILL_HEIGHT tall: a mark, when the
 // fact has one, a muted word in title case for what it is, "First Seen",
 // then the value a step heavier; a fact that is its own word, the language,
 // has no label. A value the catalog does not have is said, "Unknown", and
@@ -126,7 +126,7 @@ const FactPill = forwardRef<HTMLElement, FactPillProps>(function FactPill(
     display: "inline-flex",
     alignItems: "center",
     gap: 0.75,
-    height: VIEW_CHIP_HEIGHT,
+    height: PILL_HEIGHT,
     px: 1.25,
     borderRadius: "999px",
     backgroundColor: background,
@@ -227,7 +227,7 @@ const FactPill = forwardRef<HTMLElement, FactPillProps>(function FactPill(
             position: whole ? "static" : "relative",
             display: "inline-flex",
             alignItems: "center",
-            height: VIEW_CHIP_HEIGHT - 2 * CHIP_INSET,
+            height: PILL_HEIGHT - 2 * CHIP_INSET,
             px: 1,
             borderRadius: "999px",
             backgroundColor: chipColors.background,

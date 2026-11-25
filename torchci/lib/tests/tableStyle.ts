@@ -1,6 +1,10 @@
 import type { Theme } from "@mui/material/styles";
 import type { SystemStyleObject } from "@mui/system";
-import { headerBandColor, headerRuleColor } from "lib/tests/headerColors";
+import {
+  accentTextColor,
+  headerBandColor,
+  headerRuleColor,
+} from "lib/tests/headerColors";
 import {
   HEADER_FILTER_INSET,
   HEADER_FILTER_SIZE,
@@ -11,15 +15,15 @@ import { CELL_VERTICAL_PADDING, ROW_HEIGHT } from "lib/tests/rows";
 
 // The style the hub's tables share, the tests list's and the commit page's
 // (components/tests/HubDataGrid.tsx draws it). A table is set like a
-// typeset list, in the voice of the title above it: HUD's shared table
+// typeset list, in the voice of the header above it: HUD's shared table
 // border (`--table-border-color`, which its other tables draw) around the
 // grid's rounded corners, hairlines in the palette's divider color between
 // rows, compact rows, and emphasis carried by text color. The header is a
-// band in the same grey as the title's pills, clipped above by the box's
+// band in the same grey as the hub's pills, clipped above by the box's
 // rounded corners and square below so the rows' hairlines meet it flush,
 // with small bold uppercase muted labels and a short hairline between its
-// columns, so the header and the title read as one system. Every color
-// follows the theme's mode.
+// columns, so the table and the page's header read as one system. Every
+// color follows the theme's mode.
 
 // The class of the skeleton rows a grid without rows draws while its first
 // rows are on their way (HubDataGrid).
@@ -67,10 +71,7 @@ export function hubTableSx(
   // a step darker in light mode and a step lighter in dark mode, since the
   // accent itself reads at 4.0:1 and 3.1:1 against the band and these at
   // 5.0:1 and 4.0:1 (measured 2026-10-26).
-  const sortedHeaderText =
-    theme.palette.mode === "dark"
-      ? theme.palette.primary.light
-      : theme.palette.primary.dark;
+  const sortedHeaderText = accentTextColor(theme);
   return {
     // The grid's own border color darkens the divider, which in HUD's
     // dark theme ends up darker than the page; the shared variable is

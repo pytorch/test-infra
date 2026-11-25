@@ -1,5 +1,5 @@
 // The glue between the tests table and GET /api/tests: how header sorts are
-// spelled for the API and read back from a URL, how the title's choices are
+// spelled for the API and read back from a URL, how the page's choices are
 // read from a URL and checked against GET /api/tests/options, how page
 // requests are addressed, and how a test's name, its environment, its config
 // and its mean duration are laid out in their cells.
@@ -568,7 +568,7 @@ describe("testsApiUrl", () => {
         limit: 25,
       })
     ).toBe(
-      "/api/tests?repo=pytorch%2Fpytorch&ran_on=main&window=12h&sort=-status%2C-failure_rate%2C-failed_runs%2C-last_failed_at%2C-skip_rate%2C-mean_passed_duration_milliseconds&limit=25"
+      "/api/tests?repo=pytorch%2Fpytorch&ran_on=main&window=3h&sort=-status%2C-failure_rate%2C-failed_runs%2C-last_failed_at%2C-skip_rate%2C-mean_passed_duration_milliseconds&limit=25"
     );
   });
 
@@ -675,7 +675,7 @@ describe("whenPhrase and lastRunLabel", () => {
   });
 });
 
-describe("the title's phrases", () => {
+describe("the page's phrases", () => {
   test("list items as a sentence does", () => {
     expect(phraseList([])).toBe("");
     expect(phraseList(["Python"])).toBe("Python");
@@ -701,8 +701,8 @@ describe("the title's phrases", () => {
     );
   });
 
-  test("say all languages when none is chosen", () => {
-    expect(languagesPhrase([], options)).toBe("all languages");
+  test("say All for the languages when none is chosen, as their control does", () => {
+    expect(languagesPhrase([], options)).toBe("All");
     expect(languagesPhrase(["unknown", "python"], options)).toBe(
       "Python and Unknown"
     );

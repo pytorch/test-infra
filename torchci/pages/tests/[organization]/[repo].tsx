@@ -1,8 +1,10 @@
+import { Box } from "@mui/material";
+import HubTabs from "components/tests/HubTabs";
 import LoadError from "components/tests/LoadError";
 import PageColumn from "components/tests/PageColumn";
-import TestsHeading from "components/tests/TestsHeading";
+import TestsChoices from "components/tests/TestsChoices";
 import TestsTable from "components/tests/TestsTable";
-import ViewChips from "components/tests/ViewChips";
+import ViewBand from "components/tests/ViewBand";
 import type { TestView } from "lib/api/tests/options/types";
 import type { Token } from "lib/tests/environment";
 import {
@@ -24,9 +26,11 @@ import {
 import { mergedUrlQuery, UrlQuery } from "lib/tests/url";
 import { useTestsListing } from "lib/tests/useTestsListing";
 import { useTestsOptions } from "lib/tests/useTestsOptions";
+import { useTestsSummary } from "lib/tests/useTestsSummary";
 import {
   activeViewIds,
   chooseView,
+  clearableViewIds,
   viewsOf,
   withoutView,
 } from "lib/tests/views";
@@ -38,11 +42,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // column filters and the name search, travels in the URL's query parameters,
 // spelled as the API spells them and left off at the API's defaults. The
 // choices, their labels and those defaults come from GET /api/tests/options;
-// the URL is resolved against them before the list is requested.
+// the URL is resolved against them before the list is requested. The page
+// opens with the hub's row (HubTabs): the repository's pages as tabs and,
+// at its right end, the choices that apply to the whole table, the window,
+// the code sources and the languages (TestsChoices). The row is the page's
+// title; there is no sentence under it. Above the table, the options' named
+// views are the cells of a band (ViewBand), each with the figure
+// GET /api/tests/summary answers it with.
 // The page is public: the API's GitHub gate lets its requests through
 // (admitHudPages in lib/api/auth.ts), so the reader need not sign in.
 // The search field follows typing after SEARCH_PAUSE_MS (lib/tests/table.ts).
-// The hub's fixed-width column (PageColumn) holds the title and the table,
+// The hub's fixed-width column (PageColumn) holds the row and the table,
 // so the table does not stretch with the window and is whole at full width.
 
 export default function Page() {
@@ -87,6 +97,13 @@ export default function Page() {
     repo: repository,
     query,
     pending: searchPending,
+  });
+  // The band's figures, over the page's window and languages. They never
+  // hold the table up, and follow it to a later health refresh.
+  const figures = useTestsSummary({
+    repo: repository,
+    query,
+    refreshedAt: listing.refreshedAt,
   });
 
   // Writes the given parameters into the URL, leaving off those that are
@@ -169,9 +186,9 @@ export default function Page() {
     commitSearch(text, false);
   };
   // A view chosen: its params, read as a page URL is, replace the page's
-  // query, the sort, the code sources, the languages, every facet and the
-  // search, so any text still being typed is dropped. The window stays
-  // unless the view sets one.
+  // query, the sort, the code sources, every facet and the search, so any
+  // text still being typed is dropped. The window and the languages stay
+  // unless the view sets its own.
   const handleViewChoose = (view: TestView) => {
     if (query === undefined || options === undefined) {
       return;
@@ -180,22 +197,32 @@ export default function Page() {
     setTypedSearch(undefined);
     handleQueryChange(chooseView(query, view, options));
   };
-  // A chosen view's chip clicked again: the view's own parameters return to
-  // their defaults and the reader's refinements of it stay.
+  // The marked cell clicked again: the view's own parameters return to
+  // their defaults, which leaves the list's defaults in the reader's window
+  // and languages: the first view when that window is the default one, and
+  // no view in another.
   const handleViewClear = (view: TestView) => {
     if (query !== undefined && options !== undefined) {
       handleQueryChange(withoutView(query, view, options));
     }
   };
+  // A tab clicked: the page's own leads to the page without parameters, so
+  // text still being typed into the search is dropped rather than written
+  // into the URL after the pause.
+  const handleNavigate = () => {
+    clearTimeout(searchTimer.current);
+    setTypedSearch(undefined);
+  };
 
   return (
     <PageColumn>
-      <TestsHeading
-        repo={repository}
-        options={options}
-        query={query}
-        onQueryChange={handleQueryChange}
-      />
+      <HubTabs repo={repository} current="tests" onNavigate={handleNavigate}>
+        <TestsChoices
+          options={options}
+          query={query}
+          onQueryChange={handleQueryChange}
+        />
+      </HubTabs>
       {optionsError !== undefined && (
         <LoadError
           what="the choices"
@@ -203,39 +230,58 @@ export default function Page() {
           onRetry={retryOptions}
         />
       )}
-      <TestsTable
-        repo={repository}
-        links={query}
-        listing={listing}
-        sort={urlQuery.sort}
-        onSortChange={handleSortChange}
-        options={options}
-        windowLabel={
-          query === undefined || options === undefined
-            ? undefined
-            : labelOf(query.window, options.window.values)
-        }
-        filters={query?.filters}
-        onFiltersChange={handleFiltersChange}
-        onFilter={handleFilter}
-        search={search}
-        onSearchInput={handleSearchInput}
-        onSearch={handleSearch}
-        nameFilters={query?.nameFilters}
-        onNameFilterRemove={handleNameFilterRemove}
-        toolbar={
-          options !== undefined && (
-            <ViewChips
-              views={viewsOf(options)}
-              activeIds={
-                query === undefined ? [] : activeViewIds(query, options)
-              }
-              onChoose={handleViewChoose}
-              onClear={handleViewClear}
-            />
-          )
-        }
-      />
+      {figures.error !== undefined && (
+        <LoadError
+          what="the figures"
+          error={figures.error}
+          onRetry={figures.retry}
+        />
+      )}
+      <Box>
+        {optionsError === undefined && (
+          <ViewBand
+            views={options === undefined ? undefined : viewsOf(options)}
+            // Exact, and not while the search is being typed: the table has
+            // already left the view the URL still names.
+            activeIds={
+              query === undefined || options === undefined || searchPending
+                ? []
+                : activeViewIds(query, options)
+            }
+            clearableIds={
+              query === undefined || options === undefined || searchPending
+                ? []
+                : clearableViewIds(query, options)
+            }
+            summary={figures.summary}
+            figuresLoading={figures.loading}
+            options={options}
+            onChoose={handleViewChoose}
+            onClear={handleViewClear}
+          />
+        )}
+        <TestsTable
+          repo={repository}
+          links={query}
+          listing={listing}
+          sort={urlQuery.sort}
+          onSortChange={handleSortChange}
+          options={options}
+          windowLabel={
+            query === undefined || options === undefined
+              ? undefined
+              : labelOf(query.window, options.window.values)
+          }
+          filters={query?.filters}
+          onFiltersChange={handleFiltersChange}
+          onFilter={handleFilter}
+          search={search}
+          onSearchInput={handleSearchInput}
+          onSearch={handleSearch}
+          nameFilters={query?.nameFilters}
+          onNameFilterRemove={handleNameFilterRemove}
+        />
+      </Box>
     </PageColumn>
   );
 }

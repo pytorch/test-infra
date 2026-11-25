@@ -8,6 +8,7 @@ import OwnerChart from "components/tests/cost/OwnerChart";
 import RunnersDrawer from "components/tests/cost/RunnersDrawer";
 import TrendPanel from "components/tests/cost/TrendPanel";
 import WorkflowsCard from "components/tests/cost/WorkflowsCard";
+import HubTabs from "components/tests/HubTabs";
 import LoadError from "components/tests/LoadError";
 import LoadTime from "components/tests/LoadTime";
 import PageColumn from "components/tests/PageColumn";
@@ -348,7 +349,6 @@ export default function Page() {
   const answer = request.runnerHours;
   const heading = (
     <CostHeading
-      repo={repository}
       window={query.window}
       onWindowChange={(window) => change({ window })}
     />
@@ -362,6 +362,7 @@ export default function Page() {
     answer !== undefined;
   return (
     <PageColumn>
+      <HubTabs repo={repository} current="cost" />
       <Stack spacing={1.5}>
         {heading}
         <CostFacts

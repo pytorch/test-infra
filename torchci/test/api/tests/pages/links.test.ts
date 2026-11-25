@@ -86,7 +86,7 @@ describe("testsPageLink", () => {
       `${DEFAULT_HUD_ORIGIN}/tests/pytorch/pytorch`
     );
     expect(
-      testsPageLink(listQuery({ window: "12h", ran_on: "main", limit: "5" }))
+      testsPageLink(listQuery({ window: "3h", ran_on: "main", limit: "5" }))
     ).toBe(`${DEFAULT_HUD_ORIGIN}/tests/pytorch/pytorch`);
   });
 

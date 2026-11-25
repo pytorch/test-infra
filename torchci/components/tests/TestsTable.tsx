@@ -18,7 +18,6 @@ import {
   testConfigColumn,
 } from "components/tests/sharedColumns";
 import Updated from "components/tests/Updated";
-import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import type { TestOptions } from "lib/api/tests/options/types";
 import type { TestHealthEntry } from "lib/api/tests/types";
 import { SHARED_COLUMN_DESCRIPTIONS } from "lib/tests/columns";
@@ -31,7 +30,7 @@ import {
   NameFilterValues,
   noFacetValues,
 } from "lib/tests/facets";
-import { COLUMN_WIDTHS } from "lib/tests/layout";
+import { COLUMN_WIDTHS, PILL_HEIGHT } from "lib/tests/layout";
 import { ListContext, testPagePath, testRunsHref } from "lib/tests/links";
 import {
   DEFAULT_TESTS_SORT,
@@ -42,7 +41,7 @@ import {
 } from "lib/tests/table";
 import { FILTERABLE_HEADER } from "lib/tests/tableStyle";
 import type { TestsListing } from "lib/tests/useTestsListing";
-import { ReactNode, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 // A row is one API entry: a test in one environment with one env var set,
 // with what the shared columns read (HubRow).
@@ -128,8 +127,6 @@ export interface TestsTableProps {
   nameFilters: NameFilterValues | undefined;
   // A chip's remove button: take this value of this filter out of the URL.
   onNameFilterRemove: (_name: NameFilter, _value: string) => void;
-  // What sits on the caption's line, left of "Updated": the view chips.
-  toolbar?: ReactNode;
 }
 
 // The tests of a repository from GET /api/tests, sorted, filtered and paged
@@ -150,7 +147,6 @@ export default function TestsTable({
   onSearch,
   nameFilters,
   onNameFilterRemove,
-  toolbar,
 }: TestsTableProps) {
   const filters = currentFilters ?? noFacetValues();
   const sortModel = useMemo(() => sortModelOf(sort), [sort]);
@@ -324,19 +320,17 @@ export default function TestsTable({
         <LoadError what="tests" error={listing.error} onRetry={listing.retry} />
       )}
       <Box>
-        {/* The caption's line: the toolbar at the left, "Updated" at the
-            right, both on the line's bottom edge, just above the table. */}
+        {/* The caption's line, the table's own: "Updated" at its right
+            end, on its bottom edge, just above the table's corner. */}
         <Box
           sx={{
             display: "flex",
             alignItems: "flex-end",
-            justifyContent: "space-between",
-            gap: 2,
-            minHeight: VIEW_CHIP_HEIGHT,
+            justifyContent: "flex-end",
+            minHeight: PILL_HEIGHT,
             mb: 1.5,
           }}
         >
-          <Box sx={{ minWidth: 0 }}>{toolbar}</Box>
           <Updated refreshedAt={listing.refreshedAt} />
         </Box>
         <HubDataGrid

@@ -30,9 +30,10 @@ export type TestLanguage = (typeof LANGUAGES)[number];
 export type HealthStatus = (typeof HEALTH_STATUSES)[number];
 export type SortOrder = "asc" | "desc";
 
-// The last 12 hours: short enough to show what is failing now, long enough
-// to cover the periodic workflows, which run every few hours.
-export const DEFAULT_WINDOW: HealthWindow = "12h";
+// The last 3 hours: what is failing now. It was the last 12 hours until
+// 2026-11-24, long enough to cover the periodic workflows, which run every
+// few hours; a reader who wants those in view widens the window.
+export const DEFAULT_WINDOW: HealthWindow = "3h";
 export const DEFAULT_RAN_ON: readonly RanOn[] = ["main"];
 // Worst health first: the status, then the failure rate, the failed runs and
 // the newest failure, then the skip rate and the passing mean, which only

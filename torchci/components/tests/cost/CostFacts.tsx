@@ -1,8 +1,8 @@
 import { Box, ButtonBase, Skeleton, Tooltip, useTheme } from "@mui/material";
 import FactPill from "components/tests/FactPill";
-import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import type { CostSignal } from "lib/api/tests/cost/types";
 import { amountLabel, hoursLabel, shareLabel } from "lib/tests/cost/query";
+import { PILL_HEIGHT } from "lib/tests/layout";
 
 // A duration as the facts say it: "4.0 h", "27 min".
 export function signalLabel(seconds: number): string {
@@ -65,7 +65,7 @@ export default function CostFacts({
             variant="rounded"
             sx={{
               width: `${width}ch`,
-              height: VIEW_CHIP_HEIGHT,
+              height: PILL_HEIGHT,
               borderRadius: "999px",
             }}
           />
@@ -110,7 +110,7 @@ export default function CostFacts({
               display: "inline-flex",
               alignItems: "center",
               gap: 0.75,
-              height: VIEW_CHIP_HEIGHT,
+              height: PILL_HEIGHT,
               pl: 1.25,
               pr: 0.5,
               borderRadius: "999px",

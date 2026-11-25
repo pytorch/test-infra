@@ -8,7 +8,11 @@ import {
   TEST_CONFIG_VALUES_SQL,
   WORKFLOW_PATH_VALUES_SQL,
 } from "lib/api/tests/options/options";
-import { TestOptionsSchema, TestView } from "lib/api/tests/options/types";
+import {
+  TEST_FIGURE_KINDS,
+  TestOptionsSchema,
+  TestView,
+} from "lib/api/tests/options/types";
 import {
   DEFAULT_RAN_ON,
   DEFAULT_WINDOW,
@@ -206,22 +210,42 @@ describe("app/api/tests/options", () => {
     expect(accepts({ device_count: "256" })).toBe(false);
   });
 
-  test("offers views the list accepts, the first being its defaults", async () => {
+  test("offers views the list accepts, the first of them its defaults", async () => {
     const res = await get();
     const views: TestView[] = res.body.views;
     expect(views.length).toBeGreaterThan(1);
     const parse = (query: RawQuery) =>
       parseTestListParams({ repo: "pytorch/pytorch", ...query });
-    expect(parse(views[0].params)).toEqual(parse({}));
     expect(new Set(views.map((view) => view.id)).size).toBe(views.length);
     expect(new Set(views.map((view) => view.label)).size).toBe(views.length);
-    for (const view of views) {
+    for (const [index, view] of views.entries()) {
       for (const owned of ["repo", "limit", "cursor"]) {
         expect(view.params).not.toHaveProperty(owned);
       }
       expect(
         parseTestListParams({ repo: "pytorch/pytorch", ...view.params }).success
       ).toBe(true);
+      // The page marks a view only while it shows exactly that view. It
+      // opens on the list's defaults, which are the first view, the default
+      // window included, so the page a reader arrives on has its cell
+      // marked and the same table in another window has none; every other
+      // view narrows or reorders the defaults, in whatever window the
+      // reader is in, so two views are never marked for one table.
+      if (index === 0) {
+        expect(view.params.window).toBe(DEFAULT_WINDOW);
+        expect(parse(view.params)).toEqual(parse({}));
+      }
+      for (const window of WINDOWS) {
+        const asked = parse({ window, ...view.params });
+        const defaults = parse({ window });
+        if (index === 0) {
+          // Its own window stands, whatever the page's.
+          expect(asked).toEqual(parse({}));
+          expect(asked.success && asked.data.window).toBe(DEFAULT_WINDOW);
+        } else {
+          expect(asked).not.toEqual(defaults);
+        }
+      }
       // Every value of a choice the options offer is one they offer, so the
       // page does not drop it; ran_on is comma-separated.
       for (const [name, raw] of Object.entries(view.params)) {
@@ -235,6 +259,81 @@ describe("app/api/tests/options", () => {
         }
       }
     }
+  });
+
+  // A figure is of the entries its view lists, or of some of them: its own
+  // params may add filters, never another order, window, source or language,
+  // so what it is of is always among what choosing the view shows.
+  test("narrows a figure by filters alone, and only the defaults' to the unhealthy entries", async () => {
+    const res = await get();
+    const views: TestView[] = res.body.views;
+    for (const view of views) {
+      for (const kept of [
+        "repo",
+        "limit",
+        "cursor",
+        "sort",
+        "window",
+        "ran_on",
+        "language",
+      ]) {
+        expect(view.figure.params).not.toHaveProperty(kept);
+      }
+      expect(
+        parseTestListParams({
+          repo: "pytorch/pytorch",
+          ...view.params,
+          ...view.figure.params,
+        }).success
+      ).toBe(true);
+    }
+    expect(
+      Object.fromEntries(views.map((view) => [view.id, view.figure.params]))
+    ).toEqual({
+      unhealthy: { status: ["failing", "flaky"] },
+      blocking_viable_strict: {},
+      flaky_main: {},
+      flaky_pull_requests: {},
+      slowest: {},
+      most_ci_time: {},
+    });
+    // The defaults order by status, worst first, so the unhealthy entries
+    // the first figure counts, the failing and then the flaky, are the ones
+    // its view's table begins with.
+    expect(String(views[0].params.sort).split(",")[0]).toBe("-status");
+    expect(
+      res.body.status.values.map(({ value }: any) => value).slice(0, 2)
+    ).toEqual(views[0].figure.params.status);
+  });
+
+  test("names the figure of every view, with a few words to set under it", async () => {
+    const res = await get();
+    const views: TestView[] = res.body.views;
+    for (const view of views) {
+      expect(TEST_FIGURE_KINDS).toContain(view.figure.kind);
+      expect(view.figure.caption.trim()).toBe(view.figure.caption);
+      expect(view.figure.caption.length).toBeGreaterThan(0);
+      // Set under a figure in a narrow cell.
+      expect(view.figure.caption.length).toBeLessThanOrEqual(28);
+      // A view that sets its own window is read over it whatever window the
+      // page is in, so its caption says which, as the options label it.
+      if (view.params.window !== undefined) {
+        const { label } = res.body.window.values.find(
+          ({ value }: any) => value === view.params.window
+        );
+        expect(view.figure.caption.endsWith(`, ${label}`)).toBe(true);
+      }
+    }
+    expect(
+      Object.fromEntries(views.map((view) => [view.id, view.figure.kind]))
+    ).toEqual({
+      unhealthy: "count",
+      blocking_viable_strict: "count",
+      flaky_main: "count",
+      flaky_pull_requests: "count",
+      slowest: "slowest",
+      most_ci_time: "total_duration",
+    });
   });
 
   test("gives every value a distinct label for running text", async () => {

@@ -17,6 +17,7 @@ const SCRIPTS = [
   "validateCommitSummaryQueries",
   "validateBidirectionalPaginationQueries",
   "validateListPageFirstQueries",
+  "validateSummaryQueries",
 ];
 
 describe("offline SQL replays", () => {

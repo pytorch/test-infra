@@ -1,6 +1,6 @@
 import { Box, Breadcrumbs, Divider, Link, Skeleton } from "@mui/material";
-import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import { Crumb, MONOSPACE_FONT_FAMILY } from "lib/tests/header";
+import { PILL_HEIGHT } from "lib/tests/layout";
 import NextLink from "next/link";
 import { ReactNode } from "react";
 
@@ -13,8 +13,7 @@ import { ReactNode } from "react";
 // full weight.
 
 // The header's small text, the breadcrumb and the pills, is HUD's body2,
-// the size of the table's captions and the view chips, and a pill is a
-// chip's height.
+// the size of the table's captions, and a pill is PILL_HEIGHT tall.
 const HEADER_SMALL_TEXT = "body2" as const;
 
 // Where the page's subject lives, as links back up the hub: "pytorch/pytorch
@@ -80,7 +79,7 @@ export function PillSkeleton({ width }: { width: string }) {
     <Skeleton
       variant="rounded"
       width={width}
-      height={VIEW_CHIP_HEIGHT}
+      height={PILL_HEIGHT}
       sx={{ borderRadius: "999px" }}
     />
   );

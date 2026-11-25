@@ -210,6 +210,10 @@ describe("the pages in /api/openapi.json", () => {
     expect(operations.getTest.description).toMatch(/testPage/);
     expect(operations.listRuns.description).toMatch(/testPage/);
     expect(operations.testsPage.description).toMatch(/listTests/);
+    // The band above the tests table: the options' views and their figures.
+    expect(operations.testsPage.description).toMatch(/getTestOptions/);
+    expect(operations.testsPage.description).toMatch(/getTestSummary/);
+    expect(operations.getTestSummary.description).toMatch(/testsPage/);
     expect(operations.testPage.description).toMatch(/getTest/);
     expect(operations.testPage.description).toMatch(/listRuns/);
     expect(operations.commitPage.description).toMatch(/getCommitSummary/);
@@ -238,6 +242,16 @@ describe("the pages in /api/openapi.json", () => {
     expect(schemas.TestListPage.properties.hud_url.description).toMatch(
       /Null when/
     );
+    // The summary leads to the table it sits above, and each figure to the
+    // table showing its view.
+    for (const schema of [schemas.TestSummary, schemas.TestViewFigure]) {
+      expect(schema.properties.hud_url.anyOf).toEqual([
+        { type: "string", format: "uri" },
+        { type: "null" },
+      ]);
+      expect(schema.properties.hud_url.description).toMatch(/testsPage/);
+      expect(schema.required).toContain("hud_url");
+    }
     expect(schemas.RunGrid.properties.hud_url.anyOf).toEqual([
       { type: "string", format: "uri" },
       { type: "null" },
