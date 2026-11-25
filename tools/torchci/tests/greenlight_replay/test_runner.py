@@ -169,12 +169,7 @@ class TestEndToEnd(RunnerTestCase):
             "#${{ steps.target.outputs.pr }} under "
             "./${{ steps.target.outputs.checkout }}.\n"
         )
-        vision = Target(
-            "pytorch/vision",
-            "target",
-            ".claude/skills/greenlight-review/repos/vision.md",
-            True,
-        )
+        vision = Target("pytorch/vision", "target")
         for target in (self.policy.target, vision):
             with self.subTest(repo=target.repo):
                 self.policy = dataclasses.replace(

@@ -22,7 +22,6 @@ from packaging.specifiers import SpecifierSet
 from replay_runner_fixtures import (
     build_arm_tree,
     HEAD_WORKFLOW,
-    REPO_POLICIES_RELPATH,
     REPO_ROOT,
     WORKFLOW_PATH,
 )
@@ -68,9 +67,8 @@ CLOSURE_DRIVER = (
 # Each path, and whether the replay's push paths take it.
 SAMPLE_PATHS = (
     (".claude/skills/greenlight-review/SKILL.md", True),
-    (".claude/skills/greenlight-review/repos/pytorch.md", True),
-    (".claude/skills/greenlight-review/repos/test-infra.md", False),
-    (".claude/skills/greenlight-review/repos/nested/vision.md", False),
+    (".claude/skills/greenlight-review/repo-policy.md", True),
+    (".github/greenlight/review.md", False),
     (".claude/skills/ci-metrics/SKILL.md", True),
     (".claude/hooks/greenlight/restrict-read.py", True),
     (".claude/settings.json", True),
@@ -89,7 +87,6 @@ SAMPLE_PATHS = (
     ("greenlight/src/greenlight/cli.py", True),
     ("greenlight/pyproject.toml", True),
     ("greenlight/uv.lock", True),
-    ("greenlight/repos.yaml", True),
     ("greenlight/tests/test_cli.py", False),
     ("greenlight/REPOS.md", False),
     ("tools/torchci/greenlight_replay/ledger.py", True),
@@ -330,6 +327,14 @@ class TestMasks(unittest.TestCase):
         def concurrency(document):
             document["concurrency"]["cancel-in-progress"] = False
 
+        def edit_run(needle, old, new):
+            def mutate(document):
+                step = run_holding(document, needle)
+                self.assertIn(old, step["run"])
+                step["run"] = step["run"].replace(old, new)
+
+            return mutate
+
         cases = {
             "a reproduced step's run": diff_run,
             "an added step": add_step,
@@ -341,6 +346,12 @@ class TestMasks(unittest.TestCase):
             "a masked key removed": drop_file_cap,
             "the record job": record_job_step,
             "the workflow's concurrency": concurrency,
+            "the staging step's reading of its result": edit_run(
+                "repo-policy.py stage", "= staged=true ]", "!= staged=false ]"
+            ),
+            "the diff gate's reading of its result": edit_run(
+                "repo-policy.py touches", "= touches=false ]", "!= touches=true ]"
+            ),
         }
         for name, mutate in cases.items():
             with self.subTest(name):
@@ -393,35 +404,29 @@ class TestMaterializeRefuses(unittest.TestCase):
 
 
 class TestDerivationsForEveryRepo(unittest.TestCase):
-    """The head tree materializes, its shape checked, for each repo it configures or
-    holds a policy file for."""
+    """The head tree materializes, its shape checked, for pytorch/pytorch and for a repo
+    reviewed in ``target``: this repository, the one whose own review policy it holds."""
 
-    def test_every_configured_repo_and_policy_file_materializes(self):
-        configured = [
-            entry["repo"]
-            for entry in yaml.safe_load((GREENLIGHT_ROOT / "repos.yaml").read_text())[
-                "repos"
-            ]
-        ]
-        policies = sorted(
-            p.name for p in (REPO_ROOT / REPO_POLICIES_RELPATH).glob("*.md")
-        )
-        with_policy = [f"pytorch/{name.removesuffix('.md')}" for name in policies]
-        for repo in dict.fromkeys(configured + with_policy):
+    def test_each_kind_of_repo_materializes(self):
+        for repo, checkout in (
+            ("pytorch/pytorch", "pytorch"),
+            ("pytorch/test-infra", "target"),
+        ):
             with self.subTest(repo=repo), tempfile.TemporaryDirectory() as name:
-                root = build_head_tree(
-                    Path(name),
-                    extra_repos=[r for r in with_policy if r not in configured],
-                    policies=policies,
-                )
+                root = build_head_tree(Path(name))
                 with mock.patch.object(policy_mod, "_checkout"):
                     result = policy_mod.materialize("main", root, reviewed_repo=repo)
                 self.assertEqual(result.target.repo, repo)
-                self.assertEqual(result.target.policy_present, repo in with_policy)
-                self.assertEqual(result.detector_dirname, result.target.checkout)
+                self.assertEqual(result.target.checkout, checkout)
+                self.assertEqual(result.detector_dirname, checkout)
                 self.assertIn(
-                    f"**/{result.target.checkout}/CLAUDE.md",
+                    f"**/{checkout}/CLAUDE.md",
                     result.hook_settings["claudeMdExcludes"],
+                )
+                self.assertIsNotNone(result.repo_policy_script)
+                self.assertEqual(result.no_policy_verdict["reason"], "review_error")
+                self.assertEqual(
+                    result.greenlight_files_verdict["reason"], "not_trivial"
                 )
 
 
@@ -445,7 +450,6 @@ class TestTriggers(unittest.TestCase):
             *closure,
             *hooks,
             str(WORKFLOW_PATH.relative_to(REPO_ROOT)),
-            "greenlight/repos.yaml",
         ]
 
     def test_what_the_arm_runs_starts_ci_and_the_replay(self):
@@ -474,7 +478,6 @@ class TestTriggers(unittest.TestCase):
         torchci = triggers(TORCHCI_WORKFLOW, "pull_request")
         read = [REPLAY_WORKFLOW, TORCHCI_WORKFLOW, GREENLIGHT_WORKFLOW]
         read += [GREENLIGHT_ROOT / "pyproject.toml", GREENLIGHT_ROOT / "uv.lock"]
-        read += sorted((REPO_ROOT / REPO_POLICIES_RELPATH).glob("*.md"))
         for path in read:
             with self.subTest(path=path):
                 self.assertTrue(filter_takes(torchci, str(path.relative_to(REPO_ROOT))))

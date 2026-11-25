@@ -58,9 +58,7 @@ TARGET_PROMPT = (
 SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
-VISION = Target(
-    "pytorch/vision", "target", ".claude/skills/greenlight-review/repos/vision.md", True
-)
+VISION = Target("pytorch/vision", "target")
 
 
 def make_policy(prompt_template, target=None):

@@ -18,7 +18,8 @@ around it, from the same script and with the same canned verdicts:
   Every slot copies the staged tree. `staged=false` (anything but exactly
   `staged=true`) gives every pull request the tree's `no-policy-verdict.json`,
   and neither its diff nor anything else of it is read. A non-zero exit, which
-  fails CI's job, stops the sweep.
+  fails CI's job, stops the sweep. The script runs as the policy's other code
+  does ([PARITY.md](PARITY.md)): `-I`, with an environment built from nothing.
 - **The diff gate, per pull request**, only when staged: the diff alone is
   fetched and the script's `touches` run on it. Anything but exactly
   `touches=false` gives the tree's `greenlight-files-verdict.json`. Its metadata
@@ -30,8 +31,8 @@ around it, from the same script and with the same canned verdicts:
 - **The size gate** comes after both, as in the workflow, on the full inputs.
 
 Both canned files come from the policy tree under test, beside
-`too-large-verdict.json`, and are held to the tree's schema when it is loaded; a
-tree with the script but without either file is refused. They are recorded like
+`too-large-verdict.json`, and are held to the record checks when it is loaded, as
+the size gate's is; a tree with the script but without either file is refused. They are recorded like
 the size gate's verdict, with the `too_large` outcome. A policy tree without the
 script, a base arm from before it, copies its `.claude` into the slots as it is
 and gates only on size.

@@ -44,6 +44,13 @@ _REVIEW_JOB = Class(
     "the review budgets, by workflow.review_budgets; its runner, environment, "
     "permissions and job timeout are the serving path, not reproduced",
 )
+_REPO_AWARE_REVIEW_JOB = Class(
+    Kind.DERIVED,
+    "the review budgets, by workflow.review_budgets; its outputs hand the record "
+    "job's target the repo the review validated, which arm_code.accept_verdict takes "
+    "from the sweep's target; its runner, environment, permissions and job timeout are "
+    "the serving path, not reproduced",
+)
 _POLICY_CHECKOUT = Class(Kind.REPRODUCED, "policy.materialize: the arm's tree")
 _PYTHON = Class(
     Kind.NOT_REPRODUCED,
@@ -55,7 +62,10 @@ _UV = Class(
     "environment uv builds from greenlight/uv.lock",
 )
 _TARGET = Class(
-    Kind.ARM_CODE, "arm_code.resolve_target runs the arm's greenlight target"
+    Kind.ARM_CODE,
+    "arm_code.resolve_target runs the arm's greenlight target: --strict for "
+    "pytorch/pytorch, as the step does; for another repo --from-review, without the "
+    "step's live identity and config reads",
 )
 _CHECKOUT = Class(
     Kind.REPRODUCED,
@@ -63,8 +73,21 @@ _CHECKOUT = Class(
 )
 _TRUSTED_SKILLS = Class(
     Kind.REPRODUCED,
-    "trusted_skills.materialize_trusted_skills, from the reviewed repo's main as it "
-    "is when the replay runs",
+    "trusted_skills.materialize_trusted_skills: the reviewed repo at --trusted-ref, "
+    "the one main commit CI resolves for both arms, else its main as fetched; the cone "
+    "also takes .github/greenlight, which a workflow without the staging step never "
+    "reads",
+)
+_STAGE = Class(
+    Kind.ARM_CODE,
+    "workspace.stage_policy_half runs the arm's repo-policy.py stage once per sweep, "
+    "into the copy every slot takes; staged=false gives every row the tree's "
+    "no-policy verdict, with no model",
+)
+_TOUCHES = Class(
+    Kind.ARM_CODE,
+    "workspace.touches_verdict runs the arm's repo-policy.py touches on each row's "
+    "diff; touches=true gives the tree's greenlight-files verdict, with no model",
 )
 _SANITIZE = Class(
     Kind.ARM_CODE,
@@ -73,18 +96,14 @@ _SANITIZE = Class(
 )
 _AWS = Class(Kind.NOT_REPRODUCED, "the serving path: the replay's own credentials")
 _DIFF = Class(Kind.REPRODUCED, "inputs.py: the merge base against the head SHA")
-_KEEP_POLICY = Class(
-    Kind.REPRODUCED,
-    "workspace.install_policy_half keeps only the policy file greenlight target "
-    "names; arm_code.no_policy_verdict runs the step's own jq program",
-)
 _SIZE_GATE = Class(
     Kind.REPRODUCED, "size_gate.apply_size_gate counts; the caps are derived"
 )
 _DECIDE = Class(
     Kind.REPRODUCED,
-    "sweep.py and runner.canned_result: without a policy file, or past the size "
-    "gate, the canned verdict and no model",
+    "sweep.run_one and runner.canned_result: a staged policy, a diff off "
+    ".github/greenlight and a diff under the caps run the model; otherwise the canned "
+    "verdict and no model",
 )
 _METADATA = Class(
     Kind.REPRODUCED,
@@ -134,7 +153,11 @@ REPO_AWARE_CONCURRENCY = Part(
 PYTORCH_ONLY_CONCURRENCY = Part(
     _CONCURRENCY, "77be50222a343498cd2a758883ef255dd29c7088de0c701e7bf7660ff5931c9a"
 )
-REVIEW_JOB = Part(
+REPO_AWARE_REVIEW_JOB = Part(
+    _REPO_AWARE_REVIEW_JOB,
+    "99fe1fb223617520ec0f3be309114de9d7fdcf92b0e479e6ca8605e000432047",
+)
+PYTORCH_ONLY_REVIEW_JOB = Part(
     _REVIEW_JOB, "a5e27b7013084dfe669b82898c46e084b93ad3aa46580ef2b35876db8d2bc033"
 )
 POLICY_CHECKOUT_STEP = Part(
@@ -148,7 +171,7 @@ UV_ACTION = Part(
     _UV, "4cf325da87c138c6d790d4fc54730ed775644a755a027cd87826f2051f952f4d"
 )
 TARGET_STEP = Part(
-    _TARGET, "767b0e4fa03d4e648f6a8b73fa0bf6be64d2bc5ec334570771a322bed4036d7b"
+    _TARGET, "61afe3bc27c18bce5b01613030d776e0cf4e5bd63ccf41086478c09fd1668619"
 )
 REPO_AWARE_CHECKOUT_STEP = Part(
     _CHECKOUT, "bcf900075fa3a5b175447e367e73243f2a0954bb3c9d9161be1c1ce1b64133d6"
@@ -157,10 +180,13 @@ PYTORCH_ONLY_CHECKOUT_STEP = Part(
     _CHECKOUT, "8bae4f70646f0996bc0886b0fae27ed07309434a39beeaac1159fe0bd1b25189"
 )
 REPO_AWARE_TRUSTED_SKILLS_STEP = Part(
-    _TRUSTED_SKILLS, "45d2c5a1593b330c80b051a349280e31cb4b9f5526af96fa80099a2d137f18d7"
+    _TRUSTED_SKILLS, "14fb6c3934122cbbf898f81044218668a341ea49af598c216ed005d5f1338feb"
 )
 PYTORCH_ONLY_TRUSTED_SKILLS_STEP = Part(
     _TRUSTED_SKILLS, "e460fb8caa1c977c38a3001978535a0f4e6201efebecdf7cbbc2bba173d19d7c"
+)
+STAGE_STEP = Part(
+    _STAGE, "536cdf1ea88dc7bb3dd817282d4ff02d75bcf2c48f1e2d51c53361b0c5d746d5"
 )
 REPO_AWARE_SANITIZE_STEP = Part(
     _SANITIZE, "2507a043857a275b2701cbd53cb37563f8c1ddbba786bb8ddd83c914f1acb59f"
@@ -177,17 +203,17 @@ REPO_AWARE_DIFF_STEP = Part(
 PYTORCH_ONLY_DIFF_STEP = Part(
     _DIFF, "467e6e97650ffb04f64aa4a472440615af12d41dd3330b4900ff60545d44635e"
 )
-KEEP_POLICY_STEP = Part(
-    _KEEP_POLICY, "0e2e64aa266a38993f7089c497ff60464d57c78815a2643a2b9dbf01f894add6"
+TOUCHES_STEP = Part(
+    _TOUCHES, "c6395c77be6e13239b52e45f24d1090c4595d5a88dfbdf698ff058f5bd021f24"
 )
 REPO_AWARE_SIZE_GATE_STEP = Part(
-    _SIZE_GATE, "eae68e0fce25d6829f7a4ff6d9e5b2a018e081a2273a837342b20d3b1b4f4535"
+    _SIZE_GATE, "f5706407dd6373d677725ceeb51c6e91e017397534a1dc89f4a5147e154d75d1"
 )
 PYTORCH_ONLY_SIZE_GATE_STEP = Part(
     _SIZE_GATE, "5c395841d4a8104595775d396b95e433c07eeae41691818cb69198eabad121da"
 )
 DECIDE_STEP = Part(
-    _DECIDE, "cfba62c390ba2bf1c83a3ca42ccdd04cbadad63a7ea7a5f55038feb90a65ab17"
+    _DECIDE, "0e6a6eb538692e4c8b27fa7acfd423c0c56ec10896aa40c8dea4942a78d4e915"
 )
 REPO_AWARE_METADATA_STEP = Part(
     _METADATA, "18fb5b7de607e664b1aa6f0bb9734339df5e6c38d7cec11dd8cf4b0db095f4e5"
@@ -229,7 +255,7 @@ USAGE_STEP = Part(
     _USAGE, "2324847d795b47aa31fd05ae1d4eea5a49681ada1d73c7472c68ff33c8f799aa"
 )
 REPO_AWARE_RECORD_JOB = Part(
-    _RECORD_JOB, "dd83028a0579c7b02753250c710f5f5197c9c11d5e7668250891eee136d93e9c"
+    _RECORD_JOB, "9beb04bfe88d3d787855ef2e96618aef168140a18d5de9b08170ff803ada7023"
 )
 PYTORCH_ONLY_RECORD_JOB = Part(
     _RECORD_JOB, "656d9fe7e817e5f1d0e29704b70bdaf205b770d29e5731fb52b82c50fafe6785"

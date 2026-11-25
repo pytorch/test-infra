@@ -79,8 +79,8 @@ CHECKOUT_DIRNAMES = ("pytorch", "target")
 # pytorch/pytorch's, and so the only one of a policy whose workflow has no target step.
 PRIMARY_CHECKOUT = CHECKOUT_DIRNAMES[0]
 
-# GreenLight serves repos of the pytorch org alone, and a repo's policy file is named
-# after the part past the slash, so nothing else is a repo this harness can replay.
+# GreenLight serves repos of the pytorch org alone, so nothing else is a repo this
+# harness can replay.
 _REVIEWED_REPO = re.compile(r"pytorch/[A-Za-z0-9._-]+")
 
 _SHA_RE = re.compile(r"\A[0-9a-f]{40}\Z")

@@ -223,8 +223,9 @@ class TestThePrefixMeansTheHarnessNeverThePolicy(unittest.TestCase):
         )
 
     def no_policy_decline(self):
+        # A staging gate's canned decline, recorded under the size gate's outcome.
         return result(
-            outcome=Outcome.NO_POLICY,
+            outcome=Outcome.TOO_LARGE,
             status="NO_LAND",
             reason="review_error",
             message="- Review policy\n  - No policy file for pytorch/vision",

@@ -2,10 +2,11 @@
 
 Where the live workflow decides something by running greenlight's code or a step of its
 own, the replay runs that same code out of the materialized policy tree: ``greenlight
-target`` for which repo, checkout and policy file a review gets, and the record job's
-validation step and ``greenlight verdict --dry-run`` for whether a verdict is recorded.
-The instruction-loading detector is run the same way, by :mod:`.detector`. A copy kept in
-the harness would replay the harness's idea of the policy rather than the policy.
+target`` for which repo and checkout a review gets, and the record job's validation step
+and ``greenlight verdict --dry-run`` for whether a verdict is recorded. The
+instruction-loading detector (:mod:`.detector`) and the policy staging script
+(:mod:`.workspace`, through :func:`run_script`) are run the same way. A copy kept in the
+harness would replay the harness's idea of the policy rather than the policy.
 
 Every call runs in a subprocess whose environment is built from nothing -- the reviewer's
 pinned ``PATH``, an empty ``HOME``, a UTF-8 locale -- so none of the harness's environment
@@ -30,7 +31,7 @@ import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from torchci.greenlight_replay.checkout import (
     CHECKOUT_DIRNAMES,
@@ -38,13 +39,8 @@ from torchci.greenlight_replay.checkout import (
     PRIMARY_CHECKOUT,
     require_repo,
 )
-from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.reviewer_env import SUBPROCESS_PATH
-from torchci.greenlight_replay.workflow_steps import (
-    NoPolicyProgram,
-    record_verdict_line,
-    RecordStep,
-)
+from torchci.greenlight_replay.workflow_steps import record_verdict_line, RecordStep
 
 
 __all__ = [
@@ -55,8 +51,8 @@ __all__ = [
     "Target",
     "accept_verdict",
     "canned_verdict",
-    "no_policy_verdict",
     "resolve_target",
+    "run_script",
 ]
 
 logger = logging.getLogger(__name__)
@@ -73,8 +69,7 @@ BOT_LOGIN = "pytorchgreenlight[bot]"
 
 ARM_TIMEOUT_S = 120
 
-_TARGET_KEYS = ("repo", "checkout", "policy", "policy_present")
-_FLAGS = {"true": True, "false": False}
+_TARGET_KEYS = ("repo", "checkout")
 
 _CLI_DRIVER = (
     "import sys\n"
@@ -119,25 +114,22 @@ _RECORD_SHELLS = {
 
 @dataclass(frozen=True)
 class Target:
-    """What the arm's ``greenlight target`` names for the reviewed repo.
-
-    ``policy`` is the review policy file relative to the tree root, None for a policy
-    with no target step; ``policy_present`` False means the workflow declines every pull
-    request with its canned verdict and runs no model.
-    """
+    """What the arm's ``greenlight target`` names for the reviewed repo."""
 
     repo: str
     checkout: str
-    policy: str | None
-    policy_present: bool
 
 
 def resolve_target(root: Path, repo: str) -> Target:
     """Run the arm's ``greenlight target`` for ``repo`` and read what it prints.
 
-    pytorch/pytorch is asked for with an empty ``--repo``, the only spelling the
-    resolver accepts for it. A tree with no target step reviews pytorch/pytorch alone,
-    in ``pytorch``, with no policy file to gate on.
+    pytorch/pytorch is resolved as the review job resolves it: ``--strict`` with an
+    empty ``--repo``, the only spelling it accepts, which reads nothing. For any other
+    repo ``--strict`` reads the repo's identity and GreenLight config from GitHub with a
+    token, which no arm code is handed here, so the repo is checked as ``--from-review``
+    checks the review job's output: offline, its name and the checkout it gets, without
+    those live checks. A tree with no target step reviews pytorch/pytorch alone, in
+    ``pytorch``.
     """
     require_repo(repo)
     if not (Path(root) / WORKFLOW_TARGET_RELPATH).is_file():
@@ -146,13 +138,25 @@ def resolve_target(root: Path, repo: str) -> Target:
                 f"the policy has no {WORKFLOW_TARGET_RELPATH}, so it reviews "
                 f"{DEFAULT_REPO} alone, not {repo}"
             )
-        return Target(DEFAULT_REPO, PRIMARY_CHECKOUT, None, True)
+        return Target(DEFAULT_REPO, PRIMARY_CHECKOUT)
+    mode = (
+        ("--strict", "--repo", "")
+        if repo == DEFAULT_REPO
+        else (
+            "--from-review",
+            "--input-repo",
+            repo,
+            "--repo",
+            repo,
+            "--drci-poke",
+            "false",
+        )
+    )
     completed = _python(
         root,
         _CLI_DRIVER,
         "target",
-        "--repo",
-        "" if repo == DEFAULT_REPO else repo,
+        *mode,
         "--pr",
         str(PROBE_PR),
         "--head-sha",
@@ -183,19 +187,7 @@ def _target(stdout: str, repo: str) -> Target:
             f"greenlight target named checkout {values['checkout']!r}, not one of "
             f"{CHECKOUT_DIRNAMES}"
         )
-    policy = PurePosixPath(values["policy"])
-    if not values["policy"] or policy.is_absolute() or ".." in policy.parts:
-        raise ValueError(f"greenlight target named policy {values['policy']!r}")
-    if values["policy_present"] not in _FLAGS:
-        raise ValueError(
-            f"greenlight target printed policy_present={values['policy_present']!r}"
-        )
-    return Target(
-        repo=repo,
-        checkout=values["checkout"],
-        policy=values["policy"],
-        policy_present=_FLAGS[values["policy_present"]],
-    )
+    return Target(repo=repo, checkout=values["checkout"])
 
 
 def accept_verdict(
@@ -235,29 +227,6 @@ def canned_verdict(
     if verdict is None:
         raise ValueError(f"the canned verdict {verdict_file} is refused: {rejection}")
     return verdict
-
-
-def no_policy_verdict(
-    root: Path, record: RecordStep, program: NoPolicyProgram, target: Target
-) -> dict[str, str]:
-    """The canned NO_LAND the keep-policy step writes, from its own ``jq -n`` program."""
-    outputs = {"repo": target.repo, "policy": target.policy}
-    argv = ["jq", "-n"]
-    for name, output in program.args:
-        value = outputs.get(output)
-        if value is None:
-            raise ValueError(f"the canned verdict's --arg {name} reads target {output}")
-        argv += ["--arg", name, value]
-    with tempfile.TemporaryDirectory(prefix="greenlight-no-policy-") as name:
-        scratch = Path(name)
-        completed = _run([*argv, program.program], scratch)
-        if completed.returncode != 0:
-            raise ValueError(
-                f"the canned verdict's jq program fails: {_tail(completed)}"
-            )
-        verdict_file = scratch / remap.VERDICT_BASENAME
-        verdict_file.write_text(completed.stdout, encoding="utf-8")
-        return canned_verdict(root, record, verdict_file, target)
 
 
 def _record_step_rejection(
@@ -313,6 +282,19 @@ def _dry_run(
     ):
         raise RuntimeError(f"the verdict driver printed {completed.stdout[:200]!r}")
     return processed, None
+
+
+def run_script(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run a standard-library script of the arm's tree, such as ``repo-policy.py``.
+
+    It runs as greenlight's code does here: ``-I -B``, with an environment built from
+    nothing. Its working directory is a scratch one, so every path in ``args`` must be
+    absolute.
+    """
+    with tempfile.TemporaryDirectory(prefix="greenlight-arm-") as home:
+        return _run(
+            [sys.executable, "-I", "-B", os.path.abspath(script), *args], Path(home)
+        )
 
 
 def _python(root: Path, driver: str, *args: str) -> subprocess.CompletedProcess[str]:

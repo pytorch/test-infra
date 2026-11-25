@@ -43,23 +43,7 @@ HOOKS_DIR = REPO_ROOT / ".claude/hooks/greenlight"
 WORKFLOW_PATH = REPO_ROOT / workflow.WORKFLOW_RELPATH
 HEAD_WORKFLOW = workflow.load(WORKFLOW_PATH)
 
-REPO_POLICIES_RELPATH = ".claude/skills/greenlight-review/repos"
-
-# A repos.yaml entry a repo other than pytorch/pytorch can be configured with.
-REPOS_YAML_ENTRY = """  - repo: {repo}
-    status_comment: greenlight
-    safety: gate
-    eligibility: write_permission
-    mode: shadow
-    change_source: github
-"""
-
-PYTORCH_TARGET = Target(
-    repo="pytorch/pytorch",
-    checkout="pytorch",
-    policy=".claude/skills/greenlight-review/repos/pytorch.md",
-    policy_present=True,
-)
+PYTORCH_TARGET = Target(repo="pytorch/pytorch", checkout="pytorch")
 
 PROMPT_TEMPLATE = (
     "Read the skill file at .claude/skills/greenlight-review/SKILL.md.\n"
@@ -228,20 +212,11 @@ def replay_policy(root=REPO_ROOT, **overrides):
     return Policy(**fields)
 
 
-def build_arm_tree(
-    root,
-    *,
-    extra_repos=(),
-    policies=("pytorch.md",),
-    target_step=True,
-    workflow_document=None,
-):
-    """A policy tree laid out as this repository's is, in ``root``: greenlight's code
-    and repos.yaml, the hooks, the review policies and the review workflow.
+def build_arm_tree(root, *, target_step=True, workflow_document=None):
+    """A policy tree laid out as this repository's is, in ``root``: greenlight's code,
+    the hooks and the review workflow.
 
-    ``extra_repos`` are configured in repos.yaml beside pytorch/pytorch, ``policies``
-    are the review policy files present, and ``target_step`` False removes
-    ``workflow_target.py`` and the subcommand that runs it.
+    ``target_step`` False removes ``workflow_target.py`` (:func:`_drop_target_step`).
     """
     root = Path(root)
     shutil.copytree(
@@ -250,17 +225,14 @@ def build_arm_tree(
         ignore=shutil.ignore_patterns("__pycache__"),
         dirs_exist_ok=True,
     )
-    repos_yaml = (REPO_ROOT / "greenlight/repos.yaml").read_text() + "".join(
-        REPOS_YAML_ENTRY.format(repo=repo) for repo in extra_repos
-    )
-    (root / "greenlight/repos.yaml").write_text(repos_yaml)
     if not target_step:
         _drop_target_step(root)
-    shutil.copytree(HOOKS_DIR, root / ".claude/hooks/greenlight", dirs_exist_ok=True)
-    policies_dir = root / REPO_POLICIES_RELPATH
-    policies_dir.mkdir(parents=True, exist_ok=True)
-    for name in policies:
-        (policies_dir / name).write_text(f"policy of {name}\n")
+    shutil.copytree(
+        HOOKS_DIR,
+        root / ".claude/hooks/greenlight",
+        ignore=shutil.ignore_patterns("__pycache__"),
+        dirs_exist_ok=True,
+    )
     workflow_path = root / workflow.WORKFLOW_RELPATH
     workflow_path.parent.mkdir(parents=True, exist_ok=True)
     workflow_path.write_text(
@@ -269,24 +241,13 @@ def build_arm_tree(
     return root
 
 
-# What ``cli.py`` holds of the target subcommand, each replaced to remove it.
-_TARGET_IN_CLI = (
-    (", workflow_target\n", "\n"),
-    ("    workflow_target.add_parser(subparsers)\n", ""),
-    (
-        '    if args.command == "target":\n        return workflow_target.run(args)\n',
-        "",
-    ),
-)
-
-
 def _drop_target_step(root):
-    """Remove ``greenlight target`` from ``root``'s greenlight."""
-    (root / arm_code.WORKFLOW_TARGET_RELPATH).unlink()
-    cli = root / arm_code.ARM_SRC_RELPATH / "greenlight/cli.py"
-    text = cli.read_text()
-    for old, new in _TARGET_IN_CLI:
-        if old not in text:
-            raise AssertionError(f"greenlight/cli.py no longer holds {old!r}")
-        text = text.replace(old, new)
-    cli.write_text(text)
+    """Remove ``workflow_target.py`` from ``root``'s greenlight, as a tree without a
+    target step has none. The modules that import it import it under another name, so
+    the rest of greenlight still loads."""
+    package = root / arm_code.ARM_SRC_RELPATH / "greenlight"
+    (package / "workflow_target.py").rename(package / "target_absent.py")
+    for module in package.glob("*.py"):
+        text = module.read_text()
+        if "workflow_target" in text:
+            module.write_text(text.replace("workflow_target", "target_absent"))

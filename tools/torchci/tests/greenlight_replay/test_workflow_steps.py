@@ -159,22 +159,5 @@ class TestRecordStep(StepsTestCase):
         self.refused(workflow_steps.record_step, needle="env block")
 
 
-class TestNoPolicyProgram(StepsTestCase):
-    def test_the_head_program_binds_repo_and_policy_to_target_outputs(self):
-        program = workflow_steps.no_policy_program(self.document, WORKFLOW_PATH)
-        self.assertEqual(program.args, (("repo", "repo"), ("policy", "policy")))
-        self.assertIn('reason: "review_error"', program.program)
-
-    def test_a_workflow_without_the_step_has_none(self):
-        (step,) = steps_where(self.document, "jq -n")
-        self.document["jobs"]["review"]["steps"].remove(step)
-        self.refused(workflow_steps.no_policy_program, needle="found 0")
-
-    def test_an_arg_not_taken_from_a_target_output_is_refused(self):
-        (step,) = steps_where(self.document, "jq -n")
-        step["env"]["REPO"] = "${{ github.event.inputs.repo }}"
-        self.refused(workflow_steps.no_policy_program, needle="--arg repo")
-
-
 if __name__ == "__main__":
     unittest.main()

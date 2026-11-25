@@ -174,4 +174,3 @@ def local_model(profile: str) -> str:
             f"the policy asks for {profile!r}; this harness maps only "
             f"{', '.join(sorted(LOCAL_MODELS))}. Pass --model to name one"
         ) from None
-

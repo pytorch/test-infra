@@ -20,12 +20,13 @@ all.
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
-import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from torchci.greenlight_replay.arm_code import run_script
 from torchci.greenlight_replay.checkout import PRIMARY_CHECKOUT, WorktreePool
 from torchci.greenlight_replay.policy import Policy
 
@@ -36,7 +37,6 @@ POLICY_SUBDIR = ".claude"
 POLICY_ROOTS = (".claude/skills", ".claude/hooks")
 
 SANITIZE_TIMEOUT_S = 600
-REPO_POLICY_TIMEOUT_S = 120
 
 # The workflow reads anything but exactly these lines as staged=false and touches=true.
 STAGED_LINE = "staged=true"
@@ -77,7 +77,13 @@ def stage_policy_half(
     _clear_policy_half(destination)
     shutil.copytree(Path(policy.root) / POLICY_SUBDIR, destination)
     output = _run_repo_policy(
-        script, ["stage", repo, str(Path(trusted_checkout)), str(destination)]
+        script,
+        [
+            "stage",
+            repo,
+            os.path.abspath(trusted_checkout),
+            os.path.abspath(destination),
+        ],
     )
     staged = output == STAGED_LINE
     logger.info("repo-policy.py staged %s's policy: %s", repo, output or "(nothing)")
@@ -92,7 +98,10 @@ def touches_verdict(policy: Policy, diff_path: Path) -> dict[str, str] | None:
     script = policy.repo_policy_script
     if script is None:
         return None
-    if _run_repo_policy(script, ["touches", str(Path(diff_path))]) == UNTOUCHED_LINE:
+    if (
+        _run_repo_policy(script, ["touches", os.path.abspath(diff_path)])
+        == UNTOUCHED_LINE
+    ):
         return None
     if policy.greenlight_files_verdict is None:
         raise ValueError(f"{script} has no canned verdict for the diff gate beside it")
@@ -100,14 +109,9 @@ def touches_verdict(policy: Policy, diff_path: Path) -> dict[str, str] | None:
 
 
 def _run_repo_policy(script: Path, args: Sequence[str]) -> str:
-    """Run ``repo-policy.py`` with ``args`` and return its one line of output."""
-    completed = subprocess.run(
-        [sys.executable, str(script), *args],
-        capture_output=True,
-        check=False,
-        text=True,
-        timeout=REPO_POLICY_TIMEOUT_S,
-    )
+    """Run ``repo-policy.py`` with ``args`` as the arm's code runs, and return its one
+    line of output."""
+    completed = run_script(script, *args)
     stderr = completed.stderr.strip()
     if completed.returncode != 0:
         raise RuntimeError(

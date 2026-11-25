@@ -58,7 +58,6 @@ DECISION_VALUES = frozenset({"LAND", "NO_LAND"})
 
 OUTCOME_SUCCESS = "success"
 OUTCOME_TOO_LARGE = "too_large"
-OUTCOME_NO_POLICY = "no_policy"
 
 # Covers both a result whose outcome cannot be read and one that claims success
 # without a usable verdict: from here they are the same statement, that the
@@ -66,10 +65,10 @@ OUTCOME_NO_POLICY = "no_policy"
 OUTCOME_UNREADABLE = "unreadable"
 
 # The outcomes whose verdict is the policy's own answer rather than a payload
-# nothing stood behind. TOO_LARGE is the canned size-gate decline and NO_POLICY
-# the canned decline of a repo without a review policy, both taken from the
-# policy tree rather than off the model. A BUDGET_TRIP is absent: CI fails such a
-# session, so whatever verdict it left is never recorded.
+# nothing stood behind. TOO_LARGE is every canned decline -- the size gate's and
+# the staging gates' -- taken from the policy tree rather than off the model. A
+# BUDGET_TRIP is absent: CI fails such a session, so whatever verdict it left is
+# never recorded.
 #
 # REJECTED is absent deliberately. The record path's own checks refused that
 # payload, and the field they refuse is often ``reason``, against a list the
@@ -77,9 +76,7 @@ OUTCOME_UNREADABLE = "unreadable"
 # failed validation into the column readers aggregate. An outcome added later
 # lands outside this set and reads as a harness fault until someone decides
 # otherwise, which is the safe direction to be wrong in.
-POLICY_VERDICT_OUTCOMES = frozenset(
-    {OUTCOME_SUCCESS, OUTCOME_TOO_LARGE, OUTCOME_NO_POLICY}
-)
+POLICY_VERDICT_OUTCOMES = frozenset({OUTCOME_SUCCESS, OUTCOME_TOO_LARGE})
 
 # No greenlight reason code contains a colon -- they are bare snake_case
 # identifiers -- so this prefix cannot collide with a real one. It marks a

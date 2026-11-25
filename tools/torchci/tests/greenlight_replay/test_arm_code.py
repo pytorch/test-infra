@@ -2,10 +2,9 @@
 
 Everything here runs for real: this repository's ``greenlight target`` and ``greenlight
 verdict --dry-run`` out of ``greenlight/src``, and the record job's validation step out
-of the workflow. Trees that differ
-from this one -- another repo configured, a policy file missing, no target step -- are
-built in temporary directories from this tree's files, never from git history: CI checks
-out one commit.
+of the workflow. Trees that differ from this one -- an edited resolver, no target step --
+are built in temporary directories from this tree's files, never from git history: CI
+checks out one commit.
 """
 
 import json
@@ -20,7 +19,6 @@ from replay_runner_fixtures import (
     build_arm_tree,
     HEAD_RECORD_STEP,
     HEAD_WORKFLOW,
-    REPO_POLICIES_RELPATH,
     REPO_ROOT,
     WORKFLOW_PATH,
 )
@@ -28,7 +26,6 @@ from torchci.greenlight_replay import arm_code, workflow_steps
 from torchci.greenlight_replay.arm_code import Target
 
 
-PYTORCH_POLICY = f"{REPO_POLICIES_RELPATH}/pytorch.md"
 HEAD_SHA = "b" * 40
 
 
@@ -47,38 +44,43 @@ class TreeTestCase(unittest.TestCase):
 class TestTarget(TreeTestCase):
     """The target is whatever the arm's own resolver names, refused where it refuses."""
 
-    def test_pytorch_is_asked_for_with_an_empty_repo_against_this_tree(self):
-        self.assertEqual(
-            arm_code.resolve_target(REPO_ROOT, "pytorch/pytorch"),
-            Target("pytorch/pytorch", "pytorch", PYTORCH_POLICY, True),
-        )
+    def resolve_recording(self, root, repo):
+        """Resolve ``repo`` and return the target with the arguments the resolver got."""
+        calls = []
+        python = arm_code._python
 
-    def test_another_configured_repo_gets_its_own_checkout_and_policy(self):
-        root = self.tree(
-            extra_repos=["pytorch/test-infra"],
-            policies=["pytorch.md", "test-infra.md"],
-        )
+        def recording(root, driver, *args):
+            calls.append(args)
+            return python(root, driver, *args)
+
+        with mock.patch.object(arm_code, "_python", recording):
+            target = arm_code.resolve_target(root, repo)
+        (args,) = calls
+        return target, args
+
+    def test_pytorch_is_resolved_strictly_with_an_empty_repo_as_the_review_job_does(
+        self,
+    ):
+        target, args = self.resolve_recording(REPO_ROOT, "pytorch/pytorch")
+        self.assertEqual(target, Target("pytorch/pytorch", "pytorch"))
+        self.assertEqual(args[:4], ("target", "--strict", "--repo", ""))
+
+    def test_another_repo_is_checked_offline_as_the_record_job_checks_the_review(self):
+        target, args = self.resolve_recording(REPO_ROOT, "pytorch/test-infra")
+        self.assertEqual(target, Target("pytorch/test-infra", "target"))
         self.assertEqual(
-            arm_code.resolve_target(root, "pytorch/test-infra"),
-            Target(
-                "pytorch/test-infra",
+            args[:8],
+            (
                 "target",
-                f"{REPO_POLICIES_RELPATH}/test-infra.md",
-                True,
+                "--from-review",
+                "--input-repo",
+                "pytorch/test-infra",
+                "--repo",
+                "pytorch/test-infra",
+                "--drci-poke",
+                "false",
             ),
         )
-
-    def test_a_configured_repo_without_its_policy_file_is_not_present(self):
-        root = self.tree(extra_repos=["pytorch/test-infra"])
-        target = arm_code.resolve_target(root, "pytorch/test-infra")
-        self.assertFalse(target.policy_present)
-        self.assertEqual(target.policy, f"{REPO_POLICIES_RELPATH}/test-infra.md")
-
-    def test_an_unconfigured_repo_is_refused_by_the_resolver(self):
-        with self.assertRaises(ValueError) as caught:
-            arm_code.resolve_target(REPO_ROOT, "pytorch/test-infra")
-        self.assertIn("pytorch/test-infra", str(caught.exception))
-        self.assertIn("repos.yaml", str(caught.exception))
 
     def test_another_spelling_of_pytorch_is_refused_before_the_resolver_runs(self):
         with mock.patch.object(arm_code, "_python") as python:
@@ -90,7 +92,7 @@ class TestTarget(TreeTestCase):
         root = self.tree(target_step=False)
         self.assertEqual(
             arm_code.resolve_target(root, "pytorch/pytorch"),
-            Target("pytorch/pytorch", "pytorch", None, True),
+            Target("pytorch/pytorch", "pytorch"),
         )
         with self.assertRaises(ValueError) as caught:
             arm_code.resolve_target(root, "pytorch/vision")
@@ -106,14 +108,16 @@ class TestTarget(TreeTestCase):
         root = self.tree()
         self.edit_resolver(
             root,
-            'POLICY_DIR = ".claude/skills/greenlight-review/repos"',
-            'POLICY_DIR = ".claude/skills/greenlight-review/policies"',
+            'REPO_NAME_RE = re.compile(r"pytorch/[A-Za-z0-9._-]+")',
+            'REPO_NAME_RE = re.compile(r"pytorch/[a-z]+")',
         )
-        target = arm_code.resolve_target(root, "pytorch/pytorch")
         self.assertEqual(
-            target.policy, ".claude/skills/greenlight-review/policies/pytorch.md"
+            arm_code.resolve_target(root, "pytorch/vision"),
+            Target("pytorch/vision", "target"),
         )
-        self.assertFalse(target.policy_present)
+        with self.assertRaises(ValueError) as caught:
+            arm_code.resolve_target(root, "pytorch/test-infra")
+        self.assertIn("refuses pytorch/test-infra", str(caught.exception))
 
     def test_a_checkout_outside_the_two_known_directories_is_refused(self):
         root = self.tree()
@@ -130,16 +134,15 @@ class TestTarget(TreeTestCase):
         self.assertEqual(list(root.rglob("__pycache__")), [])
 
     def test_malformed_resolver_output_is_refused(self):
-        good = (
-            "repo=pytorch/pytorch\ncheckout=pytorch\npolicy=x.md\npolicy_present=true\n"
+        good = "repo=pytorch/pytorch\nname=pytorch\ncheckout=pytorch\n"
+        self.assertEqual(
+            arm_code._target(good, "pytorch/pytorch"),
+            Target("pytorch/pytorch", "pytorch"),
         )
-        self.assertTrue(arm_code._target(good, "pytorch/pytorch").policy_present)
         for bad in (
             good.replace("repo=pytorch/pytorch", "repo=pytorch/vision"),
-            good.replace("policy_present=true", "policy_present=yes"),
-            good.replace("policy=x.md", "policy=../x.md"),
-            good.replace("policy=x.md", "policy=/etc/x.md"),
             good.replace("checkout=pytorch\n", ""),
+            good.replace("checkout=pytorch", "checkout=../pytorch"),
             good + "not a pair\n",
         ):
             with self.subTest(bad=bad):
@@ -167,6 +170,20 @@ class TestIsolation(TreeTestCase):
         with mock.patch.object(arm_code, "ARM_TIMEOUT_S", 0.2):
             with self.assertRaises(RuntimeError):
                 arm_code._run(["sleep", "5"], self.scratch())
+
+    def test_a_script_of_the_tree_runs_isolated_with_nothing_inherited(self):
+        script = self.scratch() / "probe.py"
+        script.write_text(
+            "import json, os, sys\n"
+            "print(json.dumps([sorted(os.environ), sys.flags.isolated, os.getcwd()]))\n"
+        )
+        with mock.patch.dict(os.environ, {"GITHUB_TOKEN": "not-for-the-arm"}):
+            completed = arm_code.run_script(script)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        names, isolated, cwd = json.loads(completed.stdout)
+        self.assertEqual(set(names) - {"LC_CTYPE"}, {"PATH", "HOME", "LC_ALL"})
+        self.assertEqual(isolated, 1)
+        self.assertNotEqual(Path(cwd), Path.cwd())
 
 
 # (name, file bytes, the record step accepts, greenlight verdict --dry-run accepts)
@@ -432,7 +449,7 @@ class TestRecordStepRun(TreeTestCase):
     def test_the_step_runs_in_the_arms_tree(self):
         root = self.tree()
         (root / "marker-for-the-record-step").write_text("here\n")
-        step = "test -f marker-for-the-record-step\ntest -f greenlight/repos.yaml"
+        step = "test -f marker-for-the-record-step\ntest -f greenlight/src/greenlight/cli.py"
         self.assertIsNone(self.run_step(step, root=root))
         self.assertIsNotNone(self.run_step(step, root=REPO_ROOT))
 
@@ -444,16 +461,26 @@ class TestRecordStepRun(TreeTestCase):
 class TestCannedVerdicts(TreeTestCase):
     """The verdicts the workflow emits with no model are held to the same checks."""
 
-    def test_the_shipped_too_large_verdict_passes(self):
-        verdict = arm_code.canned_verdict(
-            REPO_ROOT,
-            HEAD_RECORD_STEP,
-            REPO_ROOT / ".claude/hooks/greenlight/too-large-verdict.json",
-            Target("pytorch/pytorch", "pytorch", PYTORCH_POLICY, True),
-        )
-        self.assertEqual(
-            (verdict["status"], verdict["reason"]), ("NO_LAND", "scope_too_large")
-        )
+    def test_each_shipped_canned_verdict_passes(self):
+        for name, reason in (
+            ("too-large-verdict.json", "scope_too_large"),
+            ("no-policy-verdict.json", "review_error"),
+            ("greenlight-files-verdict.json", "not_trivial"),
+        ):
+            for target in (
+                Target("pytorch/pytorch", "pytorch"),
+                Target("pytorch/test-infra", "target"),
+            ):
+                with self.subTest(name=name, repo=target.repo):
+                    verdict = arm_code.canned_verdict(
+                        REPO_ROOT,
+                        HEAD_RECORD_STEP,
+                        REPO_ROOT / ".claude/hooks/greenlight" / name,
+                        target,
+                    )
+                    self.assertEqual(
+                        (verdict["status"], verdict["reason"]), ("NO_LAND", reason)
+                    )
 
     def test_a_canned_verdict_the_checks_refuse_raises(self):
         path = self.scratch() / "too-large-verdict.json"
@@ -465,38 +492,9 @@ class TestCannedVerdicts(TreeTestCase):
                 REPO_ROOT,
                 HEAD_RECORD_STEP,
                 path,
-                Target("pytorch/pytorch", "pytorch", None, True),
+                Target("pytorch/pytorch", "pytorch"),
             )
         self.assertIn("too_chunky", str(caught.exception))
-
-    def test_the_no_policy_verdict_comes_from_the_workflows_own_jq_program(self):
-        root = self.tree(extra_repos=["pytorch/test-infra"])
-        target = arm_code.resolve_target(root, "pytorch/test-infra")
-        program = workflow_steps.no_policy_program(HEAD_WORKFLOW, WORKFLOW_PATH)
-        verdict = arm_code.no_policy_verdict(root, HEAD_RECORD_STEP, program, target)
-        self.assertEqual(
-            (verdict["status"], verdict["reason"]), ("NO_LAND", "review_error")
-        )
-        self.assertIn(
-            f"No policy file for pytorch/test-infra at {target.policy}",
-            verdict["message"],
-        )
-
-    def test_a_no_policy_program_that_writes_a_refused_verdict_raises(self):
-        program = workflow_steps.NoPolicyProgram(
-            program='{status: "NO_LAND", reason: "nope", message: $repo}',
-            args=(("repo", "repo"),),
-        )
-        target = Target("pytorch/pytorch", "pytorch", PYTORCH_POLICY, False)
-        with self.assertRaises(ValueError) as caught:
-            arm_code.no_policy_verdict(REPO_ROOT, HEAD_RECORD_STEP, program, target)
-        self.assertIn("nope", str(caught.exception))
-
-    def test_a_no_policy_program_reading_an_output_the_target_lacks_raises(self):
-        program = workflow_steps.NoPolicyProgram(program="{}", args=(("pr", "pr"),))
-        target = Target("pytorch/pytorch", "pytorch", PYTORCH_POLICY, False)
-        with self.assertRaises(ValueError):
-            arm_code.no_policy_verdict(REPO_ROOT, HEAD_RECORD_STEP, program, target)
 
 
 class TestDryRunMakesNoWrite(TreeTestCase):

@@ -2,10 +2,10 @@
 
 :mod:`.workflow` reads the values the model runs under; this module reads the steps
 around it: the heredoc that writes the hook settings, the action step's per-run timeout
-and output style, the instruction-loading detector, the record job's verdict validation
-and the canned verdict a repo without a review policy gets. Each is found by shape,
-never by ``name`` or position, and each reader refuses any form it does not parse
-exactly, because a step the replay misreads is one it runs differently from CI.
+and output style, the instruction-loading detector and the record job's verdict
+validation. Each is found by shape, never by ``name`` or position, and each reader
+refuses any form it does not parse exactly, because a step the replay misreads is one
+it runs differently from CI.
 """
 
 from __future__ import annotations
@@ -31,7 +31,6 @@ __all__ = [
     "MANIFEST_BASENAME",
     "MANIFEST_COMMAND",
     "MAX_RUN_TIMEOUT_MINUTES",
-    "NoPolicyProgram",
     "RECORD_VERDICT_ASSIGNMENT",
     "RecordStep",
     "SENTINEL_BASENAME",
@@ -41,7 +40,6 @@ __all__ = [
     "action_timeout_minutes",
     "detector_untrusted_dirname",
     "hook_settings_text",
-    "no_policy_program",
     "record_step",
     "record_verdict_line",
 ]
@@ -67,7 +65,6 @@ TIMEOUT_KEY = "timeout-minutes"
 
 TARGET_CHECKOUT_EXPR = "${{ steps.target.outputs.checkout }}"
 EVAL_HASH_EXPR = "${{ github.event.inputs.eval_hash }}"
-_TARGET_OUTPUT = re.compile(r"\$\{\{ steps\.target\.outputs\.([a-z_]+) \}\}")
 
 # The detector step's two forms: one names the checkout ``greenlight target``
 # validated through the step's env, the other names ``pytorch`` literally, as a
@@ -90,11 +87,6 @@ _ASSIGNED = re.compile(
     r"^\s*for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\b",
     re.MULTILINE,
 )
-_NO_POLICY_JQ = re.compile(
-    r"jq\s+-n((?:\s+--arg\s+[A-Za-z_]\w*\s+\"\$[A-Za-z_]\w*\")*)\s+"
-    r"'([^']*)'\s*>\s*/tmp/greenlight-verdict\.json"
-)
-_JQ_ARG = re.compile(r"--arg\s+([A-Za-z_]\w*)\s+\"\$([A-Za-z_]\w*)\"")
 
 
 @dataclass(frozen=True)
@@ -108,18 +100,6 @@ class RecordStep:
 
     run: str
     shell: str | None
-
-
-@dataclass(frozen=True)
-class NoPolicyProgram:
-    """The jq program the keep-policy step declines with, and what each ``--arg`` binds.
-
-    ``args`` maps each jq variable to the ``greenlight target`` output its step env
-    variable carries, such as ``("repo", "repo")``, in the order the step passes them.
-    """
-
-    program: str
-    args: tuple[tuple[str, str], ...]
 
 
 def hook_settings_text(document: dict[str, Any], path: Path) -> str:
@@ -305,36 +285,6 @@ def _run_defaults(holder: dict[str, Any]) -> dict[str, Any]:
 def record_verdict_line(run: str) -> int:
     """The index of the verdict assignment among the lines of a validated record run."""
     return _stripped_lines(run).index(RECORD_VERDICT_ASSIGNMENT)
-
-
-def no_policy_program(document: dict[str, Any], path: Path) -> NoPolicyProgram:
-    """The ``jq -n`` program the keep-policy step writes its canned NO_LAND with.
-
-    Exactly one ``jq -n`` in the workflow may write the verdict file, and each of its
-    ``--arg`` values must be an env variable of its step carrying a target output.
-    """
-    found = [
-        (step, match)
-        for step in _steps(document)
-        for match in _NO_POLICY_JQ.finditer(str(step.get("run") or ""))
-    ]
-    if len(found) != 1:
-        raise ValueError(
-            f"{path}: expected exactly one jq -n program writing the verdict file, "
-            f"found {len(found)}"
-        )
-    step, match = found[0]
-    env = step.get("env") or {}
-    args: list[tuple[str, str]] = []
-    for name, variable in _JQ_ARG.findall(match.group(1)):
-        bound = _TARGET_OUTPUT.fullmatch(str(env.get(variable, "")))
-        if bound is None:
-            raise ValueError(
-                f"{path}: the canned verdict's --arg {name} reads ${variable}, which "
-                "its step does not take from a target output"
-            )
-        args.append((name, bound.group(1)))
-    return NoPolicyProgram(program=match.group(2), args=tuple(args))
 
 
 def _stripped_lines(run: Any) -> list[str]:

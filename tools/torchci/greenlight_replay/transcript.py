@@ -101,7 +101,6 @@ class Outcome(enum.Enum):
     HOOKS_NOT_LOADED = "hooks_not_loaded"
     UNTRUSTED_INSTRUCTIONS = "untrusted_instructions"
     TOO_LARGE = "too_large"
-    NO_POLICY = "no_policy"
 
 
 # Retrying is an estimator decision, not an error-handling one. CI draws ONE verdict per

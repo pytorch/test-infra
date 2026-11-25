@@ -106,13 +106,16 @@ def _misplaced(entries: tuple[Entry, ...]) -> list[Entry]:
 
 VARIANTS: tuple[Variant, ...] = (
     Variant(
-        name="repo-aware: every job resolves its target with greenlight target",
+        name=(
+            "repo-aware: each repo's own config and review policy, greenlight target "
+            "--strict, repo-policy.py staging"
+        ),
         parts=(
             parts.WORKFLOW_ENV,
             parts.WORKFLOW_DEFAULTS,
             parts.WORKFLOW_PERMISSIONS,
             parts.REPO_AWARE_CONCURRENCY,
-            parts.REVIEW_JOB,
+            parts.REPO_AWARE_REVIEW_JOB,
             parts.POLICY_CHECKOUT_STEP,
             parts.PYTHON_STEP,
             parts.UV_STEP,
@@ -120,10 +123,11 @@ VARIANTS: tuple[Variant, ...] = (
             parts.TARGET_STEP,
             parts.REPO_AWARE_CHECKOUT_STEP,
             parts.REPO_AWARE_TRUSTED_SKILLS_STEP,
+            parts.STAGE_STEP,
             parts.REPO_AWARE_SANITIZE_STEP,
             parts.AWS_STEP,
             parts.REPO_AWARE_DIFF_STEP,
-            parts.KEEP_POLICY_STEP,
+            parts.TOUCHES_STEP,
             parts.REPO_AWARE_SIZE_GATE_STEP,
             parts.DECIDE_STEP,
             parts.REPO_AWARE_METADATA_STEP,
@@ -144,7 +148,7 @@ VARIANTS: tuple[Variant, ...] = (
             parts.WORKFLOW_DEFAULTS,
             parts.WORKFLOW_PERMISSIONS,
             parts.PYTORCH_ONLY_CONCURRENCY,
-            parts.REVIEW_JOB,
+            parts.PYTORCH_ONLY_REVIEW_JOB,
             parts.POLICY_CHECKOUT_STEP,
             parts.PYTORCH_ONLY_CHECKOUT_STEP,
             parts.PYTORCH_ONLY_TRUSTED_SKILLS_STEP,
@@ -163,10 +167,10 @@ VARIANTS: tuple[Variant, ...] = (
             parts.PYTORCH_ONLY_RECORD_JOB,
         ),
         notes=(
-            "No target, keep-policy or decide step: arm_code.resolve_target names "
-            "pytorch/pytorch in ./pytorch with no policy file, and the model runs "
-            "unless the size gate declines, as the repo-aware decide step has it for "
-            "pytorch/pytorch.",
+            "No target, staging, touches or decide step: arm_code.resolve_target "
+            "names pytorch/pytorch in ./pytorch, the tree has no repo-policy.py, so "
+            "its own skills tree is what every slot copies, and the model runs unless "
+            "the size gate declines.",
             "The checkouts, the diff, metadata and stack reads and the prompt name "
             "pytorch/pytorch and ./pytorch literally: the values greenlight target "
             "outputs for pytorch/pytorch.",
@@ -180,8 +184,8 @@ VARIANTS: tuple[Variant, ...] = (
             "workflow_steps.detector_untrusted_dirname reads.",
             "The action pin is the repo-aware one. The record job passes "
             "pytorch/pytorch literally and pokes Dr. CI without the target's "
-            "drci_poke, which pytorch/pytorch's entry sets; its validation step is "
-            "the repo-aware one.",
+            "drci_poke, which pytorch/pytorch's built-in entry sets; its validation "
+            "step is the repo-aware one.",
             "The review job sets up no Python, so its hooks run under the runner's "
             "python3, as the replay's do; its concurrency group is the repo-aware "
             "one for pytorch/pytorch.",

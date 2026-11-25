@@ -24,8 +24,10 @@ Read out of the policy under test, never defaulted by the harness:
 - the per-run timeout: the action step's `timeout-minutes`, which
   `--timeout-minutes` overrides. One above 40 minutes is refused, since a longer
   review could outlive the credentials the CI replay started it with;
-- the canned verdicts: `too-large-verdict.json` from the policy's hooks, and the
-  no-policy `NO_LAND` the keep-policy step writes with its own `jq -n` program;
+- the canned verdicts, read from the policy's hooks: `too-large-verdict.json`, and
+  beside the staging script `no-policy-verdict.json` and
+  `greenlight-files-verdict.json`. Each is held to the record checks below at
+  materialize;
 - the hook settings: the matchers, commands, `claudeMdExcludes`, SessionStart and
   InstructionsLoaded hooks of the heredoc writing `.claude/settings.local.json`,
   with the checkout substituted as the step's `sed` does;
@@ -38,10 +40,15 @@ privileges**: a sweep, a dry run and `collect.py` alike. Each runs as the operat
 with the operator's files and network, so a policy ref should be one the operator
 trusts. What differs is the environment:
 
-- target resolution and admission, once per materialize: the arm's `greenlight
-  target` names the repo, its checkout directory, its policy file and whether that
-  file exists. Its environment is built from nothing: a fixed `PATH`, an empty
-  `HOME` and a UTF-8 locale;
+- target resolution, once per materialize: the arm's `greenlight target` names the
+  repo and its checkout directory. pytorch/pytorch is resolved with `--strict` and
+  an empty `--repo`, as the review job resolves it, which reads nothing; any other
+  repo with `--from-review`, which checks its name offline (declared below). Its
+  environment is built from nothing: a fixed `PATH`, an empty `HOME` and a UTF-8
+  locale;
+- the policy staging script, `repo-policy.py`, in that same environment: `stage`
+  once per sweep, into the `.claude` every slot copies, against the trusted
+  checkout; `touches` on each row's diff, ahead of the size gate;
 - record-side acceptance, in that same environment, on every verdict and on the
   canned ones at materialize. A verdict counts only when the record job's own
   validation step and the arm's `greenlight verdict --dry-run` both accept it; the
@@ -56,12 +63,16 @@ trusts. What differs is the environment:
 
 ### Reproduced in harness code and registered
 
-- the policy checkout, the reviewed checkout and the trusted-skills checkout;
+- the policy checkout, the reviewed checkout and the trusted checkout: the
+  reviewed repo's `.claude/skills` and `.github/greenlight` at `--trusted-ref`,
+  which the CI replay resolves once to the repo's main for both arms;
 - the diff, metadata and stack fetches. Comments, a ghstack pull request's body
   and the stack context are cut off at the replayed verdict;
 - the size gate's counting;
 - the budget epochs;
-- whether the model runs;
+- whether the model runs: a staged policy, a diff off `.github/greenlight` and a
+  diff under the caps run it; otherwise the canned verdict of the first gate that
+  declines, recorded with the size gate's outcome;
 - the remaining shape of the review and record jobs, registered by digest in
   `ledger.py`.
 
@@ -92,8 +103,9 @@ trusts. What differs is the environment:
 - **PyYAML** is pinned in `greenlight-policy-replay.yml` to the version
   `greenlight/uv.lock` locks, which `test_ledger.py` checks, rather than taken from
   each arm's lockfile.
-- **The trusted skills** come from the reviewed repo's main as it is when the
-  replay runs, not when the review ran.
+- **The trusted tree**, the skills the sanitize step restores and the repo's own
+  review policy, comes from the reviewed repo's main as it is when the replay runs,
+  not when the review ran.
 - **The git credentials** the action writes into the checkout.
 - **The comment set.** The reviewer sees only comments created strictly before the
   replayed verdict, which is the point: it must not read what was written in
@@ -103,9 +115,15 @@ trusts. What differs is the environment:
 - **The pull request's title and body.** Its title is read as it is today, and so
   is its body unless it is a ghstack pull request, whose body is read back as of
   the replayed verdict.
-- **A repo without its policy file.** A configured repo with no policy file gets
-  the canned `NO_LAND` with no checkout, sanitize step or diff fetch. The live job
-  runs those first, and can fail there instead. No configured repo lacks its file.
+- **What precedes a canned decline.** A row the staging gates decline gets its
+  canned `NO_LAND` with no checkout or sanitize step, and with no diff fetch when
+  no policy was staged. The live job runs those first, and can fail there instead.
+- **Another repo's admission.** For a repo other than pytorch/pytorch the review
+  job's `greenlight target --strict` reads the repo's identity and its
+  `.github/greenlight/config.yml` from GitHub, and refuses a repo that is neither
+  served nor safety-only or fails the scan's live checks. The replay checks the
+  name alone: the decisions it replays come from reviews that passed those checks
+  when they ran.
 - **Stack context is read back, not captured.** Everything the stack step read is
   read again as of `decision_version`, with these gaps:
   - `decision_version` lands a median of about 8 minutes after the step ran, and
@@ -161,7 +179,9 @@ workflow when this tree's shape is not registered, and checks that the tests sta
 whenever anything the shape reads or the arm's code runs changes, and the replay
 whenever what it reads or runs does.
 
-Two shapes are registered: main's from 6f7274a0e and the repo-aware one. An arm of
+Two shapes are registered: main's from 6f7274a0e, and the repo-aware one, which
+reads each repo's own config and review policy and stages it with
+`repo-policy.py`. An arm of
 any other shape is refused, a base arm included: a pull request whose merge base
 predates 6f7274a0e is compared only once its branch is rebased onto a main that
 carries a registered shape.
@@ -173,8 +193,8 @@ Register a shape only after confirming that the harness reproduces it.
 1. Port the change: make the harness derive, run or reproduce the new or changed
    step, with tests.
 2. Confirm it: the derivation test in `test_ledger.py` materializes the tree for
-   every configured repo and policy file, and a replay run shows the change
-   reproduced.
+   pytorch/pytorch and for a repo reviewed in `target`, and a replay run shows the
+   change reproduced.
 3. Name each new digest as a `Part` in `ledger_parts.py`, with its class, and add
    a `Variant` of the shape's parts in order to `ledger.VARIANTS`. Its notes say why
    the harness reproduces each part that differs from a registered variant.

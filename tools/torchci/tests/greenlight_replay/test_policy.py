@@ -22,12 +22,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from replay_runner_fixtures import (
-    build_arm_tree,
-    HEAD_WORKFLOW,
-    REPO_POLICIES_RELPATH,
-    REPO_ROOT,
-)
+from replay_runner_fixtures import build_arm_tree, HEAD_WORKFLOW, REPO_ROOT
 from torchci.greenlight_replay import (
     checkout as checkout_mod,
     policy as policy_mod,
@@ -86,7 +81,6 @@ def head_step(needle):
 
 HOOKS_STEP = head_step(workflow_steps.SETTINGS_LOCAL_RELPATH)
 DETECTOR_STEP = head_step(workflow_steps.DETECTOR_RELPATH)
-KEEP_POLICY_STEP = head_step("jq -n")
 (RECORD_JOB,) = [
     job
     for job in HEAD_WORKFLOW["jobs"].values()
@@ -130,10 +124,10 @@ def sizecheck_step(env=None, name="Decline oversized diffs"):
 
 
 def workflow_document(steps, jobs=None, setup=None):
-    """A workflow with ``steps`` as its review job, beside this repository's own hook,
-    keep-policy and detector steps and its record job.
+    """A workflow with ``steps`` as its review job, beside this repository's own hook
+    and detector steps and its record job.
 
-    ``setup`` replaces those three steps, so a case can mutate one of them.
+    ``setup`` replaces those two steps, so a case can mutate one of them.
     """
     jobs = dict(
         jobs
@@ -142,9 +136,7 @@ def workflow_document(steps, jobs=None, setup=None):
     )
     jobs["setup"] = {
         "steps": copy.deepcopy(
-            setup
-            if setup is not None
-            else [HOOKS_STEP, KEEP_POLICY_STEP, DETECTOR_STEP]
+            setup if setup is not None else [HOOKS_STEP, DETECTOR_STEP]
         )
     }
     jobs["record"] = copy.deepcopy(RECORD_JOB)
@@ -394,10 +386,9 @@ class DerivedStepsTest(PolicyTreeTestCase):
         )
         self.assertIn(workflow_steps.RECORD_VERDICT_ASSIGNMENT, result.record_step.run)
         self.assertIsNone(result.record_step.shell)
-        self.assertIsNone(result.no_policy_verdict)
 
     def setup_with(self, index, step):
-        setup = [HOOKS_STEP, KEEP_POLICY_STEP, DETECTOR_STEP]
+        setup = [HOOKS_STEP, DETECTOR_STEP]
         setup[index] = step
         return setup
 
@@ -428,7 +419,7 @@ class DerivedStepsTest(PolicyTreeTestCase):
                 write_tree(
                     self.root,
                     [action_step(), sizecheck_step()],
-                    setup=self.setup_with(2, step),
+                    setup=self.setup_with(1, step),
                 )
                 with self.assertRaises(ValueError) as caught:
                     self.materialize_written()
@@ -440,7 +431,7 @@ class DerivedStepsTest(PolicyTreeTestCase):
             "run": workflow_steps.DETECTOR_PYTORCH_RUN,
         }
         write_tree(
-            self.root, [action_step(), sizecheck_step()], setup=self.setup_with(2, step)
+            self.root, [action_step(), sizecheck_step()], setup=self.setup_with(1, step)
         )
         self.assertEqual(self.materialize_written().detector_dirname, "pytorch")
 
@@ -495,40 +486,18 @@ class DerivedStepsTest(PolicyTreeTestCase):
 class TargetTest(PolicyTreeTestCase):
     """The target is resolved once, by the tree's own target step."""
 
-    def test_another_configured_repo_is_reviewed_in_target(self):
+    def test_another_repo_is_reviewed_in_target(self):
         result = self.materialize(
-            [action_step(), sizecheck_step()],
-            repo="pytorch/test-infra",
-            extra_repos=["pytorch/test-infra"],
-            policies=["pytorch.md", "test-infra.md"],
+            [action_step(), sizecheck_step()], repo="pytorch/test-infra"
         )
-        self.assertEqual(
-            result.target,
-            Target(
-                "pytorch/test-infra",
-                "target",
-                f"{REPO_POLICIES_RELPATH}/test-infra.md",
-                True,
-            ),
-        )
+        self.assertEqual(result.target, Target("pytorch/test-infra", "target"))
         self.assertEqual(result.detector_dirname, "target")
         self.assertIn("**/target/CLAUDE.md", result.hook_settings["claudeMdExcludes"])
 
-    def test_an_unconfigured_repo_aborts(self):
+    def test_a_repo_outside_pytorch_aborts(self):
         with self.assertRaises(ValueError) as caught:
-            self.materialize([action_step(), sizecheck_step()], repo="pytorch/vision")
-        self.assertIn("pytorch/vision", str(caught.exception))
-
-    def test_a_repo_without_its_policy_file_gets_the_canned_no_policy_verdict(self):
-        result = self.materialize(
-            [action_step(), sizecheck_step()],
-            repo="pytorch/test-infra",
-            extra_repos=["pytorch/test-infra"],
-        )
-        self.assertFalse(result.target.policy_present)
-        self.assertEqual(result.no_policy_verdict["status"], "NO_LAND")
-        self.assertEqual(result.no_policy_verdict["reason"], "review_error")
-        self.assertIn("pytorch/test-infra", result.no_policy_verdict["message"])
+            self.materialize([action_step(), sizecheck_step()], repo="facebook/vision")
+        self.assertIn("facebook/vision", str(caught.exception))
 
     def test_a_tree_without_the_target_step_materializes_for_pytorch_alone(self):
         # Its detector names pytorch literally, and its hooks carry no placeholder.
@@ -540,18 +509,14 @@ class TargetTest(PolicyTreeTestCase):
             ),
         )
         detector = {"name": "detect", "run": workflow_steps.DETECTOR_PYTORCH_RUN}
-        layout = {"target_step": False, "policies": ()}
         write_tree(
             self.root,
             [action_step(), sizecheck_step()],
             setup=[hooks, detector],
-            **layout,
+            target_step=False,
         )
         result = self.materialize_written()
-        self.assertEqual(
-            result.target, Target("pytorch/pytorch", "pytorch", None, True)
-        )
-        self.assertIsNone(result.no_policy_verdict)
+        self.assertEqual(result.target, Target("pytorch/pytorch", "pytorch"))
         with self.assertRaises(ValueError):
             self.materialize_written(repo="pytorch/test-infra")
 
@@ -702,8 +667,9 @@ GREENLIGHT_FILES_VERDICT = {
 
 
 class RepoPolicyScriptTest(PolicyTreeTestCase):
-    """A tree with repo-policy.py stages and gates with its own canned verdicts; one
-    without does neither and needs none of them."""
+    """A tree with repo-policy.py stages and gates with its own canned verdicts, held to
+    the record checks as the size gate's is; one without does neither and needs none of
+    them."""
 
     def write_script(self, no_policy=NO_POLICY_VERDICT, files=GREENLIGHT_FILES_VERDICT):
         hooks = self.root / policy_mod.HOOKS_RELPATH
@@ -721,11 +687,18 @@ class RepoPolicyScriptTest(PolicyTreeTestCase):
         return script
 
     def load(self):
-        with mock.patch.object(policy_mod, CHECKOUT_SEAM):
-            return materialize("8829", self.root)
+        return self.materialize_written()
 
     def test_a_tree_without_the_script_has_no_staging(self):
-        result = self.materialize([action_step(), sizecheck_step()])
+        write_tree(self.root, [action_step(), sizecheck_step()])
+        hooks = self.root / policy_mod.HOOKS_RELPATH
+        for name in (
+            policy_mod.REPO_POLICY_FILENAME,
+            policy_mod.NO_POLICY_FILENAME,
+            policy_mod.GREENLIGHT_FILES_FILENAME,
+        ):
+            (hooks / name).unlink()
+        result = self.load()
         self.assertIsNone(result.repo_policy_script)
         self.assertIsNone(result.no_policy_verdict)
         self.assertIsNone(result.greenlight_files_verdict)
@@ -758,19 +731,16 @@ class RepoPolicyScriptTest(PolicyTreeTestCase):
                 with self.assertRaises(FileNotFoundError):
                     self.load()
 
-    def test_a_canned_file_the_schema_rejects_aborts(self):
+    def test_a_canned_file_the_record_checks_refuse_aborts(self):
         write_tree(self.root, [action_step(), sizecheck_step()])
         self.write_script(files=dict(GREENLIGHT_FILES_VERDICT, reason="too_chunky"))
         with self.assertRaises(ValueError) as caught:
             self.load()
         self.assertIn("too_chunky", str(caught.exception))
 
-    def test_the_shipped_canned_files_pass_the_shipped_schema(self):
-        hooks = REPO_ROOT / policy_mod.HOOKS_RELPATH
-        if not (hooks / policy_mod.REPO_POLICY_FILENAME).is_file():
-            self.skipTest("this checkout has no repo-policy.py")
+    def test_the_shipped_canned_files_pass_the_shipped_record_checks(self):
         with mock.patch.object(policy_mod, CHECKOUT_SEAM):
-            result = materialize("main", REPO_ROOT)
+            result = materialize("main", REPO_ROOT, reviewed_repo="pytorch/pytorch")
         self.assertEqual(result.no_policy_verdict["reason"], "review_error")
         self.assertEqual(result.greenlight_files_verdict["reason"], "not_trivial")
 
@@ -807,9 +777,7 @@ class ShippedWorkflowTest(unittest.TestCase):
         )
 
     def test_the_shipped_prompt_renders_with_no_interpolation_left(self):
-        vision = Target(
-            "pytorch/vision", "target", f"{REPO_POLICIES_RELPATH}/vision.md", True
-        )
+        vision = Target("pytorch/vision", "target")
         for target, checkout in (
             (self.policy.target, "./pytorch"),
             (vision, "./target"),

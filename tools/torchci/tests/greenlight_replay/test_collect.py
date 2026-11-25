@@ -23,7 +23,6 @@ from replay_runner_fixtures import PYTORCH_TARGET
 from torchci.greenlight_decisions.__main__ import parse_as_of
 from torchci.greenlight_decisions.rows import COLUMNS
 from torchci.greenlight_replay import collect, gh_answers, sweep as sweep_module
-from torchci.greenlight_replay.arm_code import Target
 from torchci.greenlight_replay.cells import load_rows
 
 
@@ -208,21 +207,6 @@ class TestCollect(CollectTestCase):
         )
         [policy] = inputs.policies
         self.assertEqual(policy.reviewed_repo, "pytorch/vision")
-
-    def test_nothing_is_collected_under_a_policy_with_no_file_for_the_repo(self):
-        # Its replay declines every pull request unread, so it asks GitHub nothing.
-        absent = Target("pytorch/vision", "target", ".claude/skills/x/vision.md", False)
-        inputs = FakeInputs(target=absent)
-        code = self.collect(
-            Fakes([replay_row(194379, repo="pytorch/vision")]),
-            inputs,
-            "--sample-n",
-            "5",
-            "--repo",
-            "pytorch/vision",
-        )
-        self.assertEqual(code, collect.EXIT_OK)
-        self.assertEqual(inputs.calls, [])
 
     def test_a_framing_failure_fails_the_run_before_anything_is_written(self):
         fakes = Fakes([replay_row(194379)])

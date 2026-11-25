@@ -63,7 +63,6 @@ class Outcome(Enum):
     HOOKS_NOT_LOADED = "hooks_not_loaded"
     UNTRUSTED_INSTRUCTIONS = "untrusted_instructions"
     TOO_LARGE = "too_large"
-    NO_POLICY = "no_policy"
 
 
 FAILED_OUTCOMES = tuple(

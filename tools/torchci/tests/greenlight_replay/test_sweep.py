@@ -41,7 +41,6 @@ from torchci.greenlight_replay import (
     sweep_setup as sweep_setup_module,
     workspace as workspace_module,
 )
-from torchci.greenlight_replay.arm_code import Target
 from torchci.greenlight_replay.runner import DEFAULT_MODEL, Outcome
 
 
@@ -132,7 +131,6 @@ class TestWorkspaceLayout(unittest.TestCase):
         fakes = Fakes(
             [replay_row(n) for n in (194379, 194772)],
             policy_claude=("hooks",),
-            repo_policies=(),
             target_step=False,
         )
         with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
