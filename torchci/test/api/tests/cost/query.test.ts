@@ -13,6 +13,7 @@ import {
   coverageOwnedQuery,
   coverageTestsQuery,
 } from "lib/api/tests/cost/coverage";
+import { ownersDaysQuery, ownersQuery } from "lib/api/tests/cost/owners";
 import {
   coverageQuery,
   FILLING_HOURS,
@@ -73,6 +74,10 @@ const READERS: Record<string, string> = {
   coverageTests: coverageTestsQuery(),
   coverageOwned: coverageOwnedQuery(),
   casesGate: casesGateQuery(),
+  // The owner bars.
+  owners: ownersQuery(false),
+  ownersByDay: ownersQuery(true),
+  ownersDays: ownersDaysQuery(),
 };
 
 // The columns of test_cost the queries read, by name.
@@ -161,6 +166,8 @@ describe("each day as last computed", () => {
       coverageTestsQuery(),
       coverageOwnedQuery(),
       casesGateQuery(),
+      ownersQuery(false),
+      ownersQuery(true),
     ]) {
       expect(sql).toContain("(day, computed_at) IN (");
       expect(sql).toContain("SELECT day, max(computed_at) FROM ci.test_cost");

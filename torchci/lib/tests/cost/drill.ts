@@ -14,6 +14,7 @@ import {
   type Rollup,
   type ScopeBy,
   type ScopeChildInfo,
+  type ScopeSide,
   type Unit,
   UNKNOWN_MACHINE,
 } from "lib/api/tests/cost/contracts";
@@ -394,8 +395,21 @@ export function sideDivisors(
   pricer: Pricer | null,
   rollup: Rollup = "day"
 ): SideDivisors {
-  const s = answer.sides[side];
-  const range = side === 0 ? answer.a : answer.b;
+  return divisorsOf(
+    answer.sides[side],
+    side === 0 ? answer.a : answer.b,
+    pricer,
+    rollup
+  );
+}
+// One side's divisors from its days as asked (range) and as held (s): what
+// the owner bars divide B by, from /owners' days.
+export function divisorsOf(
+  s: ScopeSide,
+  range: DayRange,
+  pricer: Pricer | null,
+  rollup: Rollup = "day"
+): SideDivisors {
   const priced = pricer === null ? null : pricedDays(pricer, s);
   const n = s.days.length;
   return {

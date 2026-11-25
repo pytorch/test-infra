@@ -1,0 +1,597 @@
+{
+ "repo": "pytorch/pytorch",
+ "workflows": [],
+ "from": "2026-11-11",
+ "to": "2026-11-17",
+ "piece": "day",
+ "days": [
+  "2026-11-11",
+  "2026-11-12",
+  "2026-11-13",
+  "2026-11-14",
+  "2026-11-15",
+  "2026-11-16",
+  "2026-11-17"
+ ],
+ "filling": [],
+ "rows": [
+  {
+   "owner": "inductor",
+   "workflow": "inductor",
+   "machine": "NVIDIA L4",
+   "machine_source": "environment",
+   "label": "mt-l-x86aavx2-11-41-l4",
+   "runner_hours": 120
+  },
+  {
+   "owner": "dynamo",
+   "workflow": "pull",
+   "machine": "Linux x86_64 avx512",
+   "machine_source": "environment",
+   "label": "mt-l-x86iavx512-16-128",
+   "runner_hours": 100
+  },
+  {
+   "owner": "inductor",
+   "workflow": "inductor",
+   "machine": "NVIDIA A10G",
+   "machine_source": "environment",
+   "label": "mt-l-x86aavx2-11-41-a10g",
+   "runner_hours": 80
+  },
+  {
+   "owner": "inductor",
+   "workflow": "pull",
+   "machine": "Linux x86_64 avx512",
+   "machine_source": "environment",
+   "label": "mt-l-x86iavx512-16-128",
+   "runner_hours": 60
+  },
+  {
+   "owner": "distributed",
+   "workflow": "trunk",
+   "machine": "NVIDIA L4",
+   "machine_source": "environment",
+   "label": "lf-l-x86aavx2-11-41-l4",
+   "runner_hours": 50
+  },
+  {
+   "owner": "distributed",
+   "workflow": "pull",
+   "machine": "Linux x86_64 avx512",
+   "machine_source": "environment",
+   "label": "lf-l-x86iavx512-16-128",
+   "runner_hours": 40
+  },
+  {
+   "owner": "unattributed:no_test_reports",
+   "workflow": "trunk",
+   "machine": "AMD Instinct MI355X",
+   "machine_source": "runner_label",
+   "label": "amd-dpx-linux.rocm.gpu.gfx950.1",
+   "runner_hours": 40
+  },
+  {
+   "owner": "dynamo",
+   "workflow": "trunk",
+   "machine": "Windows x86_64 avx512",
+   "machine_source": "environment",
+   "label": "windows.4xlarge.nonephemeral",
+   "runner_hours": 30
+  },
+  {
+   "owner": "unattributed:no_test_reports",
+   "workflow": "xpu",
+   "machine": "",
+   "machine_source": "none",
+   "label": "linux.idc.xpu",
+   "runner_hours": 25.6
+  },
+  {
+   "owner": "unattributed:no_owner",
+   "workflow": "pull",
+   "machine": "Linux x86_64 avx512",
+   "machine_source": "environment",
+   "label": "mt-l-x86iavx512-16-128",
+   "runner_hours": 20
+  },
+  {
+   "owner": "dynamo",
+   "workflow": "trunk",
+   "machine": "Apple M1",
+   "machine_source": "environment",
+   "label": "macos-m1-stable",
+   "runner_hours": 7.4
+  },
+  {
+   "owner": "unattributed:no_test_reports",
+   "workflow": "pull",
+   "machine": "NVIDIA L4",
+   "machine_source": "runner_label",
+   "label": "mt-l-x86aavx2-11-41-l4",
+   "runner_hours": 5
+  }
+ ],
+ "machines": [
+  {
+   "machine": "Linux x86_64 avx512",
+   "family": "Linux CPU",
+   "short": "x86_64 avx512",
+   "labels": [
+    "mt-l-x86iavx512-16-128",
+    "lf-l-x86iavx512-16-128"
+   ]
+  },
+  {
+   "machine": "NVIDIA L4",
+   "family": "CUDA",
+   "short": "L4",
+   "labels": [
+    "mt-l-x86aavx2-11-41-l4",
+    "lf-l-x86aavx2-11-41-l4"
+   ]
+  },
+  {
+   "machine": "NVIDIA A10G",
+   "family": "CUDA",
+   "short": "A10G",
+   "labels": [
+    "mt-l-x86aavx2-11-41-a10g"
+   ]
+  },
+  {
+   "machine": "AMD Instinct MI355X",
+   "family": "ROCm",
+   "short": "AMD Instinct MI355X",
+   "labels": [
+    "amd-dpx-linux.rocm.gpu.gfx950.1"
+   ]
+  },
+  {
+   "machine": "Windows x86_64 avx512",
+   "family": "Windows CPU",
+   "short": "x86_64 avx512",
+   "labels": [
+    "windows.4xlarge.nonephemeral"
+   ]
+  },
+  {
+   "machine": "Apple M1",
+   "family": "MPS",
+   "short": "Apple M1",
+   "labels": [
+    "macos-m1-stable"
+   ]
+  }
+ ],
+ "unprobed_labels": [
+  {
+   "label": "linux.idc.xpu",
+   "runner_hours": 25.6
+  }
+ ],
+ "cells": [
+  [
+   0,
+   0,
+   24.0
+  ],
+  [
+   0,
+   1,
+   20.0
+  ],
+  [
+   0,
+   2,
+   16.0
+  ],
+  [
+   0,
+   3,
+   12.0
+  ],
+  [
+   0,
+   4,
+   10.0
+  ],
+  [
+   0,
+   5,
+   8.0
+  ],
+  [
+   0,
+   6,
+   8.0
+  ],
+  [
+   0,
+   7,
+   6.0
+  ],
+  [
+   0,
+   8,
+   5.12
+  ],
+  [
+   0,
+   9,
+   4.0
+  ],
+  [
+   0,
+   10,
+   1.48
+  ],
+  [
+   0,
+   11,
+   1.0
+  ],
+  [
+   1,
+   0,
+   24.0
+  ],
+  [
+   1,
+   1,
+   20.0
+  ],
+  [
+   1,
+   2,
+   16.0
+  ],
+  [
+   1,
+   3,
+   12.0
+  ],
+  [
+   1,
+   4,
+   10.0
+  ],
+  [
+   1,
+   5,
+   8.0
+  ],
+  [
+   1,
+   6,
+   8.0
+  ],
+  [
+   1,
+   7,
+   6.0
+  ],
+  [
+   1,
+   8,
+   5.12
+  ],
+  [
+   1,
+   9,
+   4.0
+  ],
+  [
+   1,
+   10,
+   1.48
+  ],
+  [
+   1,
+   11,
+   1.0
+  ],
+  [
+   2,
+   0,
+   12.0
+  ],
+  [
+   2,
+   1,
+   10.0
+  ],
+  [
+   2,
+   2,
+   8.0
+  ],
+  [
+   2,
+   3,
+   6.0
+  ],
+  [
+   2,
+   4,
+   5.0
+  ],
+  [
+   2,
+   5,
+   4.0
+  ],
+  [
+   2,
+   6,
+   4.0
+  ],
+  [
+   2,
+   7,
+   3.0
+  ],
+  [
+   2,
+   8,
+   2.56
+  ],
+  [
+   2,
+   9,
+   2.0
+  ],
+  [
+   2,
+   10,
+   0.74
+  ],
+  [
+   2,
+   11,
+   0.5
+  ],
+  [
+   3,
+   0,
+   12.0
+  ],
+  [
+   3,
+   1,
+   10.0
+  ],
+  [
+   3,
+   2,
+   8.0
+  ],
+  [
+   3,
+   3,
+   6.0
+  ],
+  [
+   3,
+   4,
+   5.0
+  ],
+  [
+   3,
+   5,
+   4.0
+  ],
+  [
+   3,
+   6,
+   4.0
+  ],
+  [
+   3,
+   7,
+   3.0
+  ],
+  [
+   3,
+   8,
+   2.56
+  ],
+  [
+   3,
+   9,
+   2.0
+  ],
+  [
+   3,
+   10,
+   0.74
+  ],
+  [
+   3,
+   11,
+   0.5
+  ],
+  [
+   4,
+   0,
+   24.0
+  ],
+  [
+   4,
+   1,
+   20.0
+  ],
+  [
+   4,
+   2,
+   16.0
+  ],
+  [
+   4,
+   3,
+   12.0
+  ],
+  [
+   4,
+   4,
+   10.0
+  ],
+  [
+   4,
+   5,
+   8.0
+  ],
+  [
+   4,
+   6,
+   8.0
+  ],
+  [
+   4,
+   7,
+   6.0
+  ],
+  [
+   4,
+   8,
+   5.12
+  ],
+  [
+   4,
+   9,
+   4.0
+  ],
+  [
+   4,
+   10,
+   1.48
+  ],
+  [
+   4,
+   11,
+   1.0
+  ],
+  [
+   5,
+   0,
+   12.0
+  ],
+  [
+   5,
+   1,
+   10.0
+  ],
+  [
+   5,
+   2,
+   8.0
+  ],
+  [
+   5,
+   3,
+   6.0
+  ],
+  [
+   5,
+   4,
+   5.0
+  ],
+  [
+   5,
+   5,
+   4.0
+  ],
+  [
+   5,
+   6,
+   4.0
+  ],
+  [
+   5,
+   7,
+   3.0
+  ],
+  [
+   5,
+   8,
+   2.56
+  ],
+  [
+   5,
+   9,
+   2.0
+  ],
+  [
+   5,
+   10,
+   0.74
+  ],
+  [
+   5,
+   11,
+   0.5
+  ],
+  [
+   6,
+   0,
+   12.0
+  ],
+  [
+   6,
+   1,
+   10.0
+  ],
+  [
+   6,
+   2,
+   8.0
+  ],
+  [
+   6,
+   3,
+   6.0
+  ],
+  [
+   6,
+   4,
+   5.0
+  ],
+  [
+   6,
+   5,
+   4.0
+  ],
+  [
+   6,
+   6,
+   4.0
+  ],
+  [
+   6,
+   7,
+   3.0
+  ],
+  [
+   6,
+   8,
+   2.56
+  ],
+  [
+   6,
+   9,
+   2.0
+  ],
+  [
+   6,
+   10,
+   0.74
+  ],
+  [
+   6,
+   11,
+   0.5
+  ]
+ ],
+ "method": "Test-job wall time, split among test files by occupancy, then evenly among each file's owners. Builds and other jobs are excluded. Machines come from test reports, or are estimated from runner labels for jobs without them.",
+ "query_duration_ms": 380
+}

@@ -296,3 +296,76 @@ workload. It reads the runs without `FINAL`, as the commit summary's counts do: 
 tests through the `by_job` projection) was considered and not built: a job's tests are
 hashes interleaved across files, so the projection would read whole jobs. The lossless fix
 is a daily test-case rollup or `env_vars_id` in test_cost.
+
+### `/owners` (`ownersQuery` in `owners.ts`)
+
+The owner bars' rows: `GET /api/tests/cost`'s rows (owner, workflow, machine, machine
+source, label) for any `from..to` and workflow scope, by day with `piece=day`. Live on
+2026-11-24 against pytorch/pytorch (the rollup holds 2026-10-29..11-24), every query
+through the read-only datasource with `max_threads=8`, literal parameters.
+
+**Baseline** (validation only, never shipped): `runnerHoursQuery()` with only the
+functional changes. The `latest` window reads `day BETWEEN from AND to`, and the scope
+filters its latest rows (after each day's latest computation, which stays over every
+row); `label_machines` becomes `ENV_MACHINES` + `weekLabelMachines(WEEKS.days)`, joined on
+`toMonday(t.day)` and the label; `file` is folded away; `toString(t.day) AS day_utc` is
+added for `piece=day`. The shipped query sums by (day), week, file, environment, label and
+workflow first, as `scopeQuery` does, picks each day's computation with `latestDayRows`,
+then joins machines and owners.
+
+Equivalence, FULL OUTER JOIN of baseline and shipped on (owner, workflow, machine,
+machine_source, label[, day_utc]):
+
+| Case | Range             | Workflows   | Piece | Keys   | One side only | > 1e-6 h | max \|diff\| | Hours        |
+| ---- | ----------------- | ----------- | ----- | ------ | ------------- | -------- | ------------ | ------------ |
+| E1   | 2026-11-17..11-23 | all         | —     | 2,756  | 0             | 0        | 2.5e-11      | 303,768.52   |
+| E2   | 2026-11-17..11-23 | all         | day   | 15,031 | 0             | 0        | 6.4e-12      | 303,768.52   |
+| E3   | 2026-10-27..11-23 | all         | —     | 3,113  | 0             | 0        | 7.3e-11      | 1,288,430.27 |
+| E4   | 2026-10-27..11-23 | pull, trunk | day   | 24,635 | 0             | 0        | 6.4e-12      | 990,383.70   |
+| E5   | 2026-11-23        | all         | —     | 2,088  | 0             | 0        | 4.5e-12      | 43,527.62    |
+
+- Anchor A1: the baseline with only the days changed (window label machines, no scope)
+  over 2026-11-17..23 equals `runnerHoursQuery()` at 2026-11-17 00:00 .. 2026-11-24 00:00
+  folded over file: 2,756 keys, 0 differing, max 6.4e-12 h, 303,768.52 h both (the
+  window's answer).
+- Split: `piece=day` summed over days equals the unsplit rows: E1 2,756 keys, E3 3,113, 0
+  differing (max 1.5e-11 h).
+- Against the drill: the shipped query's owner and machine totals (`''` as Unknown
+  machine) against `scopeQuery("sides", [], "o" | "m")` side B on the same B. 7 days, every
+  workflow: 70 owners (max |diff| 0.0007 h), 23 machines (0.0001); pull + trunk: 70
+  owners (0.0003), 12 machines (0.0001). 28 days, every workflow: 71 owners (0.0016), 23
+  machines (0.0007); pull + trunk: 71 (0.0008), 12 (0.0003). No key on one side only; the
+  differences are `/scope`'s 4-decimal cell rounding.
+- Why the week rule: over 7 days the window rule and the week rule give the same rows
+  (2,756 keys, 0 differing). Over 2026-10-27..11-23 they part on 6 labels: 15,660 h
+  (1.22% of 1,288,430 h) move between a machine and Unknown machine, which holds 13,281 h
+  under the window rule and 28,941 h under the week rule (`linux.idc.xpu` 15,236 h of
+  it: weeks without a reporting job). With the window rule the bars would disagree with
+  the drill's machines on 28v28 and mom.
+
+EXPLAIN `indexes = 1`, granules of test_cost kept after the min-max, partition and
+primary-key steps, the same for baseline and shipped: 7 days, the B read 151 of 328 and
+the week label machines 189 of 328 (whole weeks Nov 16–29); 28 days, 291 and 322 of 328.
+The `(day, computed_at) IN` sets read the same `(repo, day)` prefix.
+
+Timing from `system.query_log` (read through the read-only monitoring user), warm, 4–5
+alternating runs of each (baseline, shipped, one rewrite), medians:
+
+| Case      | Baseline: ms / CPU-s / rows read / memory | Shipped                       | Regroup rewrite               | Rows   |
+| --------- | ----------------------------------------- | ----------------------------- | ----------------------------- | ------ |
+| E1        | 362 / 0.90 / 4.31 M / 170 MiB             | 342 / 0.60 / 5.54 M / 100 MiB | 589 / 0.55 / 5.54 M / 93 MiB  | 2,756  |
+| E2 (day)  | 792 / 0.96 / 4.31 M / 179 MiB             | 352 / 0.85 / 5.54 M / 102 MiB | 408 / 0.92 / 5.54 M / 106 MiB | 15,031 |
+| E3        | 616 / 2.62 / 7.63 M / 197 MiB             | 652 / 1.42 / 10.0 M / 264 MiB | 634 / 1.22 / 10.0 M / 260 MiB | 3,113  |
+| E4 (day)  | 762 / 2.00 / 7.63 M / 190 MiB             | 537 / 1.69 / 10.0 M / 225 MiB | 612 / 1.67 / 10.0 M / 223 MiB | 24,635 |
+| days (E1) | —                                         | 51 / 0.03 / 1.23 M / 24 MiB   | —                             | 7      |
+
+The shipped form uses a third less CPU than the baseline at 7 days and half at 28 (it
+reads more rows: the `latestDayRows` sets and the label machines' whole weeks, but no
+window function). The rewrite (re-grouping by day, file, label, workflow, machine and
+source after the machine join, before the owner join; same rows: E1 2,756 and E4 24,635
+keys, 0 differing) saves CPU only at 28 days and loses wall time at 7, inside run-to-run
+noise, so it was not kept. None is heavy: under 3 CPU-s for 28 days.
+
+Answer sizes, raw / gzip: 7 days 0.48 / 0.04 MB in hours, 0.71 / 0.12 MB with day cells
+(14,621 cells); 28 days 0.54 / 0.04 MB, 1.40 / 0.37 MB (52,357 cells). Re-measure once
+the rollup holds 90+ days.

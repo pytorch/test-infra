@@ -4,6 +4,7 @@ import DrillTable from "components/tests/cost/drill/DrillTable";
 import ScopeHead from "components/tests/cost/drill/ScopeHead";
 import ScopeTrail from "components/tests/cost/drill/ScopeTrail";
 import { useDrill } from "components/tests/cost/drill/useDrill";
+import OwnerBarsPanel from "components/tests/cost/owners/OwnerBarsPanel";
 import PageFacts from "components/tests/cost/PageFacts";
 import RatesControl from "components/tests/cost/rates/RatesControl";
 import RateStrip from "components/tests/cost/rates/RateStrip";
@@ -72,15 +73,16 @@ function datesOf(answer: RunnerHours): string {
 // Where a repository's test-job runner-hours go: the hub's row (HubTabs),
 // which is the page's title, with the workflow scope and the rates file at
 // its right end, then the headline facts, the coverage banner of what share
-// of org CI the page covers, then Trends: the A/B picker over owner- or
-// machine-stacked bars, with the drill-down (trail, head, table) inside it,
-// every part following the trail. The workflows card comes last, folded,
-// from the 7-day answer, which also lends machine hues; the trend never
-// waits for it.
+// of org CI the page covers, the owner bars (B's runner-hours by owner and
+// machine, foldable, their keys setting A and B), then Trends: the A/B
+// picker over owner- or machine-stacked bars, with the drill-down (trail,
+// head, table) inside it, every part following the trail. The workflows card
+// comes last, folded, from the 7-day answer, which also lends machine hues;
+// the trend never waits for it.
 //
-// Every choice lives in the URL through useCostUrl, the page's one writer;
-// the rates file stays in this component's memory (never the URL, storage
-// or a request).
+// Every choice lives in the URL through useCostUrl, the page's one writer,
+// but the owner bars' fold (the browser's storage); the rates file stays in
+// this component's memory (never the URL, storage or a request).
 export default function Page() {
   const router = useRouter();
   const { organization, repo: repoName } = router.query;
@@ -308,6 +310,21 @@ export default function Page() {
           pricer={pricer}
         />
       </Stack>
+      <OwnerBarsPanel
+        repo={repo}
+        workflows={workflows}
+        scopeLabel={preset?.label ?? workflowScope ?? "all workflows"}
+        context={ctx}
+        query={t}
+        compare={compare}
+        settled={settled}
+        onTrendsChange={onTrendsChange}
+        unit={unit}
+        pricer={pricer}
+        runnerHours={prepared}
+        trail={drill.trail}
+        onTrailChange={drill.focus}
+      />
       <TrendsPanel
         answer={trend.trend}
         context={ctx}

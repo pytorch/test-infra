@@ -35,13 +35,13 @@ import { toEnvironment, type EnvironmentRow } from "lib/api/tests/mapping";
 // B (parameters a_from..b_to), or every day of one range (from, to).
 export type ScopeGrain = "sides" | "days";
 
-const DAYS: Record<ScopeGrain, string> = {
+export const DAYS: Record<ScopeGrain, string> = {
   sides: IN_SIDES,
   days: "day BETWEEN {from: Date} AND {to: Date}",
 };
 
 // The whole ISO weeks that touch the days, for the label machines.
-const WEEKS: Record<ScopeGrain, string> = {
+export const WEEKS: Record<ScopeGrain, string> = {
   sides: `(day BETWEEN toMonday({a_from: Date}) AND toMonday({a_to: Date}) + 6
         OR day BETWEEN toMonday({b_from: Date}) AND toMonday({b_to: Date}) + 6)`,
   days: "day BETWEEN toMonday({from: Date}) AND toMonday({to: Date}) + 6",

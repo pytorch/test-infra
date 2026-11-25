@@ -36,6 +36,7 @@ import {
   climbTo,
   cutRows,
   deltaText,
+  divisorsOf,
   dropPill,
   expansionOf,
   expansionRows,
@@ -61,6 +62,7 @@ import {
   scopeTitle,
   segments,
   sideChips,
+  sideDivisors,
   sortRows,
   structuralTrail,
   sumRows,
@@ -955,6 +957,39 @@ describe("totals with the FAKE weekly rates", () => {
 
 // Total reads each side per bar of the rollup: its sum over the bars it
 // counts a day in (days with data; priced days in $), a partial bar whole.
+describe("divisorsOf", () => {
+  test("a side's divisors from its days alone: sideDivisors' for both sides, priced or not", () => {
+    const pricers = [
+      null,
+      makePricer(
+        parseRatesFiles([
+          {
+            name: "rates_FAKE_weekly_gap.json",
+            text: readFileSync(
+              join(__dirname, "rates_FAKE_weekly_gap.json"),
+              "utf8"
+            ),
+          },
+        ])
+      ),
+    ];
+    for (const pricer of pricers) {
+      for (const side of [0, 1] as const) {
+        for (const rollup of ["day", "week"] as const) {
+          expect(
+            divisorsOf(
+              root.sides[side],
+              side === 0 ? root.a : root.b,
+              pricer,
+              rollup
+            )
+          ).toEqual(sideDivisors(root, side, pricer, rollup));
+        }
+      }
+    }
+  });
+});
+
 describe("per bar of the rollup (Total)", () => {
   const span = (from: Day, n: number) =>
     Array.from({ length: n }, (_, i) => addDays(from, i));

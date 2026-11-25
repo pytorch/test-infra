@@ -2,17 +2,20 @@
 // workflows sorted, a hand-written URL may list them in any order, and every
 // answer echoes them sorted, so the echo rebuilds the page's URL (current()).
 import { GET as coverageRoute } from "app/api/tests/cost/coverage/route";
+import { GET as ownersRoute } from "app/api/tests/cost/owners/route";
 import { GET as scopeRoute } from "app/api/tests/cost/scope/route";
 import { GET as seriesRoute } from "app/api/tests/cost/series/route";
 import { GET as trendRoute } from "app/api/tests/cost/trend/route";
 import type { RawQuery } from "lib/api/parameters";
 import {
   costCoverageUrl,
+  costOwnersUrl,
   costScopeUrl,
   costSeriesUrl,
   costTrendDaysUrl,
   coverageEcho,
   decodeTrail,
+  ownersEcho,
   scopeEcho,
   seriesEcho,
   trendEcho,
@@ -84,6 +87,17 @@ describe("scoped routes echo the scope sorted", () => {
     expect(seriesEcho(body)).toBe(
       costSeriesUrl(REPO, PR, TRAIL, "m", { from: "2026-10-08", to: B.to })
     );
+  });
+
+  test("owners, in hours and in $ (day cells)", async () => {
+    for (const piece of [undefined, "day"] as const) {
+      const body = await ask(ownersRoute, "/api/tests/cost/owners", {
+        repo: REPO,
+        ...B,
+        ...(piece === undefined ? {} : { piece }),
+      });
+      expect(ownersEcho(body)).toBe(costOwnersUrl(REPO, PR, B, piece));
+    }
   });
 
   test("coverage", async () => {

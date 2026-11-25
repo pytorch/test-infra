@@ -5,12 +5,14 @@ import {
   type CostCases,
   type CostCoverage,
   type CostCoverageJobs,
+  type CostOwners,
   type CostScope,
   type CostSeries,
   casesEcho,
   costCasesUrl,
   costCoverageJobsUrl,
   costCoverageUrl,
+  costOwnersUrl,
   costScopeUrl,
   costSeriesUrl,
   coverageEcho,
@@ -18,6 +20,7 @@ import {
   decodeTrail,
   encodeTrail,
   jobsEcho,
+  ownersEcho,
   scopeEcho,
   seriesEcho,
 } from "lib/api/tests/cost/contracts";
@@ -26,6 +29,7 @@ import {
   CostCasesSchema,
   CostCoverageJobsSchema,
   CostCoverageSchema,
+  CostOwnersSchema,
   CostScopeSchema,
   CostSeriesSchema,
 } from "lib/api/tests/cost/types";
@@ -40,6 +44,7 @@ exact<Both<z.infer<typeof CostSeriesSchema>, CostSeries>>(true);
 exact<Both<z.infer<typeof CostCasesSchema>, CostCases>>(true);
 exact<Both<z.infer<typeof CostCoverageSchema>, CostCoverage>>(true);
 exact<Both<z.infer<typeof CostCoverageJobsSchema>, CostCoverageJobs>>(true);
+exact<Both<z.infer<typeof CostOwnersSchema>, CostOwners>>(true);
 
 const A = { from: "2026-11-05", to: "2026-11-11" };
 const B = { from: "2026-11-12", to: "2026-11-18" };
@@ -134,6 +139,39 @@ describe("the drill, bars, banner and cases answers", () => {
       query_duration_ms: 1,
     });
     expect(jobsEcho(jobs)).toBe(costCoverageJobsUrl("pytorch/pytorch", B));
+    for (const piece of [null, "day"] as const) {
+      const owners = CostOwnersSchema.parse({
+        repo: "pytorch/pytorch",
+        workflows: ["pull", "trunk"],
+        ...B,
+        piece,
+        days: ["2026-11-12"],
+        filling: [],
+        rows: [
+          {
+            owner: "inductor",
+            workflow: "pull",
+            machine: "NVIDIA L4",
+            machine_source: "environment",
+            label: "x",
+            runner_hours: 2,
+          },
+        ],
+        machines: [],
+        unprobed_labels: [],
+        cells: piece === "day" ? [[0, 0, 2]] : [],
+        method: "",
+        query_duration_ms: 1,
+      });
+      expect(ownersEcho(owners)).toBe(
+        costOwnersUrl(
+          "pytorch/pytorch",
+          ["trunk", "pull"],
+          B,
+          piece ?? undefined
+        )
+      );
+    }
     // A kept answer for another URL is not current.
     expect(
       current(jobs, costCoverageJobsUrl("pytorch/pytorch", A), jobsEcho)

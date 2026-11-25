@@ -73,7 +73,13 @@ export interface PreparedHours {
   colored: number[];
 }
 
-export function prepareRunnerHours(answer: RunnerHours): PreparedHours {
+// Any answer of GET /api/tests/cost's rows: the window's, or /owners' over B,
+// which has no contributors.
+export function prepareRunnerHours(
+  answer: Pick<RunnerHours, "rows" | "machines" | "unprobed_labels"> &
+    Partial<Pick<RunnerHours, "contributors">>
+): PreparedHours {
+  const contributors = answer.contributors ?? [];
   const index = (
     names: string[],
     lookup: Map<string, number>,
@@ -167,13 +173,13 @@ export function prepareRunnerHours(answer: RunnerHours): PreparedHours {
     rowMachine,
     rowHours,
     rowEstimated,
-    contributors: answer.contributors,
+    contributors,
     contributorWorkflow: Int32Array.from(
-      answer.contributors,
+      contributors,
       (c) => workflowOf.get(c.workflow) ?? -1
     ),
     contributorMachine: Int32Array.from(
-      answer.contributors,
+      contributors,
       (c) => machineOf.get(c.machine === "" ? NOT_PROBED : c.machine) ?? -1
     ),
     total: rowHours.reduce((a, b) => a + b, 0),

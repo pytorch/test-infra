@@ -378,6 +378,44 @@ export function costCoverageQueryParameters() {
   );
 }
 
+// The owner bars: B's runner-hours as GET /api/tests/cost's rows, for any
+// range of days and workflow scope; by day only when $ asks for it.
+export const COST_OWNERS_PARAMETER_DEFINITIONS = {
+  repo: TEST_PARAMETERS.repo,
+  from: COST_SERIES_PARAMETER_DEFINITIONS.from,
+  to: COST_SERIES_PARAMETER_DEFINITIONS.to,
+  workflow: COST_TREND_PARAMETER_DEFINITIONS.workflow,
+  piece: {
+    encoding: "single",
+    schema: z
+      .enum(["day"], { error: "piece must be day" })
+      .optional()
+      .describe(
+        "day splits each row's runner-hours by day (cells), for prices that change on any day; one total per row when absent."
+      ),
+  },
+} as const satisfies Record<string, ParameterDefinition>;
+
+export const CostOwnersParamsSchema = parameterSchema(
+  COST_OWNERS_PARAMETER_DEFINITIONS
+).superRefine(rangeIssue(MAX_CHANGE_DAYS, ""));
+export type CostOwnersParams = z.infer<typeof CostOwnersParamsSchema>;
+
+export function parseCostOwnersParams(rawQuery: RawQuery) {
+  return parseParameters(
+    rawQuery,
+    COST_OWNERS_PARAMETER_DEFINITIONS,
+    CostOwnersParamsSchema
+  );
+}
+
+export function costOwnersQueryParameters() {
+  return parameterQueryParameters(
+    parameterSchema(COST_OWNERS_PARAMETER_DEFINITIONS),
+    COST_OWNERS_PARAMETER_DEFINITIONS
+  );
+}
+
 export const COST_COVERAGE_JOBS_PARAMETER_DEFINITIONS = {
   repo: TEST_PARAMETERS.repo,
   from: oneDay("from", "The first day, YYYY-MM-DD (UTC)."),
