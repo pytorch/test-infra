@@ -4,6 +4,7 @@
 import { upsertPrStatusSection } from "lib/drciUtils";
 import { requestOutstandingChangesReviewers } from "lib/prReview/reReviewRequests";
 import {
+  AUTO_PR_TRIAGE_OUTCOME_LABELS,
   fetchLiveLabels,
   hasPrStatusLabel,
   isAwaitingInProgress,
@@ -53,6 +54,55 @@ async function handle(
   let labels = pullRequest.labels.map((label) => label.name);
 
   const payload = context.payload as any;
+
+  // A draft leaves the PR workflow. Clearing its stage and triage outcome lets
+  // Auto PR Triage run again on ready_for_review; the opt-out labels stay.
+  const draftResetLabels = [
+    PR_STATUS_LABEL_IN_PROGRESS,
+    PR_STATUS_LABEL_READY_FOR_REVIEW,
+    ...AUTO_PR_TRIAGE_OUTCOME_LABELS,
+  ];
+  if (
+    payload.action === "converted_to_draft" &&
+    draftResetLabels.some((label) => labels.includes(label))
+  ) {
+    // A delayed webhook can arrive after the PR is marked ready again.
+    const live = (
+      await context.octokit.pulls.get({
+        owner,
+        repo,
+        pull_number: pullRequest.number,
+      })
+    ).data;
+    if (live.state !== "open" || !live.draft) return;
+    labels = live.labels.map((label) => label.name);
+    const toRemove = draftResetLabels.filter((label) => labels.includes(label));
+    if (toRemove.length === 0) return;
+    context.log(
+      `Clearing ${toRemove.join(", ")} from ${owner}/${repo}#${
+        pullRequest.number
+      }, moved back to draft`
+    );
+    for (const name of toRemove) {
+      await removeLabelIfPresent(context, name);
+    }
+    // The workflow filter below would skip a PR left without status labels,
+    // whose stale section must still be removed.
+    await upsertPrStatusSection(
+      context.octokit as any,
+      owner,
+      repo,
+      pullRequest.number,
+      await fetchLiveLabels(
+        context.octokit as any,
+        owner,
+        repo,
+        pullRequest.number
+      ),
+      pullRequest.user?.login
+    );
+    return;
+  }
 
   const isOptOutLabelEvent =
     payload.action === "labeled" &&

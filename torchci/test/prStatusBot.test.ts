@@ -1,5 +1,6 @@
 import prStatusBot from "lib/bot/prStatusBot";
 import { DRCI_COMMENT_AUTHOR, DRCI_COMMENT_START } from "lib/drciUtils";
+import { PR_STATUS_END, PR_STATUS_START } from "lib/prStatus";
 import nock from "nock";
 import { Probot } from "probot";
 import { handleScope, requireDeepCopy } from "./common";
@@ -46,6 +47,25 @@ function editedEvent(changes: any, labels: string[]) {
   delete event.payload.label;
   event.payload.changes = changes;
   return event;
+}
+
+function draftEvent(labels: string[]) {
+  const event = labelEvent("labeled", "", labels);
+  event.payload.action = "converted_to_draft";
+  event.payload.pull_request.draft = true;
+  delete event.payload.label;
+  return event;
+}
+
+function mockLivePull(labels: string[], overrides: any = {}) {
+  return nock("https://api.github.com")
+    .get(`/repos/${REPO}/pulls/${PR_NUMBER}`)
+    .reply(200, {
+      state: "open",
+      draft: true,
+      labels: labels.map((name) => ({ name })),
+      ...overrides,
+    });
 }
 
 function mockLiveLabels(labels: string[]) {
@@ -543,6 +563,77 @@ describe("prStatusBot", () => {
     await probot.receive(
       labelEvent("labeled", "no automated review", ["no automated review"])
     );
+  });
+
+  test.each(["in progress", "ready for review"])(
+    "moving a PR in %s back to draft clears its stage and triage outcome",
+    async (stage) => {
+      const labels = [
+        "open source",
+        "triaged",
+        "bot-triaged",
+        stage,
+        "no automated review",
+        "no automated triage",
+      ];
+      const scopes = [
+        mockLivePull(labels),
+        mockRemoveLabel(stage),
+        mockRemoveLabel("triaged"),
+        mockRemoveLabel("bot-triaged"),
+        mockLiveLabels([
+          "open source",
+          "no automated review",
+          "no automated triage",
+        ]),
+        nock("https://api.github.com")
+          .get(`/repos/${REPO}/issues/${PR_NUMBER}/comments`)
+          .reply(200, [
+            {
+              id: 10,
+              user: { login: DRCI_COMMENT_AUTHOR },
+              body: `${DRCI_COMMENT_START}${PR_STATUS_START}\n## PR Status: ${stage}\n${PR_STATUS_END}\n## Helpful Links\n`,
+            },
+          ])
+          .patch(`/repos/${REPO}/issues/comments/10`, (body) => {
+            expect(body.body).not.toContain("## PR Status");
+            expect(body.body).toContain("## Helpful Links");
+            return true;
+          })
+          .reply(200, {}),
+      ];
+      await probot.receive(draftEvent(labels));
+      handleScope(scopes);
+    }
+  );
+
+  test("moving back to draft clears a triage error so triage runs again", async () => {
+    const scopes = [
+      mockLivePull(["bot-triage-error"]),
+      mockRemoveLabel("bot-triage-error"),
+      mockLiveLabels([]),
+      nock("https://api.github.com")
+        .get(`/repos/${REPO}/issues/${PR_NUMBER}/comments`)
+        .reply(200, []),
+    ];
+    await probot.receive(draftEvent(["bot-triage-error"]));
+    handleScope(scopes);
+  });
+
+  test("a draft webhook that arrives after the PR is ready again keeps the labels", async () => {
+    const scope = mockLivePull(["triaged", "in progress"], { draft: false });
+    await probot.receive(draftEvent(["triaged", "in progress"]));
+    handleScope(scope);
+  });
+
+  test("a replayed draft webhook after the labels are cleared changes nothing", async () => {
+    const scope = mockLivePull(["open source"]);
+    await probot.receive(draftEvent(["triaged", "in progress"]));
+    handleScope(scope);
+  });
+
+  test("a draft outside the PR workflow does not spend GitHub API calls", async () => {
+    await probot.receive(draftEvent(["open source", "no automated triage"]));
   });
 
   test("a closed PR is left alone", async () => {
