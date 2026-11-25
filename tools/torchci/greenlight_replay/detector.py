@@ -6,7 +6,7 @@ instructions were loaded" step then runs ``assert-loaded-instructions.py`` over 
 replay runs the policy tree's own copy of that script over the run directory, which
 ``reviewer_env`` makes the reviewer's ``RUNNER_TEMP``, with the slot's checkout as the
 untrusted root. It runs like the rest of the arm's code, in an environment built from
-nothing (:mod:`.arm_code`).
+nothing (:func:`.arm_code.run_script`).
 
 The detector fails for two reasons that mean different things to a sweep. A missing
 sentinel says the hooks never loaded, which no pull request causes and every run would
@@ -17,11 +17,10 @@ from __future__ import annotations
 
 import os
 import stat
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from torchci.greenlight_replay.arm_code import _run, _tail
+from torchci.greenlight_replay.arm_code import output_tail, run_script
 from torchci.greenlight_replay.workflow_steps import (
     MANIFEST_BASENAME,
     SENTINEL_BASENAME,
@@ -70,23 +69,18 @@ def run_detector(
     """
     run_dir = Path(os.path.abspath(run_dir))
     sentinel = run_dir / SENTINEL_BASENAME
-    with tempfile.TemporaryDirectory(prefix="greenlight-detector-") as name:
-        completed = _run(
-            [
-                "python3",
-                os.path.abspath(script),
-                "--manifest",
-                str(run_dir / MANIFEST_BASENAME),
-                "--sentinel",
-                str(sentinel),
-                "--untrusted-root",
-                os.path.abspath(untrusted_root),
-            ],
-            Path(name),
-        )
+    completed = run_script(
+        script,
+        "--manifest",
+        str(run_dir / MANIFEST_BASENAME),
+        "--sentinel",
+        str(sentinel),
+        "--untrusted-root",
+        os.path.abspath(untrusted_root),
+    )
     if completed.returncode == 0:
         return None
     return DetectorFailure(
-        message=f"the detector exited {completed.returncode}: {_tail(completed)}",
+        message=f"the detector exited {completed.returncode}: {output_tail(completed)}",
         hooks_ran=os.path.exists(sentinel),
     )

@@ -186,9 +186,10 @@ VARIANTS: tuple[Variant, ...] = (
             "pytorch/pytorch literally and pokes Dr. CI without the target's "
             "drci_poke, which pytorch/pytorch's built-in entry sets; its validation "
             "step is the repo-aware one.",
-            "The review job sets up no Python, so its hooks run under the runner's "
-            "python3, as the replay's do; its concurrency group is the repo-aware "
-            "one for pytorch/pytorch.",
+            "The review job sets up no Python, so its hooks and detector run under "
+            "the runner's python3; the replay runs its hooks so and its detector "
+            "under the harness's interpreter. Its concurrency group is the "
+            "repo-aware one for pytorch/pytorch.",
         ),
     ),
 )

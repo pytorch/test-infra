@@ -268,9 +268,18 @@ class TestReviewedRepo(unittest.TestCase):
             self.assertEqual(entry["new_decision"], "NO_LAND")
             self.assertEqual(entry["new_decision_reason"], "review_error")
             self.assertEqual(entry["new_decision_message"], NO_POLICY_MESSAGE)
-        # Not even the diff is fetched for a verdict that needs none of it.
+        # Not even the diff is fetched for a verdict that needs none of it, nor the
+        # repo cloned.
         self.assertEqual(fakes.diffs_fetched, [])
         self.assertEqual(fakes.comment_cutoffs, [])
+        self.assertFalse(fakes.pools[0].cloned)
+
+    def test_a_staged_policy_clones_the_repo(self):
+        fakes = Fakes([replay_row(194379)], repo_policy_stage="true")
+        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+        self.assertTrue(fakes.pools[0].cloned)
+        self.assertEqual(fakes.reviewed, [194379])
 
     def test_a_diff_touching_greenlight_records_not_trivial_without_a_model(self):
         fakes = Fakes(

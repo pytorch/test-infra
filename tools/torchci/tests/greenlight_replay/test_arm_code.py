@@ -15,13 +15,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from replay_runner_fixtures import (
-    build_arm_tree,
-    HEAD_RECORD_STEP,
-    HEAD_WORKFLOW,
-    REPO_ROOT,
-    WORKFLOW_PATH,
-)
+from replay_runner_fixtures import build_arm_tree, HEAD_RECORD_STEP, REPO_ROOT
 from torchci.greenlight_replay import arm_code, workflow_steps
 from torchci.greenlight_replay.arm_code import Target
 

@@ -51,6 +51,7 @@ __all__ = [
     "Target",
     "accept_verdict",
     "canned_verdict",
+    "output_tail",
     "resolve_target",
     "run_script",
 ]
@@ -165,7 +166,7 @@ def resolve_target(root: Path, repo: str) -> Target:
     if completed.returncode != 0:
         raise ValueError(
             f"the policy's greenlight target refuses {repo} (exit "
-            f"{completed.returncode}): {_tail(completed)}"
+            f"{completed.returncode}): {output_tail(completed)}"
         )
     return _target(completed.stdout, repo)
 
@@ -249,7 +250,7 @@ def _record_step_rejection(
         )
     if completed.returncode == 0:
         return None
-    return f"exit {completed.returncode}: {_tail(completed)}"
+    return f"exit {completed.returncode}: {output_tail(completed)}"
 
 
 def _dry_run(
@@ -274,7 +275,7 @@ def _dry_run(
     if completed.returncode != 0:
         return None, (
             f"greenlight verdict --dry-run rejects it (exit {completed.returncode}): "
-            f"{_tail(completed)}"
+            f"{output_tail(completed)}"
         )
     processed = json.loads(completed.stdout)
     if not isinstance(processed, dict) or not all(
@@ -285,32 +286,35 @@ def _dry_run(
 
 
 def run_script(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    """Run a standard-library script of the arm's tree, such as ``repo-policy.py``.
+    """Run a standard-library script of the arm's tree: ``repo-policy.py``, the detector.
 
-    It runs as greenlight's code does here: ``-I -B``, with an environment built from
-    nothing. Its working directory is a scratch one, so every path in ``args`` must be
-    absolute.
+    The live review job runs each as ``python3 <script>``. Here each runs as greenlight's
+    code does (:func:`_isolated`). Its working directory is a scratch one, so every path
+    in ``args`` must be absolute.
     """
-    with tempfile.TemporaryDirectory(prefix="greenlight-arm-") as home:
-        return _run(
-            [sys.executable, "-I", "-B", os.path.abspath(script), *args], Path(home)
-        )
+    return _isolated([os.path.abspath(script), *args])
+
+
+def output_tail(completed: subprocess.CompletedProcess[str]) -> str:
+    """The end of what a call printed, for a message saying why it failed."""
+    return (completed.stderr or completed.stdout).strip()[-400:]
 
 
 def _python(root: Path, driver: str, *args: str) -> subprocess.CompletedProcess[str]:
+    return _isolated(
+        ["-c", driver, os.path.abspath(Path(root) / ARM_SRC_RELPATH), *args]
+    )
+
+
+def _isolated(argv: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    """``argv`` under the harness's own interpreter with ``-I -B``, from a scratch HOME.
+
+    The harness's interpreter is the one Python the replay controls: the CI replay sets
+    up the version the head's review job does, while ``python3`` on the subprocess
+    ``PATH`` is the host's.
+    """
     with tempfile.TemporaryDirectory(prefix="greenlight-arm-") as home:
-        return _run(
-            [
-                sys.executable,
-                "-I",
-                "-B",
-                "-c",
-                driver,
-                os.path.abspath(Path(root) / ARM_SRC_RELPATH),
-                *args,
-            ],
-            Path(home),
-        )
+        return _run([sys.executable, "-I", "-B", *argv], Path(home))
 
 
 def _run(
@@ -339,7 +343,3 @@ def _run(
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"{argv[0]} ran past {ARM_TIMEOUT_S} s") from exc
-
-
-def _tail(completed: subprocess.CompletedProcess[str]) -> str:
-    return (completed.stderr or completed.stdout).strip()[-400:]

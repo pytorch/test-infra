@@ -81,13 +81,14 @@ def open_sweep(
     interrupted: threading.Event,
     trusted_ref: str | None = None,
 ) -> Sweep:
-    """Materialize the policy, the shared clone and the trusted tree, and stage.
+    """Materialize the policy and the trusted tree, stage, and clone the repo.
 
     ``model`` overrides what the policy's own inference profile maps to; without
     one an unrecognised profile stops a sweep off Bedrock here, before the clone
     and before anything is spent. ``trusted_ref`` pins the trusted tree to one
     commit of the repo; without it the tree is the repo's ``main``. ``timeout_s``
-    None is the policy's own.
+    None is the policy's own. A repo that gets no staged policy declines every pull
+    request unread, so it is not cloned.
     """
     name = require_repo(repo).partition("/")[2]
     preflight(workdir, policy_ref)
@@ -98,7 +99,6 @@ def open_sweep(
         repo_url=clone_url(repo),
         dirname=policy.target.checkout,
     )
-    pool.ensure_clone()
     trusted_dirname = (
         TRUSTED_PINNED_DIRNAME.format(name, trusted_ref)
         if trusted_ref
@@ -110,7 +110,9 @@ def open_sweep(
     policy_source, staged = stage_policy_half(
         policy, repo, trusted, workdir / STAGED_POLICY_DIRNAME
     )
-    if not staged:
+    if staged:
+        pool.ensure_clone()
+    else:
         logger.warning(
             "no review policy was staged for %s, so every pull request gets the "
             "workflow's canned review_error verdict and no model runs",

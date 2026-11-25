@@ -97,9 +97,11 @@ trusts. What differs is the environment:
   (`ledger.CLAUDE_CODE_BY_ACTION_PIN`, which `test_ledger.py` checks), for both
   arms: a base arm whose pin runs another build replays on the head's. Running
   each arm's own build belongs to the follow-up change on the session.
-- **The hook interpreter.** A review job setting up Python 3.13 runs its hooks
-  under it; one setting up none, and the replay, run them under the system
-  `python3`.
+- **The interpreter.** A review job setting up Python 3.13 runs its hooks, its
+  staging script and its detector under it; one setting up none runs them under
+  the system `python3`. The replay runs the hooks under the system `python3`, and
+  the staging script and the detector under its own interpreter, which the CI
+  replay sets up as the head's review job does.
 - **PyYAML** is pinned in `greenlight-policy-replay.yml` to the version
   `greenlight/uv.lock` locks, which `test_ledger.py` checks, rather than taken from
   each arm's lockfile.

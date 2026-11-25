@@ -70,9 +70,10 @@ naming that record, so they need neither ClickHouse nor an authenticated `gh`.
 
 **Every run executes the policy ref's own code with your privileges**: a dry run
 and `collect.py` too. Materializing the policy runs its `greenlight target` and
-holds its canned verdicts to its record step and `greenlight verdict` checks, and
-a sweep also runs its sanitize script on every checkout and its hooks and detector
-in every review. They run as you, with your files and network, so replay only a
+holds its canned verdicts to its record step and `greenlight verdict` checks;
+`repo-policy.py`'s `touches` runs on each row's diff, in `collect.py` too; and a
+sweep also runs `repo-policy.py stage` once, its sanitize script on every checkout
+and its hooks and detector in every review. They run as you, with your files and network, so replay only a
 policy ref you trust. [PARITY.md](PARITY.md) lists the environment each one gets.
 
 | flag | default | effect |

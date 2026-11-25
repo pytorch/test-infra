@@ -54,7 +54,8 @@ _REPO_AWARE_REVIEW_JOB = Class(
 _POLICY_CHECKOUT = Class(Kind.REPRODUCED, "policy.materialize: the arm's tree")
 _PYTHON = Class(
     Kind.NOT_REPRODUCED,
-    "the hook interpreter: the hooks and the detector run under the host's python3",
+    "the interpreter: the hooks run under the host's python3, the staging script and "
+    "the detector under the harness's",
 )
 _UV = Class(
     Kind.NOT_REPRODUCED,
