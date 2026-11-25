@@ -548,41 +548,6 @@ def test_reader_forgets_pages_past_the_last_one():
     assert requester.gets()[-1] == (2, None)
 
 
-def test_reader_prune_keeps_only_the_named_prs():
-    requester = _FakeRequester()
-    other_pull = "/repos/pytorch/vision/pulls/8"
-    requester.set(_PULL_URL, _pull_payload(), '"e7"')
-    requester.set(other_pull, _pull_payload(number=8), '"e8"')
-    requester.set(_REVIEWS_URL, _page(1), '"r7"', page=1)
-    requester.set(f"{other_pull}/reviews", _page(2), '"r8"', page=1)
-    reader = ReviewReader(requester)
-    for number in (7, 8):
-        reader.pull("pytorch/vision", number)
-        reader.reviews("pytorch/vision", number)
-
-    reader.prune({8})
-    for number in (7, 8):
-        reader.pull("pytorch/vision", number)
-        reader.reviews("pytorch/vision", number)
-
-    assert requester.gets()[-4:] == [(0, None), (1, None), (0, '"e8"'), (1, '"r8"')]
-
-
-def test_reader_rebind_sends_later_reads_through_the_new_requester_and_keeps_its_results():
-    first = _FakeRequester()
-    first.set(_REVIEWS_URL, _page(1), '"r1"', page=1)
-    reader = ReviewReader(first)
-    assert [r.id for r in reader.reviews("pytorch/vision", 7)] == [1]
-    second = _FakeRequester()
-    second.set(_REVIEWS_URL, _page(1), '"r1"', page=1)
-
-    reader.rebind(second)
-
-    assert [r.id for r in reader.reviews("pytorch/vision", 7)] == [1]
-    assert first.gets() == [(1, None)]
-    assert second.gets() == [(1, '"r1"')]
-
-
 def test_dismiss_review_puts_the_dismissal():
     requester = _FakeRequester()
 

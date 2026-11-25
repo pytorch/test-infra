@@ -17,7 +17,7 @@ from greenlight import constants
 from greenlight.cohort import GREENLIGHT_APP_SLUG
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator
 
     from greenlight.github_types import GateReview, JsonRequester, VerdictPR, _VerdictReview
 
@@ -214,7 +214,6 @@ def _timestamp(value: str | None) -> datetime | None:
 
 @dataclass(frozen=True)
 class _Entry[T]:
-    number: int
     etag: str
     value: T
 
@@ -222,8 +221,7 @@ class _Entry[T]:
 class ReviewReader:
     """Reads PRs and their reviews with ``If-None-Match``, keeping each URL's ETag and parsed result.
 
-    A 304 reuses the kept result. Read failures propagate. ``rebind`` hands a reader that outlives its client (the
-    scan keeps one per repo between ticks) the next client's requester.
+    A 304 reuses the kept result. Read failures propagate.
     """
 
     def __init__(self, requester: JsonRequester, *, per_page: int = REVIEWS_PER_PAGE) -> None:
@@ -232,14 +230,8 @@ class ReviewReader:
         self._pulls: dict[tuple[str, int], _Entry[PullFacts]] = {}
         self._pages: dict[tuple[str, int, int], _Entry[tuple[ReviewRecord, ...]]] = {}
 
-    def rebind(self, requester: JsonRequester) -> None:
-        """Send every later read through ``requester``, keeping every kept result."""
-        self._requester = requester
-
     def pull(self, repo: str, number: int) -> PullFacts:
-        return self._get(
-            self._pulls, (repo, number), number, f"/repos/{repo}/pulls/{number}", None, PullFacts.from_payload
-        )
+        return self._get(self._pulls, (repo, number), f"/repos/{repo}/pulls/{number}", None, PullFacts.from_payload)
 
     def reviews(self, repo: str, number: int) -> list[ReviewRecord]:
         """Every review of the PR, oldest first, reading pages until one holds fewer than ``per_page`` reviews.
@@ -253,7 +245,6 @@ class ReviewReader:
             items = self._get(
                 self._pages,
                 (repo, number, page),
-                number,
                 f"/repos/{repo}/pulls/{number}/reviews",
                 {"per_page": self._per_page, "page": page},
                 self._parse_page,
@@ -266,11 +257,6 @@ class ReviewReader:
             del self._pages[key]
         return records
 
-    def prune(self, keep: Collection[int]) -> None:
-        """Forget every kept result of a PR whose number is not in ``keep``."""
-        self._pulls = {key: entry for key, entry in self._pulls.items() if entry.number in keep}
-        self._pages = {key: entry for key, entry in self._pages.items() if entry.number in keep}
-
     @staticmethod
     def _parse_page(payload: object) -> tuple[ReviewRecord, ...]:
         if not isinstance(payload, list):
@@ -281,7 +267,6 @@ class ReviewReader:
         self,
         cache: dict[K, _Entry[T]],
         key: K,
-        number: int,
         url: str,
         parameters: dict[str, Any] | None,
         parse: Callable[[object], T],
@@ -296,7 +281,7 @@ class ReviewReader:
         value = parse(data)
         etag = response_headers.get("etag")
         if isinstance(etag, str) and etag:
-            cache[key] = _Entry(number=number, etag=etag, value=value)
+            cache[key] = _Entry(etag=etag, value=value)
         else:
             cache.pop(key, None)
         return value

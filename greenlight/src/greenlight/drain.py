@@ -51,8 +51,9 @@ if TYPE_CHECKING:
     from github.PullRequest import PullRequest
 
     from greenlight.config import Config
+    from greenlight.drain_pass import DrainPass
     from greenlight.github_types import VerdictPR
-    from greenlight.scan_memory import DrainPass, ScanMemory
+    from greenlight.scan_memory import ScanMemory
     from greenlight.state import PRState
 
     _RunsFn = Callable[[Github, datetime], int]

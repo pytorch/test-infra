@@ -4,8 +4,11 @@ It is read and written from the main thread only. ``encode_memory`` and ``decode
 the state store keeps between invocations (``state_store``): versioned JSON, zlib-compressed, the
 approvers digest of the fingerprint results stored once, times and markers in ``pr_view``'s encodings.
 A form over ``MEMORY_MAX_BYTES`` is saved without its fingerprint results, and, still over, without its
-view of the open PRs too, each logged as an error. A blob of the previous version is read forward
-without a view; one of another version, or one that does not decode, starts the repo cold.
+view of the open PRs too, each logged as an error; a ``gate`` repo's approval-backing memory
+(``backing_memory``), the check's progress, is never dropped. A blob of the previous version is read forward
+without a view; one of another version, or one that does not decode, starts the repo cold. The backing
+memory is an optional part with its own version: missing or of another version, it starts cold alone; one
+that does not decode starts cold alone too, logged, and noted for the next backing report.
 ``save_memory`` saves it with whether its drain is complete, for the CLI's scan and the scan Lambda's
 (``leased_run``) alike. ``fingerprint_cache.FingerprintCache`` is a tick's view of the fingerprint
 results.
@@ -16,18 +19,19 @@ from __future__ import annotations
 import json
 import logging
 import zlib
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
 
+from greenlight.backing_memory import BACKING_VERSION, BackingMemory, backing_form, backing_from_form
 from greenlight.constants import FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE, MEMORY_MAX_BYTES
+from greenlight.drain_pass import DrainPass, drain_pass_form, drain_pass_from_form
 from greenlight.fingerprint_cache import Entry, Key
 from greenlight.pr_view import PRView, marker_form, marker_from_form, required_time, time_form, time_from_form
 from greenlight.review_gate import ReviewSkip
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping, Sequence
+    from collections.abc import Mapping, Sequence
 
     from greenlight.scan_runner import FingerprintResult
     from greenlight.state_store import StateStore
@@ -38,57 +42,12 @@ logger = logging.getLogger(__name__)
 TickKind = Literal["full", "wide", "fast"]
 
 
-@dataclass(slots=True)
-class DrainPass:
-    """One pass of the ``off`` drain over a repo's open PRs (``drain``, which says why it is safe).
-
-    ``recorded`` holds the PRs that had a ledger row when the pass started. ``checked`` holds the PRs
-    the pass read successfully; a PR is pending while it is open and not there, so a later update to
-    a checked PR does not make it pending again, while one opened or reopened during the pass is.
-    ``attempted`` maps each PR the pass tried to read, successfully or not, to the sequence number of
-    its last attempt (``attempts`` is the last one given), which ``pending`` orders failed PRs by.
-    ``blocker`` says why the pass cannot complete the drain even if it finds nothing (review runs older
-    than the off switch were unfinished, or could not be read, when it started), or is None.
-    ``dismissed`` and ``failures`` are the pass's totals so far.
-    """
-
-    number: int
-    blocker: str | None
-    recorded: frozenset[int] = frozenset()
-    checked: set[int] = field(default_factory=set)
-    attempted: dict[int, int] = field(default_factory=dict)
-    attempts: int = 0
-    dismissed: int = 0
-    failures: int = 0
-
-    def pending(self, open_prs: Iterable[int]) -> list[int]:
-        """The open PRs not checked yet, in reading order.
-
-        Never attempted first, those in ``recorded`` before the rest, each by number; then the ones
-        attempted already, the oldest attempt first, so a PR whose read keeps failing goes behind
-        every PR still awaiting its first read.
-        """
-        return sorted(
-            (number for number in open_prs if number not in self.checked),
-            key=lambda number: (
-                number in self.attempted,
-                self.attempted.get(number, 0),
-                number not in self.recorded,
-                number,
-            ),
-        )
-
-    def attempt(self, number: int) -> None:
-        """Record a read attempt on ``number``, successful or not, as the pass's latest."""
-        self.attempts += 1
-        self.attempted[number] = self.attempts
-
-
 class ScanMemory:
     """When the last full and wide listing ticks that completed started, the fingerprint results to reuse,
-    a ``clickhouse`` repo's view of its open PRs (``view``), and the drain: when the process first saw
-    the repo off, and the pass under way (``DrainPass``: the PRs it checked and its read attempts), which
-    ends when no open PR is pending.
+    a ``clickhouse`` repo's view of its open PRs (``view``), the drain: when the process first saw the
+    repo off, and the pass under way (``DrainPass``: the PRs it checked and its read attempts), which
+    ends when no open PR is pending, and a ``gate`` repo's approval-backing check (``backing``), which
+    ``clear_drain`` never touches and ``clear_backing`` starts cold.
 
     Times are the scan's naive-UTC wall clock: a monotonic clock may not advance while Lambda freezes
     the execution environment between invocations. A full tick (the sweep) is due when none has
@@ -110,6 +69,7 @@ class ScanMemory:
         self._drain_passes = 0
         self._drain_pass: DrainPass | None = None
         self._drain_completed_by: int | None = None
+        self.backing = BackingMemory()
 
     def sweep_due(self, now: datetime) -> bool:
         return _due(now, self._last_full_tick_started, self.full_tick_interval)
@@ -149,6 +109,10 @@ class ScanMemory:
         self._off_since = None
         self._drain_pass = None
         self._drain_completed_by = None
+
+    def clear_backing(self) -> None:
+        """Forget the approval-backing check: the repo does not back approvals, so a later switch on starts cold."""
+        self.backing = BackingMemory()
 
     def drain_pass(self) -> DrainPass | None:
         return self._drain_pass
@@ -195,36 +159,6 @@ def _result(form: Mapping[str, list[str]]) -> FingerprintResult:
     return str(head_sha), str(eval_hash)
 
 
-def _drain_form(current: DrainPass | None) -> dict[str, Any] | None:
-    if current is None:
-        return None
-    return {
-        "number": current.number,
-        "blocker": current.blocker,
-        "recorded": sorted(current.recorded),
-        "checked": sorted(current.checked),
-        "attempted": sorted(current.attempted.items()),
-        "attempts": current.attempts,
-        "dismissed": current.dismissed,
-        "failures": current.failures,
-    }
-
-
-def _drain(form: Mapping[str, Any] | None) -> DrainPass | None:
-    if form is None:
-        return None
-    return DrainPass(
-        int(form["number"]),
-        form["blocker"],
-        recorded=frozenset(int(number) for number in form["recorded"]),
-        checked={int(number) for number in form["checked"]},
-        attempted={int(number): int(attempt) for number, attempt in form["attempted"]},
-        attempts=int(form["attempts"]),
-        dismissed=int(form["dismissed"]),
-        failures=int(form["failures"]),
-    )
-
-
 def _form(memory: ScanMemory, *, fingerprints: bool, view: bool) -> dict[str, Any]:
     digests: list[str] = []
     rows: list[list[Any]] = []
@@ -253,8 +187,9 @@ def _form(memory: ScanMemory, *, fingerprints: bool, view: bool) -> dict[str, An
         "view": memory.view.to_form() if view else None,
         "off_since": time_form(memory._off_since),
         "drain_passes": memory._drain_passes,
-        "drain_pass": _drain_form(memory._drain_pass),
+        "drain_pass": drain_pass_form(memory._drain_pass),
         "drain_completed_by": memory._drain_completed_by,
+        **({} if memory.backing == BackingMemory() else {"backing": backing_form(memory.backing)}),
     }
 
 
@@ -324,7 +259,7 @@ def _restore(form: Mapping[str, Any], repo: str, version: int) -> ScanMemory:
         memory._fingerprints[number] = entry
     memory._off_since = time_from_form(form["off_since"])
     memory._drain_passes = int(form["drain_passes"])
-    memory._drain_pass = _drain(form["drain_pass"])
+    memory._drain_pass = drain_pass_from_form(form["drain_pass"])
     completed_by = form["drain_completed_by"]
     memory._drain_completed_by = None if completed_by is None else int(completed_by)
     if version == MEMORY_VERSION:
@@ -333,7 +268,33 @@ def _restore(form: Mapping[str, Any], repo: str, version: int) -> ScanMemory:
         view = form["view"]
         if view is not None:
             memory.view = PRView.from_form(view, repo)
+    memory.backing = _backing(form.get("backing"), repo)
     return memory
+
+
+def _backing(form: object, repo: str) -> BackingMemory:
+    """The stored approval-backing memory; a cold one for none or another version, or, noted in it, for a form
+    that does not decode."""
+    if form is None:
+        return BackingMemory()
+    try:
+        if not isinstance(form, dict):
+            raise TypeError(f"the stored approval-backing memory is not an object: {type(form).__name__}")
+        version = form.get("version")
+        if version != BACKING_VERSION:
+            logger.warning(
+                "%s: stored approval-backing memory has version %r, not %d; starting it cold",
+                repo,
+                version,
+                BACKING_VERSION,
+            )
+            return BackingMemory()
+        return backing_from_form(form)
+    except Exception as exc:
+        logger.error("%s: cannot decode its stored approval-backing memory; starting it cold", repo, exc_info=True)
+        return BackingMemory(
+            decode_error=f"its stored approval-backing memory did not decode ({exc!r}); it started cold"
+        )
 
 
 def decode_memory(blob: bytes | None, repo: str) -> ScanMemory:

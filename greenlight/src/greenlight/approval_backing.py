@@ -3,36 +3,52 @@
 A ``gate`` repo has no pytorchbot reading the ledger at land time. This check is the scan's safety work for
 every ``gate`` repo whose mode is not ``off``: it dismisses each live GreenLight approval the ledger does not
 back on the PR's current head and on ``TARGET_BRANCH``. It does not trust the ledger to find approvals, since
-one can exist with no row: it reads GreenLight's reviews through the ``approvals.ReviewReader`` the repo's
-memory keeps between ticks (``scan_memory.BackingMemory``); what each PR was last read at keeps an unchanged PR
-from being read again, since the Lambda's new token each tick gets no 304 for an earlier token's ETag.
+one can exist with no row: it reads GreenLight's reviews through an ``approvals.ReviewReader`` built for the run,
+and keeps its progress in the repo's stored scan memory (``backing_memory.BackingMemory``); what each PR was
+last read at keeps an unchanged PR from being read again, since each run's new token gets no 304 for an earlier
+token's ETag.
 
-Each tick (``check``) lists every open PR, drafts and every author included, reads their latest non-shadow
-rows and verdicts in one ClickHouse query and the ledger's newest row version in another, and judges the
-repo's branch rules (``gate_rules``). A PR's key (``scan_memory.BackingKey``) is its listed ``updated_at``,
-head and base, its latest non-shadow row and the rules' answer; the memory keeps each PR's key as of its last
-settled read. The check then reads the reviews of, each PR at most once a tick:
+Each run (``check``) lists every open PR, drafts and every author included, judges the repo's branch rules
+(``gate_rules``), whose answer it logs every run, and reads the latest non-shadow rows and verdicts in one
+ClickHouse query and the ledger's newest row version in another, both within ``CHANGE_FEED_DEADLINE_SECONDS``
+(``change_feed.call_bounded``). A PR's key (``backing_memory.BackingKey``) is its listed ``updated_at``, head and
+base, its latest non-shadow row and the rules' answer; the memory keeps each PR's key as of its last settled
+read. The check then reads the reviews of, each PR at most once a run:
 
 - every ledger PR, one with a non-shadow verdict or whose latest non-shadow row is in flight (its record job
   may approve before its row lands), whose key is not the one kept, a PR never read included;
 - every other open PR whose kept key is not its key: read before, it changed since;
-- every PR left waiting last tick;
-- a slice of the sweep over every open PR (a ``scan_memory.DrainPass``), sized so the sweep reads every PR
-  within ``FULL_TICK_INTERVAL`` of its start: ``ceil(pending / ticks left in the window)`` per tick, PRs with
-  a ledger row first. Past the window the sweep is the repo's error and goes on at the steady rate,
-  ``ceil(open / ticks in a window)`` per tick. A PR checked successfully by any part is checked in the sweep;
-  a failed one stays pending. The sweep ends once no open PR is pending, and the next starts the next tick.
+- every PR left waiting by the last run;
+- a slice of the sweep over every open PR (a ``drain_pass.DrainPass``), sized so the sweep reads every PR
+  within ``FULL_TICK_INTERVAL`` of its start (``BackingMemory.sweep_started_at``): ``ceil(pending / ticks left
+  in the window)`` per run, PRs with a ledger row first. Past the window the sweep is the repo's error and goes
+  on at the steady rate, ``ceil(open / ticks in a window)`` per run. A PR checked successfully by any part is
+  checked in the sweep; a failed one stays pending. The sweep ends once no open PR is pending, and the next
+  starts the next run. A sweep whose check did not run for a whole window is dropped, logged, and the next
+  starts over.
 
-A PR outside the ledger that was never read waits for the sweep. ``backing_reads.TickReads`` reads them and
-``backing_judge.judge`` decides each live approval. Before dismissing, the PR is read fresh and every live
-approval is judged again on its fresh head and base; those still unbacked are dismissed by id, through
-``ineligible_approvals.dismiss_each``'s guard and failure accounting. A read whose judgement settles (backed,
-nothing live, or its dismissals done) keeps the PR's key; a PR judged waiting or unknown is read again next tick.
+A ``shadow`` entry reads only the ledger PRs and the waiting ones, and runs no sweep: GreenLight never approves
+on a shadow repo, and an approval left from an active period has a ledger row. A PR outside the ledger that was
+never read waits for the sweep.
 
-Listing failures raise. A ClickHouse failure is the repo's error and the check goes on without the ledger: no PR
-is a ledger PR, each key keeps the row it was kept with, and an approval the ledger would decide is unknown, so
-only the rules, its commit and its base dismiss it. A rate limit on any GitHub read sets ``cancel_event`` and
-ends the check. Any other failure reading the rules leaves their answer unknown (None): judging goes on without it.
+No review read starts once ``deadline`` has passed. The changed and waiting PRs are read first, within half the
+time left; then the sweep's slice, in its order; then the rest of the changed and waiting PRs, so neither starves
+the other. A changed or waiting PR the deadline left unread is the repo's error; it keeps its earlier key (or
+none), a waiting one stays waiting, and an unread sweep PR stays pending, so the next run reads them.
+
+``backing_reads.TickReads`` reads them and ``backing_judge.judge`` decides each live approval. Before dismissing,
+the PR is read fresh and every live approval is judged again on its fresh head and base; those still unbacked
+are dismissed by id, through ``ineligible_approvals.dismiss_each``'s guard and failure accounting. A read whose
+judgement settles (backed, nothing live, or its dismissals done) keeps the PR's key; a PR judged waiting or
+unknown is read again next run.
+
+Listing failures raise. A ClickHouse failure, a read that does not finish in time included, is the repo's error
+and the check goes on without the ledger: no PR is a ledger PR, each key keeps the row it was kept with, and an
+approval the ledger would decide is unknown, so only the rules, its commit and its base dismiss it. A rate limit
+on any GitHub read sets ``cancel_event`` (``latch.latch_rate_limit``) and ends the check. Any other failure
+reading the rules leaves their answer unknown (None): judging goes on without it, each key keeps the rules
+answer it was kept with, and a PR read meanwhile settles no key and waits for a run that reads the rules. A
+stored backing memory that did not decode (``BackingMemory.decode_error``) is an error of the next report.
 """
 
 from __future__ import annotations
@@ -45,11 +61,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from greenlight import approvals, backing_judge, drain, gate_rules, github_client, state
+from greenlight import approvals, backing_judge, change_feed, drain, gate_rules, github_client, state
+from greenlight.backing_memory import BackingKey
 from greenlight.backing_reads import Ledger, TickReads
-from greenlight.constants import FULL_TICK_INTERVAL, SCAN_TICK_INTERVAL
+from greenlight.constants import CHANGE_FEED_DEADLINE_SECONDS, FULL_TICK_INTERVAL, TICK_INTERVAL
 from greenlight.guards import IterationTimeout
-from greenlight.scan_memory import BackingKey
+from greenlight.latch import latch_rate_limit
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
@@ -57,22 +74,23 @@ if TYPE_CHECKING:
     from github import Github
     from github.PullRequest import PullRequest
 
-    from greenlight.approvals import ReviewReader
+    from greenlight.backing_memory import BackingMemory
     from greenlight.config import Config
+    from greenlight.drain_pass import DrainPass
     from greenlight.gate_rules import GateRules
     from greenlight.repo_config import RepoEntry
-    from greenlight.scan_memory import BackingMemory, DrainPass, ScanMemory
+    from greenlight.scan_memory import ScanMemory
     from greenlight.state import PRState
 
 logger = logging.getLogger(__name__)
 
-_WINDOW_TICKS = FULL_TICK_INTERVAL // SCAN_TICK_INTERVAL
+_WINDOW_TICKS = FULL_TICK_INTERVAL // TICK_INTERVAL
 _WINDOW_MINUTES = int(FULL_TICK_INTERVAL.total_seconds() // 60)
 
 
 @dataclass(frozen=True, slots=True)
 class BackingReport:
-    """One tick of a gate repo's approval-backing check; ``rules`` is None when they could not be read.
+    """One run of a gate repo's approval-backing check; ``rules`` is None when they could not be read.
 
     ``changed_reads`` counts the ledger PRs and the PRs read before that it read because their key changed.
     """
@@ -90,12 +108,14 @@ class BackingReport:
     errors: tuple[str, ...]
 
 
-def _sweep_slice(sweep: DrainPass, open_prs: Collection[int], tried: set[int], now: datetime) -> tuple[list[int], int]:
-    """The sweep's PRs to read this tick, in its order, and how many were unread once its window had passed."""
+def _sweep_slice(
+    sweep: DrainPass, started_at: datetime, open_prs: Collection[int], tried: set[int], now: datetime
+) -> tuple[list[int], int]:
+    """The sweep's PRs to read this run, in its order, and how many were unread once its window had passed."""
     pending = sweep.pending(open_prs)
-    left = sweep.started_at + FULL_TICK_INTERVAL - now
+    left = started_at + FULL_TICK_INTERVAL - now
     if left > timedelta(0):
-        ticks_left = max(1, min(_WINDOW_TICKS, left // SCAN_TICK_INTERVAL))
+        ticks_left = max(1, min(_WINDOW_TICKS, left // TICK_INTERVAL))
         size, late = math.ceil(len(pending) / ticks_left), 0
     else:
         size, late = math.ceil(len(open_prs) / _WINDOW_TICKS), len(pending)
@@ -108,7 +128,23 @@ def _drop_interrupted_sweep(repo: str, backing: BackingMemory, at: datetime) -> 
     last, backing.checked_at = backing.checked_at, at
     if backing.sweep is not None and last is not None and at - last > FULL_TICK_INTERVAL:
         logger.info("%s: the approval-backing check last ran at %s; starting a new sweep", repo, last)
-        backing.sweep = None
+        backing.end_sweep()
+
+
+def _sweep(
+    repo: str, backing: BackingMemory, at: datetime, ledger: Ledger | None, *, sweeping: bool
+) -> tuple[DrainPass, datetime] | None:
+    """The sweep this run reads a slice of and its start: the one under way, else a new one. None when the run
+    sweeps nothing, which drops a sweep under way, so a later switch to ``active`` starts its own."""
+    if not sweeping:
+        if backing.sweep is not None:
+            logger.info("%s: a shadow gate repo runs no sweep; dropping sweep %d", repo, backing.sweep.number)
+            backing.end_sweep()
+        return None
+    sweep, started_at = backing.sweep, backing.sweep_started_at
+    if sweep is None or started_at is None:
+        sweep, started_at = backing.start_sweep(at, recorded=frozenset(() if ledger is None else ledger.gates)), at
+    return sweep, started_at
 
 
 def _attempt[T](
@@ -121,42 +157,47 @@ def _attempt[T](
         raise
     except Exception as exc:
         if github_client.is_rate_limit_error(exc):
-            cancel_event.set()
+            latch_rate_limit(cancel_event, exc)
         logger.error("%s: cannot read %s: %s", repo, what, exc, exc_info=True)
         errors.append(f"{what} on {repo} could not be read: {exc}")
         return None
 
 
 def _key(pull: PullRequest, ledger: Ledger | None, kept: BackingKey | None, rules: GateRules | None) -> BackingKey:
-    """``pull``'s key this tick; with the ledger unknown, its row is the one its kept key holds."""
+    """``pull``'s key this run; with the ledger unknown, its row is the one its kept key holds, and with the rules
+    unknown, so is their answer."""
     if ledger is None:
         gate_row = None if kept is None else kept.gate_row
     else:
         row = ledger.gates.get(pull.number)
         gate_row = None if row is None else (row.status, row.run_id, row.version)
+    kept_rules = None if kept is None else kept.rules_state
     updated_at = pull.updated_at
     return BackingKey(
         updated_at=None if updated_at is None else state.naive_utc(updated_at),
         head_sha=pull.head.sha,
         base_ref=pull.base.ref,
         gate_row=gate_row,
-        rules_state=None if rules is None else rules.enforced,
+        rules_state=kept_rules if rules is None else rules.enforced,
     )
 
 
-def _changed(keys: dict[int, BackingKey], kept: dict[int, BackingKey], ledger: Ledger | None) -> list[int]:
-    """The ledger PRs whose key is not the kept one, then every other PR whose kept key is not its key."""
+def _changed(
+    keys: dict[int, BackingKey], kept: dict[int, BackingKey], ledger: Ledger | None, *, others: bool
+) -> list[int]:
+    """The ledger PRs whose key is not the kept one, then, when ``others``, every other PR whose kept key is not
+    its key."""
     driven = sorted(number for number in keys if ledger is not None and ledger.drives(number))
-    others = sorted(number for number in keys.keys() - set(driven) if number in kept)
-    return [number for number in [*driven, *others] if keys[number] != kept.get(number)]
+    rest = sorted(number for number in keys.keys() - set(driven) if number in kept) if others else []
+    return [number for number in [*driven, *rest] if keys[number] != kept.get(number)]
 
 
-def _reader(backing: BackingMemory, client: Github) -> ReviewReader:
-    if backing.reader is None:
-        backing.reader = approvals.ReviewReader(client.requester)
-    else:
-        backing.reader.rebind(client.requester)
-    return backing.reader
+def _halfway(deadline: float | None, monotonic: Callable[[], float]) -> float | None:
+    """Half the time left before ``deadline`` from now on ``monotonic``; None with no deadline."""
+    if deadline is None:
+        return None
+    now = monotonic()
+    return now + max(0.0, deadline - now) / 2
 
 
 def check(
@@ -172,12 +213,15 @@ def check(
     read_gates: Callable[[str, Sequence[int]], tuple[dict[int, PRState], dict[int, PRState]]] = state.read_gate_rows,
     read_ledger_newest: Callable[[], datetime | None] = backing_judge.read_newest_version,
     read_rules: Callable[[Github, str], GateRules] = gate_rules.read_gate_rules,
+    deadline: float | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> BackingReport:
-    """Run one tick of ``entry``'s approval-backing check. Listing failures raise; a ClickHouse failure is an error.
+    """Run ``entry``'s approval-backing check once. Listing failures raise; a ClickHouse failure is an error.
 
     A rate limit sets ``cancel_event`` (a fresh event by default) and ends the check, as does an event already
-    set. A ``bot_login`` other than ``approvals.GREENLIGHT_LOGIN`` would judge another account's approvals than
-    the merge gate does, so it raises before any read.
+    set. No review read starts once ``monotonic`` reaches ``deadline`` (None: no deadline). A ``bot_login`` other
+    than ``approvals.GREENLIGHT_LOGIN`` would judge another account's approvals than the merge gate does, so it
+    raises before any read.
     """
     repo = entry.repo
     if cancel_event is None:
@@ -190,7 +234,7 @@ def check(
             f"BOT_LOGIN must be {approvals.GREENLIGHT_LOGIN}, the account the merge gate judges, to check the "
             f"approvals on {repo}; got {bot_login!r}"
         )
-    started = time.monotonic()
+    started = monotonic()
     backing = memory.backing
     errors: list[str] = []
     client = build_github(token)
@@ -200,21 +244,27 @@ def check(
         kept = backing.keys = {number: key for number, key in backing.keys.items() if number in pulls}
         rules = _attempt(lambda: read_rules(client, repo), "GreenLight's gate rules", repo, cancel_event, errors)
         if cancel_event.is_set():
-            return _report(repo, backing, rules, pulls, None, (0, 0), errors, started)
+            return _report(repo, backing, rules, pulls, None, (0, 0), errors, monotonic() - started)
 
         def read_ledger() -> Ledger:
             gates, verdicts = read_gates(repo, sorted(pulls))
             return Ledger(gates, verdicts, read_ledger_newest())
 
-        ledger = _attempt(read_ledger, "GreenLight's ledger", repo, cancel_event, errors)
+        ledger = _attempt(
+            lambda: change_feed.call_bounded(read_ledger, seconds=CHANGE_FEED_DEADLINE_SECONDS),
+            "GreenLight's ledger",
+            repo,
+            cancel_event,
+            errors,
+        )
         _drop_interrupted_sweep(repo, backing, at)
-        sweep = backing.sweep or backing.start_sweep(at, recorded=frozenset(() if ledger is None else ledger.gates))
+        window = _sweep(repo, backing, at, ledger, sweeping=entry.mode == "active")
         keys = {number: _key(pull, ledger, kept.get(number), rules) for number, pull in pulls.items()}
         run = TickReads(
             repo=repo,
             client=client,
-            reader=_reader(backing, client),
-            sweep=sweep,
+            reader=approvals.ReviewReader(client.requester),
+            sweep=None if window is None else window[0],
             pulls=pulls,
             ledger=ledger,
             rules=rules,
@@ -223,22 +273,38 @@ def check(
             now=at,
             bot_login=bot_login,
             cancel_event=cancel_event,
+            monotonic=monotonic,
         )
-        changed_reads = run.read_all(_changed(keys, kept, ledger))
-        run.read_all(sorted(number for number in backing.waiting if number in pulls))
-        sweep_part, late = _sweep_slice(sweep, pulls, run.tried, at)
-        if late:
-            errors.append(f"sweep {sweep.number} incomplete after {_WINDOW_MINUTES} minutes: {late} PRs unread")
-        sweep_reads = run.read_all(sweep_part)
+        changed = _changed(keys, kept, ledger, others=window is not None)
+        first = list(dict.fromkeys([*changed, *sorted(number for number in backing.waiting if number in pulls)]))
+        first_reads = run.read_all(first, until=_halfway(deadline, monotonic))
+        sweep_reads: list[int] = []
+        if window is not None:
+            sweep_part, late = _sweep_slice(*window, pulls, run.tried, at)
+            if late:
+                errors.append(f"sweep {window[0].number} incomplete after {_WINDOW_MINUTES} minutes: {late} PRs unread")
+            sweep_reads = run.read_all(sweep_part, until=deadline)
+        first_reads += run.read_all(first, until=deadline)
+        unread = [number for number in first if number not in run.tried]
+        if unread and not cancel_event.is_set():
+            errors.append(f"the deadline left {len(unread)} changed or waiting PR(s) unread: {unread}")
     finally:
         github_client.close_client(client)
-    unread = {number for number in backing.waiting if number in pulls and number not in run.checked}
-    backing.waiting = frozenset(run.waiting | unread)
-    run.reader.prune(pulls.keys())
-    report = _report(repo, backing, rules, pulls, run, (changed_reads, sweep_reads), errors, started)
-    if not sweep.pending(pulls):
-        backing.sweep = None
+    unread_waiting = {number for number in backing.waiting if number in pulls and number not in run.checked}
+    backing.waiting = frozenset(run.waiting | unread_waiting)
+    changed_reads = len(set(first_reads) & set(changed))
+    report = _report(repo, backing, rules, pulls, run, (changed_reads, len(sweep_reads)), errors, monotonic() - started)
+    if window is not None and not window[0].pending(pulls):
+        backing.end_sweep()
     return report
+
+
+def _rules_answer(rules: GateRules | None) -> str:
+    if rules is None:
+        return "gate rules unread"
+    if rules.enforced:
+        return "gate rules enforced"
+    return f"gate rules not enforced: {'; '.join(rules.problems)}"
 
 
 def _report(
@@ -249,8 +315,11 @@ def _report(
     run: TickReads | None,
     reads: tuple[int, int],
     errors: list[str],
-    started: float,
+    elapsed: float,
 ) -> BackingReport:
+    if backing.decode_error is not None:
+        errors.insert(0, backing.decode_error)
+        backing.decode_error = None
     failed = tuple(run.failed) if run is not None else ()
     if failed:
         errors.append(f"the approval-backing check failed on {len(failed)} PR(s): {list(failed)}")
@@ -270,7 +339,7 @@ def _report(
     )
     logger.info(
         "%s: approval backing: %d open PR(s), %d changed, sweep %d (%d checked, %d pending, %d read), %d waiting, "
-        "%d dismissed, %d failed, in %.1f s",
+        "%d dismissed, %d failed, in %.1f s, %s",
         repo,
         report.open_prs,
         report.changed_reads,
@@ -281,6 +350,7 @@ def _report(
         report.waiting,
         report.dismissed,
         len(report.failed),
-        time.monotonic() - started,
+        elapsed,
+        _rules_answer(rules),
     )
     return report

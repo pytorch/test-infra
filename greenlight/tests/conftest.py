@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from greenlight import gate_rules, guards, repo_config, verdict
+from greenlight import gate_rules, guards, land_approval, repo_config, verdict
 from greenlight.config import Config
 from greenlight.constants import DRCI_STATUS_COMMENT_REPOS, normalize_repo
 
@@ -78,7 +78,7 @@ def set_eligible(monkeypatch):
 
 
 class _FakeGateRules:
-    """Stand-in for ``verdict.read_gate_rules``: answers ``result`` (or raises it) and records each repo read."""
+    """Stand-in for ``land_approval.read_gate_rules``: answers ``result`` (or raises it) and records each repo read."""
 
     def __init__(self) -> None:
         self.result: gate_rules.GateRules | Exception = gate_rules.GateRules(enforced=True)
@@ -93,9 +93,9 @@ class _FakeGateRules:
 
 @pytest.fixture(autouse=True)
 def gate_rules_reader(monkeypatch):
-    """Answer ``verdict``'s gate-rules read without live GitHub: enforced unless a test sets ``result``."""
+    """Answer ``land_approval``'s gate-rules read without live GitHub: enforced unless a test sets ``result``."""
     fake = _FakeGateRules()
-    monkeypatch.setattr(verdict, "read_gate_rules", fake)
+    monkeypatch.setattr(land_approval, "read_gate_rules", fake)
     return fake
 
 
