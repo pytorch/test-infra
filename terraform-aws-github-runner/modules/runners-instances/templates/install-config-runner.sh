@@ -2,14 +2,9 @@ set -exo pipefail
 
 RUNNER_ENV=/home/$USER_NAME/actions-runner/.env
 
-if [ "$(uname -m)" == "aarch64" ] || uname -a | grep 'amzn2023' > /dev/null; then
-  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-  INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
-  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document -H "X-aws-ec2-metadata-token: $TOKEN" | jq -r .region)
-else
-  INSTANCE_ID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-  REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
-fi
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN")
+REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document -H "X-aws-ec2-metadata-token: $TOKEN" | jq -r .region)
 
 install_hooks() {
   pushd /home/$USER_NAME
