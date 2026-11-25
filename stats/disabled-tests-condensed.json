@@ -1072,6 +1072,14 @@
     "https://github.com/pytorch/pytorch/issues/188692",
     []
   ],
+  "test_module_dispatch_rechecks_before_honouring_an_opt_out (__main__.TestAOTCompile)": [
+    "206577",
+    "https://github.com/pytorch/pytorch/issues/206577",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_multiple_module (__main__.TestInvokeSubgraphExportStrict)": [
     "150877",
     "https://github.com/pytorch/pytorch/issues/150877",
