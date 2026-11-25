@@ -55,9 +55,8 @@ for pkg in ${pkgs_to_promote}; do
         curl -fSL -o "${orig_pkg}" "https://download-s3.pytorch.org${pkg}"
     )
 
-
-    if [[ -n "${VERSION_SUFFIX}" ]]; then
-        OUTPUT_DIR="${output_tmp_dir}" python "${DIR}/prep_binary_for_pypi.py" "${orig_pkg}" --output-dir .
+    if [[ -n "${VERSION_SUFFIX}" || "${pkg}" == "torch"]]; then
+        OUTPUT_DIR="${output_tmp_dir}" python "${DIR}/prep_binary_for_pypi.py" "${orig_pkg}" --output-dir . --package ${pkg}
     else
         mv "${orig_pkg}" "${output_tmp_dir}/"
     fi
