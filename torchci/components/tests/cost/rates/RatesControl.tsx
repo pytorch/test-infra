@@ -15,7 +15,6 @@ import {
 import { alpha } from "@mui/material/styles";
 import RatesFormatPeriods from "components/tests/cost/rates/RatesFormatPeriods";
 import TextButton from "components/tests/TextButton";
-import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import type { RatesControlProps, RatesSet } from "lib/api/tests/cost/contracts";
 import { daySpanLabel, ratesChip } from "lib/tests/cost/ratePeriods";
 import { RATES_FILE_URL } from "lib/tests/cost/rates";
@@ -25,6 +24,7 @@ import {
   headerKeyFocusRing,
   headerRuleColor,
 } from "lib/tests/headerColors";
+import { PILL_HEIGHT } from "lib/tests/layout";
 import { type ReactNode, useRef, useState } from "react";
 
 const PRIVACY =
@@ -257,7 +257,7 @@ export default function RatesControl({
           sx={{
             display: "inline-flex",
             alignItems: "stretch",
-            height: VIEW_CHIP_HEIGHT,
+            height: PILL_HEIGHT,
             minWidth: 0,
             borderRadius: "999px",
             backgroundColor: headerBandColor(theme),
@@ -292,7 +292,7 @@ export default function RatesControl({
             ...part,
             flex: "none",
             gap: 0.25,
-            height: VIEW_CHIP_HEIGHT,
+            height: PILL_HEIGHT,
             pl: 1,
             pr: 0.5,
             borderRadius: "999px",

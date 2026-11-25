@@ -12,7 +12,6 @@ import {
 } from "@mui/material";
 import { lighten } from "@mui/material/styles";
 import KeyButton from "components/tests/cost/KeyButton";
-import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import { childBy, type Pill } from "lib/api/tests/cost/contracts";
 import {
   amount,
@@ -25,6 +24,7 @@ import {
   sortRows,
 } from "lib/tests/cost/drill";
 import { headerBandColor, headerBandHoverColor } from "lib/tests/headerColors";
+import { PILL_HEIGHT } from "lib/tests/layout";
 import { type KeyboardEvent, type MouseEvent, useState } from "react";
 import { drillColors, Swatch, swatchFor, toneOf } from "./ButterflyRow";
 import SiblingMenu from "./SiblingMenu";
@@ -97,7 +97,7 @@ export default function ScopeTrail({ drill }: { drill: DrillModel }) {
   const pillBox = (last: boolean, dashed = false) => ({
     display: "inline-flex",
     alignItems: "center",
-    height: VIEW_CHIP_HEIGHT,
+    height: PILL_HEIGHT,
     borderRadius: "999px",
     backgroundColor: dashed ? "transparent" : headerBandColor(theme),
     border: dashed
