@@ -13,7 +13,14 @@ import pytest
 from github import GithubException, RateLimitExceededException, UnknownObjectException
 
 from greenlight import github_client, repo_config
-from greenlight.constants import CONFIG_MAX_BYTES, REPO_CONFIG_PATH, TARGET_REPO
+from greenlight.constants import (
+    CONFIG_MAX_BYTES,
+    FULL_TICK_MINUTES_DEFAULT,
+    FULL_TICK_MINUTES_MAX,
+    FULL_TICK_MINUTES_MIN,
+    REPO_CONFIG_PATH,
+    TARGET_REPO,
+)
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry, Settings
 
@@ -197,6 +204,189 @@ def test_an_invalid_primary_file_is_safety_only_under_the_builtin(text, reason):
     assert settings.problem is not None
     assert settings.problem.startswith("invalid config, safety-only under the built-in entry: ")
     assert reason in settings.problem
+
+
+def _clickhouse_allowed(monkeypatch: pytest.MonkeyPatch, *repos: str) -> None:
+    monkeypatch.setattr(repo_config, "CLICKHOUSE_CHANGE_SOURCE_REPOS", frozenset({TARGET_REPO, *repos}))
+
+
+def test_a_file_without_the_change_keys_takes_their_defaults():
+    settings = repo_config.parse_settings(_VISION, _file())
+
+    assert settings.entry is not None
+    assert (settings.entry.change_source, settings.entry.full_tick_minutes) == ("github", FULL_TICK_MINUTES_DEFAULT)
+    assert (BUILTIN_PYTORCH.change_source, BUILTIN_PYTORCH.full_tick_minutes) == ("github", FULL_TICK_MINUTES_DEFAULT)
+
+
+@pytest.mark.parametrize(
+    ("fields", "reason"),
+    [
+        pytest.param(
+            {"change_source": "hud"}, "change_source 'hud' is not one of ['github', 'clickhouse']", id="bad-source"
+        ),
+        pytest.param({"change_source": "5"}, "change_source must be a string, got int", id="source-not-a-string"),
+        pytest.param(
+            {"change_source": "clickhouse"},
+            f"change_source: clickhouse is only for {[TARGET_REPO]}",
+            id="clickhouse-outside-the-allowlist",
+        ),
+        pytest.param(
+            {"full_tick_minutes": "240"},
+            "full_tick_minutes is only for change_source: clickhouse",
+            id="defaulted-github",
+        ),
+        pytest.param(
+            {"change_source": "github", "full_tick_minutes": "240"},
+            "full_tick_minutes is only for change_source: clickhouse",
+            id="github",
+        ),
+        *(
+            pytest.param(
+                {"change_source": "clickhouse", "full_tick_minutes": written},
+                f"full_tick_minutes {written} is not an integer from 60 to 1440",
+                id=f"minutes-{written}",
+            )
+            for written in ["59", "1441", "0"]
+        ),
+        *(
+            pytest.param(
+                {"change_source": "clickhouse", "full_tick_minutes": written},
+                f"full_tick_minutes must be an integer from 60 to 1440, got {kind}",
+                id=f"minutes-{written}",
+            )
+            for written, kind in [("'240'", "str"), ("true", "str"), ("1.5", "float"), ("null", "NoneType")]
+        ),
+    ],
+)
+def test_a_bad_change_key_refuses_a_non_primary_repo(fields, reason, caplog):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        settings = repo_config.parse_settings(_VISION, _file(**fields))
+
+    assert settings == Settings(_VISION, "invalid", None, served=False, problem=f"invalid config, refused: {reason}")
+    assert reason in caplog.text
+
+
+@pytest.mark.parametrize("minutes", [FULL_TICK_MINUTES_MIN, 240, FULL_TICK_MINUTES_MAX])
+def test_a_clickhouse_non_primary_repo_in_the_allowlist_is_served_with_its_full_tick_minutes(monkeypatch, minutes):
+    _clickhouse_allowed(monkeypatch, _VISION)
+
+    settings = repo_config.parse_settings(_VISION, _file(change_source="clickhouse", full_tick_minutes=str(minutes)))
+
+    entry = RepoEntry(_VISION, "greenlight", "gate", "merge_rules", "shadow", "write", "clickhouse", minutes)
+    assert settings == Settings(_VISION, "valid", entry, served=True)
+
+
+def test_the_clickhouse_allowlist_matches_the_repo_case_insensitively(monkeypatch):
+    _clickhouse_allowed(monkeypatch, _VISION)
+
+    assert repo_config.parse_settings("PyTorch/Vision", _file(change_source="clickhouse")).served is True
+
+
+def test_a_clickhouse_non_primary_file_without_full_tick_minutes_takes_the_default(monkeypatch):
+    _clickhouse_allowed(monkeypatch, _VISION)
+
+    settings = repo_config.parse_settings(_VISION, _file(change_source="clickhouse"))
+
+    assert settings.entry is not None
+    assert (settings.entry.change_source, settings.entry.full_tick_minutes) == ("clickhouse", FULL_TICK_MINUTES_DEFAULT)
+
+
+def test_the_change_keys_are_known_so_only_an_older_releases_unknown_key_makes_a_file_safety_only(monkeypatch):
+    _clickhouse_allowed(monkeypatch, _VISION)
+
+    settings = repo_config.parse_settings(_VISION, _file(change_source="clickhouse", full_tick_minutes="60", extra="1"))
+
+    assert settings.entry is not None
+    assert (settings.entry.change_source, settings.entry.full_tick_minutes) == ("clickhouse", 60)
+    assert settings.served is False
+    assert settings.problem == "safety-only: unknown key(s) ['extra']"
+
+
+def test_the_primary_without_the_change_keys_takes_the_builtins_silently(caplog):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        settings = repo_config.parse_settings(TARGET_REPO, _PYTORCH_FILE.format(mode="shadow"))
+
+    entry = dataclasses.replace(BUILTIN_PYTORCH, mode="shadow")
+    assert settings == Settings(TARGET_REPO, "valid", entry, served=True)
+    assert (entry.change_source, entry.full_tick_minutes) == ("github", FULL_TICK_MINUTES_DEFAULT)
+    assert caplog.text == ""
+
+
+def test_the_primary_takes_valid_change_keys_from_the_file(caplog):
+    text = _PYTORCH_FILE.format(mode="active") + "change_source: clickhouse\nfull_tick_minutes: 60\n"
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        settings = repo_config.parse_settings(TARGET_REPO, text)
+        github = repo_config.parse_settings(
+            TARGET_REPO, _PYTORCH_FILE.format(mode="active") + "change_source: github\n"
+        )
+
+    entry = dataclasses.replace(BUILTIN_PYTORCH, change_source="clickhouse", full_tick_minutes=60)
+    assert settings == Settings(TARGET_REPO, "valid", entry, served=True)
+    assert github == Settings(TARGET_REPO, "valid", BUILTIN_PYTORCH, served=True)
+    assert caplog.text == ""
+
+
+@pytest.mark.parametrize(
+    ("lines", "change_source", "logged"),
+    [
+        pytest.param(
+            ["change_source: hud"],
+            "github",
+            "change_source 'hud' is not one of ['github', 'clickhouse']; ignored, it stays 'github'",
+            id="bad-source",
+        ),
+        pytest.param(
+            ["change_source: 5"],
+            "github",
+            "change_source must be a string, got int; ignored, it stays 'github'",
+            id="source-not-a-string",
+        ),
+        pytest.param(
+            ["change_source: clickhouse", "full_tick_minutes: 1441"],
+            "clickhouse",
+            "full_tick_minutes 1441 is not an integer from 60 to 1440; ignored, it stays 240",
+            id="minutes-out-of-range",
+        ),
+        pytest.param(
+            ["change_source: clickhouse", "full_tick_minutes: '240'"],
+            "clickhouse",
+            "full_tick_minutes must be an integer from 60 to 1440, got str; ignored, it stays 240",
+            id="minutes-a-string",
+        ),
+        pytest.param(
+            ["change_source: clickhouse", "full_tick_minutes: 1.5"],
+            "clickhouse",
+            "full_tick_minutes must be an integer from 60 to 1440, got float; ignored, it stays 240",
+            id="minutes-a-float",
+        ),
+        pytest.param(
+            ["change_source: github", "full_tick_minutes: 120"],
+            "github",
+            "full_tick_minutes is only for change_source: clickhouse; ignored, it stays 240",
+            id="github-minutes",
+        ),
+        pytest.param(
+            ["full_tick_minutes: 120"],
+            "github",
+            "full_tick_minutes is only for change_source: clickhouse; ignored, it stays 240",
+            id="defaulted-github-minutes",
+        ),
+        pytest.param(
+            ["change_source: hud", "full_tick_minutes: 120"],
+            "github",
+            "full_tick_minutes is only for change_source: clickhouse; ignored, it stays 240",
+            id="bad-source-minutes",
+        ),
+    ],
+)
+def test_a_bad_change_key_on_the_primary_is_ignored_and_the_builtin_kept(caplog, lines, change_source, logged):
+    text = _PYTORCH_FILE.format(mode="shadow") + "".join(f"{line}\n" for line in lines)
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        settings = repo_config.parse_settings(TARGET_REPO, text)
+
+    entry = dataclasses.replace(BUILTIN_PYTORCH, mode="shadow", change_source=change_source)
+    assert settings == Settings(TARGET_REPO, "valid", entry, served=True)
+    assert f"{TARGET_REPO} {REPO_CONFIG_PATH}: {logged}" in caplog.text
 
 
 def _content(text: str, size: int | None = None) -> dict[str, object]:
@@ -489,6 +679,30 @@ def test_check_file_reports_what_the_primary_ignores(tmp_path: Path) -> None:
     assert repo_config.check_file(path, TARGET_REPO) == ["mode 'paused' is not one of ['shadow', 'active', 'off']"]
 
 
+def test_check_file_reports_the_change_keys_of_a_non_primary_file(tmp_path: Path) -> None:
+    path = tmp_path / "config.yml"
+    path.write_text(_file(change_source="hud", full_tick_minutes="59"))
+    assert repo_config.check_file(path, _VISION) == [
+        "change_source 'hud' is not one of ['github', 'clickhouse']",
+        "full_tick_minutes 59 is not an integer from 60 to 1440",
+    ]
+    path.write_text(_file(change_source="clickhouse"))
+    assert repo_config.check_file(path, _VISION) == [f"change_source: clickhouse is only for {[TARGET_REPO]}"]
+    path.write_text(_file(full_tick_minutes="120"))
+    assert repo_config.check_file(path, _VISION) == ["full_tick_minutes is only for change_source: clickhouse"]
+
+
+def test_check_file_reports_the_change_keys_the_primary_ignores(tmp_path: Path) -> None:
+    path = tmp_path / "config.yml"
+    path.write_text(_PYTORCH_FILE.format(mode="active") + "change_source: hud\nfull_tick_minutes: 120\n")
+    assert repo_config.check_file(path, TARGET_REPO) == [
+        "change_source 'hud' is not one of ['github', 'clickhouse']; ignored, it stays 'github'",
+        "full_tick_minutes is only for change_source: clickhouse; ignored, it stays 240",
+    ]
+    path.write_text(_PYTORCH_FILE.format(mode="active") + "change_source: clickhouse\nfull_tick_minutes: 60\n")
+    assert repo_config.check_file(path, TARGET_REPO) == []
+
+
 def test_check_file_reports_an_unreadable_or_unparsable_file(tmp_path: Path) -> None:
     missing = repo_config.check_file(tmp_path / "missing.yml", _VISION)
     directory = repo_config.check_file(tmp_path, _VISION)
@@ -609,6 +823,7 @@ def test_the_value_tuples_are_the_literals():
     assert repo_config.ELIGIBILITIES == ("merge_rules", "write_permission")
     assert repo_config.MODES == ("shadow", "active", "off")
     assert repo_config.MINIMUM_ROLES == ("write", "maintain")
+    assert repo_config.CHANGE_SOURCES == ("github", "clickhouse")
 
 
 def test_is_primary_is_an_exact_match():

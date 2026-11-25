@@ -16,27 +16,36 @@ from a PR head); both end in a ``Settings``, the one place the outcome of every 
   (``config_cache``) serves the last file read instead.
 
 ``read_settings`` judges the contents API's answer through ``config_contents``, as ``config_cache`` does.
-The primary reads only ``mode`` from its file: its ``status_comment``, ``safety``, ``eligibility`` and
+The primary reads ``mode`` and the two keys below from its file: its ``status_comment``, ``safety``, ``eligibility`` and
 ``minimum_role`` are pinned to ``BUILTIN_PYTORCH``'s (a different value or an unknown key is logged and
 ignored, so a one-line config edit cannot widen whom GreenLight approves there). Every problem is logged
 with its reason and carried in ``Settings.problem``. See REPOS.md.
+
+Two keys are optional on every file. ``change_source`` (``github``, the default, or ``clickhouse``) says
+where the scan learns which PRs changed; ``clickhouse`` is only for ``CLICKHOUSE_CHANGE_SOURCE_REPOS``.
+``full_tick_minutes``, an integer from ``FULL_TICK_MINUTES_MIN`` to ``FULL_TICK_MINUTES_MAX`` (default
+``FULL_TICK_MINUTES_DEFAULT``), is a ``clickhouse`` repo's full tick interval and a problem on any other.
+The primary reads both from its file like ``mode``, and a bad value of either is logged and ignored, its
+built-in value kept; on any other repo a bad value refuses the file. An older pinned release reads them as
+unknown keys.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import logging
-import reprlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, cast, get_args
 
-import yaml
-
 from greenlight import github_client
-from greenlight.config_contents import config_url, contents_answer, too_big
+from greenlight.config_contents import config_url, contents_answer
+from greenlight.config_yaml import _REPR, _cut, _Invalid, _load, _shown
 from greenlight.constants import (
-    CONFIG_MAX_BYTES,
+    CLICKHOUSE_CHANGE_SOURCE_REPOS,
     DRCI_STATUS_COMMENT_REPOS,
+    FULL_TICK_MINUTES_DEFAULT,
+    FULL_TICK_MINUTES_MAX,
+    FULL_TICK_MINUTES_MIN,
     PYTORCHBOT_GUARDED_REPOS,
     REPO_CONFIG_PATH,
     TARGET_REPO,
@@ -58,6 +67,7 @@ Safety = Literal["pytorchbot", "gate"]
 Eligibility = Literal["merge_rules", "write_permission"]
 Mode = Literal["shadow", "active", "off"]
 MinimumRole = Literal["write", "maintain"]
+ChangeSource = Literal["github", "clickhouse"]
 SettingsKind = Literal["absent", "valid", "invalid", "unreadable"]
 
 STATUS_COMMENTS: tuple[StatusComment, ...] = get_args(StatusComment)
@@ -65,7 +75,9 @@ SAFETIES: tuple[Safety, ...] = get_args(Safety)
 ELIGIBILITIES: tuple[Eligibility, ...] = get_args(Eligibility)
 MODES: tuple[Mode, ...] = get_args(Mode)
 MINIMUM_ROLES: tuple[MinimumRole, ...] = get_args(MinimumRole)
+CHANGE_SOURCES: tuple[ChangeSource, ...] = get_args(ChangeSource)
 _DEFAULT_MINIMUM_ROLE: MinimumRole = "write"
+_DEFAULT_CHANGE_SOURCE: ChangeSource = "github"
 
 _ENUMS: dict[str, tuple[str, ...]] = {
     "status_comment": STATUS_COMMENTS,
@@ -73,61 +85,11 @@ _ENUMS: dict[str, tuple[str, ...]] = {
     "eligibility": ELIGIBILITIES,
     "mode": MODES,
     "minimum_role": MINIMUM_ROLES,
+    "change_source": CHANGE_SOURCES,
 }
-_OPTIONAL_FIELDS = frozenset({"minimum_role"})
+_OPTIONAL_FIELDS = frozenset({"minimum_role", "change_source"})
+_KNOWN_KEYS = frozenset({*_ENUMS, "full_tick_minutes"})
 _PINNED_FIELDS = ("status_comment", "safety", "eligibility", "minimum_role")
-
-
-class _Invalid(ValueError):
-    """The file cannot be used as a config; the message is the reason."""
-
-
-_REPR = reprlib.Repr(maxstring=60, maxother=60)
-
-
-def _cut(text: str) -> str:
-    return text if len(text) <= _REPR.maxstring else text[: _REPR.maxstring - 3] + "..."
-
-
-def _shown(value: object) -> str:
-    """``value`` for a problem message: a string's repr cut to a bounded length, anything else by type."""
-    return _REPR.repr(value) if isinstance(value, str) else f"a {type(value).__name__}"
-
-
-class _Loader(yaml.SafeLoader):
-    """``yaml.SafeLoader`` that reads no scalar as a boolean and refuses anchors, aliases and duplicate keys.
-
-    PyYAML follows YAML 1.1, which reads a bare ``off`` (and ``on``, ``yes``, ``no``) as a boolean, so
-    ``mode: off`` would otherwise arrive as False. Every value this file holds is a string. Aliases
-    let a few hundred bytes expand into a structure of many megabytes, and with a duplicate key the
-    last copy would silently win. A bare ``<<`` is a plain key; any tag written in the file is refused,
-    since an explicit ``!!merge`` would merge keys past the duplicate check.
-    """
-
-    def compose_node(self, parent: yaml.Node | None, index: int) -> yaml.Node | None:
-        event = self.peek_event()  # type: ignore[no-untyped-call]
-        if isinstance(event, yaml.AliasEvent) or getattr(event, "anchor", None) is not None:
-            raise _Invalid("anchors and aliases are not allowed")
-        if getattr(event, "tag", None) is not None:
-            raise _Invalid(f"explicit YAML tags are not allowed (found {_shown(event.tag)})")
-        return super().compose_node(parent, index)
-
-    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[object, object]:
-        seen: set[tuple[str, str]] = set()
-        for key_node, _value_node in node.value:
-            if isinstance(key_node, yaml.ScalarNode):
-                if (key_node.tag, key_node.value) in seen:
-                    raise _Invalid(f"duplicate key {_shown(key_node.value)}")
-                seen.add((key_node.tag, key_node.value))
-        return super().construct_mapping(node, deep=deep)
-
-
-_Loader.yaml_implicit_resolvers = {
-    first: [
-        (tag, regexp) for tag, regexp in resolvers if tag not in {"tag:yaml.org,2002:bool", "tag:yaml.org,2002:merge"}
-    ]
-    for first, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
-}
 
 
 @dataclass(frozen=True)
@@ -138,6 +100,8 @@ class RepoEntry:
     eligibility: Eligibility
     mode: Mode
     minimum_role: MinimumRole = _DEFAULT_MINIMUM_ROLE
+    change_source: ChangeSource = _DEFAULT_CHANGE_SOURCE
+    full_tick_minutes: int = FULL_TICK_MINUTES_DEFAULT
 
 
 BUILTIN_PYTORCH = RepoEntry(TARGET_REPO, "drci", "pytorchbot", "merge_rules", "active")
@@ -191,8 +155,27 @@ def _field_problem(field: str, raw: Mapping[object, object]) -> str | None:
     return None
 
 
+def _full_tick_problem(raw: Mapping[object, object]) -> str | None:
+    """Why ``raw``'s ``full_tick_minutes`` is not an integer within its bounds, or None; it may be absent."""
+    if "full_tick_minutes" not in raw:
+        return None
+    value = raw["full_tick_minutes"]
+    bounds = f"from {FULL_TICK_MINUTES_MIN} to {FULL_TICK_MINUTES_MAX}"
+    if isinstance(value, bool) or not isinstance(value, int):
+        return f"full_tick_minutes must be an integer {bounds}, got {type(value).__name__}"
+    if not FULL_TICK_MINUTES_MIN <= value <= FULL_TICK_MINUTES_MAX:
+        return f"full_tick_minutes {_REPR.repr(value)} is not an integer {bounds}"
+    return None
+
+
 def _entry_problems(raw: Mapping[object, object]) -> list[str]:
-    return [problem for field in _ENUMS if (problem := _field_problem(field, raw)) is not None]
+    problems = [problem for field in _ENUMS if (problem := _field_problem(field, raw)) is not None]
+    if (problem := _full_tick_problem(raw)) is not None:
+        problems.append(problem)
+    return problems
+
+
+_FULL_TICK_WITHOUT_CLICKHOUSE = "full_tick_minutes is only for change_source: clickhouse"
 
 
 def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
@@ -201,10 +184,15 @@ def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
         problems.append(f"safety: pytorchbot is only for {sorted(PYTORCHBOT_GUARDED_REPOS)}")
     if raw["status_comment"] == "drci" and normalize_repo(repo) not in DRCI_STATUS_COMMENT_REPOS:
         problems.append(f"status_comment: drci is only for {sorted(DRCI_STATUS_COMMENT_REPOS)}")
+    change_source = raw.get("change_source", _DEFAULT_CHANGE_SOURCE)
+    if change_source == "clickhouse" and normalize_repo(repo) not in CLICKHOUSE_CHANGE_SOURCE_REPOS:
+        problems.append(f"change_source: clickhouse is only for {sorted(CLICKHOUSE_CHANGE_SOURCE_REPOS)}")
     if raw["safety"] == "gate" and raw["mode"] == "active":
         problems.append("safety: gate cannot be active in this release")
     if "minimum_role" in raw and raw["eligibility"] != "write_permission":
         problems.append("minimum_role is only for eligibility: write_permission")
+    if "full_tick_minutes" in raw and change_source != "clickhouse":
+        problems.append(_FULL_TICK_WITHOUT_CLICKHOUSE)
     return problems
 
 
@@ -217,28 +205,33 @@ def _entry(repo: str, raw: Mapping[object, object]) -> RepoEntry:
         eligibility=cast("Eligibility", raw["eligibility"]),
         mode=cast("Mode", raw["mode"]),
         minimum_role=cast("MinimumRole", raw.get("minimum_role", _DEFAULT_MINIMUM_ROLE)),
+        change_source=cast("ChangeSource", raw.get("change_source", _DEFAULT_CHANGE_SOURCE)),
+        full_tick_minutes=cast("int", raw.get("full_tick_minutes", FULL_TICK_MINUTES_DEFAULT)),
     )
 
 
 def _unknown_keys(raw: Mapping[object, object]) -> list[str]:
-    return sorted(_cut(str(key)) for key in raw if key not in _ENUMS)
+    return sorted(_cut(str(key)) for key in raw if key not in _KNOWN_KEYS)
 
 
-def _load(text: str | bytes) -> Mapping[object, object]:
-    """The file's top-level mapping; ``_Invalid`` when it cannot be one."""
-    size = len(text.encode() if isinstance(text, str) else text)
-    if size > CONFIG_MAX_BYTES:
-        raise _Invalid(too_big(size))
-    try:
-        document = yaml.load(text, Loader=_Loader)  # noqa: S506 -- _Loader is a yaml.SafeLoader
-    except _Invalid:
-        raise
-    except Exception as exc:
-        logger.error("cannot parse a %s", REPO_CONFIG_PATH, exc_info=True)
-        raise _Invalid(f"not valid YAML: {type(exc).__name__}: {exc}") from exc
-    if not isinstance(document, dict):
-        raise _Invalid(f"the top level must be a mapping, got {type(document).__name__}")
-    return document
+def _primary_change_keys(raw: Mapping[object, object]) -> tuple[ChangeSource, int, list[str]]:
+    """The primary's ``change_source`` and ``full_tick_minutes``, each the built-in one when absent or bad,
+    and what of them is ignored."""
+    change_source, full_tick_minutes = BUILTIN_PYTORCH.change_source, BUILTIN_PYTORCH.full_tick_minutes
+    ignored: list[str] = []
+    if (problem := _field_problem("change_source", raw)) is not None:
+        ignored.append(f"{problem}; ignored, it stays {change_source!r}")
+    elif "change_source" in raw:
+        change_source = cast("ChangeSource", raw["change_source"])
+    if "full_tick_minutes" in raw:
+        problem = _full_tick_problem(raw)
+        if problem is None and change_source != "clickhouse":
+            problem = _FULL_TICK_WITHOUT_CLICKHOUSE
+        if problem is None:
+            full_tick_minutes = cast("int", raw["full_tick_minutes"])
+        else:
+            ignored.append(f"{problem}; ignored, it stays {full_tick_minutes!r}")
+    return change_source, full_tick_minutes, ignored
 
 
 def _primary_findings(raw: Mapping[object, object]) -> tuple[list[str], list[str]]:
@@ -251,6 +244,7 @@ def _primary_findings(raw: Mapping[object, object]) -> tuple[list[str], list[str
                 ignored.append(f"{field} is missing; it is pinned to {pinned!r}")
         elif raw[field] != pinned:
             ignored.append(f"{field} {_shown(raw[field])} ignored; it is pinned to {pinned!r}")
+    ignored += _primary_change_keys(raw)[2]
     if unknown := _unknown_keys(raw):
         ignored.append(f"unknown key(s) {unknown} ignored")
     mode_problem = _field_problem("mode", raw)
@@ -275,7 +269,11 @@ def parse_settings(repo: str, text: str | bytes) -> Settings:
         if invalid:
             return outcome(repo, "invalid", "; ".join(invalid))
         mode = cast("Mode", raw["mode"])
-        return Settings(repo, "valid", dataclasses.replace(BUILTIN_PYTORCH, mode=mode), served=True)
+        change_source, full_tick_minutes, _ignored = _primary_change_keys(raw)
+        entry = dataclasses.replace(
+            BUILTIN_PYTORCH, mode=mode, change_source=change_source, full_tick_minutes=full_tick_minutes
+        )
+        return Settings(repo, "valid", entry, served=True)
     invalid, unknown = _other_findings(repo, raw)
     if invalid:
         return outcome(repo, "invalid", "; ".join(invalid))

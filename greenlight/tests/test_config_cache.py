@@ -346,3 +346,24 @@ def test_an_absent_file_after_a_valid_one_on_a_repo_never_served_gives_no_work()
 
     assert (decision.settings.entry, decision.settings.problem) == (None, None)
     assert not decision.record.served
+
+
+_CLICKHOUSE_PRIMARY = "mode: active\nchange_source: clickhouse\nfull_tick_minutes: 60\n"
+_CLICKHOUSE_ENTRY = dataclasses.replace(BUILTIN_PYTORCH, change_source="clickhouse", full_tick_minutes=60)
+
+
+def test_the_primarys_change_keys_flow_from_its_file_through_an_unreadable_read_and_its_removal():
+    read = decide(TARGET_REPO, _file_record(_CLICKHOUSE_PRIMARY), unreadable=None, reachable=True, drain_complete=False)
+    unreadable = decide(TARGET_REPO, read.record, unreadable="HTTP 500", reachable=True, drain_complete=False)
+    removed_record = dataclasses.replace(read.record, kind="absent", text=None, etag=None, size=None)
+    removed = decide(TARGET_REPO, removed_record, unreadable=None, reachable=True, drain_complete=False)
+
+    assert (read.settings.entry, read.settings.served) == (_CLICKHOUSE_ENTRY, True)
+    assert read.record.valid_text == _CLICKHOUSE_PRIMARY
+    assert (unreadable.settings.entry, unreadable.settings.served) == (_CLICKHOUSE_ENTRY, True)
+    assert unreadable.settings.problem == "config unreadable, serving the last file read: HTTP 500"
+    assert (removed.settings.entry, removed.settings.served, removed.settings.problem) == (
+        _CLICKHOUSE_ENTRY,
+        False,
+        PRIMARY_ABSENT,
+    )

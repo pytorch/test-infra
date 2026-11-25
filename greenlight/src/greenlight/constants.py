@@ -147,7 +147,7 @@ FULL_TICK_INTERVAL = timedelta(minutes=15)
 FULL_TICK_TOLERANCE = timedelta(seconds=30)
 
 # A clickhouse repo's full tick (its reconciliation sweep) comes every full_tick_minutes while HUD's webhook tables
-# are fresh; repos.yaml may set the value within these bounds.
+# are fresh; the repo's own .github/greenlight/config.yml may set the value within these bounds.
 FULL_TICK_MINUTES_DEFAULT = 240
 FULL_TICK_MINUTES_MIN = 60
 FULL_TICK_MINUTES_MAX = 1440
@@ -203,6 +203,10 @@ def normalize_repo(repo: str) -> str:
 # in torchci/lib/greenlight/greenlightConfig.ts; greenlight/tests/test_render_sync.py enforces that.
 # Entries are folded at construction, so a mixed-case addition cannot silently never match.
 DRCI_STATUS_COMMENT_REPOS: frozenset[str] = frozenset(normalize_repo(repo) for repo in (TARGET_REPO,))
+
+# Repos whose config may name change_source: clickhouse. Each one runs its own change queries on HUD's shared
+# ClickHouse cluster every tick, so a repo joins this set only through a test-infra PR.
+CLICKHOUSE_CHANGE_SOURCE_REPOS: frozenset[str] = frozenset({normalize_repo(TARGET_REPO)})
 
 # A GitHub App acts through a bot account whose login is ``<app-slug>[bot]``. The verdict writer
 # and the scan's recheck-refusal poster author-scope their comment writes to this login, so it must
