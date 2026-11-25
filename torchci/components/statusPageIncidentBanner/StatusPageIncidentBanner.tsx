@@ -3,9 +3,18 @@ import useSWR from "swr";
 import styles from "../sevReport/SevReport.module.css";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-export default function GitHubIncidentBanner() {
+
+interface StatusPageIncidentBannerProps {
+  statusPageUrl: string;
+  serviceName: string;
+}
+
+export default function StatusPageIncidentBanner({
+  statusPageUrl,
+  serviceName,
+}: StatusPageIncidentBannerProps) {
   const { data, error } = useSWR(
-    "https://www.githubstatus.com/api/v2/incidents/unresolved.json",
+    `${statusPageUrl}/api/v2/incidents/unresolved.json`,
     fetcher,
     { refreshInterval: 2 * 60 * 1000 } // every 2 minutes
   );
@@ -26,7 +35,7 @@ export default function GitHubIncidentBanner() {
       className={styles.sevBox}
       style={{ backgroundColor: "var(--background-color)" }}
     >
-      <Title>GitHub Incident:</Title> {incident.name}
+      <Title>{serviceName} Incident:</Title> {incident.name}
       {lastUpdateDate && <> — Updated: {lastUpdateDate}</>}{" "}
       <a href={incident.shortlink} target="_blank" rel="noreferrer">
         (link)
