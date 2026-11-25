@@ -1,8 +1,8 @@
 data "amazon-ami" "windows_root_ami" {
+  # Use the newest Windows Server 2019 base. If a new base breaks sshd again,
+  # Install-SSH.ps1 and the final sshd check below fail the build (with
+  # diagnostics) instead of publishing an image without a working sshd.
   filters = {
-    # Pin the last base AMI whose OpenSSH sshd service starts (used for the
-    # 20260826001402 image); newer ones fail Install-SSH.ps1. Remove to unpin.
-    image-id            = "ami-07fede2e6cf6d7f22"
     name                = "Windows_Server-2019-English-Full-Base-*"
     root-device-type    = "ebs"
     virtualization-type = "hvm"
