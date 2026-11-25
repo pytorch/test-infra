@@ -1,0 +1,113 @@
+name: Set up binary builds
+
+description: Clean workspace and check out PyTorch
+
+inputs:
+  repository:
+    description: If set to any value, don't use sudo to clean the workspace
+    required: false
+    type: string
+    default: ''
+  ref:
+    description: Works as stated in actions/checkout
+    required: false
+    type: string
+    default: nightly
+  submodules:
+    description: Works as stated in actions/checkout, but the default value is recursive
+    required: false
+    type: string
+    default: recursive
+  python-version:
+    description: The target Python version
+    required: true
+    type: string
+  cuda-version:
+    description: The target CUDA version
+    required: true
+    type: string
+  arch:
+    description: The target ARCH
+    required: true
+    type: string
+  upload-to-base-bucket:
+    description: One of the parameter used by pkg-helpers
+    required: false
+    type: boolean
+    default: no
+
+runs:
+  using: composite
+  steps:
+      - name: Remove repository directory (if exists)
+        shell: bash
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          set -euxo pipefail
+          rm -rf "${REPOSITORY}"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          submodules: ${{ inputs.submodules }}
+          path: ${{ inputs.repository }}
+
+      - name: Log Available Webhook Fields
+        shell: bash
+        run: |
+          echo "ENV VARS"
+          echo "${GITHUB_REF_NAME}"
+          echo "${GITHUB_REF}"
+          echo "${GITHUB_BASE_REF}"
+
+          echo "GITHUB PROVIDED"
+          echo "${{ github.ref_name }}"
+          echo "${{ github.event.ref }}"
+          echo "${{ github.ref }}"
+          echo "${{ github.base_ref }}"
+      - name: Set artifact name
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+          CU_VERSION: ${{ inputs.cuda-version }}
+          ARCH: ${{ inputs.arch }}
+        run: |
+          set -euxo pipefail
+          # Set artifact name here since github actions doesn't have string manipulation tools
+          # and "/" is not allowed in artifact names. //\//_ is to replace all forward slashes,
+          # not just the first one
+          echo "ARTIFACT_NAME=${REPOSITORY//\//_}_${REF//\//_}_${PYTHON_VERSION}_${CU_VERSION}_${ARCH}" >> "${GITHUB_ENV}"
+
+      - name: Install uv environment
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Generate file from pytorch_pkg_helpers
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          uv venv --python 3.9
+          source .venv/bin/activate
+
+          uv pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
+          BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
+          python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+          cat "${BUILD_ENV_FILE}"
+          echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
+
+      - name: Setup uv environment for build
+        shell: bash -l {0}
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+        run: |
+          set -euxo pipefail
+
+          uv venv py${PYTHON_VERSION} --python ${PYTHON_VERSION}
+          source ./py${PYTHON_VERSION}/bin/activate
+          uv pip install cmake==3.31.2  ninja wheel==0.37 setuptools
+          echo "VIRTUAL_ENV=${VIRTUAL_ENV}" >> "${GITHUB_ENV}"
