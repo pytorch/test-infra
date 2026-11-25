@@ -1,0 +1,128 @@
+---
+# Tasks here are baked into the AMI. Anything that depends on per-instance
+# state (IAM role attach, GH runner registration, instance-id-derived names)
+# must stay in the runtime playbooks under pytorch-gha-infra/macos-runners.
+
+- name: Bake macOS GHA runner AMI
+  hosts: all
+  module_defaults:
+    shell:
+      executable: /bin/zsh
+  become: true
+  become_user: ec2-user
+  tasks:
+    - name: Ensure boto libraries are installed
+      ansible.builtin.pip:
+        name:
+          - boto3
+          - botocore
+        executable: pip3
+
+    - name: Transfer runner scripts
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        src: ../scripts/
+        dest: /opt/runner_scripts/
+        directory_mode: true
+        mode: '0755'
+
+    - name: Create post-job log directory
+      become: true
+      become_user: root
+      ansible.builtin.file:
+        path: /var/log/post_job
+        state: directory
+        mode: '0777'
+
+    - name: Create runner user
+      environment:
+        RUNNER_USER: runner
+      register: create_runner_user
+      changed_when: create_runner_user.stdout != 'RUNNER_USER EXISTS'
+      ansible.builtin.shell: |
+        sudo /opt/runner_scripts/create-runner-user.sh
+        echo -n "RUNNER_USER EXISTS"
+
+    - name: Install SSM Agent
+      become: true
+      become_user: root
+      register: install_ssm
+      changed_when: install_ssm.stdout != 'SSM INSTALLED'
+      ansible.builtin.shell: |
+        bash /opt/runner_scripts/install-ssm-agent.sh
+
+    # Avoid community.general.homebrew_cask / .homebrew: Homebrew 5.x emits
+    # "already installed" / progress lines on stderr, which the modules treat
+    # as hard failures. Same workaround as macos-runners/playbooks/install-runner.yml.
+    - name: Install Homebrew cask dependencies
+      register: brew_cask_install
+      changed_when: "'Installing' in brew_cask_install.stdout"
+      ansible.builtin.shell: |
+        set -eu
+        export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:${PATH:-}"
+        for cask in miniconda; do
+          if /opt/homebrew/bin/brew list --cask "$cask" >/dev/null 2>&1; then
+            echo "Present: $cask"
+          else
+            echo "Installing: $cask"
+            HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 \
+              /opt/homebrew/bin/brew install --cask "$cask"
+          fi
+        done
+
+    - name: Install Homebrew dependencies
+      register: brew_install
+      changed_when: "'Installing' in brew_install.stdout"
+      ansible.builtin.shell: |
+        set -eu
+        export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:${PATH:-}"
+        for pkg in gh jq tmux libomp pstree; do
+          if /opt/homebrew/bin/brew list --formula "$pkg" >/dev/null 2>&1; then
+            echo "Present: $pkg"
+          else
+            echo "Installing: $pkg"
+            HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 \
+              /opt/homebrew/bin/brew install "$pkg"
+          fi
+        done
+
+    - name: Initialize conda in shell rc files
+      register: conda_init
+      changed_when: '"modified" in conda_init.stdout'
+      ansible.builtin.shell: |
+        /opt/homebrew/bin/conda init --all || /usr/local/bin/conda init --all
+
+    # CloudWatch agent: download from the public bucket, install into /opt/aws,
+    # and place the LaunchDaemon plist. The first-boot playbook is still
+    # responsible for `fetch-config -s` (which starts the daemon with the
+    # current config file).
+    - name: Determine CloudWatch agent download URL
+      ansible.builtin.set_fact:
+        cw_agent_url: >-
+          {{ 'https://amazoncloudwatch-agent.s3.amazonaws.com/darwin/arm64/latest/amazon-cloudwatch-agent.pkg'
+             if ansible_architecture == 'arm64'
+             else 'https://amazoncloudwatch-agent.s3.amazonaws.com/darwin/amd64/latest/amazon-cloudwatch-agent.pkg' }}
+
+    - name: Download CloudWatch agent installer
+      become: true
+      become_user: root
+      ansible.builtin.get_url:
+        url: "{{ cw_agent_url }}"
+        dest: /tmp/amazon-cloudwatch-agent.pkg
+        mode: '0644'
+
+    - name: Install CloudWatch agent
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        cmd: installer -pkg /tmp/amazon-cloudwatch-agent.pkg -target /
+        creates: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
+
+    - name: Stage CloudWatch config (consumed at first boot)
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        src: ../configs/cloudwatch_config.json
+        dest: /opt/runner_scripts/cloudwatch_config.json
+        mode: '0644'
