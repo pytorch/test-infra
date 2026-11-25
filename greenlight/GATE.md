@@ -131,14 +131,16 @@ a sweep that reads every open PR within each 15-minute window (a sweep that miss
 repo's error). A `shadow` repo never gets an approval from GreenLight, so its runs read only the PRs with
 a ledger row (every PR GreenLight ever approved has one) and run no sweep. What the check knows between
 runs is kept in the repo's stored scan memory ([SCAN.md](SCAN.md)). A run starts no read 120 s after its
-invocation started; the changed and waiting PRs get the first half of that, then the sweep's slice, then
-the rest, and a changed or waiting PR left unread is the repo's error (it is read next run). The ledger
+invocation started; the changed and waiting PRs get the first half of that (the ones never tried first,
+then the one tried longest ago), then the sweep's slice, then the rest, and a changed or waiting PR left
+unread is the repo's error (it is read next run). The ledger
 reads have their own 20 s bound. The Lambda mints new tokens every run and GitHub ties an ETag to its
 token, so these reads get no 304: the sweep costs one reviews read per open PR per window (about 1,500
 requests an hour for 380 open PRs), and a PR's unchanged state is what keeps it from being read in
-between. When ClickHouse cannot be read, it still withdraws approvals on another commit or base, leaves
-the rest for the next run, and reports the error. A failed rules read leaves the PRs it reads waiting
-until a read succeeds. It logs, each run, how many PRs it read and how long it took.
+between. When ClickHouse cannot be read, it still reads the changed PRs it remembers with a ledger row
+(on a `shadow` repo too), withdraws approvals on another commit or base or under rules found not enforced,
+leaves the rest for the next run, and reports the error. A failed rules read leaves waiting, until a read
+succeeds, only the PRs it reads that still carry a GreenLight approval. It logs, each run, how many PRs it read and how long it took.
 
 **Base rule**: in a gate repo the base must be `main` and the repo's default branch must be `main`,
 in the listing, the `--pr` gate, the record job and its re-read (`merge_authz.accepts_base_for`);

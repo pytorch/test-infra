@@ -318,7 +318,8 @@ store across invocations, and in the process for a CLI scan or a `--loop` daemon
 error or timeout) serves the last eligibility snapshot for at most three TTLs; a broken or missing
 source, or a rate limit, fails the repo's scan at once. `--pr` rechecks share the caches but never
 the tick memory. A `gate` repo's approval-backing check keeps its own part of the repo's stored memory
-(`backing_memory.py`: what each PR was last read at, the sweep and the waiting PRs); its rules are read
+(`backing_memory.py`: what each PR was last read at, when each was last tried, the sweep and the waiting
+PRs); its rules are read
 on every run, never cached.
 
 So a change to `merge_rules.yaml`, or to who holds a write_permission repo's minimum role, reaches
