@@ -113,6 +113,21 @@ jobs:
         with:
           github-secret: ${{ github.token }}
 
+      - name: Add Conda scripts to GitHub path
+        run: echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
+
+      - name: Debug cmd
+        shell: cmd
+        run: echo %PATH%
+
+      - name: Debug bash (default)
+        shell: bash
+        run: echo $PATH
+
+      - name: Debug bash (custom)
+        shell: bash -l {0}
+        run: echo $PATH
+
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
