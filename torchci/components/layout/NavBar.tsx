@@ -99,6 +99,10 @@ function NavBar() {
       href: "/metrics/autorevert",
     },
     {
+      name: "Merge Analysis",
+      href: "/metrics/merge_analysis",
+    },
+    {
       name: "Claude Billing",
       href: "/claude_billing",
     },
