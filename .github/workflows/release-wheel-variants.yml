@@ -114,7 +114,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: wheelnext/variant-repack
-          ref: 'master'
+          ref: 7b22f0fe162ada0799aa85b224c3ae7a6908d916 # master as of 2026-01-28, last used by a release
           path: variant-repack
 
       - name: Set up Python
@@ -125,8 +125,12 @@ jobs:
       - name: Install dependencies
         run: |
           pip install awscli==1.44.20 wheel==0.45.1
+          # variant-repack takes variantlib from its main branch, so install its
+          # dependencies here with variantlib pinned to the v0.0.3 release
+          pip install "frozendict>=2.4,<3" "jinja2>=3.1.6,<3.2" "wheel>=0.46.2,<0.47" \
+            "variantlib[cli] @ git+https://github.com/wheelnext/variantlib.git@b2c4c50e10bede8f7e24fc890a00bd3729a4c6ad"
           cd variant-repack
-          pip install -e .
+          pip install --no-deps -e .
 
       - name: Verify variant-repack installation
         run: |
