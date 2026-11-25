@@ -16,19 +16,18 @@ A read failure or a payload of an unexpected shape raises: the caller decides wh
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
 from greenlight import constants
 from greenlight.approvals import payload_is, payload_mapping, payload_required
+from greenlight.constants import HEAD_SHA_RE
 
 if TYPE_CHECKING:
     from greenlight.github_types import JsonRequester
 
 RULES_PER_PAGE = 100
 
-_SHA = re.compile(r"[0-9a-fA-F]{40}")
 _RULE_WORKFLOWS = "workflows"
 _RULE_PULL_REQUEST = "pull_request"
 _RULE_MERGE_QUEUE = "merge_queue"
@@ -67,7 +66,7 @@ def _pins_gate(workflow: object) -> bool:
         and repository_id == constants.GATE_SOURCE_REPO_ID
         and entry.get("path") == constants.GATE_WORKFLOW_PATH
         and isinstance(sha, str)
-        and _SHA.fullmatch(sha) is not None
+        and HEAD_SHA_RE.fullmatch(sha) is not None
         and entry.get("ref") in (None, "", sha)
     )
 

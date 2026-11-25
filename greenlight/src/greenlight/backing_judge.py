@@ -88,7 +88,7 @@ def judge(
         return Judgement("unbacked", f"the base is {base}, not {TARGET_BRANCH}")
     if not ledger_known:
         return UNKNOWN
-    if gate is not None and gate.status == STATUS_LAND and gate.head_sha.lower() == head.lower():
+    if gate is not None and gate.status == STATUS_LAND and approvals.same_sha(gate.head_sha, head):
         return BACKED
     if gate is not None and gate.status == STATUS_REVERTED:
         return Judgement("unbacked", f"GreenLight's latest row for the PR is {STATUS_REVERTED}")

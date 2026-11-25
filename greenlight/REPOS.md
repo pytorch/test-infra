@@ -195,8 +195,9 @@ Always from the repo's default branch through the contents API, never from a PR 
 - **shadow**: the scan reviews the same PRs, but every dispatch and marker row is shadow, and the
   verdict is shadow whatever the eligibility check says: no approval, any prior GreenLight approval
   dismissed, nothing Dr. CI or the land gate reads, no GreenLight comment. Existing approvals stay
-  until a PR is re-reviewed; draining them is `off`'s job. A safety-only repo makes the verdict
-  shadow too.
+  until a PR is re-reviewed; draining them is `off`'s job. On a `gate` repo the approval-backing check
+  also keeps running on the PRs with a ledger row and withdraws an approval no `LAND` backs
+  ([GATE.md](GATE.md)). A safety-only repo makes the verdict shadow too.
 - **off**: the scan dispatches nothing and drains (`drain.py`), below.
 
 ### Switching from shadow to active
@@ -335,8 +336,8 @@ The modules the per-repo config, the drain, the scan Lambda and change detection
   and `check-config`; `config_yaml.py`: its strict YAML loader; `config_contents.py`: the one
   judgement of the contents API's answer.
 - `repo_scan.py`: one repo's decisions on both entry points: its settings, the live checks, its
-  eligibility cache, then its work (`repo_work`: a drain, a review, a gate repo's backing check alone,
-  or none); `scan_repo` is the CLI's scan.
+  eligibility cache, then its work (`repo_work`: a drain, a review, or a gate repo's backing check
+  alone); `scan_repo` is the CLI's scan.
 - `review.py`: the scan's safety work (listing, state read, revert guard, ineligible revoke);
   `review_finish.py`: its optional work (fingerprint fan-out, dispatch, label pass, refusals) and
   its error aggregation.

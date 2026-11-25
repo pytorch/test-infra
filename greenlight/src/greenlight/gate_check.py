@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from greenlight import github_client, workflow_target
-from greenlight.approvals import GateDecision, PullFacts, ReviewReader, gate_decision
+from greenlight.approvals import GateDecision, PullFacts, ReviewReader, gate_decision, same_sha
 from greenlight.config import Config
 from greenlight.constants import (
     GATE_POLL_DELAYS,
@@ -99,7 +99,7 @@ def _check(reader: ReviewReader, target: GateTarget, recheck: Callable[[], None]
             logger.info("%s#%d reads %s; re-reading it", target.repo, target.pr, facts.state)
             recheck()
             facts = reader.pull(target.repo, target.pr)
-        if not facts.is_open or facts.head_sha.lower() != target.head_sha.lower():
+        if not facts.is_open or not same_sha(facts.head_sha, target.head_sha):
             return _Off(facts)
         on_head = True
         return gate_decision(reader.reviews(target.repo, target.pr), target.head_sha)

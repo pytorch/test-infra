@@ -102,15 +102,15 @@ PyTorch Green Light has one unit of work — the `review` phase:
 `cohort.assess_rules` answers a different question, per PR: whose evaluation carries authority. A
 valid merge rule must name the author (or, on a `write_permission` repo, the author must have write
 access, or maintain with `minimum_role: maintain`), whatever files the PR changes, and the PR must be
-on a base `merge_authz.accepts_base` accepts (on a `safety: gate` repo, `main` alone: `merge_authz.accepts_base_for`,
-GATE.md): `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
-is `main`, matched by branch names. The scan judges the base from the listing (`pr_listing`), the
+on a base `merge_authz.accepts_base` accepts: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
+is `main`, matched by branch names; on a `safety: gate` repo, `main` alone (`merge_authz.accepts_base_for`,
+GATE.md). The scan judges the base from the listing (`pr_listing`), the
 `--pr` gate and the verdict (`author_eligibility.has_eligible_author`, which also requires the reviewed head)
 from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the repo's mode (REPOS.md), the verdict's
-record-time downgrade (eligibility, and on a `gate` repo its rules check and App login: GATE.md),
-`verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
+record-time downgrade (eligibility, and on a `gate` repo its rules check and App login: GATE.md), `verdict --shadow`, a
+local `--allow-untrusted-author` run, or the revert
 guard: a `REVERTED` row, which can only deny, is non-shadow on a PR that already has a recorded row
 and follows the PR's eligibility otherwise. A shadow verdict is never approved and always dismisses
 any prior greenlight approval; every shadow row is filtered out of both HUD readers (Dr. CI's

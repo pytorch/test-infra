@@ -30,12 +30,17 @@ _BOT_USER_TYPE = "Bot"
 _PR_STATE_OPEN = "open"
 
 
+def same_sha(left: str, right: str) -> bool:
+    """Whether two commit SHAs name the same commit: GitHub's payloads and the ledger may differ in case."""
+    return left.lower() == right.lower()
+
+
 def on_commit(review: GateReview, sha: str) -> bool:
-    """Whether ``review`` was given on ``sha``, compared case-insensitively; a review on no known commit is not."""
+    """Whether ``review`` was given on ``sha`` (``same_sha``); a review on no known commit is not."""
     commit = review.commit_id
     if not commit:
         return False
-    return commit.lower() == sha.lower()
+    return same_sha(commit, sha)
 
 
 def dismiss_approvals(reviews: Iterable[_VerdictReview], message: str) -> list[int]:

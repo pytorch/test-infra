@@ -186,8 +186,9 @@ before it goes `active`. None of them blocks the shadow phase from starting:
 
 ## Onboarding a gate repo
 
-1. The `greenlight-scan` Lambda's pinned release includes the gate (this change) before any gate repo
-   is `active`; an older release refuses `gate` with `active` and has no backing check.
+1. The `greenlight-scan` Lambda's pinned release accepts `safety: gate` with `mode: active` (for the repos
+   in `GATE_ACTIVE_REPOS`) before any gate repo is `active`; an older release refuses it and has no backing
+   check.
 2. The repo's default branch is `main` and uses rulesets only (no classic protection), with at least 1
    required approval, no restriction on who can dismiss reviews, and no merge queue. Record the choice on
    GitHub's native stale dismissal: it closes the gap for human approvals too, and dismisses them.
