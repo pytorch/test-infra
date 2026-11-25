@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from greenlight import github_client, latch, scan_dispatch, scan_runner, verdict_labels
-from greenlight.scan_memory import FingerprintCache
+from greenlight.fingerprint_cache import FingerprintCache
 
 if TYPE_CHECKING:
     import contextlib

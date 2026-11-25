@@ -11,10 +11,11 @@ from github import GithubException
 
 from greenlight import merge_authz, quota, review_finish, verdict_labels
 from greenlight.authority import Authority
+from greenlight.fingerprint_cache import FingerprintCache
 from greenlight.latch import RateLimitLatch, SharedLatch
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_finish import PreparedScan
-from greenlight.scan_memory import FingerprintCache, ScanMemory
+from greenlight.scan_memory import ScanMemory
 from greenlight.state import PRState
 from greenlight.state_store import InProcessStore
 

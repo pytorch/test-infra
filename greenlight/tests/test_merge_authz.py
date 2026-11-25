@@ -363,6 +363,38 @@ def test_accepts_base_is_main_a_ghstack_pr_or_a_native_stack_on_main(pr: _FakeFi
     assert merge_authz.accepts_base(pr) is accepted
 
 
+@pytest.mark.parametrize(
+    ("refs", "accepted"),
+    [
+        pytest.param((constants.TARGET_BRANCH, "feature", None), True, id="based-on-main"),
+        pytest.param((constants.TARGET_BRANCH, "feature", "release/2.9"), True, id="on-main-in-a-stack-elsewhere"),
+        pytest.param(("gh/jeanschmidt/12/base", "gh/jeanschmidt/12/head", None), True, id="ghstack"),
+        pytest.param(("release/2.9", "gh/jeanschmidt/12/head", "release/2.9"), True, id="ghstack-on-any-base"),
+        pytest.param(("part-1", "feature", constants.TARGET_BRANCH), True, id="native-stack-on-main"),
+        pytest.param(("part-1", "feature", "release/2.9"), False, id="native-stack-on-another-trunk"),
+        pytest.param(("release/2.9", "feature", None), False, id="in-no-stack-on-another-base"),
+        pytest.param(("release/2.9", "gh/jeanschmidt/12/orig", None), False, id="ghstack-orig-is-no-head"),
+    ],
+)
+def test_accepts_refs_is_main_a_ghstack_head_or_a_native_stack_on_main(
+    refs: tuple[str, str, str | None], accepted: bool
+) -> None:
+    assert merge_authz.accepts_refs(*refs) is accepted
+
+
+def test_accepts_base_judges_by_the_shared_rule_on_the_prs_refs_and_native_stack_trunk(monkeypatch):
+    asked: list[tuple[str, str, str | None]] = []
+
+    def accepts_refs(base_ref: str, head_ref: str, stack_trunk: str | None) -> bool:
+        asked.append((base_ref, head_ref, stack_trunk))
+        return False
+
+    monkeypatch.setattr(merge_authz, "accepts_refs", accepts_refs)
+
+    assert not merge_authz.accepts_base(_stacked_pr(_stack("release/2.9"), head_ref="part-2", base_ref="part-1"))
+    assert asked == [("part-1", "part-2", "release/2.9")]
+
+
 @pytest.mark.parametrize("base_ref", ["gh/jeanschmidt/12/base", constants.TARGET_BRANCH])
 def test_changed_files_lists_the_filenames_of_a_ghstack_head_on_any_base(base_ref: str) -> None:
     pr = _files_pr("a.py", "b.py", head_ref="gh/jeanschmidt/12/head", base_ref=base_ref)

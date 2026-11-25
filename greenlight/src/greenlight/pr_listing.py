@@ -3,9 +3,9 @@
 Each listed PR becomes an ``OpenPR`` record, whoever wrote it, drafts included; ``is_candidate`` is the
 one rule that makes a record a candidate: open, its author in the evaluation cohort, not a draft. Every
 listing comes back de-duplicated and sorted by number. A PR from the pulls endpoint also carries
-whether ``merge_authz.accepts_base``, trymerge's base rule matched by branch names, accepts it, judged
-from the listing's own payload. ``change_listing`` picks the listings each tick runs, by the repo's
-change source.
+whether ``merge_authz.accepts_refs``, trymerge's base rule matched by branch names, accepts it, and the
+branch names it was judged by (``base_ref``, ``head_ref``, ``stack_trunk``), all from the listing's own
+payload. ``change_listing`` picks the listings each tick runs, by the repo's change source.
 
 On a ``github`` repo, a full listing walks every open PR. A fast listing walks the open PRs most
 recently updated first, stops at the review window's cutoff, and adds every open PR labelled
@@ -37,7 +37,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from greenlight.constants import REVERTED_LABELS
-from greenlight.merge_authz import accepts_base
+from greenlight.merge_authz import accepts_refs, native_stack_trunk
 from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
@@ -56,10 +56,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class OpenPR:
-    """One listed PR; ``head_sha`` and ``base_accepted`` are None when it came from the issues endpoint.
+    """One listed PR; ``head_sha``, ``base_accepted`` and its base inputs are None from the issues endpoint.
 
     That endpoint carries no head and no base, so such a PR is judged by its author alone. ``state`` is
-    GitHub's ``open`` or ``closed`` (a merged PR is closed).
+    GitHub's ``open`` or ``closed`` (a merged PR is closed). ``base_ref``, ``head_ref`` and
+    ``stack_trunk`` (its GitHub-native stack's trunk, or None) are what ``base_accepted`` was judged by.
     """
 
     repo: str
@@ -73,6 +74,9 @@ class OpenPR:
     labels: tuple[str, ...] = ()
     draft: bool = False
     state: str = "open"
+    base_ref: str | None = None
+    head_ref: str | None = None
+    stack_trunk: str | None = None
 
 
 class Candidates(NamedTuple):
@@ -91,6 +95,12 @@ class _ListedRefs(NamedTuple):
     raw_data: Mapping[str, object]
 
 
+class _ListedBase(NamedTuple):
+    base_ref: str
+    head_ref: str
+    stack_trunk: str | None
+
+
 def lowered(authors: Iterable[str]) -> frozenset[str]:
     return frozenset(author.lower() for author in authors)
 
@@ -100,9 +110,10 @@ def is_candidate(record: OpenPR, cohort: frozenset[str]) -> bool:
     return record.state == "open" and record.author.lower() in cohort and not record.draft
 
 
-def _listed_base_accepted(pr: _PullRequest) -> bool:
+def _listed_base(pr: _PullRequest) -> _ListedBase:
     # PyGithub's raw_data completes a listed PR with one GET each; _rawData is the list payload as received.
-    return accepts_base(_ListedRefs(pr.head, pr.base, pr._rawData))
+    trunk = native_stack_trunk(_ListedRefs(pr.head, pr.base, pr._rawData))
+    return _ListedBase(pr.base.ref, pr.head.ref, trunk)
 
 
 def _record(pr: _ListedPR, repo: str, pull: _PullRequest | None) -> OpenPR | None:
@@ -116,6 +127,7 @@ def _record(pr: _ListedPR, repo: str, pull: _PullRequest | None) -> OpenPR | Non
     if not login:
         return None
     updated_at = pr.updated_at
+    base = _listed_base(pull) if pull is not None else None
     return OpenPR(
         repo=repo,
         number=pr.number,
@@ -124,10 +136,13 @@ def _record(pr: _ListedPR, repo: str, pull: _PullRequest | None) -> OpenPR | Non
         url=pr.html_url,
         head_sha=pull.head.sha if pull is not None else None,
         updated_at=naive_utc(updated_at) if updated_at is not None else None,
-        base_accepted=_listed_base_accepted(pull) if pull is not None else None,
+        base_accepted=accepts_refs(*base) if base is not None else None,
         labels=tuple(label.name for label in pr.labels),
         draft=pr.draft,
         state=pull.state if pull is not None else "open",
+        base_ref=base.base_ref if base is not None else None,
+        head_ref=base.head_ref if base is not None else None,
+        stack_trunk=base.stack_trunk if base is not None else None,
     )
 
 

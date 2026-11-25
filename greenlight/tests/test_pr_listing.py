@@ -185,6 +185,9 @@ def test_full_listing_maps_pull_fields():
             updated_at=datetime(2026, 7, 30, 9, 0, 0),
             base_accepted=True,
             labels=(),
+            base_ref="main",
+            head_ref="feature",
+            stack_trunk=None,
         )
     ]
 
@@ -211,15 +214,37 @@ def test_every_pulls_listing_records_whether_trymerge_accepts_each_prs_base(pull
     assert [pr.base_accepted for pr in fast] == [accepted]
 
 
+def test_every_pulls_endpoint_record_carries_the_branch_names_its_base_was_judged_by():
+    pull = _FakePull(1, "alice", updated_at=_NOW, base_ref="alice/part-1", head_ref="alice/part-2", stack_trunk="main")
+    client = _client(pull)
+    single = _SinglePullRepo(pull)
+
+    records = [
+        *pr_listing.list_open_records(client, TARGET_REPO),
+        *pr_listing.list_recent_records(client, TARGET_REPO, cutoff=_CUTOFF, state="all"),
+        *pr_listing.list_open_prs_by_authors(client, TARGET_REPO, ["alice"]),
+        pr_listing.read_record(cast("Github", single), TARGET_REPO, 1),
+    ]
+
+    assert {(pr.base_ref, pr.head_ref, pr.stack_trunk, pr.base_accepted) for pr in records if pr is not None} == {
+        ("alice/part-1", "alice/part-2", "main", True)
+    }
+    assert len(records) == 4
+
+
 @pytest.mark.parametrize(
-    ("refs", "accepted"),
+    ("refs", "base"),
     [
-        pytest.param({"base": {"ref": "main"}}, True, id="no-stack-on-main"),
-        pytest.param({"base": {"ref": "release/2.9"}}, False, id="no-stack-off-main"),
-        pytest.param({"base": {"ref": "alice/part-1"}, "stack": {"base": {"ref": "main"}}}, True, id="stack-on-main"),
+        pytest.param({"base": {"ref": "main"}}, ("main", "alice/part-2", None), id="no-stack-on-main"),
+        pytest.param({"base": {"ref": "release/2.9"}}, ("release/2.9", "alice/part-2", None), id="no-stack-off-main"),
+        pytest.param(
+            {"base": {"ref": "alice/part-1"}, "stack": {"base": {"ref": "main"}}},
+            ("alice/part-1", "alice/part-2", "main"),
+            id="stack-on-main",
+        ),
     ],
 )
-def test_judging_a_listed_pygithub_pulls_base_sends_no_request(refs, accepted):
+def test_reading_a_listed_pygithub_pulls_base_sends_no_request(refs, base):
     requester = Mock()
     requester.requestJsonAndCheck.side_effect = AssertionError("a listed PR was fetched")
     payload = {
@@ -231,7 +256,7 @@ def test_judging_a_listed_pygithub_pulls_base_sends_no_request(refs, accepted):
     # A get_pulls page builds each item this way: from the list payload, not yet completed.
     pull = PullRequest(requester, {}, payload, completed=False)
 
-    assert pr_listing._listed_base_accepted(pull) is accepted
+    assert pr_listing._listed_base(pull) == base
     assert requester.mock_calls == []
 
 
@@ -660,6 +685,8 @@ def test_the_open_records_keep_every_author_and_draft_in_one_default_traversal()
         labels=("Stale",),
         draft=True,
         state="open",
+        base_ref="main",
+        head_ref="feature",
     )
     assert client.repo.get_pulls_calls == [{"state": "open", "sort": None, "direction": None}]
 
@@ -712,6 +739,7 @@ def test_an_issues_endpoint_record_is_open_and_carries_its_draft_flag(monkeypatc
     [record] = pr_listing.list_reverted_prs(_FakeClient(repo), TARGET_REPO, ["alice"])
 
     assert (record.state, record.draft, record.head_sha, record.base_accepted) == ("open", True, None, None)
+    assert (record.base_ref, record.head_ref, record.stack_trunk) == (None, None, None)
 
 
 def test_candidate_fields_name_each_map_and_leave_out_the_author_of_a_refused_base():
@@ -745,7 +773,20 @@ def test_read_record_builds_one_pr_as_the_listings_build_each_record():
 
     assert client.asked == [7]
     assert record == OpenPR(
-        TARGET_REPO, 7, "carol", "fix", "https://example.test/7", "head-sha", _NOW, False, ("x",), True, "closed"
+        TARGET_REPO,
+        7,
+        "carol",
+        "fix",
+        "https://example.test/7",
+        "head-sha",
+        _NOW,
+        False,
+        ("x",),
+        True,
+        "closed",
+        "release/2.9",
+        "feature",
+        None,
     )
 
 

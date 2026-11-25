@@ -279,16 +279,22 @@ def native_stack_trunk(pr: _BasedPR) -> str | None:
     return ref if isinstance(ref, str) else None
 
 
-def accepts_base(pr: _BasedPR) -> bool:
-    """Whether trymerge accepts the PR's base: main, a ghstack PR's, or any in a GitHub-native stack on main.
+def accepts_refs(base_ref: str, head_ref: str, stack_trunk: str | None) -> bool:
+    """Whether trymerge accepts a PR by its branch names: main, a ghstack PR's, or any in a GitHub-native stack on main.
 
+    ``stack_trunk`` is the trunk of the native stack the PR is in (``native_stack_trunk``), or None.
     trymerge refuses a PR on any other base, so greenlight's verdict carries authority only on these.
     """
     return (
-        pr.base.ref == constants.TARGET_BRANCH
-        or _GHSTACK_HEAD_REF.match(pr.head.ref) is not None
-        or native_stack_trunk(pr) == constants.TARGET_BRANCH
+        base_ref == constants.TARGET_BRANCH
+        or _GHSTACK_HEAD_REF.match(head_ref) is not None
+        or stack_trunk == constants.TARGET_BRANCH
     )
+
+
+def accepts_base(pr: _BasedPR) -> bool:
+    """Whether trymerge accepts the PR's base (``accepts_refs`` on its base, its head and its native stack's trunk)."""
+    return accepts_refs(pr.base.ref, pr.head.ref, native_stack_trunk(pr))
 
 
 def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
