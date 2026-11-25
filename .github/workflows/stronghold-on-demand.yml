@@ -1,0 +1,86 @@
+name: stronghold
+
+on:
+  push:
+    paths:
+      - .github/workflows/stronghold-on-demand.yml
+
+jobs:
+  api-compatibility-check:
+    strategy:
+      fail-fast: false
+      matrix:
+        change:
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/49053
+            commit: a480ca53028658ec32ee18183a40cda60304663a
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/50467
+            commit: ed0b8a3e836ade5652335bbfb6635d2edc4a1e8e
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/72596
+            commit: 3d37f5b05273304fb30fe8102434bdd5ee490bd7
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/72302
+            commit: 5630c5ac75c343da06e42b526187e2fb14149092
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/81510
+            commit: d52f8c2533bb4173f1e5e94fe18655a8d381c966
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/75905
+            commit: 55f55a4cf6cc50cde9e8e8369d92847ca85b23da
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/81510
+            commit: d52f8c2533bb4173f1e5e94fe18655a8d381c966
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/94709
+            commit: b005ec62b9315476cdcf972b65fbec23f0ffe9ef
+          # control
+          - repo: pytorch/test-infra
+            pr: https://github.com/pytorch/test-infra/compare/pr1291
+            commit: 7b0920f1bab34c28fbfcff66a6fc6bfe008467e7
+          # control2
+          - repo: pytorch/pytorch
+            pr: https://github.com/pytorch/pytorch/pull/95747
+            commit: 3df1a9bacada00935235302d4ab9232cba9fe60b
+
+    runs-on: ubuntu-latest
+    steps:
+        - name: Checkout this repo
+          uses: actions/checkout@v3
+          with:
+              path: infra
+        - name: Checkout test commit
+          uses: actions/checkout@v3
+          with:
+              repository: ${{ matrix.change.repo }}
+              ref: ${{ matrix.change.commit }}
+              path: test
+              fetch-depth: 2
+
+        - name: Run API compatibility check
+          run: |
+              set -eux
+            
+              cd test
+              echo "Testing PR: ${{ matrix.change.pr }}"
+              # log the current commit
+              git log -n 1
+              # extract commit message
+              commit_message=$(git log --pretty=format:%B -n 1)
+            
+              # get the current commit
+              curr_commit=$(git log --pretty=format:%H -n 1)
+
+              # get the previous commit
+              prev_commit=$(git log --pretty=format:%H -n 1 --skip 1)
+            
+              # build compatibility checker
+              ../infra/tools/stronghold/bin/build-check-api-compatibility
+            
+              # run compatibility checker 
+              ../infra/tools/stronghold/bin/check-api-compatibility \
+              --base-commit=${prev_commit} \
+              --head-commit=${curr_commit}
+            
+              echo "::notice::Passed: ${{ matrix.change.pr }} $commit_message"
