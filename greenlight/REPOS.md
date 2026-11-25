@@ -105,6 +105,38 @@ dispatched, and the scan fails every tick until the file is fixed. A broken atte
 therefore stops its dispatches rather than keeping them going. With no file at all it is served under the built-in
 entry, unless the config cache kept a valid one.
 
+## Dr. CI as the status surface (`status_comment: drci`)
+
+A `drci` repo posts no GreenLight comment; Dr. CI renders the recorded state in its own comment
+(`torchci/lib/greenlight/greenlightComment.ts`), and GreenLight pokes Dr. CI after each row so the
+render is prompt. Shadow rows are never rendered, and only a served, `active` repo is poked.
+
+- **pytorch/pytorch** also gets the eligibility line: on a PR with no row, or only shadow rows, or a
+  verdict on an earlier commit, Dr. CI says GreenLight is waiting, that the PR can't be reviewed due
+  to `merge_rules.yaml`, or that it is too big ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)). That
+  line is computed from pytorch/pytorch's merge rules (`greenlightEligibility.ts`), so no other repo
+  gets it.
+- **Any other `drci` repo** gets its recorded non-shadow state alone: nothing on a PR with no row or
+  only shadow rows, and a verdict on an earlier commit stays, marked outdated. In this release no
+  repo but pytorch/pytorch can be `active` (`gate` cannot be), so such a repo records only shadow
+  rows and its Dr. CI comment shows no GreenLight state until it may be active.
+
+**Making a repo `drci`**, in this order:
+
+1. A pytorch/test-infra PR adds the repo to `constants.DRCI_STATUS_COMMENT_REPOS` and to torchci's
+   `GREENLIGHT_REPOS` (`tests/test_render_sync.py` holds the two equal). The repo must pass torchci's
+   `isDrCIEnabled` (`torchci/test/greenlightConfig.test.ts`) and should be in
+   `.github/workflows/update-drci-comments.yml`'s matrix (add it in the same PR if missing): that
+   15-minute sweep re-renders a PR after a lost poke. torchci deploys with the merge.
+2. A greenlight-scan release including that PR is pinned. An older release reads `drci` in the
+   repo's file as invalid, so the repo gets no work and every tick fails until the pin moves.
+3. The repo's own `.github/greenlight/config.yml` switches to `status_comment: drci`, while the repo
+   is still in shadow: GreenLight never deletes the comments it already posted, so a repo switched
+   later keeps a stale GreenLight comment on its open PRs.
+
+Dr. CI rebuilds a PR's comment only when the PR's current head has workflow runs, so a repo whose CI
+skips some PRs entirely shows no GreenLight state on them.
+
 ## Live checks
 
 Before any work, the scan checks what GitHub reports for the repo: the scanned name must be the

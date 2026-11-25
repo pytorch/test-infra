@@ -284,6 +284,16 @@ def test_repo_allowlist_matches_python() -> None:
     )
 
 
+def test_primary_repo_matches_python() -> None:
+    extracted = ts_source.ts_string(_TS_CONFIG, "GREENLIGHT_PRIMARY_REPO")
+    assert extracted == constants.TARGET_REPO, ts_source.drift(
+        _TS_CONFIG,
+        _PY_CONSTANTS,
+        f"GREENLIGHT_PRIMARY_REPO is {extracted!r}, Python's TARGET_REPO is {constants.TARGET_REPO!r}. Dr. CI shows "
+        f"the eligibility line, read from that repo's merge rules, only there.",
+    )
+
+
 def test_greenlight_login_matches_python() -> None:
     extracted = ts_source.ts_string(_TS_CONFIG, "GREENLIGHT_APP_SLUG")
     assert extracted == cohort.GREENLIGHT_APP_SLUG, ts_source.drift(
