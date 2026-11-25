@@ -22,12 +22,12 @@ from analytics.github_analyze import (  # noqa: E402
     milestone_issue_statuses,
     milestone_pr_step_rows,
     milestone_step_rows,
+    recently_shipped_releases,
     release_candidate_names,
     release_in_preparation,
     release_only_changes_step_rows,
     releases_in_flight,
     releases_just_shipped,
-    recently_shipped_releases,
     revert_step_rows,
     write_step_summary,
 )

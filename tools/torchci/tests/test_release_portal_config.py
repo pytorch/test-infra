@@ -248,9 +248,7 @@ class TestApplicability(TestCase):
             "before",
         )
         self.assertEqual(
-            cfg.release_step_window_state(
-                {"window": {"closes": "ga"}}, True, True
-            ),
+            cfg.release_step_window_state({"window": {"closes": "ga"}}, True, True),
             "after",
         )
         self.assertIsNone(cfg.release_step_window_state({}, True, False))
