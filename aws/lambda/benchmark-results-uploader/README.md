@@ -31,16 +31,21 @@ The Lambda requires two environment variables:
 
 ## Deployment
 
-To deploy the Lambda function:
+Building the deployment package requires `pip3.10` and `zip` on your `PATH`.
+
+To build it locally:
 
 ```bash
-make deploy
+make clean deployment.zip
 ```
 
-This will:
-1. Install dependencies
-2. Package the Lambda function
-3. Deploy to AWS
+This installs the dependencies from `requirements.txt` and packages them with
+`lambda_function.py` into `deployment.zip`. The `deployment.zip` target has no
+prerequisites, so run `make clean` first (as above) to pick up code changes.
+
+The release workflow (`.github/workflows/_lambda-do-release-runners.yml`) builds
+`deployment.zip` the same way and publishes it as `benchmark-results-uploader.zip`.
+See [`aws/lambda/README.md`](../README.md) for how the release zip is deployed.
 
 ## Testing
 
