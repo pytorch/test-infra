@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 import pytest
 
-from greenlight import github_client, land_approval
+from greenlight import gate_rules, github_client, land_approval
+from greenlight.approvals import GREENLIGHT_LOGIN
 
 if TYPE_CHECKING:
     from github.Commit import Commit
@@ -202,6 +203,66 @@ def test_a_head_that_moved_by_the_re_read_dismisses_greenlights_approvals(caplog
     assert f"head {_HEAD} -> {_NEW}, base 'main' -> 'main'" in caplog.text
 
 
+def test_a_concurrent_record_jobs_approval_on_the_new_head_stands_while_the_one_just_posted_is_dismissed(caplog):
+    events: list[str] = []
+    pr = _PR(events)
+    newer = _Review(2, _BOT, "APPROVED", _NEW, events)
+    stale = _Review(3, _BOT, "APPROVED", _OLD, events)
+    comment = _Review(4, _BOT, "COMMENTED", _HEAD, events)
+    fresh = _PR(events, head=_NEW, reviews=pr.reviews)
+
+    def post_then_race(*, commit: Commit, body: str, event: str) -> _Review:
+        posted = _PR.create_review(pr, commit=commit, body=body, event=event)
+        pr.reviews.extend([newer, stale, comment])
+        return posted
+
+    pr.create_review = post_then_race  # type: ignore[method-assign]
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        _approve(_Client(events, fresh=fresh), pr)
+
+    # Job A posted on the head it reviewed; job B, which reviewed the newer head, approved it meanwhile.
+    assert events == [f"approve:{_HEAD}", "reread:7", "dismiss:101", "dismiss:3"]
+    assert pr.reviews[0].dismissed_with == land_approval.MOVED_MESSAGE
+    assert stale.dismissed_with == land_approval.MOVED_MESSAGE
+    assert (newer.state, newer.dismissed_with, comment.dismissed_with) == ("APPROVED", None, None)
+    assert f"dismissed 2 greenlight approval(s) not on the new head {_NEW} of {_REPO}#7" in caplog.text
+
+
+@pytest.mark.parametrize("strict_base", [True, False])
+def test_a_head_that_moved_onto_a_refused_base_dismisses_every_live_approval(strict_base):
+    events: list[str] = []
+    pr = _PR(events)
+    newer = _Review(2, _BOT, "APPROVED", _NEW, events)
+    fresh = _PR(events, head=_NEW, base="release/2.9", reviews=pr.reviews)
+
+    def post_then_race(*, commit: Commit, body: str, event: str) -> _Review:
+        posted = _PR.create_review(pr, commit=commit, body=body, event=event)
+        pr.reviews.append(newer)
+        return posted
+
+    pr.create_review = post_then_race  # type: ignore[method-assign]
+
+    _approve(_Client(events, fresh=fresh), pr, strict_base=strict_base)
+
+    assert events == [f"approve:{_HEAD}", "reread:7", "dismiss:101", "dismiss:2"]
+    assert newer.dismissed_with == land_approval.MOVED_MESSAGE
+
+
+def test_a_head_that_moved_with_a_failed_review_listing_raises():
+    events: list[str] = []
+    pr = _PR(events)
+
+    class _Unlistable(_PR):
+        def get_reviews(self) -> list[_Review]:
+            raise RuntimeError("reviews 502")
+
+    with pytest.raises(RuntimeError, match="reviews 502"):
+        _approve(_Client(events, fresh=_Unlistable(events, head=_NEW)), pr)
+
+    assert events == [f"approve:{_HEAD}", "reread:7"]
+
+
 @pytest.mark.parametrize(
     ("fresh", "strict_base", "dismissed"),
     [
@@ -311,3 +372,61 @@ def test_dismiss_prior_logs_what_it_dismissed(caplog):
 
     assert f"dismissed 1 prior greenlight approval(s) on {_REPO}#7" in caplog.text
     assert f"no prior greenlight approval to dismiss on {_REPO}#7" in caplog.text
+
+
+class _ClosingClient:
+    def __init__(self) -> None:
+        self.closed = 0
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+def test_gate_backs_a_land_by_greenlights_account_on_rules_that_enforce_the_gate(monkeypatch, gate_rules_reader):
+    client = _ClosingClient()
+    tokens: list[str] = []
+
+    def build(token: str) -> _ClosingClient:
+        tokens.append(token)
+        return client
+
+    monkeypatch.setattr(github_client, "build_authz_client", build)
+
+    assert land_approval.gate_backs("tok", _REPO, bot_login=GREENLIGHT_LOGIN) is True
+    assert (tokens, gate_rules_reader.repos, client.closed) == (["tok"], [_REPO], 1)
+
+
+def test_gate_backs_no_land_whose_rules_do_not_enforce_the_gate(monkeypatch, gate_rules_reader, caplog):
+    gate_rules_reader.result = gate_rules.GateRules(enforced=False, problems=("p1", "p2"))
+    monkeypatch.setattr(github_client, "build_authz_client", lambda token: _ClosingClient())
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        assert land_approval.gate_backs("tok", _REPO, bot_login=GREENLIGHT_LOGIN) is False
+
+    assert f"{_REPO} does not enforce the gate: p1; p2" in caplog.text
+
+
+def test_gate_backs_raises_a_failed_rules_read_and_closes_its_client(monkeypatch, gate_rules_reader):
+    gate_rules_reader.result = RuntimeError("rules 502")
+    client = _ClosingClient()
+    monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
+
+    with pytest.raises(RuntimeError, match="rules 502"):
+        land_approval.gate_backs("tok", _REPO, bot_login=GREENLIGHT_LOGIN)
+
+    assert client.closed == 1
+
+
+@pytest.mark.parametrize("bot_login", [_BOT, GREENLIGHT_LOGIN.upper(), "pytorchgreenlight-staging[bot]"])
+def test_gate_backs_no_land_by_another_account_and_reads_nothing(monkeypatch, gate_rules_reader, caplog, bot_login):
+    monkeypatch.setattr(github_client, "build_authz_client", _refuse_client)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        assert land_approval.gate_backs("tok", _REPO, bot_login=bot_login) is False
+
+    assert gate_rules_reader.repos == []
+    assert f"{_REPO}: --bot-login {bot_login!r} is not {GREENLIGHT_LOGIN}, whom the gate judges" in caplog.text
+
+
+def _refuse_client(token: str) -> NoReturn:
+    raise AssertionError("a client was built")

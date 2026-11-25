@@ -105,6 +105,7 @@ def _open_pr(
     labels: tuple[str, ...] = (),
     author: str = "albanD",
     base_accepted: bool | None = True,
+    base_ref: str | None = "main",
 ) -> OpenPR:
     return OpenPR(
         repo=TARGET_REPO,
@@ -116,6 +117,7 @@ def _open_pr(
         updated_at=updated_at,
         base_accepted=base_accepted,
         labels=labels,
+        base_ref=base_ref,
     )
 
 
@@ -138,8 +140,14 @@ class _FakeHead:
 
 
 @dataclass(frozen=True)
+class _FakeBaseRepo:
+    default_branch: str = "main"
+
+
+@dataclass(frozen=True)
 class _FakeRef:
     ref: str
+    repo: _FakeBaseRepo = field(default_factory=_FakeBaseRepo)
 
 
 @dataclass(frozen=True)
@@ -261,6 +269,7 @@ def _run_scan(
     head_refs: dict[int, str] | None = None,
     base_refs: dict[int, str] | None = None,
     stack_trunks: dict[int, str] | None = None,
+    default_branches: dict[int, str] | None = None,
     bot_login: str = "",
     config_kwargs: dict[str, object] | None = None,
     reverted: frozenset[int] = frozenset(),
@@ -284,6 +293,7 @@ def _run_scan(
     head_refs = head_refs or {}
     base_refs = base_refs or {}
     stack_trunks = stack_trunks or {}
+    default_branches = default_branches or {}
     fetched_labels = fetched_labels or {}
     dismissed_ids = dismissed_ids or {}
     dismiss_errors = dismiss_errors or {}
@@ -364,7 +374,7 @@ def _run_scan(
             _FakeUser(author) if author is not None else None,
             files=files.get(number, ()),
             files_read=files_fetched,
-            base=_FakeRef(base_refs.get(number, "main")),
+            base=_FakeRef(base_refs.get(number, "main"), _FakeBaseRepo(default_branches.get(number, "main"))),
             raw_data={} if trunk is None else {"stack": {"base": {"ref": trunk}}},
         )
 
@@ -2369,7 +2379,7 @@ def test_pr_target_gate_refuses_any_author_on_a_base_trymerge_refuses(make_confi
     # not be pointed at it either.
     assert scan.fingerprinted == []
     assert scan.dispatched == []
-    assert f"--pr 5 by {author}: trymerge refuses its base" in caplog.text
+    assert f"--pr 5 by {author}: its base {pr_refs['base_refs'][5]!r} is not accepted" in caplog.text
 
 
 @pytest.mark.parametrize(("author", "base", "shadow"), _AUTHORITATIVE_VS_SHADOW)
@@ -3799,3 +3809,34 @@ def test_a_wide_tick_revokes_the_approval_of_a_land_pr_retargeted_where_the_walk
     assert (wide.fingerprint_numbers, wide.ineligible) == ([2], [1])
     assert dismissals == [(1, ineligible_approvals._NO_LONGER_ELIGIBLE_MESSAGE)]
     assert client.listed[-3:] == ["issues open ['Reverted']", "pull 1", "pull 2"]
+
+
+@pytest.mark.parametrize(
+    ("pr_refs", "admitted"),
+    [
+        pytest.param({}, True, id="main"),
+        pytest.param({"head_refs": {5: "gh/carol/7/head"}, "base_refs": {5: "gh/carol/7/base"}}, False, id="ghstack"),
+        pytest.param({"base_refs": {5: "carol/part-1"}, "stack_trunks": {5: "main"}}, False, id="native-stack-on-main"),
+        pytest.param({"default_branches": {5: "trunk"}}, False, id="main-is-not-the-default-branch"),
+    ],
+)
+def test_pr_target_gate_on_a_gate_repo_admits_only_a_pr_on_main(make_config, caplog, pr_refs, admitted):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config, entry=_VISION, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author="albanD", **pr_refs
+        )
+
+    # A gate repo has no trymerge to land a stack, so --pr takes the listing's strict base rule.
+    assert scan.dispatch_shadow == ([(5, False)] if admitted else [])
+    assert ("--pr 5 by albanD: its base" in caplog.text) is not admitted
+
+
+def test_the_listing_of_a_gate_repo_dispatches_only_its_prs_on_main(make_config):
+    scan = _run_scan(
+        make_config,
+        entry=_VISION,
+        listed=[_open_pr(1), _open_pr(2, base_ref="gh/albanD/1/base"), _open_pr(3, base_ref=None)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A), 3: ("headsha3", _HASH_A)},
+    )
+
+    assert scan.dispatch_shadow == [(1, False)]

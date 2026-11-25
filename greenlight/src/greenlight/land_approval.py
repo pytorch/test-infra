@@ -4,9 +4,13 @@ The approval is posted on the reviewed commit, never on whatever the head is by 
 stand as they are only when every one of them is on that commit and so is the review pytorchbot's trymerge counts
 (``approvals.counted_review``), which must be an approval; otherwise they are dismissed and a pinned one is posted.
 Right after posting, a fresh read of the PR must still find the reviewed head on a base the repo's rule accepts
-(``merge_authz.accepts_base_for``), or GreenLight's approvals are dismissed. When that read fails, the approval
-just posted is dismissed before the error propagates. Every dismissal and approval raises on failure: they are
-what the merge gate reads.
+(``merge_authz.accepts_base_for``). On a base the rule refuses, every live GreenLight approval is dismissed; on a
+head that moved, those not on the freshly read head are, the one just posted included, so a newer record job's
+approval of that head stands. When that read fails, the approval just posted is dismissed before the error
+propagates. Every dismissal and approval raises on failure: they are what the merge gate reads.
+
+``gate_backs`` decides whether a ``gate`` repo's LAND may be approved at all: given as ``approvals.GREENLIGHT_LOGIN``,
+the account the merge gate and the scan judge, on a repo whose branch rules enforce the gate (``gate_rules``).
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from greenlight import approvals, github_client, merge_authz
+from greenlight.gate_rules import read_gate_rules
 
 if TYPE_CHECKING:
     from greenlight.github_types import DismissibleReview, VerdictClient, VerdictPR
@@ -36,6 +41,23 @@ def dismiss_prior(pr: VerdictPR, *, repo: str, number: int, bot_login: str, mess
         logger.info("dismissed %d prior greenlight approval(s) on %s#%d", len(dismissed), repo, number)
     else:
         logger.info("no prior greenlight approval to dismiss on %s#%d", repo, number)
+
+
+def gate_backs(token: str, repo: str, *, bot_login: str) -> bool:
+    """Whether a ``gate`` repo's LAND by ``bot_login`` can take its approval; a failed rules read raises."""
+    if bot_login != approvals.GREENLIGHT_LOGIN:
+        logger.warning(
+            "%s: --bot-login %r is not %s, whom the gate judges", repo, bot_login, approvals.GREENLIGHT_LOGIN
+        )
+        return False
+    client = github_client.build_authz_client(token)
+    try:
+        rules = read_gate_rules(client, repo)
+    finally:
+        github_client.close_client(client)
+    if not rules.enforced:
+        logger.warning("%s does not enforce the gate: %s", repo, "; ".join(rules.problems))
+    return rules.enforced
 
 
 def approve(
@@ -99,15 +121,27 @@ def _confirm(
     if fresh_head == head_sha and accepted:
         return
     logger.warning(
-        "%s#%d moved after greenlight approved it: head %s -> %s, base %r -> %r; dismissing greenlight's approvals",
+        "%s#%d moved after greenlight approved it: head %s -> %s, base %r -> %r (%s)",
         repo,
         number,
         head_sha,
         fresh_head,
         pr.base.ref,
         fresh_base,
+        "accepted" if accepted else "refused",
     )
-    dismiss_prior(fresh, repo=repo, number=number, bot_login=bot_login, message=MOVED_MESSAGE)
+    if not accepted:
+        dismiss_prior(fresh, repo=repo, number=number, bot_login=bot_login, message=MOVED_MESSAGE)
+        return
+    stale = [
+        review
+        for review in approvals.live_approvals(fresh.get_reviews(), bot_login)
+        if not approvals.on_commit(review, fresh_head)
+    ]
+    dismissed = approvals.dismiss_approvals(stale, MOVED_MESSAGE)
+    logger.info(
+        "dismissed %d greenlight approval(s) not on the new head %s of %s#%d", len(dismissed), fresh_head, repo, number
+    )
 
 
 def _withdraw(review: DismissibleReview, *, repo: str, number: int) -> None:

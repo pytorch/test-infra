@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from github import GithubException, UnknownObjectException
@@ -21,7 +22,7 @@ _UNEXPECTED_PR_READ = AssertionError("the PR was read")
 
 @pytest.fixture
 def eligible(monkeypatch):
-    def check(client: FakeRulesClient, author: str | None) -> bool:
+    def check(client: FakeRulesClient, author: str | None, *, strict_base: bool = False) -> bool:
         monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
         return has_eligible_author(
             "tok",
@@ -32,6 +33,7 @@ def eligible(monkeypatch):
             eligibility="merge_rules",
             minimum_role="write",
             author_type="User",
+            strict_base=strict_base,
         )
 
     return check
@@ -108,6 +110,44 @@ def test_has_eligible_author_logs_its_decision_without_naming_a_rule_or_a_team_m
     assert not [word for word in ("Superusers", "Docs Maintainers", "doc-writers") if word in caplog.text]
 
 
+def _rules_client(*, default_branch: str | None = constants.TARGET_BRANCH, **live: Any) -> FakeRulesClient:
+    """``FakeRulesClient`` whose PR read also reports the repo's default branch, as a gate repo's check reads it."""
+    client = FakeRulesClient(**live)
+    client.live.base.repo = SimpleNamespace(default_branch=default_branch)
+    return client
+
+
+@pytest.mark.parametrize("author", ["CatchAll", "Scoped"])
+def test_a_gate_repo_passes_a_pr_on_main_when_main_is_the_default_branch_with_one_pr_read(eligible, author):
+    client = _rules_client()
+
+    assert eligible(client, author, strict_base=True) is True
+    assert client.pull_reads == 1
+
+
+@pytest.mark.parametrize(
+    "live",
+    [
+        pytest.param({"head_ref": "gh/scoped/1/head", "base_ref": "gh/scoped/1/base"}, id="ghstack"),
+        pytest.param({"base_ref": "scoped/part-1", "trunk": constants.TARGET_BRANCH}, id="native-stack-on-main"),
+        pytest.param({"base_ref": "release/2.9"}, id="release-base"),
+        pytest.param({"default_branch": "trunk"}, id="main-is-not-the-default-branch"),
+        pytest.param({"default_branch": None}, id="no-default-branch"),
+    ],
+)
+def test_a_gate_repo_refuses_any_base_but_main_as_the_default_branch(eligible, caplog, live):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        assert eligible(_rules_client(**live), "CatchAll", strict_base=True) is False
+
+    # A gate repo has no trymerge to land a stack, so the base must be main and main the default branch.
+    assert "author 'CatchAll' is not eligible: base not accepted" in caplog.text
+
+
+def test_a_pytorchbot_repo_ignores_the_default_branch(eligible):
+    # The default branch is read only for a gate repo; pytorchbot keeps trymerge's base rule.
+    assert eligible(_rules_client(default_branch="trunk"), "CatchAll") is True
+
+
 @pytest.fixture
 def writer_eligible(monkeypatch):
     def check(
@@ -126,6 +166,7 @@ def writer_eligible(monkeypatch):
             eligibility="write_permission",
             minimum_role=minimum_role,
             author_type=author_type,
+            strict_base=False,
         )
 
     return check
@@ -239,6 +280,7 @@ def test_an_unknown_eligibility_fails_closed_before_any_read(monkeypatch, eligib
             eligibility=eligibility,
             minimum_role="write",
             author_type="User",
+            strict_base=False,
         )
 
     assert (client.permission_reads, client.contents_reads, client.requester.urls) == ([], 0, [])

@@ -301,12 +301,19 @@ def test_parser_accepts_the_maximum_timeout():
     assert gate_check.parse_target(REPO, "7", HEAD, "340").timeout_minutes == 340
 
 
+@pytest.mark.parametrize("repo", ["pytorch/pytorch", "pytorch/PyTorch", "pytorch/test-infra", "pytorch/a.b_c-d"])
+def test_parser_accepts_any_pytorch_repo(repo: str) -> None:
+    assert gate_check.parse_target(repo, "7", HEAD, "300").repo == repo
+
+
 @pytest.mark.parametrize(
     ("repo", "pr", "head", "timeout"),
     [
         pytest.param("pytorch", "7", HEAD, "300", id="repo-without-name"),
         pytest.param("octo/vision", "7", HEAD, "300", id="repo-outside-pytorch"),
         pytest.param("pytorch/..", "7", HEAD, "300", id="repo-dotdot"),
+        pytest.param("pytorch/.", "7", HEAD, "300", id="repo-dot"),
+        pytest.param("pytorch/a/b", "7", HEAD, "300", id="repo-nested"),
         pytest.param(REPO, "0", HEAD, "300", id="pr-zero"),
         pytest.param(REPO, "-1", HEAD, "300", id="pr-negative"),
         pytest.param(REPO, "7a", HEAD, "300", id="pr-not-a-number"),

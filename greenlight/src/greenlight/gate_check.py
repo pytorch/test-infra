@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from greenlight import github_client, repo_config
+from greenlight import github_client, workflow_target
 from greenlight.approvals import GateDecision, PullFacts, ReviewReader, gate_decision
 from greenlight.config import Config
 from greenlight.constants import (
@@ -76,7 +76,7 @@ def _positive(value: str, what: str, maximum: int | None = None) -> int:
 
 def parse_target(repo: str, pr: str, head_sha: str, timeout_minutes: str) -> GateTarget:
     """The validated inputs; ``ValueError`` when any is not acceptable."""
-    if not repo_config.REPO_NAME.fullmatch(repo) or repo.partition("/")[2] in (".", ".."):
+    if not workflow_target.is_repo_name(repo):
         raise ValueError(f"repo must name a pytorch/<name> repository, got {repo!r}")
     validate_head_sha(head_sha)
     return GateTarget(

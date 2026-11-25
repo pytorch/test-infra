@@ -18,6 +18,7 @@ from greenlight.constants import (
     FULL_TICK_MINUTES_DEFAULT,
     FULL_TICK_MINUTES_MAX,
     FULL_TICK_MINUTES_MIN,
+    GATE_ACTIVE_REPOS,
     REPO_CONFIG_PATH,
     TARGET_REPO,
 )
@@ -84,8 +85,10 @@ def test_bare_off_is_the_mode_off_not_a_boolean():
         pytest.param(_file(safety="none"), "safety 'none' is not one of", id="bad-value"),
         pytest.param(_file(safety="pytorchbot"), "safety: pytorchbot is only for", id="pytorchbot"),
         pytest.param(_file(status_comment="drci"), "status_comment: drci is only for", id="drci"),
-        pytest.param(_file(mode="active"), "safety: gate cannot be active", id="active-gate"),
-        pytest.param(_file(mode="active", extra="1"), "safety: gate cannot be active", id="unknown-key-no-rescue"),
+        pytest.param(_file(mode="active"), "safety: gate with mode: active is only for []", id="active-gate"),
+        pytest.param(
+            _file(mode="active", extra="1"), "safety: gate with mode: active is only for", id="unknown-key-no-rescue"
+        ),
         pytest.param(
             _file(minimum_role="maintain"),
             "minimum_role is only for eligibility: write_permission",
@@ -300,6 +303,55 @@ def test_the_change_keys_are_known_so_only_an_older_releases_unknown_key_makes_a
     assert (settings.entry.change_source, settings.entry.full_tick_minutes) == ("clickhouse", 60)
     assert settings.served is False
     assert settings.problem == "safety-only: unknown key(s) ['extra']"
+
+
+def _gate_active_allowed(monkeypatch: pytest.MonkeyPatch, *repos: str) -> None:
+    monkeypatch.setattr(repo_config, "GATE_ACTIVE_REPOS", frozenset(repos))
+
+
+def test_no_repo_may_be_an_active_gate_repo_out_of_the_box():
+    assert not GATE_ACTIVE_REPOS
+
+
+def test_an_active_gate_repo_in_the_allowlist_is_served(monkeypatch):
+    _gate_active_allowed(monkeypatch, _VISION)
+
+    settings = repo_config.parse_settings(_VISION, _file(mode="active"))
+
+    entry = RepoEntry(_VISION, "greenlight", "gate", "merge_rules", "active")
+    assert settings == Settings(_VISION, "valid", entry, served=True)
+    assert entry.strict_base is True
+
+
+def test_the_gate_active_allowlist_matches_the_repo_case_insensitively(monkeypatch):
+    _gate_active_allowed(monkeypatch, _VISION)
+
+    assert repo_config.parse_settings("PyTorch/Vision", _file(mode="active")).served is True
+
+
+def test_an_active_gate_repo_outside_the_allowlist_is_refused(monkeypatch):
+    _gate_active_allowed(monkeypatch, "pytorch/test-infra")
+
+    settings = repo_config.parse_settings(_VISION, _file(mode="active"))
+
+    problem = "invalid config, refused: safety: gate with mode: active is only for ['pytorch/test-infra']"
+    assert settings == Settings(_VISION, "invalid", None, served=False, problem=problem)
+
+
+@pytest.mark.parametrize("mode", ["shadow", "off"])
+def test_a_gate_repo_outside_the_allowlist_may_be_shadow_or_off(mode):
+    assert repo_config.parse_settings(_VISION, _file(mode=mode)).served is True
+
+
+def test_the_allowlist_never_lets_a_pytorchbot_safety_through(monkeypatch):
+    _gate_active_allowed(monkeypatch, _VISION)
+
+    assert repo_config.parse_settings(_VISION, _file(safety="pytorchbot", mode="active")).kind == "invalid"
+
+
+@pytest.mark.parametrize(("safety", "strict"), [("gate", True), ("pytorchbot", False)])
+def test_only_a_gate_entry_takes_the_strict_base_rule(safety, strict):
+    assert dataclasses.replace(BUILTIN_PYTORCH, safety=safety).strict_base is strict
 
 
 def test_the_primary_without_the_change_keys_takes_the_builtins_silently(caplog):
@@ -565,6 +617,26 @@ def test_record_entry_raises_with_no_usable_entry(monkeypatch, settings, why):
     with pytest.raises(ValueError, match="has no valid GreenLight settings") as excinfo:
         repo_config.record_entry("tok", settings.repo)
     assert why in str(excinfo.value)
+
+
+def _record_entry_reading(monkeypatch: pytest.MonkeyPatch, text: str) -> tuple[RepoEntry, bool]:
+    monkeypatch.setattr(repo_config, "fetch_settings", _real_fetch_settings)
+    monkeypatch.setattr(github_client, "build_authz_client", lambda token: _ContentsClient(_content(text)))
+    return repo_config.record_entry("tok", _VISION)
+
+
+def test_record_entry_refuses_an_active_gate_file_outside_the_allowlist(monkeypatch):
+    with pytest.raises(ValueError, match="safety: gate with mode: active is only for"):
+        _record_entry_reading(monkeypatch, _file(mode="active"))
+
+
+def test_record_entry_serves_an_active_gate_file_in_the_allowlist(monkeypatch):
+    _gate_active_allowed(monkeypatch, _VISION)
+
+    entry, served = _record_entry_reading(monkeypatch, _file(mode="active"))
+
+    assert (entry, served) == (RepoEntry(_VISION, "greenlight", "gate", "merge_rules", "active"), True)
+    assert entry.strict_base is True
 
 
 def test_marker_entry_uses_what_the_file_says(monkeypatch):

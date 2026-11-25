@@ -237,7 +237,8 @@ CLICKHOUSE_CHANGE_SOURCE_REPOS: frozenset[str] = frozenset({normalize_repo(TARGE
 # Repos whose config may name safety: gate with mode: active, so going active is a test-infra change under
 # GreenLight's code owners. Switch a repo to mode: off and wait for its drain before removing it: a refused
 # gate+active file, its stored last valid text included, gives the repo no work at all, drain included.
-GATE_ACTIVE_REPOS: frozenset[str] = frozenset()
+# Entries are folded at construction, so a mixed-case addition cannot silently never match.
+GATE_ACTIVE_REPOS: frozenset[str] = frozenset(normalize_repo(repo) for repo in ())
 
 # A GitHub App acts through a bot account whose login is ``<app-slug>[bot]``. The verdict writer
 # and the scan's recheck-refusal poster author-scope their comment writes to this login, so it must

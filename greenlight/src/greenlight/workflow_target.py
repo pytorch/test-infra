@@ -81,10 +81,14 @@ def checkout_dirname(repo: str) -> str:
     return PRIMARY_CHECKOUT if repo == TARGET_REPO else OTHER_CHECKOUT
 
 
+def is_repo_name(repo: str) -> bool:
+    """Whether ``repo`` is ``pytorch/<name>`` (``REPO_NAME_RE``) with a name other than ``.`` or ``..``."""
+    return REPO_NAME_RE.fullmatch(repo) is not None and repo.partition("/")[2] not in (".", "..")
+
+
 def _require_repo(repo: str) -> str:
     """``repo``, canonical and of the expected shape: ``pytorch/<name>``, the primary only exactly."""
-    name = repo.partition("/")[2]
-    if not REPO_NAME_RE.fullmatch(repo) or name in (".", ".."):
+    if not is_repo_name(repo):
         raise ValueError(f"repo {repo!r} is not pytorch/<name>")
     if repo != TARGET_REPO and repo.lower() == TARGET_REPO.lower():
         raise ValueError(f"repo {repo!r} is a different spelling of {TARGET_REPO}")

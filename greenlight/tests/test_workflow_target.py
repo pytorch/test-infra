@@ -205,6 +205,29 @@ def test_a_repo_of_the_wrong_shape_is_refused_offline(capsys, repo):
     assert "greenlight target:" in captured.err
 
 
+@pytest.mark.parametrize(
+    ("repo", "valid"),
+    [
+        ("pytorch/pytorch", True),
+        ("pytorch/PyTorch", True),
+        ("pytorch/vision", True),
+        ("pytorch/a.b_c-d", True),
+        ("pytorch/...", True),
+        ("PyTorch/vision", False),
+        ("pytorch/.", False),
+        ("pytorch/..", False),
+        ("pytorch/a/b", False),
+        ("pytorch/", False),
+        ("pytorch/vision\n", False),
+        (" pytorch/vision", False),
+        ("facebook/vision", False),
+        ("vision", False),
+    ],
+)
+def test_is_repo_name_is_the_pattern_without_dot_names(repo, valid):
+    assert workflow_target.is_repo_name(repo) is valid
+
+
 @pytest.mark.parametrize("pr", ["0", "012", "1.5", "-1", "١٢", "", " 1", "1 ", "1\n", "1e3", "+1", "0x1", "²"])
 def test_a_pr_that_is_not_a_plain_positive_number_is_refused(capsys, pr):
     assert _main(["--strict", "--pr", pr]) == EXIT_FAILURE

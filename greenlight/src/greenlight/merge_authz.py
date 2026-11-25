@@ -34,7 +34,7 @@ from greenlight import constants
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
 
-    from greenlight.github_types import _BasedPR, _FilesPR
+    from greenlight.github_types import RepoBasedPR, _BasedPR, _FilesPR
 
 logger = logging.getLogger(__name__)
 
@@ -295,6 +295,22 @@ def accepts_refs(base_ref: str, head_ref: str, stack_trunk: str | None) -> bool:
 def accepts_base(pr: _BasedPR) -> bool:
     """Whether trymerge accepts the PR's base (``accepts_refs`` on its base, its head and its native stack's trunk)."""
     return accepts_refs(pr.base.ref, pr.head.ref, native_stack_trunk(pr))
+
+
+def is_target_branch(ref: str | None) -> bool:
+    """Whether ``ref`` is exactly ``TARGET_BRANCH``."""
+    return ref == constants.TARGET_BRANCH
+
+
+def accepts_base_for(pr: RepoBasedPR, *, strict: bool) -> bool:
+    """The repo's base rule: ``accepts_base``, or when ``strict`` (``RepoEntry.strict_base``) a base that is
+    ``TARGET_BRANCH`` in a repo whose default branch, as the same PR payload reports it, is ``TARGET_BRANCH`` too.
+
+    A ``gate`` repo has no trymerge to land a ghstack or GitHub-native stack, so only a PR on ``main`` qualifies.
+    """
+    if strict:
+        return is_target_branch(pr.base.ref) and is_target_branch(pr.base.repo.default_branch)
+    return accepts_base(pr)
 
 
 def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
