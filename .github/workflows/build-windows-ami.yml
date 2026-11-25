@@ -44,7 +44,131 @@ jobs:
           version: ${{ env.PACKER_VERSION }}
 
       - name: Packer Build
+        # Just under the 5h AWS session (role-duration-seconds above), so a
+        # stuck build fails with a clear timeout before its credentials expire,
+        # and well before the 6h job limit, which would kill the job before the
+        # cleanup steps below get to run. Successful builds take about 2h.
+        timeout-minutes: 290
+        env:
+          # Tags the builder with this run (windows.pkr.hcl). Set through the
+          # environment rather than -var so that building an older branch
+          # without the variable still works.
+          PKR_VAR_run_id: ${{ github.run_id }}
         run: |
           cd aws/ami/windows
           packer init .
           PACKER_LOG=1 packer build -var 'skip_create_ami=${{ inputs.skip_create_ami }}' .
+
+      # Packer only removes its builder instance, temporary security group and
+      # key pair when it exits cleanly. If the job is cancelled or fails, they
+      # are left behind (a running or stopped g5.4xlarge with WinRM open), so
+      # remove whatever this run launched. Packer applies run_tags to all three,
+      # so they are found by the packer-run-id tag even if packer had already
+      # started terminating the instance.
+      - name: Refresh AWS credentials for cleanup
+        if: cancelled() || failure()
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::391835788720:role/gha-packer-role
+
+      - name: Clean up builder resources
+        if: cancelled() || failure()
+        timeout-minutes: 20
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # Only touch resources tagged by this run's packer build. EC2 filters
+          # treat * and ? as wildcards, so refuse anything but a numeric ID.
+          if [[ ! "${RUN_ID}" =~ ^[0-9]+$ ]]; then
+            echo "Refusing to clean up: unexpected run ID '${RUN_ID}'." >&2
+            exit 1
+          fi
+          tags=("Name=tag:packer-build,Values=windows-gha-ci"
+                "Name=tag:packer-run-id,Values=${RUN_ID}")
+
+          # On cancel, GitHub force-stops the remaining steps after about 5
+          # minutes, and a Windows builder can take longer than that to
+          # terminate. A security group can't be deleted while an instance
+          # uses it, so first move each builder onto its VPC's default
+          # security group. The packer group can then be deleted right away
+          # instead of after termination.
+
+          # Assign before splitting so a failed AWS call stops the step
+          # instead of looking like "nothing to clean up".
+          out=$(aws ec2 describe-instances --filters "${tags[@]}" \
+            "Name=instance-state-name,Values=pending,running,stopping,stopped,shutting-down" \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+          read -r -a ids <<< "${out}"
+          if [ "${#ids[@]}" -gt 0 ]; then
+            for id in "${ids[@]}"; do
+              vpc=$(aws ec2 describe-instances --instance-ids "${id}" \
+                --query 'Reservations[0].Instances[0].VpcId' --output text)
+              default_sg=$(aws ec2 describe-security-groups \
+                --filters "Name=vpc-id,Values=${vpc}" "Name=group-name,Values=default" \
+                --query 'SecurityGroups[0].GroupId' --output text)
+              # Not possible once the instance is shutting down; the security
+              # group is then deleted after termination below.
+              if aws ec2 modify-instance-attribute --instance-id "${id}" \
+                   --groups "${default_sg}"; then
+                echo "Moved ${id} to default security group ${default_sg}"
+              else
+                echo "Could not move ${id} off its security group." >&2
+              fi
+            done
+            echo "Terminating ${ids[*]}"
+            aws ec2 terminate-instances --instance-ids "${ids[@]}" --output text
+          else
+            echo "No builder instances left for run ${RUN_ID}."
+          fi
+
+          # gha-packer-role can't call DescribeKeyPairs, so find the key pairs
+          # through their tags (DescribeTags). Keep only those carrying both
+          # tags. Packer creates the key pair first, so this also catches one
+          # from a run cancelled before the instance launched.
+          out=$(aws ec2 describe-tags --filters "Name=resource-type,Values=key-pair" \
+            "Name=key,Values=packer-run-id" "Name=value,Values=${RUN_ID}" \
+            --query 'Tags[].ResourceId' --output text)
+          read -r -a run_keys <<< "${out}"
+          out=$(aws ec2 describe-tags --filters "Name=resource-type,Values=key-pair" \
+            "Name=key,Values=packer-build" "Name=value,Values=windows-gha-ci" \
+            --query 'Tags[].ResourceId' --output text)
+          read -r -a build_keys <<< "${out}"
+          for key in "${run_keys[@]}"; do
+            [[ " ${build_keys[*]} " == *" ${key} "* ]] || continue
+            echo "Deleting key pair ${key}"
+            aws ec2 delete-key-pair --key-pair-id "${key}"
+          done
+
+          # Deletes the given security groups, retrying each up to $1 times,
+          # $2 seconds apart. Leaves the ones it couldn't delete in "left".
+          delete_sgs() {
+            local attempts=$1 delay=$2 sg attempt
+            left=()
+            for sg in "${sgs[@]}"; do
+              echo "Deleting security group ${sg}"
+              for ((attempt = 1; attempt <= attempts; attempt++)); do
+                aws ec2 delete-security-group --group-id "${sg}" && continue 2
+                [ "${attempt}" -lt "${attempts}" ] && sleep "${delay}"
+              done
+              left+=("${sg}")
+            done
+          }
+
+          out=$(aws ec2 describe-security-groups --filters "${tags[@]}" \
+            --query 'SecurityGroups[].GroupId' --output text)
+          read -r -a sgs <<< "${out}"
+          # Normally free already (the builder was moved off it above).
+          delete_sgs 3 10
+
+          # Otherwise wait for the builder to terminate, then try again.
+          if [ "${#left[@]}" -gt 0 ] && [ "${#ids[@]}" -gt 0 ]; then
+            aws ec2 wait instance-terminated --instance-ids "${ids[@]}"
+            sgs=("${left[@]}")
+            delete_sgs 6 20
+          fi
+          if [ "${#left[@]}" -gt 0 ]; then
+            echo "Could not delete security groups: ${left[*]}" >&2
+            exit 1
+          fi
