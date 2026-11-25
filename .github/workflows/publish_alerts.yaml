@@ -1,0 +1,30 @@
+name: Check Alerts
+on:
+  pull_request:
+    paths:
+      - .github/workflows/publish_alerts.yaml
+      - tools/alerts/*
+  # run every 5 minutes
+  schedule:
+    # Every 5 minutes
+    - cron: "*/5 * * * *"
+  # Have the ability to trigger this job manually through the API
+  workflow_dispatch:
+
+
+jobs:
+  update-alerts:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install requests
+        run: |
+           pip3 install requests setuptools
+      - name: Check for alerts and creates issue
+        run: |
+          python3 tools/alerts/publish_alerts.py
+        env:
+          # NOTE: Should be a blank string for pull requests
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
