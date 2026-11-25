@@ -198,13 +198,13 @@ def write_run_summary(
             f"{details}<summary><code>{escape(commit)}</code> — "
             f"{len(blockers)} blocker finding(s)</summary><ul>"
         ]
-        for message, check in blockers:
-            if check is None:
+        for message, blocker in blockers:
+            if blocker is None:
                 lines.append(f"<li>{escape(message)}</li>")
                 continue
-            conclusion = escape(str(check["conclusion"]))
-            line = f"<li><strong>{conclusion}</strong>: {describe_check(check)}"
-            other_runs = passed.get((check["workflowName"], check["jobName"]), [])
+            conclusion = escape(str(blocker["conclusion"]))
+            line = f"<li><strong>{conclusion}</strong>: {describe_check(blocker)}"
+            other_runs = passed.get((blocker["workflowName"], blocker["jobName"]), [])
             if other_runs:
                 line += "; also passed: " + ", ".join(map(describe_check, other_runs))
             lines.append(line + "</li>")
