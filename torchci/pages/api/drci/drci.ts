@@ -2198,6 +2198,15 @@ export async function getWorkflowJobsStatuses(
   };
 }
 
+// Runs of one workflow on the PR head test the same commit: a run that
+// succeeded is a complete verdict on it, and a cancelled one tested nothing.
+function workflowRunRank(workflow: RecentWorkflowsData): number {
+  if (workflow.conclusion === "success") {
+    return 2;
+  }
+  return workflow.conclusion === "cancelled" ? 0 : 1;
+}
+
 export async function reorganizeWorkflows(
   owner: string,
   repo: string,
@@ -2286,13 +2295,17 @@ export async function reorganizeWorkflows(
       (job) => job.workflowId === 0
     );
 
-    // Get most recent workflow run based on workflowUniqueId (workflow_id in webhooks)
+    // Pick one run per workflowUniqueId (workflow_id in webhooks): a successful
+    // run, else one that wasn't cancelled, else the most recent
     const recentWorkflows: Map<number, RecentWorkflowsData> = new Map();
     for (const workflow of workflows) {
       // Check that this is a workflow, not a job
       const workflowUniqueId = workflow.workflowUniqueId;
-      const existingWorkflowId = recentWorkflows.get(workflowUniqueId)?.id;
-      if (!existingWorkflowId || existingWorkflowId < workflow.id) {
+      const existing = recentWorkflows.get(workflowUniqueId);
+      const rankDiff = existing
+        ? workflowRunRank(workflow) - workflowRunRank(existing)
+        : 1;
+      if (rankDiff > 0 || (rankDiff === 0 && existing!.id < workflow.id)) {
         recentWorkflows.set(workflowUniqueId, workflow);
       }
     }

@@ -572,6 +572,37 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(pr_1001.jobs.length).toBe(2);
   });
 
+  describe("reorganizeWorkflows picks one run per workflow", () => {
+    // A workflow run on the PR head, plus one of its jobs.
+    function run(runId: number, conclusion: string) {
+      return [
+        getDummyJob({ workflowId: 0, id: runId, name: "Lint", conclusion }),
+        getDummyJob({
+          workflowId: runId,
+          id: runId * 10,
+          name: "Lint / pr-sanity-checks",
+          conclusion,
+        }),
+      ];
+    }
+    const cases: [string, string, string, number][] = [
+      ["older success over newer cancelled", "success", "cancelled", 1],
+      ["older success over newer failure", "success", "failure", 1],
+      ["newer success over older failure", "failure", "success", 2],
+      ["older failure over newer cancelled", "failure", "cancelled", 1],
+    ];
+    test.each(cases)("%s", async (_name, older, newer, keptRun) => {
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        "pytorch",
+        "pytorch",
+        [...run(1, older), ...run(2, newer)]
+      );
+      expect(
+        workflowsByPR.get(1001)!.jobs.map((job) => job.workflowId)
+      ).toEqual([keptRun]);
+    });
+  });
+
   test("Check that getWorkflowJobsStatuses works correctly", async () => {
     const originalWorkflows = [successfulA, pendingA, failedA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
@@ -1328,7 +1359,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(unstableJobs.length).toBe(0);
   });
 
-  test("test new failed workflow overrides old succeeding workflow", async () => {
+  test("test old succeeding workflow overrides new failed workflow", async () => {
     const newFailedWorkflow = getDummyJob({
       workflowId: 0,
       id: 2,
@@ -1369,7 +1400,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
 
     expect(pending).toBe(0);
-    expect(failedJobs.length).toBe(1);
+    expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(0);
     expect(flakyJobs.length).toBe(0);
     expect(unstableJobs.length).toBe(0);
