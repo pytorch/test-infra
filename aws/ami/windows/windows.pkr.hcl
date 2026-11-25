@@ -7,9 +7,12 @@ data "amazon-ami" "windows_root_ami" {
     root-device-type    = "ebs"
     virtualization-type = "hvm"
   }
-  most_recent = true
-  owners      = ["amazon"]
-  region      = "us-east-1"
+  # The pinned AMI is deprecated, and AWS hides deprecated AMIs from filtered
+  # searches unless asked. It can still be found and launched with this set.
+  include_deprecated = true
+  most_recent        = true
+  owners             = ["amazon"]
+  region             = "us-east-1"
 }
 
 locals {
