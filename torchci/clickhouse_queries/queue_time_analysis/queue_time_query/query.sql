@@ -16,10 +16,11 @@ WITH selected_data AS (
         {granularity:String} = 'month', 1440,
         1
     ) AS time_divisor,
-    max(max_queue_time) AS aggr_max_queue_time,
-    sum(avg_queue_time * total_count) AS weighted_sum,
-    sum(total_count) AS total_count_sum,
-    groupArray(histogram) AS al
+    job_name,
+    max(max_queue_time) AS max_queue_time,
+    sum(avg_queue_time * total_count) AS sumi,
+    sum(total_count) AS count_sum,
+    groupArray(histogram) AS partial_al
   FROM misc.oss_ci_queue_time_histogram
   WHERE time > {startTime: DateTime64}
     AND time <= {endTime: DateTime64}
@@ -35,11 +36,24 @@ WITH selected_data AS (
     )
     AND (
     {runnerLabels: Array(String)} = [] OR hasAny(runner_labels, {runnerLabels: Array(String)})
+  )
+  GROUP BY truncated_time, job_name, time_divisor
+),
+final AS (
+  SELECT
+  truncated_time,
+  time_divisor,
+  max(max_queue_time) AS aggr_max_queue_time,
+  sum(sumi * count_sum) AS weighted_sum,
+  sum(count_sum) AS total_count_sum,
+  groupArray(arrayMap(
+    i -> arraySum(arrayMap(arr -> arr[i], partial_al)),
+    range(1, length(partial_al[1]))
+  )) AS al
+  FROM selected_data
+  group by truncated_time, time_divisor
 )
-  GROUP BY truncated_time
-)
-
- SELECT
+SELECT
   aggr_max_queue_time AS max_queue_time,
   total_count_sum,
   time_divisor,
@@ -76,5 +90,5 @@ WITH selected_data AS (
       arrayEnumerate(arrayMap(i -> arraySum(arrayMap(arr -> arr[i], al)), range(1, length(al[1]))))
     )))
   ) AS p20_index
-FROM selected_data
+FROM final
 ORDER BY time ASC
