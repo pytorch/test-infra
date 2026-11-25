@@ -47,7 +47,8 @@ A wide or event tick first reads each view PR's marker from ClickHouse (`change_
 newest comment time, bot authors left out (`pr_hash.is_bot`'s rule). Then it walks GitHub's PRs,
 open and closed, updated since the previous listing less 10 minutes (`LISTING_OVERLAP`), usually one
 page, and updates the view from them: pushes, comments, base edits, labels, draft changes, closes,
-merges, reopens and new PRs by cohort authors all come from GitHub, never from HUD. The open
+merges, reopens and new PRs by cohort authors all come from GitHub, never from HUD; a PR the walk
+shows closed, or by an author no longer in the cohort (a login rename), leaves the view. The open
 `Reverted` PRs are listed from GitHub every tick. A PR whose marker shows a non-bot comment or a
 `pull_request` event newer than the view's `updated_at` counts as updated then when the review window
 is applied, so a PR whose place in GitHub's updated order lags still enters it.
@@ -76,7 +77,11 @@ keeps the bound a `github` repo's full tick gives it.
 old (`STALE_AFTER`), one table's newest is older than that table's own threshold
 (`TABLE_STALE_AFTER`, each above its longest gap measured over a week: `pull_request` 45 minutes,
 `issue_comment` 30, reviews 75, review comments 120), the read fails, or ClickHouse has no row for any
-of the view's PRs (a repo HUD does not cover). Rows dated more than 5 minutes ahead are ignored. Each
+of the view's PRs (a repo HUD does not cover), or the repo's own newest issue comment is more than 75
+minutes old (`REPO_STALE_AFTER`, above `pytorch/pytorch`'s longest gap between issue-comment events
+over two weeks, 64 minutes), so a pipeline that stops delivering one repo's events while the others'
+keep the tables fresh is caught too; a repo quieter than that reads stale and polls. Rows dated more
+than 5 minutes ahead are ignored. Each
 read runs under `max_execution_time` (10 s) on a client with 15 s socket timeouts, and in a thread
 the tick abandons after `CHANGE_FEED_DEADLINE_SECONDS` (20 s), since socket timeouts do not bound
 connection set-up, retries or a response that keeps trickling: a read past it is a failed reading,
@@ -87,17 +92,21 @@ bump `updated_at`; an approver's login rename; a non-bumping event whose webhook
 one stalled stream holds below its table's threshold; a review or push on a PR whose place in
 GitHub's updated order lags more than `LISTING_OVERLAP`, which the recent listing therefore misses.
 None of these keeps an earlier LAND usable for longer than 15 minutes once its PR is a candidate (the
-LAND bound above), but a base change or a draft flag the walk misses while the marker reading is
-stale or its `pull_request` webhook was lost reaches the ineligible revoke only at the sweep, or at
-the 15-minute full tick while stale.
+LAND bound above). A base change, an author change or a draft flag the walk misses while the marker
+reading is stale or its `pull_request` webhook was lost reaches the ineligible revoke at the next wide
+tick on a PR whose latest recorded row is `LAND`: each wide tick reads those PRs alone from GitHub
+first. On any other PR it waits for the sweep, or the 15-minute full tick while stale.
 
-Each tick logs one line per `clickhouse` repo: its kind, its source (`ClickHouse`, or `GitHub, stale:`
+Each tick logs one line per `clickhouse` repo: its kind, its source (`ClickHouse`, `GitHub, stale:`
 and why, or `GitHub, no usable view`), the PRs it listed, the PRs it read on their own, its
-candidates, and the PRs whose marker changed.
+candidates, and the PRs whose marker changed; a wide tick also logs how many `LAND` PRs it read again.
 
 **Cost.** Per tick: the recent listing (usually 1 request), the `Reverted` listing (1) and the
 fingerprints of changed PRs; every 15 minutes, the revert guard over the PRs with a recorded
-`REVERTED` row and the LAND revalidation. ClickHouse: about 1 s of server time per tick. The review
+`REVERTED` row, a read of each PR whose latest row is `LAND` and the LAND revalidation. ClickHouse,
+measured on `pytorch/pytorch` (2026-11-24): the marker query over the view's about 650 PRs takes about
+0.3 s of server time and reads about 100 MB, the freshness query about 2 s, as it scans each table's
+event-time column; a full tick reads the markers a second time after its listing. The review
 tables cannot be read by PR number without reading their whole `pull_request` Tuple, so their narrow
 columns are read in full; a projection or materialized view keyed by repo and PR number on the HUD
 cluster would bound every read. Each `clickhouse` repo runs a marker query and a freshness query of

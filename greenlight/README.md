@@ -52,7 +52,7 @@ dismissed). `verdict` records a single
 PR-review verdict and acts on the PR, `drci-poke` refreshes the Dr. CI comment that shows
 that verdict on `pytorch/pytorch` (both below), and `check-config` validates a repo's config file offline.
 
-Which open PRs a listing scan reads depends on the repo's `change_source` and the tick. This is a `github` repo; a
+Which open PRs a listing scan reads depends on the repo's `change_source` and the tick. Below is a `github` repo's; a
 `clickhouse` repo lists from a stored view of its open PRs and reads HUD ClickHouse ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)).
 A **full tick** lists every open PR, on every tick until one completes, and again 15 minutes (less 30 s;
 `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last that completed —
