@@ -18,20 +18,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _Invalid(ValueError):
+class Invalid(ValueError):
     """The file cannot be used as a config; the message is the reason."""
 
 
-_REPR = reprlib.Repr(maxstring=60, maxother=60)
+REPR = reprlib.Repr(maxstring=60, maxother=60)
 
 
-def _cut(text: str) -> str:
-    return text if len(text) <= _REPR.maxstring else text[: _REPR.maxstring - 3] + "..."
+def cut(text: str) -> str:
+    return text if len(text) <= REPR.maxstring else text[: REPR.maxstring - 3] + "..."
 
 
-def _shown(value: object) -> str:
+def shown(value: object) -> str:
     """``value`` for a problem message: a string's repr cut to a bounded length, anything else by type."""
-    return _REPR.repr(value) if isinstance(value, str) else f"a {type(value).__name__}"
+    return REPR.repr(value) if isinstance(value, str) else f"a {type(value).__name__}"
 
 
 class _Loader(yaml.SafeLoader):
@@ -47,9 +47,9 @@ class _Loader(yaml.SafeLoader):
     def compose_node(self, parent: yaml.Node | None, index: int) -> yaml.Node | None:
         event = self.peek_event()  # type: ignore[no-untyped-call]
         if isinstance(event, yaml.AliasEvent) or getattr(event, "anchor", None) is not None:
-            raise _Invalid("anchors and aliases are not allowed")
+            raise Invalid("anchors and aliases are not allowed")
         if getattr(event, "tag", None) is not None:
-            raise _Invalid(f"explicit YAML tags are not allowed (found {_shown(event.tag)})")
+            raise Invalid(f"explicit YAML tags are not allowed (found {shown(event.tag)})")
         return super().compose_node(parent, index)
 
     def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[object, object]:
@@ -57,7 +57,7 @@ class _Loader(yaml.SafeLoader):
         for key_node, _value_node in node.value:
             if isinstance(key_node, yaml.ScalarNode):
                 if (key_node.tag, key_node.value) in seen:
-                    raise _Invalid(f"duplicate key {_shown(key_node.value)}")
+                    raise Invalid(f"duplicate key {shown(key_node.value)}")
                 seen.add((key_node.tag, key_node.value))
         return super().construct_mapping(node, deep=deep)
 
@@ -70,18 +70,18 @@ _Loader.yaml_implicit_resolvers = {
 }
 
 
-def _load(text: str | bytes) -> Mapping[object, object]:
-    """The file's top-level mapping; ``_Invalid`` when it cannot be one."""
+def load(text: str | bytes) -> Mapping[object, object]:
+    """The file's top-level mapping; ``Invalid`` when it cannot be one."""
     size = len(text.encode() if isinstance(text, str) else text)
     if size > CONFIG_MAX_BYTES:
-        raise _Invalid(too_big(size))
+        raise Invalid(too_big(size))
     try:
         document = yaml.load(text, Loader=_Loader)  # noqa: S506 -- _Loader is a yaml.SafeLoader
-    except _Invalid:
+    except Invalid:
         raise
     except Exception as exc:
         logger.error("cannot parse a %s", REPO_CONFIG_PATH, exc_info=True)
-        raise _Invalid(f"not valid YAML: {type(exc).__name__}: {exc}") from exc
+        raise Invalid(f"not valid YAML: {type(exc).__name__}: {exc}") from exc
     if not isinstance(document, dict):
-        raise _Invalid(f"the top level must be a mapping, got {type(document).__name__}")
+        raise Invalid(f"the top level must be a mapping, got {type(document).__name__}")
     return document

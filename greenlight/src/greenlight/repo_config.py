@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Literal, cast, get_args
 
 from greenlight import github_client
 from greenlight.config_contents import config_url, contents_answer
-from greenlight.config_yaml import _REPR, _cut, _Invalid, _load, _shown
+from greenlight.config_yaml import REPR, Invalid, cut, load, shown
 from greenlight.constants import (
     CLICKHOUSE_CHANGE_SOURCE_REPOS,
     DRCI_STATUS_COMMENT_REPOS,
@@ -151,7 +151,7 @@ def _field_problem(field: str, raw: Mapping[object, object]) -> str | None:
     if not isinstance(value, str):
         return f"{field} must be a string, got {type(value).__name__}"
     if value not in allowed:
-        return f"{field} {_shown(value)} is not one of {list(allowed)}"
+        return f"{field} {shown(value)} is not one of {list(allowed)}"
     return None
 
 
@@ -164,7 +164,7 @@ def _full_tick_problem(raw: Mapping[object, object]) -> str | None:
     if isinstance(value, bool) or not isinstance(value, int):
         return f"full_tick_minutes must be an integer {bounds}, got {type(value).__name__}"
     if not FULL_TICK_MINUTES_MIN <= value <= FULL_TICK_MINUTES_MAX:
-        return f"full_tick_minutes {_REPR.repr(value)} is not an integer {bounds}"
+        return f"full_tick_minutes {REPR.repr(value)} is not an integer {bounds}"
     return None
 
 
@@ -211,7 +211,7 @@ def _entry(repo: str, raw: Mapping[object, object]) -> RepoEntry:
 
 
 def _unknown_keys(raw: Mapping[object, object]) -> list[str]:
-    return sorted(_cut(str(key)) for key in raw if key not in _KNOWN_KEYS)
+    return sorted(cut(str(key)) for key in raw if key not in _KNOWN_KEYS)
 
 
 def _primary_change_keys(raw: Mapping[object, object]) -> tuple[ChangeSource, int, list[str]]:
@@ -234,8 +234,9 @@ def _primary_change_keys(raw: Mapping[object, object]) -> tuple[ChangeSource, in
     return change_source, full_tick_minutes, ignored
 
 
-def _primary_findings(raw: Mapping[object, object]) -> tuple[list[str], list[str]]:
-    """The primary's reasons to be safety-only, and what of its file is ignored."""
+def _primary_findings(raw: Mapping[object, object]) -> tuple[list[str], list[str], tuple[ChangeSource, int]]:
+    """The primary's reasons to be safety-only, what of its file is ignored, and its ``change_source`` and
+    ``full_tick_minutes``."""
     ignored: list[str] = []
     for field in _PINNED_FIELDS:
         pinned = getattr(BUILTIN_PYTORCH, field)
@@ -243,12 +244,13 @@ def _primary_findings(raw: Mapping[object, object]) -> tuple[list[str], list[str
             if field not in _OPTIONAL_FIELDS:
                 ignored.append(f"{field} is missing; it is pinned to {pinned!r}")
         elif raw[field] != pinned:
-            ignored.append(f"{field} {_shown(raw[field])} ignored; it is pinned to {pinned!r}")
-    ignored += _primary_change_keys(raw)[2]
+            ignored.append(f"{field} {shown(raw[field])} ignored; it is pinned to {pinned!r}")
+    change_source, full_tick_minutes, change_ignored = _primary_change_keys(raw)
+    ignored += change_ignored
     if unknown := _unknown_keys(raw):
         ignored.append(f"unknown key(s) {unknown} ignored")
     mode_problem = _field_problem("mode", raw)
-    return ([] if mode_problem is None else [mode_problem]), ignored
+    return ([] if mode_problem is None else [mode_problem]), ignored, (change_source, full_tick_minutes)
 
 
 def _other_findings(repo: str, raw: Mapping[object, object]) -> tuple[list[str], list[str]]:
@@ -259,17 +261,16 @@ def _other_findings(repo: str, raw: Mapping[object, object]) -> tuple[list[str],
 def parse_settings(repo: str, text: str | bytes) -> Settings:
     """``repo``'s settings from its file's text. Never raises for bad content."""
     try:
-        raw = _load(text)
-    except _Invalid as exc:
+        raw = load(text)
+    except Invalid as exc:
         return outcome(repo, "invalid", str(exc))
     if is_primary(repo):
-        invalid, ignored = _primary_findings(raw)
+        invalid, ignored, (change_source, full_tick_minutes) = _primary_findings(raw)
         for finding in ignored:
             logger.error("%s %s: %s", repo, REPO_CONFIG_PATH, finding)
         if invalid:
             return outcome(repo, "invalid", "; ".join(invalid))
         mode = cast("Mode", raw["mode"])
-        change_source, full_tick_minutes, _ignored = _primary_change_keys(raw)
         entry = dataclasses.replace(
             BUILTIN_PYTORCH, mode=mode, change_source=change_source, full_tick_minutes=full_tick_minutes
         )
@@ -351,13 +352,13 @@ def marker_entry(token: str | None, repo: str) -> tuple[RepoEntry, bool]:
 def check_file(path: Path, repo: str) -> list[str]:
     """Every problem of the config file at ``path`` for ``repo``; for the primary also what of it is ignored."""
     try:
-        raw = _load(path.read_bytes())
+        raw = load(path.read_bytes())
     except OSError as exc:
         return [f"cannot read {path}: {exc}"]
-    except _Invalid as exc:
+    except Invalid as exc:
         return [str(exc)]
     if is_primary(repo):
-        invalid, ignored = _primary_findings(raw)
+        invalid, ignored, _change_keys = _primary_findings(raw)
         return invalid + ignored
     invalid, unknown = _other_findings(repo, raw)
     return invalid + ([f"unknown key(s) {unknown}"] if unknown else [])
