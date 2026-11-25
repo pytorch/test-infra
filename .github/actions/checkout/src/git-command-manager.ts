@@ -83,6 +83,7 @@ export interface IGitCommandManager {
     globalConfig?: boolean,
     configFile?: string
   ): Promise<string[]>
+  setupAlternates(objectsPath: string): Promise<void>
   tryReset(): Promise<boolean>
   version(): Promise<GitVersion>
 }
@@ -598,6 +599,18 @@ class GitCommandManager {
       .trim()
       .split('\n')
       .filter(key => key.trim())
+  }
+
+  async setupAlternates(objectsPath: string): Promise<void> {
+    const alternatesDir = path.join(
+      this.workingDirectory,
+      '.git',
+      'objects',
+      'info'
+    )
+    await fs.promises.mkdir(alternatesDir, {recursive: true})
+    const alternatesFile = path.join(alternatesDir, 'alternates')
+    await fs.promises.writeFile(alternatesFile, objectsPath + '\n')
   }
 
   async tryReset(): Promise<boolean> {
