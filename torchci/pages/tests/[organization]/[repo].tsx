@@ -272,6 +272,11 @@ export default function Page() {
               ? undefined
               : labelOf(query.window, options.window.values)
           }
+          onWidenWindow={
+            query?.window === "3h"
+              ? () => handleQueryChange({ ...query, window: "12h" })
+              : undefined
+          }
           filters={query?.filters}
           onFiltersChange={handleFiltersChange}
           onFilter={handleFilter}

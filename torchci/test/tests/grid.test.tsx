@@ -1210,7 +1210,7 @@ describe("the header's hover help", () => {
       "The test's result on each commit, newest on the left.",
       "Green: passed.",
       "Yellow: passed on retry.",
-      "Red: failed.",
+      "Red: the test failed. The enclosing GitHub job can still pass.",
       "Purple: skipped.",
       "A pill splits when a retry changed the result: first attempt on top, final below. If several jobs ran the test on a commit, the worst result wins.",
       "Under the pills, the bar groups commits that take about the same time. The oldest group is grey, newer ones red when slower and green when faster.",

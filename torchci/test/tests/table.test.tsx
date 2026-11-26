@@ -1962,6 +1962,30 @@ describe("where the rows lead", () => {
     );
   });
 
+  test.each(["pytorch/executorch", "pytorch/pytorch"])(
+    "health links focus failures and preserve the source and window for %s",
+    (repo) => {
+      const context = { window: "12h", ranOn: ["pull_request"] } as const;
+      const params = (href: string) =>
+        new URL(href, "https://hud.pytorch.org").searchParams;
+      const failing = testRunsHref(repo, entry, context, "failing");
+      expect(failing).toContain(`/tests/${repo}/test/42?`);
+      expect(Object.fromEntries(params(failing))).toEqual({
+        ran_on: "pull_request",
+        window: "12h",
+        outcomes: "failed,flaky",
+        environment: "2081130751942693630",
+        env_vars: "7",
+      });
+      expect(
+        params(testRunsHref(repo, entry, context, "flaky")).get("outcomes")
+      ).toBe("failed,flaky");
+      expect(params(testRunsHref(repo, entry, context)).has("outcomes")).toBe(
+        false
+      );
+    }
+  );
+
   test("the figures lead to the runs they were counted over, the configuration named", () => {
     // The grid's own defaults, three days of main, are left off as the page
     // leaves them off its own URL.

@@ -17,6 +17,7 @@ import {
   sectionsOf,
   testConfigColumn,
 } from "components/tests/sharedColumns";
+import TextButton from "components/tests/TextButton";
 import Updated from "components/tests/Updated";
 import type { TestOptions } from "lib/api/tests/options/types";
 import type { TestHealthEntry } from "lib/api/tests/types";
@@ -110,6 +111,8 @@ export interface TestsTableProps {
   // The facet filters in force, which the headers show; undefined with the
   // options.
   filters: FacetValues | undefined;
+  // Widen an empty short window without dropping any other selection.
+  onWidenWindow?: () => void;
   // A header's filter changed: the facets it covers with their new values.
   onFiltersChange: (_next: Partial<FacetValues>) => void;
   // A value clicked in a cell: the facets it stands for, to filter by.
@@ -140,6 +143,7 @@ export default function TestsTable({
   options,
   windowLabel,
   filters: currentFilters,
+  onWidenWindow,
   onFiltersChange,
   onFilter,
   search,
@@ -168,10 +172,15 @@ export default function TestsTable({
     // they were counted over, the row's configuration marked.
     const nameHref = (row: TestRow) =>
       repo === undefined ? undefined : testPagePath(repo, row.test.id);
-    const runsHref = (row: TestRow) =>
+    const runsHref = (row: TestRow, focusHealth = false) =>
       repo === undefined || links === undefined
         ? undefined
-        : testRunsHref(repo, row, links);
+        : testRunsHref(
+            repo,
+            row,
+            links,
+            focusHealth ? row.health.status : undefined
+          );
     const table = { options, filters, onFiltersChange, onFilter };
     return [
       nameColumn<TestRow>({
@@ -219,7 +228,11 @@ export default function TestsTable({
         sortingOrder: ["desc", "asc"],
         valueGetter: (_value, row) => row.health.status,
         renderCell: ({ row }) => (
-          <Health health={row.health} options={options} href={runsHref(row)} />
+          <Health
+            health={row.health}
+            options={options}
+            href={runsHref(row, true)}
+          />
         ),
       },
       environmentColumn<TestRow>(
@@ -314,6 +327,12 @@ export default function TestsTable({
     };
   });
 
+  const empty =
+    !listing.loading && listing.error === undefined && rows.length === 0;
+  const noRowsLabel = windowLabel
+    ? `No reported tests match this view in the last ${windowLabel}.`
+    : "No reported tests match this view.";
+
   return (
     <Stack spacing={1.5}>
       {listing.error !== undefined && (
@@ -333,6 +352,14 @@ export default function TestsTable({
         >
           <Updated refreshedAt={listing.refreshedAt} />
         </Box>
+        {empty && onWidenWindow !== undefined && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            {noRowsLabel}{" "}
+            <TextButton label="Show last 12 hours" onClick={onWidenWindow}>
+              Show last 12 hours
+            </TextButton>
+          </Typography>
+        )}
         <HubDataGrid
           blockFields={["health"]}
           mutedFields={["last_run_at"]}
