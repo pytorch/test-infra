@@ -253,7 +253,7 @@ steps:
     owner: release-manager
     rc_scoped: true
     depends_on: ["2.4"]
-    check: {type: github_workflow_run, repo: pytorch/test-infra, workflow: validate-binaries.yml, ref: main}
+    check: {type: github_workflow_run, repo: pytorch/test-infra, workflow: validate-binaries.yml, ref: "{branch}"}
   - id: "2.6"
     phase: 2
     name: CI is green on the release branch
@@ -365,7 +365,7 @@ steps:
     owner: release-manager
     rc_scoped: true
     depends_on: ["3.1"]
-    check: {type: github_workflow_run, repo: pytorch/test-infra, workflow: validate-binaries.yml, ref: main}
+    check: {type: github_workflow_run, repo: pytorch/test-infra, workflow: validate-binaries.yml, ref: "{branch}"}
   - id: "3.5"
     phase: 3
     name: Milestone issues validated against the final RC

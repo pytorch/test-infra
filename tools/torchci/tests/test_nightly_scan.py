@@ -18,9 +18,15 @@ from analytics.nightly_scan import (  # noqa: E402
     nightly_step_rows,
     rc_runs,
     rc_step_rows,
+    release_candidates,
+    resolved_workflow_check,
     run_jobs,
+    RUNS_PER_PAGE,
     viable_strict_result,
     viable_strict_step_rows,
+    workflow_run_result,
+    workflow_runs,
+    workflow_step_rows,
 )
 
 from torchci import release_portal_config as cfg  # noqa: E402
@@ -46,6 +52,19 @@ def run(
 
 def job(name, conclusion="success"):
     return {"name": name, "conclusion": conclusion, "status": "completed"}
+
+
+def workflow_run(rid, started, conclusion, **overrides):
+    run = {
+        "id": rid,
+        "status": "completed",
+        "conclusion": conclusion,
+        "run_started_at": started,
+        "created_at": started,
+        "html_url": f"https://github.com/actions/runs/{rid}",
+    }
+    run.update(overrides)
+    return run
 
 
 GREEN_JOBS = {
@@ -468,6 +487,19 @@ class TestRcBinaries(TestCase):
             )
         self.assertEqual(calls[1], f"repos/pytorch/pytorch/git/tags/{0:040d}")
 
+    def test_candidates_are_returned_in_candidate_number_order(self):
+        refs = self.refs(["v2.15.0-rc10", "v2.15.0-rc2", "v2.15.0-rc1"])
+        with mock.patch("analytics.nightly_scan.github_get", return_value=refs):
+            candidates = release_candidates("pytorch/pytorch", "2.15.0")
+        self.assertEqual(
+            [(rc, tag) for rc, tag, _ in candidates],
+            [
+                ("rc1", "v2.15.0-rc1"),
+                ("rc2", "v2.15.0-rc2"),
+                ("rc10", "v2.15.0-rc10"),
+            ],
+        )
+
     config = {
         "steps": [
             {"id": "2.1", "check": {"type": "github_ref_exists"}},
@@ -516,6 +548,237 @@ class TestRcBinaries(TestCase):
         lines = failed_job_lines(rows)
         self.assertEqual(lines[0], f"Failed jobs on {TAG}:")
         self.assertIn("wheel-py3_11-cuda13_5-build: failure", lines[2])
+
+
+class TestWorkflowRuns(TestCase):
+    def test_the_release_branch_is_substituted_before_requesting_runs(self):
+        check = resolved_workflow_check(
+            {
+                "type": "github_workflow_run",
+                "repo": "pytorch/test-infra",
+                "workflow": "validate-binaries.yml",
+                "ref": "{branch}",
+            },
+            "release/2.16",
+        )
+        self.assertEqual(check["ref"], "release/2.16")
+
+    def test_all_completed_workflow_run_pages_are_collected(self):
+        first = [
+            workflow_run(index, "2026-11-17T07:00:00Z", "success")
+            for index in range(RUNS_PER_PAGE)
+        ]
+        second = [workflow_run(RUNS_PER_PAGE, "2026-11-16T07:00:00Z", "failure")]
+        calls = []
+
+        def get(path):
+            calls.append(path)
+            return {"workflow_runs": first if path.endswith("page=1") else second}
+
+        with mock.patch("analytics.nightly_scan.github_get", get):
+            runs = workflow_runs(
+                "pytorch/test-infra", "validate-binaries.yml", "release/2.16"
+            )
+        self.assertEqual([run["id"] for run in runs], list(range(RUNS_PER_PAGE + 1)))
+        self.assertEqual(len(calls), 2)
+        self.assertIn("branch=release%2F2.16", calls[0])
+        self.assertIn("status=completed", calls[0])
+
+
+class TestWorkflowRunResult(TestCase):
+    check = {
+        "type": "github_workflow_run",
+        "repo": "pytorch/test-infra",
+        "workflow": "validate-binaries.yml",
+        "ref": "release/2.16",
+    }
+
+    def test_the_latest_actual_result_wins_and_cancelled_runs_are_ignored(self):
+        status, _, url, details = workflow_run_result(
+            self.check,
+            [
+                workflow_run(1, "2026-11-17T07:00:00Z", "success"),
+                workflow_run(2, "2026-11-17T08:00:00Z", "failure"),
+                workflow_run(3, "2026-11-17T09:00:00Z", "cancelled"),
+                workflow_run(4, "2026-11-17T10:00:00Z", "skipped"),
+                workflow_run(
+                    5,
+                    "2026-11-17T11:00:00Z",
+                    "failure",
+                    status="in_progress",
+                ),
+            ],
+        )
+        self.assertEqual(
+            (status, url), ("blocked", "https://github.com/actions/runs/2")
+        )
+        self.assertEqual((details["run_id"], details["conclusion"]), (2, "failure"))
+
+    def test_only_runs_between_the_binary_finish_and_next_tag_count(self):
+        after = datetime(2026, 11, 17, 7, 15, tzinfo=timezone.utc)
+        before = datetime(2026, 11, 17, 8, 0, tzinfo=timezone.utc)
+        status, _, _, details = workflow_run_result(
+            self.check,
+            [
+                workflow_run(1, "2026-11-17T07:10:00Z", "failure"),
+                workflow_run(2, "2026-11-17T07:30:00Z", "neutral"),
+                workflow_run(3, "2026-11-17T08:10:00Z", "failure"),
+            ],
+            after,
+            before,
+        )
+        self.assertEqual(status, "done")
+        self.assertEqual((details["run_id"], details["conclusion"]), (2, "neutral"))
+        self.assertEqual(details["after"], "2026-11-17T07:15:00+00:00")
+        self.assertEqual(details["before"], "2026-11-17T08:00:00+00:00")
+
+    def test_no_qualifying_run_is_todo(self):
+        status, text, url, _ = workflow_run_result(
+            self.check,
+            [workflow_run(1, "2026-11-17T07:00:00Z", "cancelled")],
+        )
+        self.assertEqual((status, url), ("todo", ""))
+        self.assertIn("no qualifying validate-binaries.yml", text)
+
+
+class TestWorkflowStepRows(TestCase):
+    config = {
+        "steps": [
+            {
+                "id": "2.5",
+                "depends_on": ["2.4"],
+                "check": {
+                    "type": "github_workflow_run",
+                    "repo": "pytorch/test-infra",
+                    "workflow": "validate-binaries.yml",
+                    "ref": "release/2.16",
+                },
+            },
+            {
+                "id": "2.6",
+                "depends_on": ["1.8"],
+                "check": {
+                    "type": "github_workflow_run",
+                    "repo": "pytorch/pytorch",
+                    "workflow": "pull.yml",
+                    "ref": "release/2.16",
+                },
+            },
+        ]
+    }
+    candidates = [
+        {
+            "rc": "rc1",
+            "tag": "v2.16.0-rc1",
+            "binaries_finished_at": datetime(2026, 11, 17, 7, 15, tzinfo=timezone.utc),
+        },
+        {
+            "rc": "rc2",
+            "tag": "v2.16.0-rc2",
+            "binaries_finished_at": datetime(2026, 11, 17, 9, 15, tzinfo=timezone.utc),
+        },
+    ]
+
+    def rows(self):
+        def runs_for(check):
+            if check["workflow"] == "validate-binaries.yml":
+                return [
+                    workflow_run(1, "2026-11-17T07:30:00Z", "success"),
+                    # rc2's tag was pushed at 09:00, but its binaries finish at 09:15.
+                    workflow_run(2, "2026-11-17T09:10:00Z", "success"),
+                    workflow_run(3, "2026-11-17T09:30:00Z", "failure"),
+                ]
+            return [workflow_run(4, "2026-11-17T10:00:00Z", "failure")]
+
+        return workflow_step_rows(
+            "2.16.0",
+            self.config,
+            self.candidates,
+            runs_for,
+            False,
+            False,
+            "0" * 40,
+            "1-1",
+            "https://run",
+            NOW,
+        )
+
+    def test_a_row_is_written_for_each_workflow_step_and_candidate(self):
+        rows = self.rows()
+        self.assertEqual(
+            [(row["step_id"], row["rc"], row["status"]) for row in rows],
+            [
+                ("2.5", "rc1", "done"),
+                ("2.5", "rc2", "blocked"),
+                ("2.6", "rc1", "blocked"),
+                ("2.6", "rc2", "blocked"),
+            ],
+        )
+        self.assertEqual(
+            [row["check_type"] for row in rows], ["github_workflow_run"] * 4
+        )
+        self.assertEqual([row["blocking"] for row in rows], [0, 1, 1, 1])
+        self.assertEqual(json.loads(rows[0]["details"])["run_id"], 2)
+        self.assertEqual(
+            json.loads(rows[0]["details"])["before"],
+            "2026-11-17T09:15:00+00:00",
+        )
+        self.assertEqual(
+            json.loads(rows[1]["details"]),
+            {
+                "repo": "pytorch/test-infra",
+                "workflow": "validate-binaries.yml",
+                "ref": "release/2.16",
+                "after": "2026-11-17T09:15:00+00:00",
+                "run_id": 3,
+                "conclusion": "failure",
+                "started_at": "2026-11-17T09:30:00Z",
+                "head_sha": "",
+                "event": "",
+                "rc": "rc2",
+                "depends_on": ["2.4"],
+            },
+        )
+
+    def test_validate_binaries_waits_for_green_binaries(self):
+        candidate = dict(self.candidates[0], binaries_finished_at=None)
+        rows = workflow_step_rows(
+            "2.16.0",
+            {"steps": [self.config["steps"][0]]},
+            [candidate],
+            lambda check: self.fail("workflow runs should not be queried yet"),
+            False,
+            False,
+            "0" * 40,
+            "1-1",
+            "https://run",
+            NOW,
+        )
+        self.assertEqual((rows[0]["status"], rows[0]["blocking"]), ("todo", 0))
+        self.assertIn("waiting for green binaries", rows[0]["evidence_text"])
+
+    def test_runs_waiting_for_the_next_candidate_belong_to_the_prior_rc(self):
+        candidates = [
+            self.candidates[0],
+            dict(self.candidates[1], binaries_finished_at=None),
+        ]
+        rows = workflow_step_rows(
+            "2.16.0",
+            {"steps": [self.config["steps"][0]]},
+            candidates,
+            lambda check: [workflow_run(1, "2026-11-17T09:10:00Z", "success")],
+            False,
+            False,
+            "0" * 40,
+            "1-1",
+            "https://run",
+            NOW,
+        )
+        self.assertEqual(
+            [(row["rc"], row["status"]) for row in rows],
+            [("rc1", "done"), ("rc2", "todo")],
+        )
+        self.assertEqual(json.loads(rows[0]["details"])["run_id"], 1)
 
 
 class TestSummary(TestCase):
@@ -594,6 +857,12 @@ class TestRunJobs(TestCase):
 
 
 class TestConfig(TestCase):
+    def test_workflow_checks_follow_the_release_branch(self):
+        steps = {step["id"]: step for step in cfg.load_resolved("2.16.0")["steps"]}
+        for step_id in ("2.5", "2.6", "3.4"):
+            with self.subTest(step_id=step_id):
+                self.assertEqual(steps[step_id]["check"]["ref"], "{branch}")
+
     def test_step_2_3_checks_the_binaries_of_the_release_candidate(self):
         for release in ("2.16.0", "2.15.1"):
             steps = {s["id"]: s for s in cfg.load_resolved(release)["steps"]}
