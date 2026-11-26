@@ -13,6 +13,12 @@ const MAX_TRIAGE_VERDICT_BYTES = 32 * 1024;
 export interface RelayTrusted {
   verified_repo: string;
   downstream_repo_level?: string; // "L1" | "L2" | "L3" | "L4" — relay-determined from allowlist
+  // A release callback only: the release ("2.16.0") and candidate ("rc9"; "" for the
+  // release's own tag). The relay reads them from the tag the downstream names, after
+  // checking that it points at the delivery_id; HUD takes them from here and nowhere
+  // else.
+  release?: string;
+  rc?: string;
   ci_metrics?: {
     queue_time?: number | null;
     execution_time?: number | null;
@@ -97,6 +103,9 @@ export interface CrcrWorkflowJobRecord {
   skipped_tests?: number;
   downstream_repo_level?: string;
   event_type?: string;
+  // Release callbacks only; the columns default to '' for every other row.
+  release?: string;
+  rc?: string;
   artifact_url?: string;
   failed_tests_json?: string;
   environment?: string;
@@ -133,7 +142,12 @@ const CIFLOW_TRUNK_REF_RE = /\/ciflow\/trunk\/(\d+)$/;
 
 // Event types that self-report a finished run in one callback, with no
 // upstream check run behind them (see _handle_nightly_callback in the relay).
-const NIGHTLY_EVENT_TYPES = new Set(["nightly", "periodic"]);
+export const RELEASE_EVENT_TYPE = "release";
+const NIGHTLY_EVENT_TYPES = new Set([
+  "nightly",
+  "periodic",
+  RELEASE_EVENT_TYPE,
+]);
 
 // Returns (prNumber, headSha) for a callback's payload. Prefers the
 // pull_request shape. Falls back to a push event: PR number is recovered
@@ -209,6 +223,19 @@ export function extractDynamoRecord(
 
   if (cb.event_type) {
     record.event_type = cb.event_type;
+  }
+
+  if (cb.event_type === RELEASE_EVENT_TYPE) {
+    // A release row that does not say which release it is for belongs to no release
+    // view, so it is refused rather than stored. Both come from `trusted`: what the
+    // downstream wrote in its own body is never read.
+    if (!trusted.release) {
+      throw new ApiError(400, "Missing required field: trusted.release");
+    }
+    record.release = trusted.release;
+    if (trusted.rc) {
+      record.rc = trusted.rc;
+    }
   }
 
   // Only set timing metrics when the relay provides a non-null value.
