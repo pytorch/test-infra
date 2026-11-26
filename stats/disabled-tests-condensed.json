@@ -1145,17 +1145,6 @@
       "rocm"
     ]
   ],
-  "test_non_strict_export_distribution_validation (__main__.TestExport)": [
-    "198148",
-    "https://github.com/pytorch/pytorch/issues/198148",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_non_strict_export_distribution_validation_cpp_serdes (__main__.CppSerdesTestExport)": [
     "198149",
     "https://github.com/pytorch/pytorch/issues/198149",
