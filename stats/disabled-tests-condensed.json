@@ -222,27 +222,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_special_bessel_j0_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "205762",
-    "https://github.com/pytorch/pytorch/issues/205762",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_special_bessel_j1_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "205763",
-    "https://github.com/pytorch/pytorch/issues/205763",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_special_bessel_y1_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "205805",
-    "https://github.com/pytorch/pytorch/issues/205805",
-    [
-      "xpu"
-    ]
-  ],
   "test_constants_pinned_async_copy_disabled_on_rocm_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "204680",
     "https://github.com/pytorch/pytorch/issues/204680",
@@ -1547,55 +1526,6 @@
   "test_sparse_add_aliased_out_xpu_complex128 (__main__.TestSparseCSRDeviceXPU)": [
     "204912",
     "https://github.com/pytorch/pytorch/issues/204912",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_add_aliased_out_xpu_complex64 (__main__.TestSparseCSRDeviceXPU)": [
-    "205322",
-    "https://github.com/pytorch/pytorch/issues/205322",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_add_aliased_out_xpu_float32 (__main__.TestSparseCSRDeviceXPU)": [
-    "205413",
-    "https://github.com/pytorch/pytorch/issues/205413",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_add_aliased_out_xpu_float64 (__main__.TestSparseCSRDeviceXPU)": [
-    "205479",
-    "https://github.com/pytorch/pytorch/issues/205479",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_add_xpu_complex128 (__main__.TestSparseCSRDeviceXPU)": [
-    "205267",
-    "https://github.com/pytorch/pytorch/issues/205267",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_add_xpu_complex64 (__main__.TestSparseCSRDeviceXPU)": [
-    "205481",
-    "https://github.com/pytorch/pytorch/issues/205481",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_add_xpu_float32 (__main__.TestSparseCSRDeviceXPU)": [
-    "205323",
-    "https://github.com/pytorch/pytorch/issues/205323",
-    [
-      "xpu"
-    ]
-  ],
-  "test_sparse_add_xpu_float64 (__main__.TestSparseCSRDeviceXPU)": [
-    "205482",
-    "https://github.com/pytorch/pytorch/issues/205482",
     [
       "xpu"
     ]
