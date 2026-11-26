@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 
 import utils.redis_helper as redis_helper
 from redis.exceptions import RedisError
 from utils import demotion, gh_helper
-from utils.allowlist import AllowlistLevel, AllowlistMap, load_allowlist
+from utils.allowlist import AllowlistLevel, AllowlistMap, CrcrEvent, load_allowlist
 from utils.config import RelayConfig
 from utils.hud import forward_to_hud
 from utils.misc import (
@@ -25,6 +26,9 @@ from utils.triage_verdict import validate_triage_verdict
 logger = logging.getLogger(__name__)
 
 _NIGHTLY_EVENT_TYPES = frozenset({"nightly", "periodic"})
+_RELEASE_EVENT_TYPE = "release"
+# A release candidate's tag ("v2.16.0-rc9") or a release's own tag ("v2.16.0").
+_RELEASE_TAG = re.compile(r"v(\d+\.\d+\.\d+)(?:-rc(\d+))?", re.ASCII)
 _LATE_REPORT_EVENT_TYPE = "late-report"
 MAX_LATE_REPORTS = 100
 
@@ -330,6 +334,7 @@ def _handle_nightly_callback(
     body: dict,
     verified_repo: str,
     repo_level: AllowlistLevel,
+    release: dict[str, str] | None = None,
 ) -> dict:
     """Handle a nightly/periodic self-report callback.
 
@@ -338,6 +343,10 @@ def _handle_nightly_callback(
     against a pytorch/pytorch SHA (from the nightly branch or main), and
     reports the final result in a single callback.
 
+    A release self-report takes the same path (see ``_handle_release_callback``);
+    ``release`` holds the ``release`` and ``rc`` the relay verified, and is
+    forwarded to HUD as trusted.
+
     No Redis writes, no zombie tracking, no upstream check runs.
     """
     delivery_id, status, *_ = _parse_callback_body(body)
@@ -345,12 +354,14 @@ def _handle_nightly_callback(
     if status != "completed":
         raise HTTPException(
             400,
-            f"nightly/periodic callbacks must have status 'completed', got {status!r}",
+            f"nightly/periodic/release callbacks must have status 'completed', got {status!r}",
         )
 
     _sanitize_triage_verdict(body, verified_repo)
 
     trusted = _build_trusted(verified_repo, repo_level)
+    if release is not None:
+        trusted.update(release)
     untrusted = {"callback_payload": body}
 
     try:
@@ -372,6 +383,88 @@ def _handle_nightly_callback(
         body.get("event_type", "unknown"),
     )
     return {"ok": True, "status": status}
+
+
+def _verify_release_tag(config: RelayConfig, tag: object, sha: str) -> dict[str, str]:
+    """The ``release`` and ``rc`` of a release report, once GitHub confirms its tag.
+
+    ``tag`` is what the downstream says it tested and ``sha`` the commit it says it
+    built or installed. The tag must exist on the upstream repo and point at that
+    commit, so a run on an older build is not filed under a newer candidate. ``rc`` is
+    "" for the release's own tag.
+
+    A report that does not check out is rejected (400), so the downstream sees the
+    failure. When GitHub cannot be asked the answer is a retryable 503: nothing was
+    written.
+    """
+    match = _RELEASE_TAG.fullmatch(tag) if isinstance(tag, str) else None
+    if match is None:
+        raise HTTPException(
+            400,
+            "release callback rejected: release_tag must be vX.Y.Z-rcN or vX.Y.Z, "
+            f"got {tag!r}",
+        )
+    try:
+        token = gh_helper.get_repo_access_token(
+            config.github_app_id,
+            config.github_app_private_key,
+            config.upstream_repo,
+        )
+        commit = gh_helper.get_tag_commit(
+            token=token, repo_full_name=config.upstream_repo, tag=tag
+        )
+    except Exception as exc:
+        logger.exception("could not look up release tag=%s", tag)
+        raise HTTPException(
+            503,
+            "could not check the release tag: try again later",
+            headers={"Retry-After": "60"},
+        ) from exc
+    if commit is None:
+        raise HTTPException(
+            400,
+            f"release callback rejected: {config.upstream_repo} has no tag {tag}",
+        )
+    if commit != sha:
+        raise HTTPException(
+            400,
+            f"release callback rejected: tag {tag} is commit {commit}, "
+            f"not delivery_id {sha}",
+        )
+    release, rc = match.groups()
+    return {"release": release, "rc": "" if rc is None else f"rc{int(rc)}"}
+
+
+def _handle_release_callback(
+    config: RelayConfig,
+    body: dict,
+    verified_repo: str,
+    repo_level: AllowlistLevel,
+) -> dict:
+    """Handle a self-report of a run against a release candidate (or the release).
+
+    Same path as a nightly: one ``completed`` callback, no dispatch record, no state
+    machine, no check run. The ``delivery_id`` is the commit that was tested and
+    ``release_tag`` the tag it belongs to; once the two agree, the release and the
+    candidate are forwarded as trusted.
+    """
+    delivery_id, status, *_ = _parse_callback_body(body)
+    # Before the lookup: a callback that is wrong anyway costs no GitHub call.
+    if status != "completed":
+        raise HTTPException(
+            400,
+            f"release callbacks must have status 'completed', got {status!r}",
+        )
+    release = _verify_release_tag(config, body.get("release_tag"), delivery_id)
+    logger.info(
+        "release callback repo=%s delivery_id=%s tag=%s",
+        verified_repo,
+        delivery_id,
+        body["release_tag"],
+    )
+    return _handle_nightly_callback(
+        config, body, verified_repo, repo_level, release=release
+    )
 
 
 def _required_str(obj: dict, field: str) -> str:
@@ -497,7 +590,9 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
 
     For nightly/periodic event types, the state machine is bypassed entirely
     and the result is forwarded to HUD in a single callback (no Redis, no
-    in_progress step, no zombie tracking).
+    in_progress step, no zombie tracking). A ``release`` event (a run against a
+    release candidate) does the same, for a repo that opted in to it, and only when
+    its tag points at the commit it reports.
 
     For PR/push events, the state machine ensures:
     - Callbacks without prior dispatch are rejected
@@ -518,6 +613,16 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     event_type = body.get("event_type", "")
     if event_type == _LATE_REPORT_EVENT_TYPE:
         return _handle_late_report(config, body, verified_repo, repo_level)
+    if event_type == _RELEASE_EVENT_TYPE:
+        # Opt-in: release runs show on the release views of the repos that asked for
+        # them (``events: [release]`` in the allowlist), so no other repo adds rows.
+        if CrcrEvent.RELEASE not in allowlist.get_repo_events(verified_repo):
+            logger.info(
+                "verified_repo %s has not opted in to release runs, ignoring result",
+                verified_repo,
+            )
+            return {"ok": True, "status": "ignored"}
+        return _handle_release_callback(config, body, verified_repo, repo_level)
     if event_type in _NIGHTLY_EVENT_TYPES:
         return _handle_nightly_callback(config, body, verified_repo, repo_level)
 

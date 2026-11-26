@@ -165,6 +165,64 @@ def _results(*outcomes):
     return _resp("200", json.dumps({"ok": True, "results": results}))
 
 
+class TestSelfReportPayload(unittest.TestCase):
+    """A nightly, periodic or release run reports itself in one completed callback."""
+
+    SHA = "a" * 40
+
+    def payload(self, **env):
+        env = {
+            "STATUS": "completed",
+            "CONCLUSION": "success",
+            "WORKFLOW_NAME": "Release CI",
+            "WORKFLOW_URL": "https://github.com/org/repo/actions/runs/1",
+            "RUN_ID": "1",
+            "RUN_ATTEMPT": "1",
+            "JOB_NAME": "tests",
+            "SCHEMA_VERSION": "1",
+            "DELIVERY_ID_OVERRIDE": self.SHA,
+            "EVENT_TYPE_OVERRIDE": "release",
+            "RELEASE_TAG": "v2.16.0-rc9",
+            **env,
+        }
+        with patch.dict(os.environ, env, clear=True):
+            return json.loads(rc.build_payload())
+
+    def test_a_release_report_carries_the_commit_and_the_tag(self):
+        body = self.payload()
+        self.assertEqual(body["event_type"], "release")
+        self.assertEqual(body["delivery_id"], self.SHA)
+        self.assertEqual(body["payload"]["head_sha"], self.SHA)
+        self.assertEqual(body["release_tag"], "v2.16.0-rc9")
+
+    def test_nightly_and_periodic_are_still_accepted(self):
+        for event_type in ("nightly", "periodic"):
+            self.assertEqual(
+                self.payload(EVENT_TYPE_OVERRIDE=event_type)["event_type"], event_type
+            )
+
+    def test_other_event_types_and_statuses_are_refused(self):
+        with self.assertRaisesRegex(
+            SystemExit, "must be 'nightly', 'periodic' or 'release'"
+        ):
+            self.payload(EVENT_TYPE_OVERRIDE="weekly")
+        with self.assertRaisesRegex(SystemExit, "require status 'completed'"):
+            self.payload(STATUS="in_progress")
+
+    def test_delivery_id_and_event_type_go_together(self):
+        with self.assertRaisesRegex(SystemExit, "must be set together"):
+            self.payload(EVENT_TYPE_OVERRIDE="")
+
+    def test_a_release_report_needs_its_tag(self):
+        for missing in ("", "  "):
+            with self.assertRaisesRegex(SystemExit, "requires 'release-tag'"):
+                self.payload(RELEASE_TAG=missing)
+
+    def test_other_reports_carry_no_tag(self):
+        body = self.payload(EVENT_TYPE_OVERRIDE="nightly")
+        self.assertNotIn("release_tag", body)
+
+
 class TestLateReport(unittest.TestCase):
     def run_main(self, reports, responses, **env):
         env = {

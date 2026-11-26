@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from callback.callback_handler import handle
-from utils.allowlist import AllowlistLevel
+from utils.allowlist import AllowlistLevel, CrcrEvent
 from utils.misc import CallbackState, DISPATCH_RUN_ID, HTTPException
 from utils.redis_helper import CallbackStateRecord
 
@@ -914,6 +914,226 @@ class TestNightlyCallback(unittest.TestCase):
         with self.assertRaises(HTTPException) as ctx:
             handle(_cfg(), self._nightly_body(), verified_repo="org/repo")
         self.assertEqual(ctx.exception.status_code, 500)
+
+
+class TestReleaseCallback(unittest.TestCase):
+    """A run against a release candidate reports like a nightly, naming its tag."""
+
+    SHA = "a" * 40
+
+    def setUp(self):
+        self.mock_map = MagicMock()
+        self.mock_map.get_repo_level.return_value = AllowlistLevel.L2
+        self.mock_map.get_repo_events.return_value = frozenset({CrcrEvent.RELEASE})
+        patchers = {
+            "load": patch("callback.callback_handler.load_allowlist"),
+            "redis": patch("callback.callback_handler.redis_helper"),
+            "rate": patch("callback.callback_handler.check_rate_limit"),
+            "hud": patch("callback.callback_handler.forward_to_hud"),
+            "lookup": patch(
+                "callback.callback_handler.gh_helper.get_tag_commit",
+                return_value=self.SHA,
+            ),
+            "token": patch(
+                "callback.callback_handler.gh_helper.get_repo_access_token",
+                return_value="installation-token",
+            ),
+        }
+        self.mocks = {}
+        for name, patcher in patchers.items():
+            self.mocks[name] = patcher.start()
+            self.addCleanup(patcher.stop)
+        self.mocks["load"].return_value = self.mock_map
+        self.mocks["rate"].return_value = True
+
+    def _body(self, status="completed", **extra):
+        return {
+            "event_type": "release",
+            "delivery_id": self.SHA,
+            "release_tag": "v2.16.0-rc9",
+            "payload": {
+                "repository": {"full_name": "pytorch/pytorch"},
+                "head_sha": self.SHA,
+            },
+            "workflow": {
+                "status": status,
+                "conclusion": "success" if status == "completed" else None,
+                "name": "Release CI",
+                "url": "https://github.com/org/repo/actions/runs/12345",
+                "run_id": "12345",
+                "run_attempt": "1",
+                "job_name": "tests",
+                "check_run_id": "67890",
+            },
+            **extra,
+        }
+
+    def test_the_release_and_the_candidate_are_forwarded_as_trusted(self):
+        body = self._body()
+        result = handle(_cfg(), body, verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "completed"})
+        self.mocks["hud"].assert_called_once()
+        _, trusted, untrusted = self.mocks["hud"].call_args[0]
+        self.assertEqual(trusted["verified_repo"], "org/repo")
+        self.assertEqual(trusted["release"], "2.16.0")
+        self.assertEqual(trusted["rc"], "rc9")
+        self.assertIs(untrusted["callback_payload"], body)
+
+    def test_the_tag_is_looked_up_on_the_upstream_repo(self):
+        handle(_cfg(), self._body(), verified_repo="org/repo")
+
+        self.mocks["lookup"].assert_called_once_with(
+            token="installation-token",
+            repo_full_name="pytorch/pytorch",
+            tag="v2.16.0-rc9",
+        )
+
+    def test_the_release_tag_has_an_empty_rc(self):
+        handle(_cfg(), self._body(release_tag="v2.15.1"), verified_repo="org/repo")
+
+        _, trusted, _ = self.mocks["hud"].call_args[0]
+        self.assertEqual((trusted["release"], trusted["rc"]), ("2.15.1", ""))
+
+    def test_what_the_body_says_about_the_release_is_not_believed(self):
+        body = self._body(release="9.9.9", rc="rc99")
+        body["payload"]["release"] = "9.9.9"
+        handle(_cfg(), body, verified_repo="org/repo")
+
+        _, trusted, _ = self.mocks["hud"].call_args[0]
+        self.assertEqual((trusted["release"], trusted["rc"]), ("2.16.0", "rc9"))
+
+    def test_it_takes_the_nightly_path_no_state_machine(self):
+        handle(_cfg(), self._body(), verified_repo="org/repo")
+
+        redis = self.mocks["redis"]
+        redis.get_callback_state.assert_not_called()
+        redis.set_callback_state.assert_not_called()
+        redis.add_in_progress_tracker.assert_not_called()
+        _, trusted, _ = self.mocks["hud"].call_args[0]
+        self.assertIsNone(trusted["ci_metrics"]["queue_time"])
+
+    def test_a_repo_that_has_not_opted_in_is_ignored_before_any_lookup(self):
+        self.mock_map.get_repo_events.return_value = frozenset(
+            {CrcrEvent.PULL_REQUEST, CrcrEvent.NIGHTLY}
+        )
+        result = handle(_cfg(), self._body(), verified_repo="org/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "ignored"})
+        self.mocks["lookup"].assert_not_called()
+        self.mocks["hud"].assert_not_called()
+
+    def test_a_repo_not_in_the_allowlist_is_ignored(self):
+        self.mock_map.get_repo_level.return_value = None
+        result = handle(_cfg(), self._body(), verified_repo="unknown/repo")
+
+        self.assertEqual(result, {"ok": True, "status": "ignored"})
+        self.mocks["hud"].assert_not_called()
+
+    def test_rate_limited(self):
+        self.mocks["rate"].return_value = False
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), self._body(), verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 429)
+
+    def _rejected(self, body):
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), body, verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.mocks["hud"].assert_not_called()
+        return str(ctx.exception.detail)
+
+    def test_a_name_that_is_not_a_release_tag_is_rejected_without_a_lookup(self):
+        for tag in (
+            None,
+            "",
+            9,
+            "2.16.0-rc9",
+            "v2.16-rc9",
+            "v2.16.0rc9",
+            "v2.16.0-rc9\n",
+            "viable/strict/1",
+            "v2.16.0-rc9/../v2.15.0",
+        ):
+            with self.subTest(tag=tag):
+                self.assertIn(
+                    "release_tag must be",
+                    self._rejected(self._body(release_tag=tag)),
+                )
+        self.mocks["lookup"].assert_not_called()
+
+    def test_a_report_without_a_tag_is_rejected(self):
+        body = self._body()
+        del body["release_tag"]
+        self.assertIn("release_tag must be", self._rejected(body))
+
+    def test_a_tag_the_upstream_repo_does_not_have_is_rejected(self):
+        self.mocks["lookup"].return_value = None
+        self.assertIn("has no tag v2.16.0-rc9", self._rejected(self._body()))
+
+    def test_a_commit_that_is_not_the_tags_is_rejected(self):
+        # e.g. the newest tag is rc10 but the installed wheel is still rc9
+        self.mocks["lookup"].return_value = "b" * 40
+        detail = self._rejected(self._body(release_tag="v2.16.0-rc10"))
+        self.assertIn("v2.16.0-rc10 is commit " + "b" * 40, detail)
+
+    def test_only_the_full_commit_sha_matches(self):
+        for sha in (self.SHA[:12], self.SHA.upper(), "v2.16.0-rc9", 1):
+            with self.subTest(sha=sha):
+                self._rejected(self._body(delivery_id=sha))
+
+    def test_a_tag_that_cannot_be_looked_up_is_a_retryable_503(self):
+        self.mocks["lookup"].side_effect = RuntimeError("GitHub is down")
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), self._body(), verified_repo="org/repo")
+
+        self.assertEqual(ctx.exception.status_code, 503)
+        self.assertIn("Retry-After", ctx.exception.headers)
+        self.mocks["hud"].assert_not_called()
+
+    def test_no_installation_token_is_a_retryable_503(self):
+        self.mocks["token"].side_effect = RuntimeError("no installation")
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), self._body(), verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 503)
+
+    def test_only_a_completed_report_is_accepted_and_without_a_lookup(self):
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), self._body(status="in_progress"), verified_repo="org/repo")
+
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("completed", str(ctx.exception.detail))
+        self.mocks["lookup"].assert_not_called()
+
+    def test_a_missing_delivery_id_is_a_400(self):
+        body = self._body()
+        del body["delivery_id"]
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), body, verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_a_report_that_was_already_stored_is_a_duplicate(self):
+        self.mocks["hud"].side_effect = HTTPException(409, "Record already finalized")
+        result = handle(_cfg(), self._body(), verified_repo="org/repo")
+        self.assertEqual(result, {"ok": True, "status": "duplicate"})
+
+    def test_the_triage_verdict_is_validated_like_a_nightly(self):
+        body = self._body()
+        body["workflow"]["triage_verdict"] = {"category": "upstream"}
+        handle(_cfg(), body, verified_repo="org/repo")
+
+        _, _, untrusted = self.mocks["hud"].call_args[0]
+        self.assertNotIn("triage_verdict", untrusted["callback_payload"]["workflow"])
+
+    def test_a_nightly_report_has_no_release_and_needs_no_lookup(self):
+        body = self._body()
+        body["event_type"] = "nightly"
+        handle(_cfg(), body, verified_repo="org/repo")
+
+        self.mocks["lookup"].assert_not_called()
+        _, trusted, _ = self.mocks["hud"].call_args[0]
+        self.assertNotIn("release", trusted)
+        self.assertNotIn("rc", trusted)
 
 
 if __name__ == "__main__":

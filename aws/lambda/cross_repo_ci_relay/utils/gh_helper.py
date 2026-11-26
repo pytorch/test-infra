@@ -120,6 +120,30 @@ def list_check_runs_in_suite(
     return runs
 
 
+def get_tag_commit(
+    *,
+    token: str,
+    repo_full_name: str,
+    tag: str,
+    timeout: int = 20,
+    gh_client: github.Github | None = None,
+) -> str | None:
+    """The commit SHA a tag of ``repo_full_name`` points at, or None if there is no
+    such tag."""
+    if gh_client is None:
+        gh_client = github.Github(login_or_token=token, timeout=timeout)
+    repo = gh_client.get_repo(repo_full_name, lazy=True)
+    try:
+        # The ref is fetched when its object is first read.
+        target = repo.get_git_ref(f"tags/{tag}").object
+        if target.type == "tag":
+            # An annotated tag points at a tag object, not at the commit.
+            target = repo.get_git_tag(target.sha).object
+        return target.sha
+    except github.UnknownObjectException:
+        return None
+
+
 def has_open_pull(
     *,
     token: str,
