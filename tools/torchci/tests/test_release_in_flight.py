@@ -5,19 +5,23 @@ import sys
 import tempfile
 from pathlib import Path
 from unittest import main, TestCase
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from datetime import datetime, timezone
 
+import analytics.github_analyze as github_analyze  # noqa: E402
 from analytics.github_analyze import (  # noqa: E402
     find_release_only_changes_prs,
+    github_issue_state_step_rows,
     GitRepo,
     milestone_issue_statuses,
     milestone_pr_step_rows,
     milestone_step_rows,
+    recently_shipped_releases,
+    record_github_issue_state_steps,
     release_in_preparation,
     release_only_changes_step_rows,
     releases_in_flight,
@@ -161,6 +165,11 @@ class ReleasesInFlight(TestCase):
             releases_just_shipped(GitRepo(self.tmp.name, "origin"), ["2.15.0"]),
             [],
         )
+
+    def test_a_shipped_release_is_found_after_its_milestone_closes(self):
+        self.branch("release/2.15", "main", "2.15.0a0")
+        self.tag("v2.15.0")
+        self.assertEqual(recently_shipped_releases(self.repo()), ["2.15.0"])
 
 
 class _Commit:
@@ -394,6 +403,214 @@ class MilestoneIgnoredIssues(TestCase):
         self.assertEqual(reasons[1], ("open", True))
         self.assertEqual(reasons[2], ("open", True))
         self.assertEqual(reasons[3], ("open", True))
+
+
+def _github_issue(number, state):
+    return {
+        "number": number,
+        "title": f"issue {number}",
+        "state": state,
+        "html_url": f"https://github.com/pytorch/pytorch/issues/{number}",
+    }
+
+
+class GithubIssueStateSteps(TestCase):
+    STEPS = [
+        {
+            "id": "1.6",
+            "check": {
+                "type": "github_issue_state",
+                "repo": "pytorch/pytorch",
+                "issue": "{tracker_issue}",
+                "expect": "open",
+            },
+        },
+        {
+            "id": "2.7",
+            "depends_on": ["2.1"],
+            "check": {
+                "type": "github_issue_state",
+                "repo": "pytorch/pytorch",
+                "issue": "{validation_issue}",
+                "expect": "open",
+            },
+        },
+        {
+            "id": "5.1",
+            "check": {
+                "type": "github_issue_state",
+                "repo": "pytorch/pytorch",
+                "issue": "{tracker_issue}",
+                "expect": "closed",
+            },
+        },
+    ]
+
+    def rows(self, issues, branch_cut=True, released=False, steps=None):
+        return github_issue_state_step_rows(
+            "2.15.0",
+            {"branch": "release/2.15", "steps": steps or self.STEPS},
+            issues,
+            branch_cut,
+            released,
+            "a" * 40,
+            "123-1",
+            "https://github.com/pytorch/test-infra/actions/runs/123",
+            datetime(2026, 11, 23, tzinfo=timezone.utc),
+        )
+
+    def test_open_issues_satisfy_creation_steps_and_leave_closure_in_progress(self):
+        rows = self.rows(
+            {
+                "tracker_issue": _github_issue(199813, "open"),
+                "validation_issue": _github_issue(201644, "open"),
+            }
+        )
+        by_step = {row["step_id"]: row for row in rows}
+        self.assertEqual(by_step["1.6"]["status"], "done")
+        self.assertEqual(by_step["2.7"]["status"], "done")
+        self.assertEqual(by_step["5.1"]["status"], "in_progress")
+        self.assertEqual(
+            by_step["1.6"]["evidence_url"],
+            "https://github.com/pytorch/pytorch/issues/199813",
+        )
+        self.assertEqual(json.loads(by_step["2.7"]["details"])["depends_on"], ["2.1"])
+
+    def test_missing_issue_is_todo(self):
+        rows = self.rows(
+            {"tracker_issue": _github_issue(199813, "open"), "validation_issue": None}
+        )
+        validation = next(row for row in rows if row["step_id"] == "2.7")
+        self.assertEqual(validation["status"], "todo")
+        self.assertEqual(validation["evidence_text"], "validation issue not found")
+        self.assertEqual(validation["evidence_url"], "")
+
+    def test_closed_creation_issues_are_done_after_the_release(self):
+        rows = self.rows(
+            {
+                "tracker_issue": _github_issue(199813, "closed"),
+                "validation_issue": _github_issue(201644, "closed"),
+            },
+            released=True,
+        )
+        by_step = {row["step_id"]: row for row in rows}
+        self.assertEqual(by_step["1.6"]["status"], "done")
+        self.assertEqual(by_step["2.7"]["status"], "done")
+        self.assertEqual(by_step["5.1"]["status"], "done")
+        self.assertEqual(
+            by_step["1.6"]["evidence_text"],
+            "Release tag v2.15.0 exists; #199813 is closed",
+        )
+
+    def test_window_is_respected_without_dropping_a_discovered_link_after_ga(self):
+        steps = [
+            {
+                **self.STEPS[0],
+                "window": {"opens": "branch_cut", "closes": "ga"},
+            }
+        ]
+        (before,) = self.rows(
+            {"tracker_issue": _github_issue(199813, "open")}, False, False, steps
+        )
+        self.assertEqual(before["status"], "todo")
+        self.assertEqual(before["evidence_url"], "")
+
+        (after,) = self.rows(
+            {"tracker_issue": _github_issue(199813, "closed")}, True, True, steps
+        )
+        self.assertEqual(after["status"], "done")
+        self.assertEqual(
+            after["evidence_url"], "https://github.com/pytorch/pytorch/issues/199813"
+        )
+
+    def test_collector_uses_discovery_and_reads_each_issue_once(self):
+        class Repo:
+            def ref_exists(self, ref):
+                return True
+
+            def tag_exists(self, tag):
+                return False
+
+        config = {"branch": "release/2.15", "steps": self.STEPS}
+        with (
+            patch(
+                "torchci.release_portal_config.discover_issue_links",
+                return_value={
+                    "tracker_issue": {"number": 199813},
+                    "validation_issue": {"number": 201644},
+                },
+            ),
+            patch(
+                "analytics.github_analyze.gh_get_issue",
+                side_effect=[
+                    _github_issue(199813, "open"),
+                    _github_issue(201644, "open"),
+                ],
+            ) as get_issue,
+            patch("analytics.github_analyze.insert_clickhouse_rows") as insert,
+        ):
+            record_github_issue_state_steps(Repo(), "2.15.0", config, True)
+
+        self.assertEqual(
+            get_issue.call_args_list,
+            [call("pytorch/pytorch", 199813), call("pytorch/pytorch", 201644)],
+        )
+        rows = insert.call_args.args[1]
+        self.assertEqual([row["step_id"] for row in rows], ["1.6", "2.7", "5.1"])
+
+
+class GithubIssueStateCli(TestCase):
+    def test_release_runs_the_issue_state_dry_run(self):
+        args = type(
+            "Args",
+            (),
+            {
+                "remote": "origin",
+                "repo_path": "/tmp/pytorch",
+                "in_flight": False,
+                "analyze_stacks": False,
+                "analyze_missing_reverts_from_branch": False,
+                "write_to_clickhouse": False,
+                "release": "2.15.0",
+                "release_only_changes": False,
+                "github_issue_state": True,
+                "missing_in_branch": False,
+                "missing_in_release": False,
+            },
+        )()
+        with (
+            patch.object(github_analyze, "parse_arguments", return_value=args),
+            patch.object(github_analyze, "GitRepo") as repo,
+            patch.object(github_analyze, "record_github_issue_state_steps") as record,
+        ):
+            github_analyze.main()
+
+        record.assert_called_once()
+        called_repo, release, config, write = record.call_args.args
+        self.assertIs(called_repo, repo.return_value)
+        self.assertEqual(release, "2.15.0")
+        self.assertEqual(config["branch"], "release/2.15")
+        self.assertFalse(write)
+
+
+class GithubIssueStateInFlight(TestCase):
+    def test_closed_milestones_keep_post_release_issue_state_current(self):
+        with (
+            patch("analytics.github_analyze.gh_get_milestones", return_value=[]),
+            patch("analytics.github_analyze.releases_in_flight", return_value=[]),
+            patch("analytics.github_analyze.releases_just_shipped", return_value=[]),
+            patch(
+                "analytics.github_analyze.recently_shipped_releases",
+                return_value=["2.15.0"],
+            ),
+            patch("analytics.github_analyze.record_github_issue_state_steps") as record,
+        ):
+            self.assertTrue(github_analyze.analyze_releases_in_flight(object(), False))
+
+        _, release, config, write = record.call_args.args
+        self.assertEqual(release, "2.15.0")
+        self.assertEqual(config["branch"], "release/2.15")
+        self.assertFalse(write)
 
 
 class StepSummary(TestCase):

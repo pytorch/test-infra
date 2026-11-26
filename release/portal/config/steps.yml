@@ -483,7 +483,7 @@ steps:
   # ---------------------------------------------------------------- 5. Post-release
   - id: "5.1"
     phase: 5
-    name: Milestone and tracker issue closed
+    name: Release tracker issue closed
     tier: M
     owner: release-manager
     due: {anchor: ga, offset_days: 3}
