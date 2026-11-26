@@ -8,8 +8,9 @@ import os
 import re
 import sys
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
@@ -367,6 +368,38 @@ def get_issue_comments(org: str, project: str, issue_number: int):
     url = f"https://api.github.com/repos/{org}/{project}/issues/{issue_number}/comments"
 
     return fetch_multipage_json(url)
+
+
+def github_ref_exists(repo: str, kind: str, ref: str) -> bool:
+    """Whether a branch or tag exists in a GitHub repository."""
+    namespaces = {"branch": "heads", "tag": "tags"}
+    try:
+        namespace = namespaces[kind]
+    except KeyError:
+        raise ValueError(f"unknown GitHub ref kind {kind!r}")
+    try:
+        fetch_json(
+            f"https://api.github.com/repos/{repo}/git/ref/{namespace}/"
+            f"{quote(ref, safe='/')}"
+        )
+    except HTTPError as err:
+        if err.code == 404:
+            return False
+        raise
+    return True
+
+
+def release_candidate_names(repo: str, release: str) -> List[str]:
+    """The release candidate names for a release, in numeric order."""
+    pattern = re.compile(rf"refs/tags/v{re.escape(release)}-rc(\d+)")
+    candidates = []
+    for found in fetch_json(
+        f"https://api.github.com/repos/{repo}/git/matching-refs/tags/v{release}-rc"
+    ):
+        match = pattern.fullmatch(found["ref"])
+        if match:
+            candidates.append(int(match[1]))
+    return [f"rc{number}" for number in sorted(candidates)]
 
 
 def extract_statuses_map(json: Dict[str, Any]):
@@ -834,6 +867,138 @@ def write_step_summary(
         f.write("\n".join(lines) + "\n\n")
 
 
+def github_ref_url(repo: str, ref: str) -> str:
+    return f"https://github.com/{repo}/tree/{quote(ref, safe='/')}"
+
+
+def github_ref_step_rows(
+    release: str,
+    config: Dict[str, Any],
+    candidates_for: Callable[[str, str], List[str]],
+    ref_exists: Callable[[str, str, str], bool],
+    branch_cut: bool,
+    released: bool,
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """The rows for release portal steps that observe branches and tags."""
+    from torchci.release_portal_config import release_step_window_state
+
+    rows = []
+    values = {
+        "version": release,
+        "minor": ".".join(release.split(".")[:2]),
+        "branch": config["branch"],
+    }
+    for step in config["steps"]:
+        check = step["check"]
+        if check["type"] != "github_ref_exists":
+            continue
+        window_state = release_step_window_state(step, branch_cut, released)
+        candidates = (
+            candidates_for(check["repos"][0], release)
+            if step.get("rc_scoped") and window_state is None
+            else [""]
+        )
+        if step.get("rc_scoped") and window_state is not None:
+            continue
+        for rc in candidates:
+            ref = check["ref"].format(**values, rc=rc)
+            details: Dict[str, Any]
+            if window_state == "before":
+                status = "todo"
+                evidence = "waiting for the release branch to be cut"
+                evidence_url = github_ref_url("pytorch/pytorch", config["branch"])
+                details = {"window": "before"}
+            elif window_state == "after":
+                status = "done"
+                evidence = f"window closed when v{release} was tagged"
+                evidence_url = github_ref_url("pytorch/pytorch", f"v{release}")
+                details = {"window": "after"}
+            else:
+                observed = [
+                    {
+                        "repo": repo,
+                        "ref": ref,
+                        "kind": check["kind"],
+                        "exists": ref_exists(repo, check["kind"], ref),
+                    }
+                    for repo in check["repos"]
+                ]
+                missing = [entry["repo"] for entry in observed if not entry["exists"]]
+                status = "done" if not missing else "todo"
+                if missing:
+                    evidence = (
+                        f"{check['kind']} {ref} is missing from {', '.join(missing)}"
+                    )
+                    evidence_repo = missing[0]
+                else:
+                    evidence = (
+                        f"{check['kind']} {ref} exists in {', '.join(check['repos'])}"
+                    )
+                    evidence_repo = check["repos"][0]
+                evidence_url = github_ref_url(evidence_repo, ref)
+                details = {"refs": observed}
+            rows.append(
+                {
+                    "release": release,
+                    "step_id": step["id"],
+                    "rc": rc,
+                    "status": status,
+                    "blocking": 0,
+                    "evidence_text": evidence,
+                    "evidence_url": evidence_url,
+                    "check_type": "github_ref_exists",
+                    "source": "collector",
+                    "run_id": run_id,
+                    "run_url": run_url,
+                    "config_sha": config_sha,
+                    "details": json.dumps(details),
+                    "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                }
+            )
+    return rows
+
+
+def record_github_ref_steps(release: str, config: Dict[str, Any], write: bool) -> None:
+    """Record the branches and tags configured for a release portal release."""
+    steps = [
+        step for step in config["steps"] if step["check"]["type"] == "github_ref_exists"
+    ]
+    if not steps:
+        return
+    exists_cache: Dict[Tuple[str, str, str], bool] = {}
+
+    def ref_exists(repo: str, kind: str, ref: str) -> bool:
+        key = (repo, kind, ref)
+        if key not in exists_cache:
+            exists_cache[key] = github_ref_exists(repo, kind, ref)
+        return exists_cache[key]
+
+    branch_cut = ref_exists("pytorch/pytorch", "branch", config["branch"])
+    released = ref_exists("pytorch/pytorch", "tag", f"v{release}")
+    rows = github_ref_step_rows(
+        release,
+        config,
+        release_candidate_names,
+        ref_exists,
+        branch_cut,
+        released,
+        os.environ.get("GITHUB_SHA", "0" * 40),
+        *workflow_run_info(),
+        datetime.now(timezone.utc),
+    )
+    for row in rows:
+        rc = f" {row['rc']}" if row["rc"] else ""
+        print(f"step {row['step_id']}{rc}: {row['status']}: {row['evidence_text']}")
+    if write and rows:
+        insert_clickhouse_rows("misc.release_event", rows)
+        print(f"Inserted {len(rows)} rows into misc.release_event")
+    write_step_summary(f"{release}: GitHub refs", rows, write)
+
+
 def record_milestone_steps(
     repo: GitRepo,
     release: str,
@@ -982,6 +1147,29 @@ def releases_just_shipped(
     return releases
 
 
+def recently_shipped_releases(repo: GitRepo, release_lines: int = 3) -> List[str]:
+    """The latest shipped release on each active release line, newest first."""
+    text = repo.show_file("main", "version.txt")
+    match = re.match(r"(\d+)\.(\d+)\.", text.strip()) if text else None
+    if not match:
+        return []
+    major, minor = (int(part) for part in match.groups())
+    releases: List[str] = []
+    for back in range(release_lines):
+        if minor - back < 0:
+            break
+        ref = "main" if back == 0 else f"release/{major}.{minor - back}"
+        prepared = release_in_preparation(repo, ref)
+        if not prepared:
+            continue
+        line, next_patch = prepared.rsplit(".", 1)
+        patch = int(next_patch) - 1
+        release = f"{line}.{patch}"
+        if patch >= 0 and repo.tag_exists(f"v{release}"):
+            releases.append(release)
+    return releases
+
+
 def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
     """
     For each release in flight that has a release portal config file: list the reverts
@@ -999,6 +1187,11 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
     shipped = releases_just_shipped(repo, open_milestones)
     print(f"Shipped, milestone still open: {', '.join(shipped) if shipped else 'none'}")
     releases += [release for release in shipped if release not in releases]
+    recently_shipped = recently_shipped_releases(repo)
+    print(
+        "Latest shipped releases: "
+        f"{', '.join(recently_shipped) if recently_shipped else 'none'}"
+    )
     ok = True
     for release in releases:
         print(f"::group::{release}")
@@ -1013,7 +1206,7 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
             milestone_idx = next(
                 int(m["number"]) for m in milestones if m.get("title") == release
             )
-            scans = []
+            scans = [lambda: record_github_ref_steps(release, config, write)]
             # The reverts matter from the branch cut until the release: the release's step
             # has the same window (opens: branch_cut, closes: ga).
             if repo.ref_exists(config["branch"]) and not repo.tag_exists(f"v{release}"):
@@ -1036,6 +1229,23 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
                 except Exception as err:
                     print(f"::error::{release}: {err}")
                     ok = False
+        except Exception as err:
+            print(f"::error::{release}: {err}")
+            ok = False
+        finally:
+            print("::endgroup::")
+    for release in recently_shipped:
+        if release in releases:
+            continue
+        print(f"::group::{release}: GitHub refs")
+        try:
+            if not (RELEASES_DIR / f"{release}.yml").exists():
+                print(
+                    f"::warning::{release} has no "
+                    f"release/portal/config/releases/{release}.yml: skipped"
+                )
+                continue
+            record_github_ref_steps(release, load_resolved(release), write)
         except Exception as err:
             print(f"::error::{release}: {err}")
             ok = False
@@ -1553,8 +1763,8 @@ def parse_arguments():
     parser.add_argument(
         "--release",
         type=str,
-        help="The release whose milestone to scan (e.g. 2.16.0): --branch and "
-        "--milestone-id default to its release branch and its title",
+        help="The release whose GitHub refs to scan (e.g. 2.16.0): --branch and "
+        "--milestone-id default to its release branch and its title for milestone scans",
     )
     parser.add_argument(
         "--in-flight",
@@ -1566,8 +1776,8 @@ def parse_arguments():
     parser.add_argument(
         "--write-to-clickhouse",
         action="store_true",
-        help="With --in-flight, or --missing-in-branch and --release, record the state of the release "
-        "portal steps that check the milestone in misc.release_event (CLICKHOUSE_ENDPOINT, "
+        help="With --release, --in-flight, or --missing-in-branch and --release, record the state of the release "
+        "portal steps in misc.release_event (CLICKHOUSE_ENDPOINT, "
         "CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD)",
     )
     parser.add_argument(
@@ -1582,25 +1792,28 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def github_repo(repo_path: str, remote: Optional[str]) -> Tuple[GitRepo, str]:
+    if remote:
+        return GitRepo(repo_path, remote), remote
+    remotes = get_git_remotes(repo_path)
+    remote = next(iter(remotes.keys()))
+    for key in remotes:
+        if remotes[key].endswith("github.com/pytorch/pytorch"):
+            remote = key
+    return GitRepo(repo_path, remote), remote
+
+
 def main():
     import time
 
     args = parse_arguments()
-    remote = args.remote
-    if not remote:
-        remotes = get_git_remotes(args.repo_path)
-        # Pick best remote
-        remote = next(iter(remotes.keys()))
-        for key in remotes:
-            if remotes[key].endswith("github.com/pytorch/pytorch"):
-                remote = key
-
-    repo = GitRepo(args.repo_path, remote)
 
     if args.in_flight:
+        repo, _ = github_repo(args.repo_path, args.remote)
         sys.exit(0 if analyze_releases_in_flight(repo, args.write_to_clickhouse) else 1)
 
     if args.analyze_stacks:
+        repo, _ = github_repo(args.repo_path, args.remote)
         analyze_stacks(repo)
         return
 
@@ -1610,6 +1823,7 @@ def main():
                 "Error: --branch argument is required for --analyze-missing-reverts-from-branch"
             )
             return
+        repo, _ = github_repo(args.repo_path, args.remote)
         analyze_reverts_missing_from_branch(repo, args.branch)
         return
 
@@ -1631,8 +1845,13 @@ def main():
                 args.release, config, args.write_to_clickhouse
             )
             return
+        record_github_ref_steps(args.release, config, args.write_to_clickhouse)
+        if not args.missing_in_branch and not args.missing_in_release:
+            return
         args.branch = args.branch or config["branch"]
         args.milestone_id = args.milestone_id or args.release
+
+    repo, remote = github_repo(args.repo_path, args.remote)
 
     # Use milestone idx or search it along milestone titles
     try:

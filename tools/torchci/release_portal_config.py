@@ -789,6 +789,18 @@ def load_resolved(release_version: str) -> Dict[str, Any]:
     return resolve(shared, _load(path), path.name)
 
 
+def release_step_window_state(
+    step: Dict[str, Any], branch_cut: bool, released: bool
+) -> Optional[str]:
+    """Return whether a step's observation window is before, open, or after GA."""
+    window = step.get("window", {})
+    if window.get("opens") == "branch_cut" and not branch_cut:
+        return "before"
+    if window.get("closes") == "ga" and released:
+        return "after"
+    return None
+
+
 def validate_all(release_version: Optional[str] = None) -> List[str]:
     errors: List[str] = []
     shared = _load(SHARED_FILE)

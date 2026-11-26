@@ -240,6 +240,19 @@ class TestApplicability(TestCase):
                     any("window must have" in e for e in self.errors(window=window))
                 )
 
+    def test_release_step_window_state(self):
+        self.assertEqual(
+            cfg.release_step_window_state(
+                {"window": {"opens": "branch_cut"}}, False, False
+            ),
+            "before",
+        )
+        self.assertEqual(
+            cfg.release_step_window_state({"window": {"closes": "ga"}}, True, True),
+            "after",
+        )
+        self.assertIsNone(cfg.release_step_window_state({}, True, False))
+
     def test_a_patch_release_leaves_out_minor_only_steps_and_their_dependencies(self):
         shared = _shared(
             _step("1.1", types=["minor"]),
