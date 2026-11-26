@@ -207,6 +207,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_nn_functional_adaptive_avg_pool2d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "206806",
+    "https://github.com/pytorch/pytorch/issues/206806",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_bilinear_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "205206",
     "https://github.com/pytorch/pytorch/issues/205206",
@@ -220,6 +227,20 @@
     [
       "inductor",
       "linux"
+    ]
+  ],
+  "test_comprehensive_special_bessel_j1_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "205763",
+    "https://github.com/pytorch/pytorch/issues/205763",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_special_bessel_y1_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "205805",
+    "https://github.com/pytorch/pytorch/issues/205805",
+    [
+      "xpu"
     ]
   ],
   "test_constants_pinned_async_copy_disabled_on_rocm_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
@@ -858,6 +879,13 @@
     "https://github.com/pytorch/pytorch/issues/191009",
     [
       "inductor"
+    ]
+  ],
+  "test_index_put_sorted_contiguous_size_one_stride_accumulate_False_xpu (__main__.TestIndexingDeviceXPU)": [
+    "206807",
+    "https://github.com/pytorch/pytorch/issues/206807",
+    [
+      "xpu"
     ]
   ],
   "test_inductor_compiles_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
@@ -1515,6 +1543,13 @@
   "test_sparse_add_aliased_out_xpu_complex128 (__main__.TestSparseCSRDeviceXPU)": [
     "204912",
     "https://github.com/pytorch/pytorch/issues/204912",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_add_xpu_complex128 (__main__.TestSparseCSRDeviceXPU)": [
+    "205267",
+    "https://github.com/pytorch/pytorch/issues/205267",
     [
       "xpu"
     ]
