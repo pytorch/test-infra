@@ -200,6 +200,13 @@
       "slow"
     ]
   ],
+  "test_comprehensive_nn_functional_adaptive_avg_pool1d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "206729",
+    "https://github.com/pytorch/pytorch/issues/206729",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_bilinear_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "205206",
     "https://github.com/pytorch/pytorch/issues/205206",
