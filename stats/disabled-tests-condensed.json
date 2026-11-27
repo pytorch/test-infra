@@ -243,22 +243,6 @@
       "xpu"
     ]
   ],
-  "test_constants_pinned_async_copy_disabled_on_rocm_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "204680",
-    "https://github.com/pytorch/pytorch/issues/204680",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
-  "test_constants_pinned_async_copy_disabled_on_rocm_cuda (__main__.AOTInductorTestDualWrapper)": [
-    "204681",
-    "https://github.com/pytorch/pytorch/issues/204681",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "199423",
     "https://github.com/pytorch/pytorch/issues/199423",
