@@ -1578,6 +1578,13 @@
       "linux"
     ]
   ],
+  "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
+    "192461",
+    "https://github.com/pytorch/pytorch/issues/192461",
+    [
+      "linux"
+    ]
+  ],
   "test_template_keeps_its_one_config (__main__.TestKernelConfigs)": [
     "202426",
     "https://github.com/pytorch/pytorch/issues/202426",
