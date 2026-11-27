@@ -100,6 +100,33 @@ L3:
       ).toEqual(["pr/repo"]);
     });
 
+    test("release is opt-in: a repo takes part only when it lists it", () => {
+      const al = CrcrAllowlist.fromYaml(`
+L2:
+  - plain/repo
+  - release/repo:
+      events: [release]
+  - all/repo:
+      events: [pull_request, nightly, release]
+      oncalls: [all-oncall]
+`);
+      expect(DEFAULT_CRCR_EVENTS).not.toContain("release");
+      expect(al.getEventsForRepo("plain/repo")).not.toContain("release");
+      expect(al.getEventsForRepo("release/repo")).toEqual(["release"]);
+      expect(al.getEventsForRepo("all/repo")).toEqual([
+        "pull_request",
+        "nightly",
+        "release",
+      ]);
+      expect(
+        filterCrcrEntriesByEvent(al.getEntries(), "release").map(
+          (entry) => entry.repo
+        )
+      ).toEqual(["release/repo", "all/repo"]);
+      // an unknown repo has no events at all
+      expect(al.getEventsForRepo("unknown/repo")).toEqual([]);
+    });
+
     test("unknown repo returns null level and empty oncalls", () => {
       const al = CrcrAllowlist.fromYaml(VALID_YAML);
       expect(al.getLevelForRepo("unknown/repo")).toBeNull();

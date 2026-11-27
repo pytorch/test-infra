@@ -3,13 +3,14 @@ import { Octokit } from "octokit";
 
 // Mirror of the Python AllowlistLevel enum in aws/lambda/cross_repo_ci_relay/utils/allowlist.py
 export type AllowlistLevel = "L1" | "L2" | "L3" | "L4";
-export type CrcrEvent = "pull_request" | "nightly";
+export type CrcrEvent = "pull_request" | "nightly" | "release";
 
 export const DEFAULT_CRCR_EVENTS = [
   "pull_request",
   "nightly",
 ] as const satisfies readonly CrcrEvent[];
-const CRCR_EVENTS = new Set<CrcrEvent>(["pull_request", "nightly"]);
+// "release" (a run against a release candidate) is opt-in: it is not in the defaults.
+const CRCR_EVENTS = new Set<CrcrEvent>(["pull_request", "nightly", "release"]);
 
 /** CRCR's own test repo. */
 export const CRCR_HEALTH_REPO = "pytorch/crcr-test";
@@ -129,8 +130,9 @@ function parseMetadata(
  *   L4:
  *     - org5/repo5: oncall1, oncall2
  *
- * Entries may specify `events: [pull_request, nightly]`; omitted events retain
- * the legacy behavior of participating in both.
+ * Entries may specify `events: [pull_request, nightly, release]`; omitted events
+ * retain the legacy behavior of participating in pull_request and nightly. A repo
+ * takes part in release only when it lists it.
  */
 export class CrcrAllowlist {
   private repoMap: Map<string, CrcrRepoEntry>;

@@ -640,6 +640,137 @@ describe("extractDynamoRecord - triage_verdict", () => {
   });
 });
 
+describe("extractDynamoRecord - release callbacks", () => {
+  const SHA = "a".repeat(40);
+
+  // A release report is a nightly-style self-report whose delivery_id is the tested
+  // commit. The relay checked the tag the downstream named against it and sent
+  // (release, rc) as trusted.
+  function releasePayload(
+    overrides: { trusted?: any; workflow?: any; callback?: any } = {}
+  ) {
+    return makePayload({
+      ...overrides,
+      trusted: { release: "2.16.0", rc: "rc9", ...overrides.trusted },
+      callback: {
+        event_type: "release",
+        delivery_id: SHA,
+        payload: {
+          repository: { full_name: "pytorch/pytorch" },
+          head_sha: SHA,
+        },
+        ...overrides.callback,
+      },
+      workflow: {
+        status: "completed",
+        conclusion: "success",
+        ...overrides.workflow,
+      },
+    });
+  }
+
+  test("takes the release and the candidate from trusted", () => {
+    const record = extractDynamoRecord(releasePayload());
+    expect(record.event_type).toBe("release");
+    expect(record.release).toBe("2.16.0");
+    expect(record.rc).toBe("rc9");
+    // like a nightly: no PR, and the tag's commit is the run's PyTorch commit
+    expect(record.pr_number).toBe(0);
+    expect(record.pytorch_head_sha).toBe(SHA);
+    expect(record.delivery_id).toBe(SHA);
+  });
+
+  test("the release's own tag has a release and no rc", () => {
+    const record = extractDynamoRecord(
+      releasePayload({ trusted: { release: "2.15.0", rc: "" } })
+    );
+    expect(record.release).toBe("2.15.0");
+    expect(record.rc).toBeUndefined();
+  });
+
+  test("never reads the release or the candidate from the downstream's body", () => {
+    const record = extractDynamoRecord(
+      releasePayload({
+        callback: {
+          release: "9.9.9",
+          rc: "rc99",
+          payload: {
+            repository: { full_name: "pytorch/pytorch" },
+            head_sha: SHA,
+            release: "9.9.9",
+            rc: "rc99",
+          },
+        },
+        workflow: { release: "9.9.9", rc: "rc99" },
+      })
+    );
+    expect(record.release).toBe("2.16.0");
+    expect(record.rc).toBe("rc9");
+  });
+
+  test("a release row without a trusted release is refused", () => {
+    for (const trusted of [{ release: undefined }, { release: "" }]) {
+      try {
+        extractDynamoRecord(releasePayload({ trusted }));
+        throw new Error("expected extractDynamoRecord to throw");
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(ApiError);
+        expect(e.statusCode).toBe(400);
+        expect(e.message).toContain("trusted.release");
+      }
+    }
+  });
+
+  test("only a release row carries a release", () => {
+    for (const event_type of ["nightly", "periodic", "workflow_job"]) {
+      const record = extractDynamoRecord(
+        releasePayload({ callback: { event_type } })
+      );
+      expect(record.release).toBeUndefined();
+      expect(record.rc).toBeUndefined();
+    }
+  });
+
+  test("a release report needs no check run, like a nightly", () => {
+    const record = extractDynamoRecord(
+      releasePayload({ workflow: { check_run_id: undefined } })
+    );
+    expect(record.check_run_id).toBe("");
+    expect(record.release).toBe("2.16.0");
+  });
+});
+
+describe("writeToDynamo - release columns", () => {
+  beforeEach(() => {
+    mockUpdate.mockReset();
+  });
+
+  test("writes the release and the candidate, and only for a release row", async () => {
+    mockUpdate.mockResolvedValue({});
+    const base = extractDynamoRecord(
+      makePayload({ callback: { event_type: "nightly" } })
+    );
+    await writeToDynamo(base);
+    const nightly = mockUpdate.mock.calls[0][0];
+    expect(Object.values(nightly.ExpressionAttributeNames)).not.toContain(
+      "release"
+    );
+    expect(Object.values(nightly.ExpressionAttributeNames)).not.toContain("rc");
+
+    await writeToDynamo({
+      ...base,
+      event_type: "release",
+      release: "2.16.0",
+      rc: "rc9",
+    });
+    const release = mockUpdate.mock.calls[1][0];
+    expect(release.ExpressionAttributeNames["#n_release"]).toBe("release");
+    expect(release.ExpressionAttributeValues[":v_release"]).toBe("2.16.0");
+    expect(release.ExpressionAttributeNames["#n_rc"]).toBe("rc");
+    expect(release.ExpressionAttributeValues[":v_rc"]).toBe("rc9");
+  });
+});
+
 describe("writeToDynamo - write-once guard", () => {
   const baseRecord: CrcrWorkflowJobRecord = {
     dynamoKey: "repo/delivery/wf/job/cr1",
