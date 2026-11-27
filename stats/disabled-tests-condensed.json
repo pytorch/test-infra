@@ -872,6 +872,13 @@
       "xpu"
     ]
   ],
+  "test_index_put_sorted_contiguous_size_one_stride_accumulate_True_xpu (__main__.TestIndexingDeviceXPU)": [
+    "206860",
+    "https://github.com/pytorch/pytorch/issues/206860",
+    [
+      "xpu"
+    ]
+  ],
   "test_inductor_compiles_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202795",
     "https://github.com/pytorch/pytorch/issues/202795",
