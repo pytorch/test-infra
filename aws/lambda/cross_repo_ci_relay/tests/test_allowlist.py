@@ -116,6 +116,32 @@ class TestAllowlistMap(unittest.TestCase):
             amap.get_repos_for_device("device"), (["pr/repo"], ["pr-oncall"])
         )
 
+    def test_release_is_opt_in(self):
+        self.assertIn(CrcrEvent.RELEASE, SUPPORTED_CRCR_EVENTS)
+        self.assertNotIn(CrcrEvent.RELEASE, DEFAULT_CRCR_EVENTS)
+        amap = AllowlistMap._parse(
+            {
+                "L2": [
+                    "plain/repo",
+                    {"release/repo": {"events": ["release"]}},
+                    {
+                        "all/repo": {
+                            "events": ["pull_request", "nightly", "release"],
+                            "oncalls": ["all-oncall"],
+                        }
+                    },
+                ]
+            }
+        )
+        self.assertNotIn(CrcrEvent.RELEASE, amap.get_repo_events("plain/repo"))
+        self.assertEqual(amap.get_repo_events("release/repo"), {CrcrEvent.RELEASE})
+        self.assertEqual(
+            amap.get_repo_events("all/repo"),
+            {CrcrEvent.PULL_REQUEST, CrcrEvent.NIGHTLY, CrcrEvent.RELEASE},
+        )
+        # an unknown repo has no events at all, so it has not opted in either
+        self.assertEqual(amap.get_repo_events("unknown/repo"), frozenset())
+
     def test_invalid_event_metadata_raises(self):
         with self.assertRaisesRegex(RuntimeError, "unsupported event"):
             AllowlistMap._parse({"L2": [{"org/repo": {"events": ["push"]}}]})

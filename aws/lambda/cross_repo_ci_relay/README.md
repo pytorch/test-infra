@@ -257,6 +257,71 @@ jobs:
           conclusion: ${{ job.status }}
 ```
 
+### Reporting a run against a release candidate
+
+A downstream repo can report how its CI did against a PyTorch **release candidate** (RC), so the result shows on the release views of HUD (`/release/<version>/crcr`). Nothing is dispatched: the repo runs its own scheduled workflow, like a nightly, and reports each finished job in one `completed` callback.
+
+1. **Opt in.** The repo is listed at L2 or higher and lists `release` in its `events` in the allowlist (`.github/allowlist.yml` in pytorch/pytorch). `release` is not in the default events, so a repo that does not list it reports no release runs: its callbacks are ignored.
+   ```yaml
+   L2:
+     - org/repo:
+         events: [pull_request, nightly, release]
+   ```
+2. **Report** with `event-type: release`, naming both the build and its tag:
+   - `delivery-id`: the full SHA of the PyTorch commit that was tested, **read from the build itself** (`torch.version.git_version` for an installed wheel, `git rev-parse HEAD` for a build from source).
+   - `release-tag`: the `vX.Y.Z-rcN` tag (or the release's own tag `vX.Y.Z`) of that commit.
+   ```yaml
+   on:
+     schedule:
+       - cron: "0 6 * * *"
+
+   jobs:
+     release-ci:
+       runs-on: ubuntu-latest
+       permissions:
+         id-token: write
+         contents: read
+       steps:
+         - name: Install PyTorch from the test channel
+           run: pip install torch --index-url https://download.pytorch.org/whl/test/cpu
+
+         - name: Find the tag of the installed build
+           id: torch
+           env:
+             GH_TOKEN: ${{ github.token }}
+           run: |
+             sha=$(python -c 'import torch; print(torch.version.git_version)')
+             # not /tags: pytorch/pytorch has thousands, almost all viable/strict/<N>
+             # on its own line, so that a failed request fails the step as itself
+             refs=$(gh api --paginate repos/pytorch/pytorch/git/matching-refs/tags/v2 \
+               --jq ".[] | select(.object.sha == \"$sha\") | .ref")
+             tag=$(echo "$refs" | sed 's|refs/tags/||' \
+               | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$' | sort -V | tail -1)
+             [ -n "$tag" ] || { echo "::error::$sha is on no release tag"; exit 1; }
+             echo "sha=$sha" >> "$GITHUB_OUTPUT"
+             echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+         # ... run your CI against the installed torch ...
+
+         - name: Report the result to relay
+           if: always() && steps.torch.outputs.tag != ''
+           uses: pytorch/test-infra/.github/actions/cross-repo-ci-relay-callback@main
+           with:
+             event-type: release
+             delivery-id: ${{ steps.torch.outputs.sha }}
+             release-tag: ${{ steps.torch.outputs.tag }}
+             status: completed
+             conclusion: ${{ job.status }}
+   ```
+
+What the relay does with it:
+
+- It takes the nightly path: no dispatch record, no state machine, no upstream check run, only `completed` is accepted.
+- It looks `release-tag` up on the upstream repo and requires it to point at `delivery-id`. It then forwards the `release` (for example `2.16.0`) and the `rc` (for example `rc9`, empty for the release's own tag), read from the tag name, to HUD as **trusted** fields. HUD stores them in the `release` and `rc` columns of `default.crcr_workflow_job` for rows with `event_type = 'release'`, and reads them from nowhere else.
+- A name that is not a release tag, a tag that does not exist, or a `delivery-id` that is not the full SHA of the tag's commit is rejected with a `400` and nothing is stored, so the step fails and the workflow author sees it. If GitHub cannot be asked for the tag, the answer is a `503` with `Retry-After`: nothing is stored, so re-running the job is safe (the action does not retry it on its own).
+- Why both: a wheel's version does not name the candidate. PyTorch's test-channel wheels carry no `rc` suffix and each candidate replaces the last, so the newest tag may not be the build that was installed. Reading the commit from the build keeps a run on `rc9` from being filed under `rc10`.
+- A released wheel may be the build of the last candidate rather than of the `vX.Y.Z` tag's commit (it was for 2.14.0 and 2.15.0). A run on it is reported with that candidate's tag, which the example finds by itself.
+
 ### Inputs
 
 | Input | Required | Default | Description |

@@ -37,9 +37,13 @@ class AllowlistLevel(str, Enum):
 class CrcrEvent(str, Enum):
     PULL_REQUEST = "pull_request"
     NIGHTLY = "nightly"
+    # A run against a PyTorch release candidate (or the release): the downstream
+    # reports it like a nightly, with the commit of the release tag as delivery_id.
+    RELEASE = "release"
 
 
 SUPPORTED_CRCR_EVENTS = frozenset(CrcrEvent)
+# RELEASE is opt-in: a repo that does not list it reports no release runs.
 DEFAULT_CRCR_EVENTS = frozenset({CrcrEvent.PULL_REQUEST, CrcrEvent.NIGHTLY})
 
 

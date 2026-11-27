@@ -11,6 +11,11 @@ description: >
   and `event-type` to "nightly" or "periodic" — the action will construct the
   payload from scratch (no client_payload needed).
 
+  To report a run against a PyTorch release candidate, set `event-type` to
+  "release", `delivery-id` to the PyTorch commit that was built or installed, and
+  `release-tag` to the `vX.Y.Z-rcN` tag (or the release's `vX.Y.Z` tag) of that
+  commit.  The repo must list `release` in its allowlist `events`.
+
   To add triage verdicts to rows that were reported earlier, for several jobs at
   once, set `event-type` to "late-report" and pass the reports in
   `triage-verdict-list`.
@@ -19,7 +24,7 @@ inputs:
   status:
     description: >
       Workflow status to report.  Must be either "in_progress" or "completed".
-      For nightly/periodic event types, only "completed" is accepted.  Required,
+      For nightly/periodic/release event types, only "completed" is accepted.  Required,
       except for event-type "late-report", which is not about this job's status
       and ignores it.
     required: false
@@ -37,16 +42,26 @@ inputs:
       Dispatch ID for the callback.  For PR/push workflows this is read from
       client_payload automatically and should NOT be set.  For nightly/periodic
       workflows (self-triggered via cron), set this to the upstream commit SHA
-      that was tested — it becomes the correlation key on the HUD.
+      that was tested — it becomes the correlation key on the HUD.  For release
+      workflows, set it to the full SHA of the PyTorch commit that was tested,
+      taken from the build itself (see `release-tag`).
     required: false
     default: ''
   event-type:
     description: >
       Event type override.  For PR/push workflows this is read from
       client_payload automatically and should NOT be set.  For nightly/periodic
-      workflows, set this to "nightly" or "periodic".  Set it to "late-report" to
+      workflows, set this to "nightly" or "periodic"; for a run against a
+      release candidate, set it to "release".  Set it to "late-report" to
       add triage verdicts to rows that were reported earlier (see
       `triage-verdict-list`).
+    required: false
+    default: ''
+  release-tag:
+    description: >
+      Required for event-type "release" and ignored otherwise: the
+      `vX.Y.Z-rcN` tag (or the release's `vX.Y.Z` tag) that was tested.  The
+      relay rejects the report unless the tag points at `delivery-id`.
     required: false
     default: ''
   test-results:
@@ -221,4 +236,5 @@ runs:
         MAX_TIME: ${{ inputs.max-time }}
         DELIVERY_ID_OVERRIDE: ${{ inputs.delivery-id }}
         EVENT_TYPE_OVERRIDE: ${{ inputs.event-type }}
+        RELEASE_TAG: ${{ inputs.release-tag }}
       run: python3 "${{ github.action_path }}/report_callback.py"

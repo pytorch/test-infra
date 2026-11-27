@@ -26,8 +26,11 @@ taken from the job running this script.
 Optional env vars:
     CONCLUSION              Job conclusion (required when STATUS=completed)
     CLIENT_PAYLOAD          JSON string of the dispatch payload (PR/push mode)
-    DELIVERY_ID_OVERRIDE    Upstream commit SHA (nightly/periodic self-report)
-    EVENT_TYPE_OVERRIDE     "nightly" or "periodic" (self-report), or "late-report"
+    DELIVERY_ID_OVERRIDE    Upstream commit SHA (nightly/periodic/release self-report)
+    EVENT_TYPE_OVERRIDE     "nightly", "periodic" or "release" (self-report), or
+                            "late-report"
+    RELEASE_TAG             "release" only, required: the vX.Y.Z-rcN (or vX.Y.Z) tag
+                            that DELIVERY_ID_OVERRIDE is the commit of
     CHECK_RUN_ID            GitHub check run ID (falls back to RUN_ID-RUN_ATTEMPT)
     TEST_RESULTS            JSON string with test result summary
     TRIAGE_VERDICT          JSON object with a triage verdict for this job
@@ -50,6 +53,8 @@ from typing import NamedTuple
 
 
 LATE_REPORT_EVENT_TYPE = "late-report"
+# A single callback that reports a finished run on its own: no dispatch behind it.
+SELF_REPORT_EVENT_TYPES = ("nightly", "periodic", "release")
 # Reports per request (the relay accepts up to 100).
 LATE_REPORT_CHUNK = 50
 # HUD does a write per report, so allow more than a plain callback's default.
@@ -64,20 +69,21 @@ def build_payload() -> str:
     if bool(delivery_id) != bool(event_type):
         sys.exit(
             "Error: Both 'delivery-id' and 'event-type' must be set together "
-            "for nightly/periodic mode. Got delivery-id="
+            "for nightly/periodic/release mode. Got delivery-id="
             f"{delivery_id!r}, event-type={event_type!r}"
         )
 
     is_self_report = bool(delivery_id and event_type)
 
     if is_self_report:
-        if event_type not in ("nightly", "periodic"):
+        if event_type not in SELF_REPORT_EVENT_TYPES:
             sys.exit(
-                f"Error: event-type must be 'nightly' or 'periodic', got {event_type!r}"
+                "Error: event-type must be 'nightly', 'periodic' or 'release', "
+                f"got {event_type!r}"
             )
         if status != "completed":
             sys.exit(
-                f"Error: nightly/periodic callbacks require status 'completed', got {status!r}"
+                f"Error: nightly/periodic/release callbacks require status 'completed', got {status!r}"
             )
 
     if status not in ("in_progress", "completed"):
@@ -96,6 +102,11 @@ def build_payload() -> str:
                 "head_sha": delivery_id,
             },
         }
+        if event_type == "release":
+            release_tag = os.environ.get("RELEASE_TAG", "").strip()
+            if not release_tag:
+                sys.exit("Error: event-type 'release' requires 'release-tag'")
+            client_payload["release_tag"] = release_tag
     else:
         raw = os.environ.get("CLIENT_PAYLOAD", "null")
         try:
