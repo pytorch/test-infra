@@ -63,7 +63,7 @@ CUDA_ARCHES_DICT = {
 }
 
 ROCM_ARCHES_DICT = {
-    "nightly": ["10.0", "10.1"],
+    "nightly": ["10.1", "10.2"],
     "test": ["7.14", "10.0"],
     "release": ["7.14", "10.0"],
 }
@@ -114,6 +114,10 @@ CUDA_ARCHES_NO_WINDOWS_DICT = {
 # not appear in the pytorch.org install selector. 13.5 is new on nightly and is
 # not advertised until it has been validated.
 CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0", "13.5"]
+
+# Same idea for ROCm: nightly ecosystem builds move to 10.2 with core, but the
+# selector stays on 10.1 until torch and torchvision 10.2 wheels are published.
+ROCM_ARCHES_NO_GETTING_STARTED: List[str] = ["10.2"]
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
 # a pre-release, so it must not be offered on the getting-started page yet.
@@ -325,8 +329,11 @@ def initialize_globals(
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if getting_started:
         # The getting-started page offers a single ROCm option per channel, and
-        # it should be the newest one the channel ships.
-        ROCM_ARCHES = [max(ROCM_ARCHES, key=parse_version)]
+        # it should be the newest advertised one the channel ships.
+        advertised = [
+            arch for arch in ROCM_ARCHES if arch not in ROCM_ARCHES_NO_GETTING_STARTED
+        ]
+        ROCM_ARCHES = [max(advertised, key=parse_version)] if advertised else []
     if build_python_only:
         # Only select the oldest version of python if building a python only package
         PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
