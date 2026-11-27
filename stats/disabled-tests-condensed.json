@@ -156,6 +156,13 @@
       "rocm"
     ]
   ],
+  "test_coalesce_accepts_large_tensor_xpu_float32 (__main__.TestSparseXPU)": [
+    "206912",
+    "https://github.com/pytorch/pytorch/issues/206912",
+    [
+      "xpu"
+    ]
+  ],
   "test_codegen_per_stream_alignment_copy_multi_stream (__main__.TestUserStreamCompile)": [
     "194171",
     "https://github.com/pytorch/pytorch/issues/194171",
@@ -632,6 +639,27 @@
     "https://github.com/pytorch/pytorch/issues/190141",
     [
       "linux"
+    ]
+  ],
+  "test_dtypes_dot_xpu (__main__.TestCommonXPU)": [
+    "206913",
+    "https://github.com/pytorch/pytorch/issues/206913",
+    [
+      "xpu"
+    ]
+  ],
+  "test_dtypes_inner_xpu (__main__.TestCommonXPU)": [
+    "206914",
+    "https://github.com/pytorch/pytorch/issues/206914",
+    [
+      "xpu"
+    ]
+  ],
+  "test_dtypes_vdot_xpu (__main__.TestCommonXPU)": [
+    "206915",
+    "https://github.com/pytorch/pytorch/issues/206915",
+    [
+      "xpu"
     ]
   ],
   "test_effn_attn_uniform_zero_bias (__main__.CudaReproTests)": [
