@@ -1129,13 +1129,6 @@
       "xpu"
     ]
   ],
-  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "199495",
-    "https://github.com/pytorch/pytorch/issues/199495",
-    [
-      "xpu"
-    ]
-  ],
   "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_xpu (__main__.GPUTests)": [
     "200423",
     "https://github.com/pytorch/pytorch/issues/200423",
@@ -1477,13 +1470,6 @@
       "xpu"
     ]
   ],
-  "test_short_json_timing_enabled_True_include_collectives_True (__main__.NCCLTraceTest)": [
-    "203759",
-    "https://github.com/pytorch/pytorch/issues/203759",
-    [
-      "rocm"
-    ]
-  ],
   "test_single_dim_strategy_linalg_cond_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
     "190141",
     "https://github.com/pytorch/pytorch/issues/190141",
@@ -1566,15 +1552,6 @@
     "https://github.com/pytorch/pytorch/issues/205267",
     [
       "xpu"
-    ]
-  ],
-  "test_svd_lowrank_cuda_complex128 (__main__.TestLinalgCUDA)": [
-    "168302",
-    "https://github.com/pytorch/pytorch/issues/168302",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_svd_lowrank_cuda_complex128 (__main__.TestLinalgDeviceCUDA)": [
