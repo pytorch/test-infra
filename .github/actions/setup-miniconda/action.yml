@@ -145,13 +145,30 @@ runs:
           CONDA_RUNTIME=$(which conda)
           "${CONDA_RUNTIME}" --version
 
-          "${CONDA_RUNTIME}" create \
+          # Creating the base env downloads repodata and packages from
+          # repo.anaconda.com, which intermittently rate-limits shared
+          # runner egress IPs (HTTP 429 TOO MANY REQUESTS). The failure
+          # happens before any user code runs and kills the whole job,
+          # so retry the create a few times before giving up.
+          CONDA_CREATE_ATTEMPT=1
+          until "${CONDA_RUNTIME}" create \
             --yes --quiet \
             --prefix "${CONDA_BASE_ENV}" \
             ${ENV_FILE_FLAG} \
             python="${PYTHON_VERSION}" \
             ${{ inputs.default-packages }} \
-            ${CONDA_EXTRA_FLAGS}
+            ${CONDA_EXTRA_FLAGS}; do
+            if [[ "${CONDA_CREATE_ATTEMPT}" -ge 3 ]]; then
+              echo "::error::conda create failed after ${CONDA_CREATE_ATTEMPT} attempts"
+              exit 1
+            fi
+            CONDA_CREATE_ATTEMPT=$((CONDA_CREATE_ATTEMPT + 1))
+            echo "::warning::conda create failed; retrying (attempt ${CONDA_CREATE_ATTEMPT})"
+            # A failed attempt can leave a partial prefix behind; the
+            # next create refuses to reuse it, so remove it first.
+            rm -rf "${CONDA_BASE_ENV}"
+            sleep 20
+          done
 
           if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
             "${CONDA_RUNTIME}" run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
