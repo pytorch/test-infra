@@ -243,6 +243,22 @@
       "xpu"
     ]
   ],
+  "test_constants_pinned_async_copy_disabled_on_rocm_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "204680",
+    "https://github.com/pytorch/pytorch/issues/204680",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_constants_pinned_async_copy_disabled_on_rocm_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "204681",
+    "https://github.com/pytorch/pytorch/issues/204681",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "199423",
     "https://github.com/pytorch/pytorch/issues/199423",
@@ -722,13 +738,6 @@
   "test_extract_gradients_from_optimizer_set_to_none_cpu (__main__.TestIdentifyGradientsCPU)": [
     "202747",
     "https://github.com/pytorch/pytorch/issues/202747",
-    [
-      "linux"
-    ]
-  ],
-  "test_fake_export_cuda_conj_cpu_float32 (__main__.TestExportOpInfoCPU)": [
-    "204745",
-    "https://github.com/pytorch/pytorch/issues/204745",
     [
       "linux"
     ]
