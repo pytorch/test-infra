@@ -1,5 +1,9 @@
 import { testPagePath } from "lib/api/tests/pages/parameters";
-import type { HealthWindow, RanOn } from "lib/api/tests/parameters";
+import type {
+  HealthStatus,
+  HealthWindow,
+  RanOn,
+} from "lib/api/tests/parameters";
 import type { TestHealthEntry } from "lib/api/tests/types";
 import {
   CELL_STATUSES,
@@ -37,12 +41,19 @@ export interface ListContext {
 export function testRunsHref(
   repo: string,
   entry: Pick<TestHealthEntry, "test" | "environment" | "env_vars">,
-  context: ListContext
+  context: ListContext,
+  status?: HealthStatus
 ): string {
   const params = gridUrlParams({
     ranOn: context.ranOn,
     window: context.window,
-    outcomes: CELL_STATUSES,
+    // A commit can combine several job runs. A failure can appear in a
+    // flaky cell after a recovery, or a flaky run in a failed cell if a
+    // sibling job still failed. Keep both kinds of failure evidence visible.
+    outcomes:
+      status === "failing" || status === "flaky"
+        ? ["failed", "flaky"]
+        : CELL_STATUSES,
     timeBar: DEFAULT_GRID_TIME_BAR,
     commit: "",
     lane:
