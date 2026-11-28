@@ -4,12 +4,14 @@ greenlight lists the open PRs from the evaluation cohort — every one on a full
 the recently updated ones plus the open `Reverted`-labelled ones (see the README's "Usage" and "Who
 is evaluated, and whose verdict carries authority") — but reviews only those whose author is
 eligible for them, and only an eligible author's review carries authority: only it can approve the
-PR, render in Dr. CI, or satisfy the land-time merge gate. For a listed PR whose author is not
-eligible for it, Dr. CI says
+PR, render in Dr. CI, or satisfy the land-time merge gate. On pytorch/pytorch, for a listed PR
+whose author is not eligible for it, Dr. CI says
 its changes can't be reviewed due to `merge_rules.yaml` restrictions, or are too big to review when
 the PR is oversized. Either line also replaces a greenlight verdict on an older commit, but never
 one on the PR's current head; in every other case — an eligible author's PR that is not oversized,
-a draft, an author no rule names, a failed check — an outdated verdict stays. Eligibility comes from
+a draft, an author no rule names, a failed check — an outdated verdict stays. Dr. CI computes those
+lines from pytorch/pytorch's merge rules, so another repo Dr. CI renders for shows its recorded
+state alone (REPOS.md, "Dr. CI as the status surface"). Eligibility comes from
 the repo's eligibility source (its merge rules, or write permission) and the PR's base, and an ineligible author is what `--allow-untrusted-author` calls
 untrusted: that local-only flag reviews such a PR anyway, in shadow. This document covers who is
 eligible, onboarding and offboarding, and the risks this design accepts.
