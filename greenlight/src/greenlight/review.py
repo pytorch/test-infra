@@ -22,7 +22,9 @@ without any of them.
 ``prepare`` runs the safety work: both authz gates (``authz_gates``) once the merge rules resolve,
 the listing, the state read, the revert guard, the recency filter and the ineligible revoke.
 ``review_finish.finish`` runs the optional work (fan-out, dispatch, label pass, refusals) and raises
-the errors; ``run`` is both. Dr. CI is poked only for a repo whose ``status_comment`` is ``drci``.
+the errors; ``run`` is both. A caller may pass the run's
+``cancel_event`` (a tick-wide rate-limit latch), and always passes the token for the dispatch
+(``PrepareKwargs``). Dr. CI is poked only for a repo whose ``status_comment`` is ``drci``.
 
 Reverted PRs are excluded before any of that on the listing path, and on the ``--pr`` path once its
 gate admits the target or refuses one whose author GitHub can name (a refused target with no author
@@ -44,7 +46,7 @@ import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from greenlight import (
     candidate_filter,
@@ -68,6 +70,7 @@ from greenlight.review_finish import PreparedScan
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from typing import Protocol, Required, TypedDict, Unpack
 
     from github import Github
 
@@ -81,6 +84,47 @@ if TYPE_CHECKING:
     from greenlight.scan_memory import ScanMemory
     from greenlight.scan_runner import FingerprintFn, FingerprintResult
     from greenlight.state import PRState
+
+    class ScanOptions(TypedDict, total=False):
+        """``prepare``'s keywords that ``repo_scan.scan_repo`` passes through untouched."""
+
+        max_dispatches: int | None
+        ref: str
+        timeout_minutes: int
+        force: bool
+        requester: str | None
+        allow_untrusted_author: bool
+        fetch: FetchFn
+        fetch_updated: FetchUpdatedFn
+        fetch_labels: Callable[[Github, str, int], tuple[str, ...]]
+        fingerprint: FingerprintFn
+        read_state: Callable[[str, Sequence[int]], dict[int, PRState]]
+        read_reverted: Callable[[str, Sequence[int]], set[int]]
+        dispatch: DispatchFn
+        emit_dispatched: Callable[..., None]
+        emit_reverted: Callable[..., None]
+        poke_drci: Callable[[str, int, Config], None]
+        get_pr: Callable[[Github, str, int], VerdictPR]
+        dismiss_approvals: Callable[..., list[int]]
+        upsert_comment: Callable[..., None]
+        label_prs: Callable[[verdict_labels.LabelPass], None]
+        now: Callable[[], datetime]
+        cancel_event: threading.Event | None
+
+    class PrepareKwargs(ScanOptions, total=False):
+        """Every keyword of ``prepare`` but ``entry`` and ``stack``: what ``run`` passes it."""
+
+        pr: int | None
+        bot_login: str
+        build_github: BuildClient
+        resolve_merge_rules: Required[Callable[[], MergeRulesSnapshot]]
+        memory: ScanMemory | None
+        dispatch_token: Required[str | None]
+
+    class RunFn(Protocol):
+        def __call__(
+            self, config: Config, *, entry: RepoEntry, optional: bool, **kwargs: Unpack[PrepareKwargs]
+        ) -> None: ...
 
 
 logger = logging.getLogger(__name__)
@@ -112,7 +156,9 @@ def _no_poke(_pr_number: int) -> None:
     return None
 
 
-def run(config: Config, *, entry: RepoEntry = BUILTIN_PYTORCH, optional: bool = True, **kwargs: Any) -> None:
+def run(
+    config: Config, *, entry: RepoEntry = BUILTIN_PYTORCH, optional: bool = True, **kwargs: Unpack[PrepareKwargs]
+) -> None:
     """``prepare`` then ``review_finish.finish``, inside one ExitStack; ``kwargs`` are ``prepare``'s keywords.
 
     ``optional=False`` runs only the safety work and raises its errors.
@@ -154,11 +200,14 @@ def prepare(
     resolve_merge_rules: Callable[[], MergeRulesSnapshot],
     now: Callable[[], datetime] = _utcnow,
     memory: ScanMemory | None = None,
+    cancel_event: threading.Event | None = None,
+    dispatch_token: str | None,
 ) -> PreparedScan | None:
     """Run ``entry``'s safety work; None when the scan stops early (a refused requester or ``--pr`` target).
 
     The clients, the Dr. CI poke pool and the fingerprint workers are closed and drained when ``stack``
-    exits.
+    exits. ``cancel_event`` defaults to a fresh event. ``dispatch_token`` is the token for the dispatch,
+    None when there is none (a tick that could not mint it runs only the safety work).
     """
     repo = entry.repo
     if entry.mode == "off":
@@ -209,7 +258,8 @@ def prepare(
     # trips it, which gates the dispatch phase. It reflects "the cancel event fired," which
     # is broader than a non-empty `abandoned` -- a rate limit on the last task leaves nothing to
     # cancel (abandoned stays empty) yet must still skip dispatch.
-    cancel_event = threading.Event()
+    if cancel_event is None:
+        cancel_event = threading.Event()
     authority = Authority(
         rules=snapshot.rules,
         authors=authors_by_number,
@@ -271,6 +321,7 @@ def prepare(
         stack=stack,
         client=client,
         token=token,
+        dispatch_token=dispatch_token,
         build_github=build_github,
         pr=pr,
         max_dispatches=max_dispatches,

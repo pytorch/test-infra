@@ -218,3 +218,29 @@ def test_drci_status_comment_repos_exclude_other_repos(repo):
 
 def test_pytorchbot_guarded_repos_is_only_the_target_repo():
     assert frozenset({constants.TARGET_REPO}) == constants.PYTORCHBOT_GUARDED_REPOS
+
+
+def test_the_scan_budgets_floors_and_caps():
+    assert timedelta(minutes=2) == constants.TICK_INTERVAL
+    assert timedelta(seconds=240) == constants.WORKER_DEADLINE
+    assert timedelta(seconds=330) == constants.LEASE_DURATION
+    assert constants.STALE_RUN_TICKS == 3
+    assert constants.OTHER_REPO_REQUEST_BUDGET == 400
+    assert constants.QUOTA_FLOOR_OTHERS == 3000
+    assert constants.QUOTA_FLOOR_PRIMARY == 1000
+    assert constants.QUOTA_REFRESH_REQUESTS == 25
+    assert constants.OTHERS_DISPATCH_POOL == 10
+    assert constants.OTHER_REPO_MAX_DISPATCHES == 5
+    assert timedelta(seconds=600) == constants.CONFIG_ABSENT_TTL
+    assert constants.MEMORY_MAX_BYTES == 300 * 1024
+    assert timedelta(minutes=15) == constants.RATE_LIMIT_LATCH_MAX
+    assert timedelta(seconds=60) == constants.RATE_LIMIT_DEFAULT_WAIT
+    assert timedelta(seconds=45) == constants.FANOUT_BUDGET
+
+
+def test_a_run_ends_inside_the_function_timeout_and_its_lease_outlives_it():
+    function_timeout = timedelta(seconds=300)
+    assert constants.WORKER_DEADLINE < function_timeout < constants.LEASE_DURATION
+    assert constants.FANOUT_BUDGET < constants.WORKER_DEADLINE
+    assert constants.QUOTA_FLOOR_PRIMARY < constants.QUOTA_FLOOR_OTHERS
+    assert constants.OTHER_REPO_MAX_DISPATCHES <= constants.OTHERS_DISPATCH_POOL

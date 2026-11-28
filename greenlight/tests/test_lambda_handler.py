@@ -1,39 +1,27 @@
 import base64
 import importlib
 import json
-import logging
 import os
 import sys
 from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from greenlight import cli, lambda_handler
-from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
+from greenlight import app_tokens, fanout, lambda_handler, state_dynamo, worker
+from greenlight.worker import WorkerPayload
 
 _PEM = "-----BEGIN RSA PRIVATE KEY-----\nline-one\nline-two\n-----END RSA PRIVATE KEY-----\n"
 _PEM_B64 = base64.b64encode(_PEM.encode("utf-8")).decode("ascii")
 _CH_PASSWORD = "clickhouse-secret-pw"
-_CH_USERNAME = "greenlight-ro"
-_CH_HOST = "greenlight.clickhouse.cloud"
-_TOKEN = "ghs_minted_installation_token"
 _SECRET_STORE = "greenlight/prod"
 _APP_ID = "123456"
 _INSTALLATION_ID = 42
 _APP_SLUG = "pytorchgreenlight"
+_TABLE = "greenlight-state"
+_FUNCTION = "greenlight-scan"
 _MAX_ENV = lambda_handler._MAX_DISPATCHES_ENV
-# Pinned, not derived from the handler's constant: the default cap exists to keep a cold-start scan
-# inside the 300s Lambda timeout, so raising it must be a deliberate two-place edit. The env var's
-# name is not pinned the same way -- renaming it is already a deployment-visible break that no
-# assertion here can catch, and a second literal would only drift.
-_EXPECTED_ARGV = ["review", "--ref", "main", "--max", "30"]
-_EXPECTED_PERMISSIONS = {
-    "actions": "write",
-    "pull_requests": "write",
-    "contents": "read",
-    "members": "read",
-}
-_EXPECTED_REPOSITORIES = ["pytorch", "test-infra"]
+_SCHEDULE = {"source": "aws.events", "detail-type": "Scheduled Event", "time": "2026-11-24T12:00:00Z"}
+_WORKER = {"greenlight_worker": {"repo": "pytorch/vision", "tick": "2026-11-24T12:00:00Z", "dispatch_cap": 3}}
 
 
 @pytest.fixture(autouse=True)
@@ -45,311 +33,223 @@ def _restore_environ():
     os.environ.update(saved)
 
 
+class _Recorder:
+    """Stands in for ``Planner`` or ``Worker``: records how it was built and answers ``run``."""
+
+    def __init__(self, result: object = None, error: BaseException | None = None) -> None:
+        self.result = result
+        self.error = error
+        self.args: tuple[object, ...] = ()
+        self.kwargs: dict[str, object] = {}
+
+    def __call__(self, *args: object, **kwargs: object) -> "_Recorder":
+        self.args, self.kwargs = args, kwargs
+        return self
+
+    def run(self) -> object:
+        if self.error is not None:
+            raise self.error
+        return self.result
+
+
 @pytest.fixture
 def fakes(monkeypatch):
     monkeypatch.setenv("SECRET_STORE_NAME", _SECRET_STORE)
     monkeypatch.setenv("GITHUB_APP_ID", _APP_ID)
     monkeypatch.setenv("GITHUB_INSTALLATION_ID", str(_INSTALLATION_ID))
-    monkeypatch.setenv("CLICKHOUSE_USERNAME", _CH_USERNAME)
-    monkeypatch.setenv("CLICKHOUSE_HOST", _CH_HOST)
+    monkeypatch.setenv("CLICKHOUSE_USERNAME", "greenlight-ro")
+    monkeypatch.setenv("CLICKHOUSE_HOST", "greenlight.clickhouse.cloud")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_STATE_TABLE", _TABLE)
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", _FUNCTION)
     monkeypatch.delenv("CLICKHOUSE_ENDPOINT", raising=False)
     monkeypatch.delenv(_MAX_ENV, raising=False)
 
     secret_json = json.dumps({"GITHUB_APP_SECRET": _PEM_B64, "CLICKHOUSE_PASSWORD": _CH_PASSWORD})
     fake_boto3 = MagicMock()
     fake_boto3.client.return_value.get_secret_value.return_value = {"SecretString": secret_json}
-
     fake_github = MagicMock()
-    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.return_value = (
-        {},
-        {"token": _TOKEN},
-    )
     fake_github.GithubIntegration.return_value.get_app.return_value.slug = _APP_SLUG
-
     monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
     # Ensure the real github module is in sys.modules before replacing it, so monkeypatch restores
-    # it on teardown instead of deleting the key. A run that has not yet imported github (github is
-    # lazy-imported everywhere) would otherwise evict it here; the next `from github import ...`
-    # would rebuild the exception classes, breaking isinstance in later tests such as
-    # github_client.is_rate_limit_error.
+    # it on teardown instead of deleting the key; a later `from github import ...` would otherwise
+    # rebuild the exception classes and break isinstance checks in other tests.
     importlib.import_module("github")
     monkeypatch.setitem(sys.modules, "github", fake_github)
-    return fake_boto3, fake_github
+
+    planner, runner = _Recorder(), _Recorder(result="done")
+    invoker = Mock(name="invoke")
+    monkeypatch.setattr(fanout, "Planner", planner)
+    monkeypatch.setattr(fanout, "lambda_invoker", Mock(return_value=invoker))
+    monkeypatch.setattr(worker, "Worker", runner)
+    monkeypatch.setattr(state_dynamo, "DynamoStore", Mock(name="DynamoStore"))
+    return {"boto3": fake_boto3, "github": fake_github, "planner": planner, "worker": runner, "invoker": invoker}
 
 
-def _dispatched_max(main_mock: Mock) -> str:
-    argv: list[str] = main_mock.call_args.args[0]
-    return argv[argv.index("--max") + 1]
-
-
-def test_handler_happy_path(monkeypatch, fakes):
-    fake_boto3, fake_github = fakes
-    main_mock = Mock(return_value=EXIT_OK)
-    monkeypatch.setattr(cli, "main", main_mock)
-
-    result = lambda_handler.handler({"source": "eventbridge"}, object())
+def test_the_schedule_runs_the_planner(fakes):
+    result = lambda_handler.handler(dict(_SCHEDULE), object())
 
     assert result == {"status": "ok"}
-
-    fake_boto3.client.assert_called_once_with("secretsmanager", region_name="us-east-1")
-    fake_boto3.client.return_value.get_secret_value.assert_called_once_with(SecretId=_SECRET_STORE)
+    fake_github, planner = fakes["github"], fakes["planner"]
+    fakes["boto3"].client.assert_called_once_with("secretsmanager", region_name="us-east-1")
     assert os.environ["CLICKHOUSE_PASSWORD"] == _CH_PASSWORD
-
     fake_github.Auth.AppAuth.assert_called_once_with(_APP_ID, _PEM)
-    fake_github.GithubIntegration.assert_called_once_with(auth=fake_github.Auth.AppAuth.return_value)
-    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.assert_called_once_with(
-        "POST",
-        f"/app/installations/{_INSTALLATION_ID}/access_tokens",
-        input={"permissions": _EXPECTED_PERMISSIONS, "repositories": _EXPECTED_REPOSITORIES},
-    )
-    assert os.environ["PYTORCH_GREENLIGHT_GITHUB_TOKEN"] == _TOKEN
-    assert os.environ["PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS"] == "0"
-    # pull_requests is write, not read: the scan revokes greenlight's own approval on a reverted or
-    # ineligible PR, identified by the <slug>[bot] login resolved from GET /app on the same
-    # integration, and writes greenlight's GL/* labels.
-    assert os.environ["BOT_LOGIN"] == f"{_APP_SLUG}[bot]"
-    fake_github.GithubIntegration.return_value.get_app.assert_called_once_with()
-
-    main_mock.assert_called_once_with(_EXPECTED_ARGV)
-
-
-def test_handler_caps_dispatches_per_scan(monkeypatch, fakes):
-    main_mock = Mock(return_value=EXIT_OK)
-    monkeypatch.setattr(cli, "main", main_mock)
-
-    lambda_handler.handler({}, object())
-
-    # The scheduled scan is the one path with a hard wall-clock budget, so it must never run
-    # uncapped: an uncapped pass over the evaluation cohort would spend the whole function timeout
-    # on serial workflow_dispatch POSTs and be killed mid-scan.
-    assert _dispatched_max(main_mock) == str(lambda_handler._DEFAULT_MAX_DISPATCHES_PER_SCAN)
+    config = planner.args[0]
+    assert (config.state_table, config.max_workers) == (_TABLE, 3)
+    kwargs = planner.kwargs
+    assert kwargs["tick"] == "2026-11-24T12:00:00Z"
+    assert kwargs["store"] is state_dynamo.DynamoStore.return_value  # type: ignore[attr-defined]
+    state_dynamo.DynamoStore.assert_called_once_with(_TABLE)  # type: ignore[attr-defined]
+    tokens = kwargs["tokens"]
+    assert isinstance(tokens, app_tokens.AppTokens)
+    assert tokens._integration is fake_github.GithubIntegration.return_value
+    assert (tokens._installation_id, tokens._owner) == (_INSTALLATION_ID, "pytorch")
+    assert kwargs["invoke"] is fakes["invoker"]
+    fanout.lambda_invoker.assert_called_once_with(_FUNCTION)  # type: ignore[attr-defined]
+    assert kwargs["bot_login"] == f"{_APP_SLUG}[bot]"
+    assert (kwargs["max_dispatches"], kwargs["ref"], kwargs["timeout_minutes"]) == (30, "main", 45)
+    assert isinstance(kwargs["started"], float)
+    assert "BOT_LOGIN" not in os.environ
+    assert "PYTORCH_GREENLIGHT_GITHUB_TOKEN" not in os.environ
 
 
-@pytest.mark.parametrize("raw", [pytest.param("", id="empty"), pytest.param("   ", id="whitespace")])
-def test_handler_blank_max_dispatches_uses_default(monkeypatch, fakes, raw):
+def test_a_schedule_without_its_time_ticks_on_the_invocations_start(fakes):
+    event: dict[str, object] = {key: value for key, value in _SCHEDULE.items() if key != "time"}
+
+    lambda_handler.handler(event, object())
+
+    assert fakes["planner"].kwargs["tick"].endswith("+00:00")
+
+
+def test_a_worker_event_runs_that_repos_worker(fakes):
+    result = lambda_handler.handler(json.loads(json.dumps(_WORKER)), object())
+
+    assert result == {"status": "done"}
+    runner = fakes["worker"]
+    assert runner.args[1] == WorkerPayload("pytorch/vision", "2026-11-24T12:00:00Z", 3)
+    assert (runner.kwargs["ref"], runner.kwargs["timeout_minutes"]) == ("main", 45)
+    get_app = fakes["github"].GithubIntegration.return_value.get_app
+    get_app.assert_not_called()
+    assert runner.kwargs["resolve_bot_login"]() == f"{_APP_SLUG}[bot]"
+    assert fakes["planner"].args == ()
+    fanout.lambda_invoker.assert_not_called()  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(("raw", "expected"), [("", 30), ("0", 0), ("7", 7)])
+def test_a_worker_gets_the_handlers_current_max_dispatches(fakes, monkeypatch, raw, expected):
     monkeypatch.setenv(_MAX_ENV, raw)
-    main_mock = Mock(return_value=EXIT_OK)
-    monkeypatch.setattr(cli, "main", main_mock)
 
-    lambda_handler.handler({}, object())
+    lambda_handler.handler(json.loads(json.dumps(_WORKER)), object())
 
-    assert _dispatched_max(main_mock) == str(lambda_handler._DEFAULT_MAX_DISPATCHES_PER_SCAN)
+    assert fakes["worker"].kwargs["max_dispatches"] == expected
+
+
+def test_a_worker_needs_no_function_name(fakes, monkeypatch):
+    monkeypatch.delenv("AWS_LAMBDA_FUNCTION_NAME")
+
+    assert lambda_handler.handler(json.loads(json.dumps(_WORKER)), object()) == {"status": "done"}
 
 
 @pytest.mark.parametrize(
-    ("raw", "expected"),
+    "event",
     [
-        pytest.param("5", "5", id="lower"),
-        # One above the default, not a recommended setting: the handler deliberately applies no
-        # upper bound, and the safe range for the 300s timeout is documented in the README instead.
-        pytest.param("31", "31", id="above_default"),
-        pytest.param("  7  ", "7", id="padded"),
-        # Zero is a valid setting, not a blank: it pauses dispatching without pausing the scan.
-        pytest.param("0", "0", id="zero"),
+        pytest.param({}, id="empty"),
+        pytest.param({"source": "eventbridge"}, id="old-shape"),
+        pytest.param({"source": "aws.events"}, id="no-detail-type"),
+        pytest.param({"source": "aws.events", "detail-type": "Object Created"}, id="other-detail-type"),
     ],
 )
-def test_handler_max_dispatches_override(monkeypatch, fakes, raw, expected):
+def test_any_other_event_is_refused_before_anything_is_read(fakes, event):
+    with pytest.raises(ValueError, match="refusing an event that is neither the scan schedule nor a worker event"):
+        lambda_handler.handler(event, object())
+
+    fakes["boto3"].client.assert_not_called()
+    fakes["github"].GithubIntegration.assert_not_called()
+
+
+def test_a_malformed_worker_event_is_refused_before_anything_is_read(fakes):
+    with pytest.raises(ValueError, match="a worker event is exactly"):
+        lambda_handler.handler({"greenlight_worker": {"repo": "pytorch/vision"}}, object())
+
+    fakes["boto3"].client.assert_not_called()
+
+
+@pytest.mark.parametrize(("raw", "expected"), [("", 30), ("   ", 30), ("5", 5), ("  7  ", 7), ("0", 0), ("31", 31)])
+def test_the_max_dispatches_knob(fakes, monkeypatch, raw, expected):
     monkeypatch.setenv(_MAX_ENV, raw)
-    main_mock = Mock(return_value=EXIT_OK)
-    monkeypatch.setattr(cli, "main", main_mock)
 
-    lambda_handler.handler({}, object())
+    lambda_handler.handler(dict(_SCHEDULE), object())
 
-    assert _dispatched_max(main_mock) == expected
+    assert fakes["planner"].kwargs["max_dispatches"] == expected
 
 
 @pytest.mark.parametrize(
-    "raw", [pytest.param("thirty", id="word"), pytest.param("30.5", id="float"), pytest.param("3o", id="typo")]
+    ("raw", "match"), [("thirty", "must be an integer"), ("30.5", "must be an integer"), ("-1", "must not be negative")]
 )
-def test_handler_malformed_max_dispatches_raises(monkeypatch, fakes, raw):
-    _fake_boto3, fake_github = fakes
+def test_a_bad_max_dispatches_is_refused_before_any_token(fakes, monkeypatch, raw, match):
     monkeypatch.setenv(_MAX_ENV, raw)
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
 
-    with pytest.raises(ValueError, match=_MAX_ENV) as exc_info:
-        lambda_handler.handler({}, object())
+    with pytest.raises(ValueError, match=match):
+        lambda_handler.handler(dict(_SCHEDULE), object())
 
-    assert repr(raw) in str(exc_info.value)
-    # Rejected before any token is minted, so a bad knob cannot burn an installation token.
-    fake_github.GithubIntegration.assert_not_called()
-    main_mock.assert_not_called()
-
-
-def test_handler_negative_max_dispatches_raises(monkeypatch, fakes):
-    _fake_boto3, fake_github = fakes
-    monkeypatch.setenv(_MAX_ENV, "-1")
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
-
-    # A negative clamps to zero inside the scan, so accepting it would silently stall dispatching
-    # on the one path with no human watching the argv.
-    with pytest.raises(ValueError, match="must not be negative"):
-        lambda_handler.handler({}, object())
-
-    fake_github.GithubIntegration.assert_not_called()
-    main_mock.assert_not_called()
+    fakes["github"].GithubIntegration.assert_not_called()
 
 
 @pytest.mark.parametrize("slug", [pytest.param("", id="empty"), pytest.param(None, id="absent")])
-def test_handler_unusable_app_slug_raises(monkeypatch, fakes, slug):
-    _fake_boto3, fake_github = fakes
-    fake_github.GithubIntegration.return_value.get_app.return_value.slug = slug
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
+def test_an_unusable_app_slug_raises(fakes, slug):
+    fakes["github"].GithubIntegration.return_value.get_app.return_value.slug = slug
 
-    # An empty or missing slug yields a login that matches none of greenlight's reviews, so the
-    # dismissal would report success having revoked nothing. The scheduled path fails loudly here
-    # instead of handing the scan a login it cannot act on. None is the value PyGithub hands back
-    # for an absent slug, and it is the dangerous one: "None[bot]" is App-shaped.
     with pytest.raises(ValueError, match="unusable app slug"):
-        lambda_handler.handler({}, object())
-
-    assert "BOT_LOGIN" not in os.environ
-    main_mock.assert_not_called()
+        lambda_handler.handler(dict(_SCHEDULE), object())
 
 
-def test_handler_decodes_base64_pem(monkeypatch, fakes):
-    _fake_boto3, fake_github = fakes
-    monkeypatch.setattr(cli, "main", Mock(return_value=EXIT_OK))
-
-    lambda_handler.handler({}, object())
-
-    app_id_arg, pem_arg = fake_github.Auth.AppAuth.call_args.args
-    assert app_id_arg == _APP_ID
-    assert pem_arg == _PEM
-    assert pem_arg == base64.b64decode(_PEM_B64).decode("utf-8")
-
-
-def test_handler_already_running_returns_status(monkeypatch, fakes, caplog):
-    monkeypatch.setattr(cli, "main", Mock(return_value=EXIT_ALREADY_RUNNING))
-
-    with caplog.at_level(logging.WARNING, logger="greenlight.lambda_handler"):
-        result = lambda_handler.handler({}, object())
-
-    assert result == {"status": "already_running"}
-    assert "another instance" in caplog.text
-
-
-@pytest.mark.parametrize("rc", [EXIT_FAILURE, 2, 99])
-def test_handler_failure_raises(monkeypatch, fakes, rc):
-    monkeypatch.setattr(cli, "main", Mock(return_value=rc))
-
-    with pytest.raises(RuntimeError, match=f"exit code {rc}"):
-        lambda_handler.handler({}, object())
-
-
-@pytest.mark.parametrize("missing", ["SECRET_STORE_NAME", "GITHUB_APP_ID", "GITHUB_INSTALLATION_ID"])
-def test_handler_missing_env_raises(monkeypatch, fakes, missing):
-    monkeypatch.delenv(missing, raising=False)
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "SECRET_STORE_NAME",
+        "GITHUB_APP_ID",
+        "GITHUB_INSTALLATION_ID",
+        "CLICKHOUSE_USERNAME",
+        "AWS_LAMBDA_FUNCTION_NAME",
+        "PYTORCH_GREENLIGHT_STATE_TABLE",
+    ],
+)
+def test_a_missing_setting_raises(fakes, monkeypatch, missing):
+    monkeypatch.delenv(missing)
 
     with pytest.raises(ValueError, match=missing):
-        lambda_handler.handler({}, object())
+        lambda_handler.handler(dict(_SCHEDULE), object())
 
-    main_mock.assert_not_called()
-
-
-def test_handler_missing_clickhouse_username_raises(monkeypatch, fakes):
-    _fake_boto3, fake_github = fakes
-    monkeypatch.delenv("CLICKHOUSE_USERNAME", raising=False)
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
-
-    with pytest.raises(ValueError, match="CLICKHOUSE_USERNAME"):
-        lambda_handler.handler({}, object())
-
-    fake_github.GithubIntegration.assert_not_called()
-    main_mock.assert_not_called()
+    fakes["github"].GithubIntegration.assert_not_called()
 
 
-def test_handler_missing_clickhouse_host_and_endpoint_raises(monkeypatch, fakes):
-    _fake_boto3, fake_github = fakes
-    monkeypatch.delenv("CLICKHOUSE_HOST", raising=False)
-    monkeypatch.delenv("CLICKHOUSE_ENDPOINT", raising=False)
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
+def test_a_missing_clickhouse_host_and_endpoint_raises(fakes, monkeypatch):
+    monkeypatch.delenv("CLICKHOUSE_HOST")
 
     with pytest.raises(ValueError, match="CLICKHOUSE_HOST or CLICKHOUSE_ENDPOINT"):
-        lambda_handler.handler({}, object())
-
-    fake_github.GithubIntegration.assert_not_called()
-    main_mock.assert_not_called()
+        lambda_handler.handler(dict(_SCHEDULE), object())
 
 
-def test_handler_non_numeric_installation_id_raises(monkeypatch, fakes):
+def test_a_non_numeric_installation_id_raises(fakes, monkeypatch):
     monkeypatch.setenv("GITHUB_INSTALLATION_ID", "not-a-number")
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
 
     with pytest.raises(ValueError, match="invalid literal for int"):
-        lambda_handler.handler({}, object())
-
-    main_mock.assert_not_called()
+        lambda_handler.handler(dict(_SCHEDULE), object())
 
 
-def test_handler_secret_missing_app_secret_raises(monkeypatch, fakes):
-    fake_boto3, _fake_github = fakes
-    secret_json = json.dumps({"CLICKHOUSE_PASSWORD": _CH_PASSWORD})
-    fake_boto3.client.return_value.get_secret_value.return_value = {"SecretString": secret_json}
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
+@pytest.mark.parametrize("missing", ["GITHUB_APP_SECRET", "CLICKHOUSE_PASSWORD"])
+def test_a_secret_missing_a_key_raises(fakes, missing):
+    secret = {"GITHUB_APP_SECRET": _PEM_B64, "CLICKHOUSE_PASSWORD": _CH_PASSWORD}
+    del secret[missing]
+    fakes["boto3"].client.return_value.get_secret_value.return_value = {"SecretString": json.dumps(secret)}
 
-    with pytest.raises(ValueError, match="GITHUB_APP_SECRET") as exc_info:
-        lambda_handler.handler({}, object())
+    with pytest.raises(ValueError, match=missing) as excinfo:
+        lambda_handler.handler(dict(_SCHEDULE), object())
 
-    assert _SECRET_STORE in str(exc_info.value)
-    main_mock.assert_not_called()
+    assert _SECRET_STORE in str(excinfo.value)
 
 
-def test_handler_secret_missing_clickhouse_password_raises(monkeypatch, fakes):
-    fake_boto3, _fake_github = fakes
-    secret_json = json.dumps({"GITHUB_APP_SECRET": _PEM_B64})
-    fake_boto3.client.return_value.get_secret_value.return_value = {"SecretString": secret_json}
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
+def test_a_planner_failure_propagates(fakes):
+    fakes["planner"].error = RuntimeError("pytorch/vision: its worker could not be invoked")
 
-    with pytest.raises(ValueError, match="CLICKHOUSE_PASSWORD") as exc_info:
-        lambda_handler.handler({}, object())
-
-    assert _SECRET_STORE in str(exc_info.value)
-    main_mock.assert_not_called()
-
-
-def test_handler_token_mint_error_propagates(monkeypatch, fakes):
-    _fake_boto3, fake_github = fakes
-
-    class _GithubError(Exception):
-        pass
-
-    fake_github.GithubException = _GithubError
-    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.side_effect = _GithubError(
-        "installation token mint failed"
-    )
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
-
-    with pytest.raises(_GithubError, match="installation token mint failed"):
-        lambda_handler.handler({}, object())
-
-    main_mock.assert_not_called()
-
-
-def test_handler_token_response_missing_token_raises(monkeypatch, fakes):
-    _fake_boto3, fake_github = fakes
-    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.return_value = ({}, {})
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
-
-    with pytest.raises(ValueError, match="installation token response"):
-        lambda_handler.handler({}, object())
-
-    main_mock.assert_not_called()
-
-
-def test_handler_cli_main_error_propagates(monkeypatch, fakes):
-    monkeypatch.setattr(cli, "main", Mock(side_effect=RuntimeError("cli main exploded")))
-
-    with pytest.raises(RuntimeError, match="cli main exploded"):
-        lambda_handler.handler({}, object())
+    with pytest.raises(RuntimeError, match="could not be invoked"):
+        lambda_handler.handler(dict(_SCHEDULE), object())

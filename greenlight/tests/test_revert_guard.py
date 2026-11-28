@@ -11,6 +11,7 @@ import pytest
 from greenlight import revert_guard
 from greenlight.constants import STATUS_AI_REVIEW_STARTED, STATUS_LAND, STATUS_REVERTED, TARGET_REPO
 from greenlight.guards import IterationTimeout
+from greenlight.latch import RateLimitLatch
 from greenlight.state import PRState
 
 if TYPE_CHECKING:
@@ -70,6 +71,7 @@ def _exclude(
     get_pr_errors: Mapping[int, Exception] | None = None,
     shadow: Mapping[int, bool] | None = None,
     repo: str = TARGET_REPO,
+    cancel_event: threading.Event | None = None,
 ) -> _Guard:
     known_labels = {} if known_labels is None else known_labels
     fetched_labels = {} if fetched_labels is None else fetched_labels
@@ -80,7 +82,7 @@ def _exclude(
     get_pr_errors = {} if get_pr_errors is None else get_pr_errors
     shadow = {} if shadow is None else shadow
     result = _Guard(frozenset())
-    cancel_event = threading.Event()
+    cancel_event = threading.Event() if cancel_event is None else cancel_event
 
     def fake_read_reverted(read_repo, numbers):
         result.repos_read.append(read_repo)
@@ -327,6 +329,17 @@ def test_rate_limited_dismissal_trips_the_cancel_event():
     # dispatch phase so neither runs on a throttled token.
     assert guard.cancelled
     assert guard.failed == [1]
+
+
+def test_rate_limited_dismissal_keeps_the_wait_github_asked_for_on_the_latch():
+    from github import RateLimitExceededException
+
+    latch = RateLimitLatch(lambda: 1000.0)
+    error = RateLimitExceededException(403, {"message": "secondary rate limit"}, {"retry-after": "300"})
+
+    _exclude([1], known_labels={1: ("Reverted",)}, dismiss_errors={1: error}, cancel_event=latch)
+
+    assert latch.until == 1300.0
 
 
 def test_non_rate_limit_dismissal_failure_leaves_the_cancel_event_clear():

@@ -25,13 +25,13 @@ def _noop_lock(path):
 
 
 def _pop_caches(kwargs: Mapping[str, object]) -> dict[str, object]:
-    """Assert the process-wide eligibility caches are bound and return the remaining kwargs.
+    """Assert the process-wide state store is bound and return the remaining kwargs.
 
-    Every review path must bind the module-level eligibility caches, which outlive ``main()``;
-    stripping them here lets the caller compare the rest of the bound scan flags by value.
+    Every review path must bind the module-level in-process store, which outlives ``main()``;
+    stripping it here lets the caller compare the rest of the bound scan flags by value.
     """
     remaining = dict(kwargs)
-    assert remaining.pop("eligibility_caches") is cli._ELIGIBILITY_CACHES
+    assert remaining.pop("store") is cli._STORE
     return remaining
 
 
@@ -109,7 +109,7 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
         "allow_untrusted_author": False,
         "bot_login": "",
         "repo": TARGET_REPO,
-        "memories": cli._SCAN_MEMORY,
+        "keep_memory": True,
     }
 
 
@@ -664,7 +664,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
         "allow_untrusted_author": False,
         "bot_login": "",
         "repo": TARGET_REPO,
-        "memories": None,
+        "keep_memory": False,
     }
 
 
@@ -687,7 +687,7 @@ def test_main_review_defaults_bind_into_run(monkeypatch):
         "allow_untrusted_author": False,
         "bot_login": "",
         "repo": TARGET_REPO,
-        "memories": cli._SCAN_MEMORY,
+        "keep_memory": True,
     }
 
 
@@ -701,12 +701,11 @@ def test_main_hands_every_listing_scan_one_process_wide_memory_and_a_pr_recheck_
     assert cli.main(["review", "--ref", "main", "--max", "30"]) == EXIT_OK
     assert cli.main(["review", "--pr", "5"]) == EXIT_OK
 
-    # Two main() calls in one process, as the Lambda handler makes on warm invocations, share the
-    # module-level memory; a --pr recheck lists nothing and gets none.
-    first, second, recheck = (call.kwargs["memories"] for call in review_mock.call_args_list)
-    assert isinstance(first, dict)
-    assert first is second is cli._SCAN_MEMORY
-    assert recheck is None
+    # Two main() calls in one process share the module-level store; a --pr recheck lists nothing and
+    # neither loads nor saves a memory.
+    calls = review_mock.call_args_list
+    assert [call.kwargs["keep_memory"] for call in calls] == [True, True, False]
+    assert all(call.kwargs["store"] is cli._STORE for call in calls)
 
 
 def test_main_force_without_pr_is_usage_error(monkeypatch):
@@ -748,7 +747,7 @@ def test_main_review_force_binds_into_run(monkeypatch):
         "allow_untrusted_author": False,
         "bot_login": "",
         "repo": TARGET_REPO,
-        "memories": None,
+        "keep_memory": False,
     }
 
 
@@ -771,7 +770,7 @@ def test_main_review_binds_requester_and_override_into_run(monkeypatch):
         "allow_untrusted_author": True,
         "bot_login": "",
         "repo": TARGET_REPO,
-        "memories": None,
+        "keep_memory": False,
     }
 
 
@@ -888,3 +887,10 @@ def test_check_config_runs_offline(tmp_path, monkeypatch):
     monkeypatch.setattr(github_client, "build_client", boom)
 
     assert cli.main(["check-config", str(tmp_path / "missing.yml"), "--repo", "pytorch/vision"]) == EXIT_FAILURE
+
+
+def test_review_has_no_all_repos_flag(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        cli.build_parser().parse_args(["review", "--all-repos"])
+    assert excinfo.value.code == 2
+    assert "unrecognized arguments: --all-repos" in capsys.readouterr().err

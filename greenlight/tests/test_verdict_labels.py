@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, cast
@@ -27,6 +28,7 @@ from greenlight.constants import (
     TARGET_REPO,
 )
 from greenlight.guards import IterationTimeout
+from greenlight.latch import RateLimitLatch
 from greenlight.review_gate import HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
 
@@ -188,6 +190,7 @@ class _Scan:
     prs: dict[int, _FakePR] = field(default_factory=dict)
     clock_reads: int = 0
     repo: str = TARGET_REPO
+    cancel_event: threading.Event = field(default_factory=threading.Event)
 
     def run(self) -> None:
         verdict_labels.label_listed_prs(
@@ -204,6 +207,7 @@ class _Scan:
                 listed_at=_LISTED_AT,
                 clock=self._clock,
                 timeout=self.timeout,
+                cancel_event=self.cancel_event,
             ),
             read_gate_rows=self._read,
         )
@@ -891,6 +895,20 @@ def test_the_pass_ends_at_the_first_pr_it_reaches_past_the_deadline_even_if_the_
     assert scan.fetched == []
 
 
+def test_a_pass_whose_cancel_event_is_already_set_reads_and_writes_nothing(caplog):
+    scan = _Scan(labels={3: [], 5: []}, rows={3: (_LAND, _LAND)}, recent=[3, 5], eligible=[3, 5])
+    scan.cancel_event.set()
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan.run()
+
+    assert scan.reads == []
+    assert scan.fetched == []
+    assert [record.getMessage() for record in caplog.records] == [
+        "label pass skipped: a rate limit stopped this tick's GitHub work"
+    ]
+
+
 def _failing_scan(step: str, error: Exception) -> _Scan:
     return _Scan(
         labels={3: [GL_HUMAN_LABEL], 5: [GL_HUMAN_LABEL]},
@@ -923,6 +941,7 @@ def test_a_failure_other_than_a_rate_limit_is_logged_and_the_pass_moves_on(step,
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         scan.run()
 
+    assert not scan.cancel_event.is_set()
     assert scan.fetched == [3, 5]
     assert scan.prs[5].calls == [("remove", GL_HUMAN_LABEL), ("add", GL_APPROVED_LABEL)]
     [record] = caplog.records
@@ -947,17 +966,28 @@ def test_a_failure_other_than_a_rate_limit_is_logged_and_the_pass_moves_on(step,
         ),
     ],
 )
-def test_a_rate_limit_is_logged_and_stops_the_pass(step, error, caplog):
+def test_a_rate_limit_is_logged_stops_the_pass_and_sets_the_runs_cancel_event(step, error, caplog):
     scan = _failing_scan(step, error)
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         scan.run()
 
+    assert scan.cancel_event.is_set()
     assert scan.fetched == [3]
     [record] = caplog.records
     assert record.exc_info is not None
     assert record.exc_info[1] is error
     assert "PR #3" in record.getMessage()
+
+
+def test_a_rate_limit_in_the_label_pass_keeps_the_wait_github_asked_for_on_the_latch():
+    error = GithubException(403, {"message": "secondary rate limit"}, headers={"retry-after": "300"})
+    scan = _failing_scan("fetch", error)
+    scan.cancel_event = RateLimitLatch(lambda: 1000.0)
+
+    scan.run()
+
+    assert scan.cancel_event.until == 1300.0
 
 
 @pytest.mark.parametrize("step", ["fetch", "state", "labels", "remove", "add"])

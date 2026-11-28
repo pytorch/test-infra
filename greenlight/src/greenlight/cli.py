@@ -25,19 +25,17 @@ from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
 from greenlight.log import configure_logging
 from greenlight.runner import execute_once, run_forever
+from greenlight.state_store import InProcessStore
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from greenlight.scan_memory import ScanMemory
-
 logger = logging.getLogger(__name__)
 
-# Held at module level so they outlive main(): the Lambda handler calls main() once per tick, and a
-# warm execution environment keeps this module loaded between ticks. Each eligibility source is kept
-# for merge_rules_ttl_seconds (repo_scan.eligibility_cache).
-_SCAN_MEMORY: dict[str, ScanMemory] = {}
-_ELIGIBILITY_CACHES: repo_scan.EligibilityCaches = {}
+# Held at module level so it outlives main(): a --loop daemon's iterations, and every main() call in one
+# process, share each repo's scan memory and eligibility snapshots (repo_scan). Only the scan Lambda's
+# invocations take leases; the CLI takes none.
+_STORE = InProcessStore()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,8 +61,9 @@ def build_parser() -> argparse.ArgumentParser:
             "merge rules: named by a valid rule, whatever files the PR changes, on a base trymerge "
             "accepts. Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials. The repo must have a "
-            f"GreenLight config at {REPO_CONFIG_PATH} (pytorch/pytorch has a built-in one), read from its "
-            "default branch every scan; its mode decides what the scan does (REPOS.md)."
+            f"GreenLight config at {REPO_CONFIG_PATH} (pytorch/pytorch has a built-in one), revalidated on its "
+            "default branch every scan; its mode decides what the scan does (REPOS.md). "
+            "PYTORCH_GREENLIGHT_DISPATCH_TOKEN, when set, dispatches the review workflow and reads its runs instead."
         ),
     )
     review_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the configured repo to scan")
@@ -308,8 +307,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     run = functools.partial(
         repo_scan.scan_repo,
         repo=args.repo,
-        eligibility_caches=_ELIGIBILITY_CACHES,
-        memories=None if args.pr is not None else _SCAN_MEMORY,
+        store=_STORE,
+        keep_memory=args.pr is None,
         pr=args.pr,
         max_dispatches=args.max,
         ref=args.ref,

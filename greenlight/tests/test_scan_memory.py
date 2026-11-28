@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
 import logging
+import zlib
 from datetime import datetime, timedelta
 
 import pytest
 
+from greenlight import scan_memory
 from greenlight.constants import FINGERPRINT_QUIET
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
-from greenlight.scan_memory import FingerprintCache, ScanMemory
+from greenlight.scan_memory import MEMORY_VERSION, FingerprintCache, ScanMemory, decode_memory, encode_memory
 
 _STARTED = datetime(2026, 10, 13, 12, 0, 0)
 
@@ -155,24 +158,30 @@ def test_a_full_tick_never_reads_the_cache_but_refreshes_it():
     assert _tick(memory).lookup(1) == refreshed
 
 
-def test_a_commit_keeps_only_the_results_its_tick_reused_or_stored():
+def _three(memory: ScanMemory, *, reuse: bool = True) -> FingerprintCache:
+    """A tick that listed PRs 1 to 3, each at head ``h<n>``."""
+    return FingerprintCache(
+        memory,
+        reuse=reuse,
+        authorized_logins=_LOGINS,
+        updated_at=dict.fromkeys((1, 2, 3), _UPDATED),
+        head_sha={1: "h1", 2: "h2", 3: "h3"},
+        now=_STARTED,
+    )
+
+
+def _three_cached() -> ScanMemory:
     memory = ScanMemory()
-
-    def tick(*, reuse: bool) -> FingerprintCache:
-        return FingerprintCache(
-            memory,
-            reuse=reuse,
-            authorized_logins=_LOGINS,
-            updated_at=dict.fromkeys((1, 2, 3), _UPDATED),
-            head_sha={1: "h1", 2: "h2", 3: "h3"},
-            now=_STARTED,
-        )
-
-    seed = tick(reuse=False)
+    seed = _three(memory, reuse=False)
     for number in (1, 2, 3):
         seed.store(number, (f"h{number}", "a" * 64))
     seed.commit()
-    current = tick(reuse=True)
+    return memory
+
+
+def test_a_commit_keeps_only_the_results_its_tick_reused_or_stored():
+    memory = _three_cached()
+    current = _three(memory)
 
     # PR1 is reused, PR2 is fingerprinted afresh, and PR3 is not evaluated this tick.
     assert current.lookup(1) == ("h1", "a" * 64)
@@ -180,10 +189,26 @@ def test_a_commit_keeps_only_the_results_its_tick_reused_or_stored():
     current.store(2, ("h2", "b" * 64))
     current.commit()
 
-    after = tick(reuse=True)
+    after = _three(memory)
     assert after.lookup(1) == ("h1", "a" * 64)
     assert after.lookup(2) == ("h2", "b" * 64)
     assert after.lookup(3) is None
+
+
+def test_a_partial_commit_also_keeps_the_earlier_results_of_the_prs_its_tick_never_looked_up():
+    memory = _three_cached()
+    current = _three(memory)
+
+    # PR1 is reused, PR2 is looked up but its fresh fingerprint never comes, and PR3 is never looked up.
+    current.lookup(1)
+    current.keep(1)
+    current.lookup(2)
+    current.commit(partial=True)
+
+    after = _three(memory)
+    assert after.lookup(1) == ("h1", "a" * 64)
+    assert after.lookup(2) is None
+    assert after.lookup(3) == ("h3", "a" * 64)
 
 
 def test_a_tick_that_never_commits_leaves_the_cache_as_it_was():
@@ -221,7 +246,7 @@ def test_drain_passes_are_numbered_and_end_or_clear_forgets_the_current_one():
 
     first = memory.start_drain_pass(None)
     assert memory.drain_pass() is first
-    assert (first.number, first.blocker, first.cursor) == (1, None, None)
+    assert (first.number, first.blocker, first.checked, first.attempted) == (1, None, set(), {})
     memory.end_drain_pass()
     assert memory.drain_pass() is None
 
@@ -241,16 +266,120 @@ def test_a_completed_drain_is_remembered_until_clear_drain():
     assert memory.drain_completed_by() is None
 
 
-def test_a_drain_pass_remembers_a_clean_pr_only_once_its_updated_at_is_quiet():
+def test_a_drain_pass_orders_unattempted_prs_recorded_first_then_attempted_ones_oldest_attempt_first():
+    current = ScanMemory().start_drain_pass(None, recorded=frozenset({6, 9}))
+    current.attempt(2)
+    current.attempt(9)
+    current.attempt(4)
+    current.attempt(2)
+    current.checked.add(4)
+
+    assert current.pending([1, 2, 3, 4, 5, 6, 7, 8, 9]) == [6, 1, 3, 5, 7, 8, 9, 2]
+    assert current.attempted == {2: 4, 9: 2, 4: 3}
+    assert current.attempts == 4
+
+
+def test_a_checked_pr_is_never_pending_again_in_its_pass():
     current = ScanMemory().start_drain_pass(None)
-    quiet = _STARTED - FINGERPRINT_QUIET
-    young = _STARTED - FINGERPRINT_QUIET + timedelta(seconds=1)
+    current.attempt(1)
+    current.checked.add(1)
 
-    current.remember_clean(1, quiet, _STARTED)
-    current.remember_clean(2, young, _STARTED)
-    current.remember_clean(3, None, _STARTED)
+    assert current.pending([1]) == []
+    assert current.pending([1, 2]) == [2]
 
-    assert current.is_clean(1, quiet)
-    assert not current.is_clean(1, quiet + timedelta(seconds=1))
-    assert not current.is_clean(2, young)
-    assert not current.is_clean(3, None)
+
+def _full_memory() -> ScanMemory:
+    memory = _cached()
+    skip = FingerprintCache(
+        memory,
+        reuse=True,
+        authorized_logins=_LOGINS,
+        updated_at={1: _UPDATED, 2: _UPDATED},
+        head_sha={1: "headsha1", 2: "headsha2"},
+        now=_STARTED,
+    )
+    skip.keep(1)
+    skip.store(2, ReviewSkip(CHANGES_REQUESTED, "changes requested by bob"))
+    skip.commit()
+    memory.mark_full_tick(_STARTED)
+    memory.off_since(_STARTED - timedelta(hours=1))
+    current = memory.start_drain_pass("2 run(s) unfinished", recorded=frozenset({7, 3}))
+    current.attempt(3)
+    current.attempt(9)
+    current.checked.add(3)
+    current.dismissed, current.failures = 1, 1
+    memory.complete_drain(4)
+    return memory
+
+
+def test_the_memory_codec_round_trips_every_part_of_the_memory():
+    memory = _full_memory()
+
+    restored = decode_memory(encode_memory(memory, "pytorch/vision"), "pytorch/vision")
+
+    assert restored._last_full_tick_started == memory._last_full_tick_started
+    assert restored._fingerprints == memory._fingerprints
+    assert set(restored._fingerprints) == {1, 2}
+    assert restored._off_since == memory._off_since
+    assert restored._drain_passes == memory._drain_passes == 1
+    assert restored._drain_pass == memory._drain_pass
+    assert restored.drain_completed_by() == 4
+    assert _tick(restored).lookup(1) == _RESULT
+
+
+def test_a_cold_memory_round_trips_cold():
+    restored = decode_memory(encode_memory(ScanMemory(), "pytorch/vision"), "pytorch/vision")
+
+    assert restored.full_tick_due(_STARTED)
+    assert restored._fingerprints == {}
+    assert restored.drain_pass() is None
+
+
+def test_the_stored_form_is_versioned_compressed_json_with_the_approvers_digest_once():
+    form = json.loads(zlib.decompress(encode_memory(_full_memory(), "pytorch/vision")))
+
+    assert form["version"] == MEMORY_VERSION == 2
+    assert len(form["digests"]) == 1
+    assert [row[3] for row in form["fingerprints"]] == [0, 0]
+
+
+def test_no_memory_starts_cold():
+    assert decode_memory(None, "pytorch/vision")._fingerprints == {}
+
+
+@pytest.mark.parametrize("version", [1, 99])
+def test_another_version_starts_cold(caplog, version):
+    blob = zlib.compress(json.dumps({"version": version, "last_settings": None}).encode())
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        restored = decode_memory(blob, "pytorch/vision")
+
+    assert restored.full_tick_due(_STARTED)
+    assert f"stored scan memory has version {version}, not 2; starting cold" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "blob",
+    [b"not zlib", zlib.compress(b"not json"), zlib.compress(json.dumps({"version": MEMORY_VERSION}).encode())],
+    ids=["not-zlib", "not-json", "missing-parts"],
+)
+def test_a_blob_that_does_not_decode_starts_cold_and_logs_the_error(caplog, blob):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        restored = decode_memory(blob, "pytorch/vision")
+
+    assert restored._fingerprints == {}
+    [record] = [record for record in caplog.records if "cannot decode its stored scan memory" in record.getMessage()]
+    assert record.exc_info
+
+
+def test_a_memory_over_the_size_cap_is_saved_without_its_fingerprints(monkeypatch, caplog):
+    memory = _full_memory()
+    monkeypatch.setattr(scan_memory, "MEMORY_MAX_BYTES", len(encode_memory(memory, "x")) - 1)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        restored = decode_memory(encode_memory(memory, "pytorch/vision"), "pytorch/vision")
+
+    assert restored._fingerprints == {}
+    assert restored.drain_completed_by() == 4
+    assert restored._last_full_tick_started == _STARTED
+    assert "saved without its 2 fingerprint result(s)" in caplog.text

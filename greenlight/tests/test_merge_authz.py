@@ -181,6 +181,14 @@ def test_resolve_raises_on_empty_result(yaml_text: str) -> None:
         merge_authz.resolve_authorized_logins(client)
 
 
+def test_resolve_expands_an_earlier_rules_team_before_a_later_rule_fails():
+    client = _client("- name: A\n  approved_by: [org/team]\n- 1\n", teams={"org/team": ["alice"]})
+
+    with pytest.raises(ValueError, match="merge rule must be a mapping"):
+        merge_authz.resolve_merge_rules(client, "pytorch/vision")
+    assert client._orgs["org"].requested_slugs == ["team"]
+
+
 def test_resolve_raises_when_contents_is_a_directory():
     client = _FakeAuthzClient(contents=[_FakeContent("- x")])
 
@@ -445,8 +453,49 @@ def test_resolve_merge_rules_reads_the_named_repo_and_names_it_in_errors():
         merge_authz.resolve_merge_rules(_client("- 1\n"), "pytorch/vision")
 
 
-def test_resolve_authorized_logins_defaults_to_the_target_repo():
-    client = _client("- name: CI\n  approved_by: [Alice]\n")
+def _codec_snapshot() -> merge_authz.MergeRulesSnapshot:
+    return merge_authz.MergeRulesSnapshot(
+        authorized=frozenset({"alice", "bob"}),
+        rules=(
+            merge_authz.compile_rule("docs", ("docs/**", "-docs/private/*"), frozenset({"Alice"})),
+            merge_authz.compile_rule("broken", ("src/{a,b}",), frozenset({"Bob"})),
+            merge_authz.MergeRule("unshaped", (), frozenset({"Bob"}), covers_all=False),
+            merge_authz.compile_rule("superusers", ("*",), frozenset({"Bob"})),
+        ),
+    )
 
-    assert merge_authz.resolve_authorized_logins(client) == frozenset({"alice"})
-    assert client.get_repo_names == [constants.TARGET_REPO]
+
+def test_the_snapshot_codec_round_trips_rules_in_order_with_their_validity():
+    snapshot = _codec_snapshot()
+
+    restored = merge_authz.decode_snapshot(merge_authz.encode_snapshot(snapshot))
+
+    assert restored.authorized == snapshot.authorized
+    assert [rule.name for rule in restored.rules] == ["docs", "broken", "unshaped", "superusers"]
+    assert [rule.valid for rule in restored.rules] == [True, False, False, True]
+    assert [rule.approvers for rule in restored.rules] == [rule.approvers for rule in snapshot.rules]
+    assert [rule.patterns for rule in restored.rules] == [rule.patterns for rule in snapshot.rules]
+    assert [rule.covers_all for rule in restored.rules] == [False, False, False, True]
+    docs = restored.rules[0]
+    assert docs.covers(["docs/a.md"])
+    assert not docs.covers(["docs/private/x"])
+
+
+def test_an_invalid_rule_stays_invalid_and_never_comes_back_covering_every_file():
+    restored = merge_authz.decode_snapshot(merge_authz.encode_snapshot(_codec_snapshot()))
+
+    for rule in restored.rules[1:3]:
+        assert not rule.valid
+        assert not rule.covers(["anything.py"])
+        assert not rule.covers([])
+
+
+def test_a_snapshot_of_another_version_is_refused():
+    import json
+    import zlib
+
+    blob = zlib.compress(json.dumps({"version": 2, "authorized": [], "rules": []}).encode())
+
+    with pytest.raises(ValueError, match="is not version 1"):
+        merge_authz.decode_snapshot(blob)
+    assert merge_authz.SNAPSHOT_VERSION == 1

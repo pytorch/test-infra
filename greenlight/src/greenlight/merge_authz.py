@@ -10,14 +10,19 @@ The same fetch keeps every rule as a ``MergeRule``: its approvers in exact case 
 patterns compiled with trymerge's own semantics, so a rule can be asked whether it covers all of
 a PR's files (``changed_files``) the way trymerge asks at land time.
 
-The scan reads them through a ``snapshot_cache.SnapshotCache`` (``repo_scan``).
+The scan reads them through a ``snapshot_cache.SnapshotCache`` (``repo_scan``), which keeps a snapshot
+in the state store in the form ``encode_snapshot`` gives: a rule's name, patterns, approvers and validity.
+``decode_snapshot`` compiles a valid rule again and keeps an invalid one invalid, so an invalid rule never
+comes back covering every file.
 """
 
 from __future__ import annotations
 
 import itertools
+import json
 import logging
 import re
+import zlib
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
@@ -27,7 +32,7 @@ import yaml
 from greenlight import constants
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Iterator, Mapping
 
     from greenlight.github_types import _BasedPR, _FilesPR
 
@@ -147,6 +152,35 @@ class MergeRulesSnapshot:
     rules: tuple[MergeRule, ...]
 
 
+SNAPSHOT_VERSION = 1
+
+
+def encode_snapshot(snapshot: MergeRulesSnapshot) -> bytes:
+    """``snapshot``'s stored form: versioned JSON, zlib-compressed."""
+    rules = [
+        {"name": rule.name, "patterns": list(rule.patterns), "approvers": sorted(rule.approvers), "valid": rule.valid}
+        for rule in snapshot.rules
+    ]
+    form = {"version": SNAPSHOT_VERSION, "authorized": sorted(snapshot.authorized), "rules": rules}
+    return zlib.compress(json.dumps(form, separators=(",", ":")).encode())
+
+
+def decode_snapshot(blob: bytes) -> MergeRulesSnapshot:
+    """The snapshot ``encode_snapshot`` stored; raises ``ValueError`` on another version."""
+    form = json.loads(zlib.decompress(blob))
+    if not isinstance(form, dict) or form.get("version") != SNAPSHOT_VERSION:
+        raise ValueError(f"a stored eligibility snapshot is not version {SNAPSHOT_VERSION}")
+    rules: list[MergeRule] = []
+    for rule in form["rules"]:
+        name, patterns = str(rule["name"]), tuple(str(pattern) for pattern in rule["patterns"])
+        approvers = frozenset(str(login) for login in rule["approvers"])
+        if rule["valid"] is True:
+            rules.append(compile_rule(name, patterns, approvers))
+        else:
+            rules.append(MergeRule(name, patterns, approvers, covers_all=False))
+    return MergeRulesSnapshot(authorized=frozenset(str(login) for login in form["authorized"]), rules=tuple(rules))
+
+
 def _rule_from_yaml(rule: Mapping[str, object], approvers: frozenset[str]) -> MergeRule:
     name = str(rule.get("name"))
     patterns = rule.get("patterns")
@@ -169,10 +203,36 @@ def _expand_team(client: AuthzClient, team_ref: str) -> set[str]:
     return members
 
 
+def _merge_rule_entries(content: bytes, source: str) -> Iterator[tuple[Mapping[str, object], list[str]]]:
+    """Each rule of the merge_rules.yaml ``content`` with its ``approved_by`` entries, in file order.
+
+    Raises ``ValueError``, naming ``source``, on malformed YAML, a top level that is not a list, a
+    rule that is not a mapping, or an ``approved_by`` that is not a list of non-empty strings. Each
+    rule is checked only when iteration reaches it, so the scan expands an earlier rule's teams before
+    a later rule fails.
+    """
+    try:
+        rules = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"failed to parse {source}: {exc}") from exc
+    if not isinstance(rules, list):
+        raise ValueError(f"{source} must be a list of rules, got {type(rules).__name__}")
+    for rule in rules:
+        if not isinstance(rule, dict):
+            raise ValueError(f"{source}: merge rule must be a mapping, got {type(rule).__name__}")
+        approved_by = rule.get("approved_by", [])
+        if not isinstance(approved_by, list):
+            raise ValueError(f"{source}: approved_by must be a list, got {type(approved_by).__name__}")
+        for entry in approved_by:
+            if not isinstance(entry, str) or not entry.strip():
+                raise ValueError(f"{source}: approved_by entry must be a non-empty string, got {entry!r}")
+        yield rule, approved_by
+
+
 def resolve_merge_rules(client: AuthzClient, repo: str) -> MergeRulesSnapshot:
     """Resolve every merge rule in ``repo`` and the lowercased union of their approvers.
 
-    Raises ``ValueError`` on malformed YAML, an unexpected rule/entry shape, or an empty
+    Raises ``ValueError`` on a file ``_merge_rule_entries`` rejects, a malformed team ref, or an empty
     union -- an empty allowlist would silently blank every comment from the fingerprint. Unusable
     patterns are not fatal: that rule is logged and qualifies nobody, and its approvers still join
     the union.
@@ -181,25 +241,12 @@ def resolve_merge_rules(client: AuthzClient, repo: str) -> MergeRulesSnapshot:
     contents = client.get_repo(repo).get_contents(constants.MERGE_RULES_PATH)
     if isinstance(contents, Sequence):
         raise ValueError(f"{source} resolved to a directory, not a single file")
-    try:
-        rules = yaml.safe_load(contents.decoded_content)
-    except yaml.YAMLError as exc:
-        raise ValueError(f"failed to parse {source}: {exc}") from exc
-    if not isinstance(rules, list):
-        raise ValueError(f"{source} must be a list of rules, got {type(rules).__name__}")
 
     logins: set[str] = set()
     merge_rules: list[MergeRule] = []
-    for rule in rules:
-        if not isinstance(rule, dict):
-            raise ValueError(f"{source}: merge rule must be a mapping, got {type(rule).__name__}")
-        approved_by = rule.get("approved_by", [])
-        if not isinstance(approved_by, list):
-            raise ValueError(f"{source}: approved_by must be a list, got {type(approved_by).__name__}")
+    for rule, approved_by in _merge_rule_entries(contents.decoded_content, source):
         approvers: set[str] = set()
         for entry in approved_by:
-            if not isinstance(entry, str) or not entry.strip():
-                raise ValueError(f"{source}: approved_by entry must be a non-empty string, got {entry!r}")
             if "/" in entry:
                 members = _expand_team(client, entry)
                 approvers.update(members)
@@ -214,9 +261,9 @@ def resolve_merge_rules(client: AuthzClient, repo: str) -> MergeRulesSnapshot:
     return MergeRulesSnapshot(authorized=frozenset(logins), rules=tuple(merge_rules))
 
 
-def resolve_authorized_logins(client: AuthzClient, repo: str = constants.TARGET_REPO) -> frozenset[str]:
-    """Return the lowercased set of logins authorized to approve a merge in ``repo``."""
-    return resolve_merge_rules(client, repo).authorized
+def resolve_authorized_logins(client: AuthzClient) -> frozenset[str]:
+    """Return the lowercased set of logins authorized to approve a merge in pytorch/pytorch."""
+    return resolve_merge_rules(client, constants.TARGET_REPO).authorized
 
 
 def native_stack_trunk(pr: _BasedPR) -> str | None:

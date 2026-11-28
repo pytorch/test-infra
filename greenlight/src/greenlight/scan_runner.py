@@ -19,6 +19,7 @@ from greenlight import comment_format
 from greenlight.decision import Decision, decide
 from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
+from greenlight.latch import latch_rate_limit
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
 
 if TYPE_CHECKING:
@@ -89,7 +90,7 @@ def _fingerprint_task(
         return fingerprint(client, repo, number, authorized_logins, skip_on_approval)
     except Exception as exc:
         if is_rate_limit_error(exc):
-            cancel_event.set()
+            latch_rate_limit(cancel_event, exc)
         raise
     finally:
         client_pool.put(client)

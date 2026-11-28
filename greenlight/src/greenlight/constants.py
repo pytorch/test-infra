@@ -105,6 +105,42 @@ REPO_CONFIG_PATH = ".github/greenlight/config.yml"
 CONFIG_MAX_BYTES = 8192
 DRAIN_PRS_PER_TICK = 100
 
+AWS_REGION = "us-east-1"
+
+# The scan Lambda's schedule: the planner runs once per tick.
+TICK_INTERVAL = timedelta(minutes=2)
+# A repo's Phase B starts no GitHub request this long after its invocation started, inside the Lambda's
+# 300 s function timeout.
+WORKER_DEADLINE = timedelta(seconds=240)
+# A repo lease outlives the 300 s function timeout of the invocation that took it, so a lease is never
+# taken over while its holder can still run; an invocation killed by the timeout frees it at expiry.
+LEASE_DURATION = timedelta(seconds=330)
+# The planner's fan-out starts no other repo's config read this long after it started, so its discovery
+# never eats into pytorch/pytorch's Phase B; it still invokes the workers it planned, and the repos it did
+# not read are read next tick before the ones it read.
+FANOUT_BUDGET = timedelta(seconds=45)
+# A repo with work whose last completed run is older than this many ticks fails the planner.
+STALE_RUN_TICKS = 3
+OTHER_REPO_REQUEST_BUDGET = 400
+# Optional work stops below these remaining installation requests, the other repos' before the primary's;
+# Phase A's safety work never stops for them.
+QUOTA_FLOOR_OTHERS = 3000
+QUOTA_FLOOR_PRIMARY = 1000
+# A quota gauge re-reads GET /rate_limit after this many of its own requests, so its floors see what the
+# other invocations of the same installation spent meanwhile.
+QUOTA_REFRESH_REQUESTS = 25
+# The repos other than the primary share this many dispatches per tick, at most OTHER_REPO_MAX_DISPATCHES each.
+OTHERS_DISPATCH_POOL = 10
+OTHER_REPO_MAX_DISPATCHES = 5
+# A repo with no config file is asked again only this long after its last 404.
+CONFIG_ABSENT_TTL = timedelta(seconds=600)
+# A repo's stored scan memory larger than this is saved without its fingerprint results; DynamoDB refuses
+# an item over 400 KB.
+MEMORY_MAX_BYTES = 300 * 1024
+# The shared rate-limit latch never holds longer than this, whatever a response asked for.
+RATE_LIMIT_LATCH_MAX = timedelta(minutes=15)
+RATE_LIMIT_DEFAULT_WAIT = timedelta(seconds=60)
+
 FULL_TICK_INTERVAL = timedelta(minutes=15)
 # A tick scheduled one interval after a full tick can start slightly early; the tolerance keeps it a
 # full tick instead of pushing the full listing back a whole schedule period.

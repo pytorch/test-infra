@@ -13,6 +13,7 @@ from greenlight import scan_runner
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
+from greenlight.latch import RateLimitLatch
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
 
@@ -254,6 +255,22 @@ def test_fingerprint_task_rate_limit_error_sets_cancel_and_reraises_returning_cl
 
     assert event.is_set()
     assert pool.get_nowait() is client
+
+
+def test_fingerprint_task_rate_limit_keeps_the_wait_github_asked_for_on_the_latch():
+    from github import RateLimitExceededException
+
+    pool: queue.Queue[Github] = queue.Queue()
+    pool.put(cast("Github", object()))
+    latch = RateLimitLatch(lambda: 1000.0)
+
+    def fingerprint(*_args):
+        raise RateLimitExceededException(403, {"message": "secondary rate limit"}, {"retry-after": "300"})
+
+    with pytest.raises(RateLimitExceededException):
+        scan_runner._fingerprint_task(fingerprint, pool, TARGET_REPO, 5, frozenset(), True, latch)
+
+    assert latch.until == 1300.0
 
 
 def test_fingerprint_task_non_rate_limit_error_propagates_without_cancel():

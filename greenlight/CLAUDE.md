@@ -65,17 +65,17 @@ PyTorch Green Light has one unit of work — the `review` phase:
   (cancelled/failed) review, and skipping — without fingerprinting or dispatching — any PR a human
   has already decided (approved by a `merge_rules.yaml` approver, or on a `write_permission` repo by a
   holder of its minimum role, bots excluded, or changes requested by any non-bot reviewer).
-  The listing alternates per process (`pr_listing`, `scan_memory`): a full tick lists every open
+  The listing alternates per repo's scan memory (`pr_listing`, `scan_memory`): a full tick lists every open
   PR, on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
   `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed
-  (its listing and fingerprint fan-out finished without a rate-limit abort); the fast ticks between
+  (its listing, fingerprint fan-out and dispatch finished with no rate limit or budget stop); the fast ticks between
   list the PRs updated inside the review window plus
   every open `Reverted`-labelled PR. A PR whose place in GitHub's updated order lags its
   `updated_at`, and an idle PR reverted only by its recorded row, wait for the next full tick; so
   does a PR idle longer than the review window whose review is unfinished: a failed, cancelled or
   stuck one is retried at the first full tick after its 45-minute timer, and an in-flight one whose
   fingerprint changed without bumping `updated_at` is re-dispatched there.
-  Once a listing tick's fan-out finishes, the process keeps only the fingerprint results
+  Once a listing tick's fan-out finishes, the scan memory keeps only the fingerprint results
   (`scan_memory`) that tick reused and those it fetched (a hash only when read at the listed head)
   when the listed `updated_at` was at least `FINGERPRINT_QUIET` (2 minutes) old at the clock read
   after the listing, before the fan-out; each is keyed on that `updated_at`, the listed head and the
@@ -103,7 +103,7 @@ is `main`, matched by branch names. The scan judges the base from the listing (`
 `--pr` gate and the verdict (`author_eligibility.has_eligible_author`, which also requires the reviewed head)
 from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
-`LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's
+`LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the repo's mode (REPOS.md), the verdict's
 record-time downgrade, `verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
 guard: a `REVERTED` row, which can only deny, is non-shadow on a PR that already has a recorded row
 and follows the PR's eligibility otherwise. A shadow verdict is never approved and always dismisses
@@ -122,7 +122,7 @@ not in the `review` scan itself.
 The `GL/*` labels only display the ledger: never read one to decide anything. `verdict` sets
 `GL/approved` / `GL/human` for a non-shadow verdict; the scan's label pass (`verdict_labels`, on
 listing ticks that reach their dispatch phase without a rate limit, after `_dispatch_pending`, before the error
-aggregation) supersedes and restores them, mirroring pytorch's land-time gate (`STATUS_LABELS.md`).
+aggregation, and skipped once a dispatch hits a rate limit) supersedes and restores them, mirroring pytorch's land-time gate (`STATUS_LABELS.md`).
 Label writes are best-effort and must never fail the scan or lose the verdict row; the label pass's
 ClickHouse read fails the scan like the scan's other reads.
 
@@ -133,9 +133,11 @@ The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
 back over HTTP through `https://hud.pytorch.org/api/greenlight/pr_state` and gates on the stored
 `head_sha`, not on `eval_hash`.
 
-Add new logic inside `review.run()`, which **must keep raising on
-failure** (it does not catch). The CLI runs the `review` phase
-through one of two execution paths, so the phase can move between
+Add a repo's scan logic to `review.prepare()` (safety work) or `review_finish.finish()` (optional work), a repo's run in an
+invocation to `tick.RepoRun`, and work across repos to the planner (`fanout.py`, `fanout_repos.py`); `review.run()`,
+`fanout.Planner.run()` and `worker.Worker.run()` **must keep raising on failure** (each invocation raises one error for every
+repo's problems).
+The CLI runs the `review` phase through one of two execution paths, so the phase can move between
 cron-driven and daemon deployment with no change to its logic:
 
 - One-shot / cron mode (`execute_once`) lets the exception propagate to a non-zero
@@ -154,13 +156,14 @@ interrupt blocking C calls (e.g. DNS) or off-main-thread work; and a hard watchd
 force-exits the process a grace period later, the real backstop for hangs the soft timeout
 cannot reach.
 
-In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda: it runs
-the one-shot path with no single-instance lock and both hang-guard layers off
-(`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`; the watchdog's `os._exit` is wrong under Lambda),
-relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead. The repo's
-config is read every scan; a warm Lambda keeps the scan's tick memory (kept fingerprints, a drain's
-progress) and its merge-rules (eligibility) caches between invocations; a CLI one-shot always lists
-in full.
+In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda (SCAN.md), outside the CLI's execution
+paths: on each scheduled event its planner (`fanout.Planner`) runs `pytorch/pytorch`'s scan, safety work first, and invokes
+one asynchronous worker (`worker.Worker`) per other repo with work. It mints App tokens per job and repo, takes no
+single-instance lock and arms neither hang-guard layer (the watchdog's `os._exit` is wrong under Lambda): every Lambda scan
+of a repo holds that repo's lease in the DynamoDB state store, and the function timeout bounds each invocation. The store
+also keeps each repo's scan memory (kept fingerprints, a drain's progress), its config cache (revalidated every tick by
+ETag) and its eligibility snapshots across invocations; a CLI one-shot uses an in-process store (its config read through
+the same config cache), takes no lease and always lists in full.
 
 ## Comments
 

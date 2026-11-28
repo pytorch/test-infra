@@ -42,7 +42,13 @@ def _cache(
     ttl: float = 600.0,
     max_stale: float = 1800.0,
 ) -> SnapshotCache[Any, merge_authz.MergeRulesSnapshot]:
-    return SnapshotCache(fetch, ttl_seconds=ttl, max_stale_seconds=max_stale, clock=clock or (lambda: 0.0))
+    return SnapshotCache(
+        fetch,
+        label="merge rules of pytorch/x",
+        ttl_seconds=ttl,
+        max_stale_seconds=max_stale,
+        clock=clock or (lambda: 0.0),
+    )
 
 
 def _good_then(error: BaseException) -> Callable[[Any], merge_authz.MergeRulesSnapshot]:
@@ -159,7 +165,9 @@ def test_cache_serves_stale_on_a_transient_failure_within_the_bound(caplog, erro
     with caplog.at_level(logging.WARNING, logger="greenlight"):
         assert cache.snapshot(_Client).authorized == frozenset({"good"})
 
-    assert "(transient); serving the snapshot fetched 700s ago" in caplog.text
+    assert (
+        "refresh of merge rules of pytorch/x failed (transient); serving the snapshot fetched 700s ago" in caplog.text
+    )
     assert any(record.exc_info is not None for record in caplog.records)
 
 
@@ -249,3 +257,69 @@ def test_is_transient_classes():
     assert is_transient(GithubException(None)) is False  # type: ignore[arg-type]
     assert is_transient(ValueError("x")) is False
     assert is_transient(requests.exceptions.ConnectionError()) is True
+
+
+def test_a_cache_started_from_a_kept_snapshot_serves_it_inside_its_ttl_and_refreshes_after():
+    clock = _Clock(1000.0)
+    kept = _snapshot("kept")
+    fetched: list[tuple[merge_authz.MergeRulesSnapshot, float]] = []
+    cache: SnapshotCache[Any, merge_authz.MergeRulesSnapshot] = SnapshotCache(
+        lambda _client: _snapshot("fresh"),
+        label="merge rules of pytorch/x",
+        ttl_seconds=600.0,
+        max_stale_seconds=1800.0,
+        clock=clock,
+        cached=(kept, 500.0),
+        on_fetch=lambda snapshot, at: fetched.append((snapshot, at)),
+    )
+
+    assert cache.snapshot(_Client) is kept
+    assert fetched == []
+    clock.t = 1100.0
+    assert cache.snapshot(_Client) == _snapshot("fresh")
+    assert fetched == [(_snapshot("fresh"), 1100.0)]
+
+
+def test_a_kept_snapshot_is_served_stale_only_within_its_bound_from_when_it_was_fetched():
+    def fail(_client: Any) -> merge_authz.MergeRulesSnapshot:
+        raise GithubException(502, {"message": "bad gateway"})
+
+    within = SnapshotCache(
+        fail,
+        label="x",
+        ttl_seconds=600.0,
+        max_stale_seconds=1800.0,
+        clock=lambda: 2000.0,
+        cached=(_snapshot("k"), 500.0),
+    )
+    past = SnapshotCache(
+        fail,
+        label="x",
+        ttl_seconds=600.0,
+        max_stale_seconds=1800.0,
+        clock=lambda: 2400.0,
+        cached=(_snapshot("k"), 500.0),
+    )
+
+    assert within.snapshot(_Client) == _snapshot("k")
+    with pytest.raises(GithubException):
+        past.snapshot(_Client)
+
+
+def test_a_failed_refresh_hands_nothing_to_on_fetch():
+    fetched: list[object] = []
+
+    def broken(_client: Any) -> merge_authz.MergeRulesSnapshot:
+        raise ValueError("broken")
+
+    cache: SnapshotCache[Any, merge_authz.MergeRulesSnapshot] = SnapshotCache(
+        broken,
+        label="x",
+        ttl_seconds=600.0,
+        max_stale_seconds=1800.0,
+        on_fetch=lambda snapshot, at: fetched.append(snapshot),
+    )
+
+    with pytest.raises(ValueError, match="broken"):
+        cache.snapshot(_Client)
+    assert fetched == []

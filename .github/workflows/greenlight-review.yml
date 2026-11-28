@@ -1,20 +1,27 @@
 name: Green Light Scan
 
-# The periodic pytorch/pytorch PR scan runs as the `greenlight-scan` AWS Lambda
-# (pytorch-gha-infra-2, us-east-1, EventBridge rate(5 minutes)). This workflow is the manual /
-# `@greenlight recheck` entry point: dispatched by filename from a pytorch/pytorch trigger (or run
-# by hand), it runs the same greenlight scanner (`greenlight review`) — lists the open
-# pytorch/pytorch PRs from the evaluation cohort (every merge_rules.yaml approver, minus bots and
-# greenlight itself) and dispatches greenlight-pr-review.yml for each new or changed PR whose
-# author a valid merge rule names, on a base trymerge's base rule accepts, matched by branch name
-# (greenlight/TRUSTED_AUTHORS.md); no other listed PR is dispatched.
-# Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
+# The periodic scan runs as the `greenlight-scan` AWS Lambda (pytorch-gha-infra-2, us-east-1,
+# EventBridge rate(2 minutes)): its planner scans pytorch/pytorch itself and fans out one worker
+# invocation per other repo with a `.github/greenlight/config.yml` (greenlight/SCAN.md). This
+# workflow is the manual / `@greenlight recheck` path for one repo: dispatched by filename from a
+# pytorch/pytorch trigger (or run by hand), it runs the same greenlight scanner on `repo`. With `pr`
+# it rechecks that PR of `repo` (`greenlight review --repo REPO --pr N`); without it, it scans `repo`
+# once (`greenlight review --repo REPO`), listing its open PRs from its evaluation cohort and
+# dispatching greenlight-pr-review.yml for each new or changed PR whose author is eligible, on a base
+# trymerge's base rule accepts, matched by branch name (greenlight/TRUSTED_AUTHORS.md); no other
+# listed PR is dispatched. It takes no lease and keeps no state between runs.
+# Read-only on ClickHouse; dispatches the reviewer workflow via the App's test-infra token.
 
 on:
   workflow_dispatch:
     inputs:
+      repo:
+        description: "Repo to scan (pytorch/<name>); it must have a GreenLight config, as greenlight/REPOS.md defines (pytorch/pytorch has a built-in one)"
+        required: false
+        default: "pytorch/pytorch"
+        type: string
       pr:
-        description: "Single PR number to scan; a merge rule must name its author and trymerge must accept its base, as greenlight/TRUSTED_AUTHORS.md defines (empty = whole evaluation cohort)"
+        description: "Single PR number of `repo` to scan; its author must be eligible and trymerge must accept its base, as greenlight/TRUSTED_AUTHORS.md defines (empty = whole evaluation cohort)"
         required: false
         default: ""
         type: string
@@ -75,10 +82,10 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     # Protected environment holding the Green Light App key: GREENLIGHT_APP_ID and
-    # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/pytorch and
-    # pytorch/test-infra with Actions: write and Pull requests: write so the minted token
-    # can dispatch the reviewer workflow, read PRs across both repos, revoke greenlight's
-    # own approval on a reverted or no-longer-eligible PR, and set greenlight's GL/* labels.
+    # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/test-infra with Actions:
+    # write, so the dispatch token can dispatch the reviewer workflow, and on every configured repo
+    # with Pull requests: write, so the repo token can read its PRs, revoke greenlight's own
+    # approval on a reverted or no-longer-eligible PR, and set greenlight's GL/* labels.
     environment: greenlight-record
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -86,25 +93,49 @@ jobs:
         with:
           working_directory: greenlight
 
-      # pull-requests:write on every invocation, not just the --pr recheck: the listing scan
-      # dismisses greenlight's approving review on a reverted or no-longer-eligible PR and runs
-      # the GL/* label pass. Keep the permission set in sync with _TOKEN_PERMISSIONS in
-      # greenlight/src/greenlight/lambda_handler.py.
-      - name: Mint Green Light app token
-        id: app-token
+      - name: Sync dependencies
+        run: just setup
+
+      # The repo token covers `repo` alone, named inside the pytorch account as the mint takes it. The
+      # input is checked against a strict pattern first, since it reaches the mint and the CLI.
+      - name: Name the repo
+        id: repo
+        env:
+          IN_REPO: ${{ inputs.repo }}
+        run: |
+          set -euo pipefail
+          name=""
+          if [[ "$IN_REPO" =~ ^pytorch/([A-Za-z0-9_.-]{1,100})$ ]]; then name="${BASH_REMATCH[1]}"; fi
+          if [ -z "$name" ] || [[ "$name" =~ ^\.+$ ]]; then
+            echo "::error::repo must be pytorch/<name>"
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      # The two permission sets are app_tokens.DISPATCH_TOKEN_PERMISSIONS and REPO_TOKEN_PERMISSIONS,
+      # the ones the Lambda mints; tests/test_review_workflow_tokens.py pins them.
+      - name: Mint the dispatch token
+        id: dispatch-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
         with:
           app-id: ${{ secrets.GREENLIGHT_APP_ID }}
           private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
           owner: pytorch
-          repositories: pytorch,test-infra
-          permission-pull-requests: write
+          repositories: test-infra
           permission-actions: write
           permission-contents: read
-          permission-members: read
 
-      - name: Sync dependencies
-        run: just setup
+      - name: Mint the repo token
+        id: repo-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
+        with:
+          app-id: ${{ secrets.GREENLIGHT_APP_ID }}
+          private-key: ${{ secrets.GREENLIGHT_APP_PRIVATE_KEY }}
+          owner: pytorch
+          repositories: ${{ steps.repo.outputs.name }}
+          permission-pull-requests: write
+          permission-contents: read
+          permission-members: read
 
       # The scan PUTs an AI_REVIEW_DISPATCHED state row to S3 via boto3 the instant it fires the
       # reviewer workflow, so it needs the same OIDC role/arc the reviewer and record jobs use.
@@ -116,17 +147,19 @@ jobs:
 
       - name: Scan and dispatch
         env:
-          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.repo-token.outputs.token }}
+          PYTORCH_GREENLIGHT_DISPATCH_TOKEN: ${{ steps.dispatch-token.outputs.token }}
           # The App's bot login (<slug>[bot]) author-scopes the recheck-refusal comment and picks
           # out greenlight's own approvals to revoke on a reverted or no-longer-eligible PR. An empty
           # app-slug yields the bare "[bot]", which the CLI rejects as not App-shaped rather than
           # silently matching nothing.
-          BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
+          BOT_LOGIN: ${{ steps.repo-token.outputs.app-slug }}[bot]
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           PYTORCH_GREENLIGHT_DRCI_TOKEN: ${{ secrets.DRCI_BOT_KEY }}
           PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+          IN_REPO: ${{ inputs.repo }}
           IN_PR: ${{ inputs.pr }}
           IN_REQUESTER: ${{ inputs.requester }}
           IN_MAX: ${{ inputs.max }}
@@ -135,7 +168,7 @@ jobs:
           IN_LOG_LEVEL: ${{ inputs.log_level }}
         run: |
           set -euo pipefail
-          args=()
+          args=(--repo "$IN_REPO")
           if [ -n "$IN_PR" ]; then args+=(--pr "$IN_PR"); fi
           if [ -n "$IN_REQUESTER" ]; then args+=(--requester "$IN_REQUESTER"); fi
           if [ -n "$IN_MAX" ]; then args+=(--max "$IN_MAX"); fi

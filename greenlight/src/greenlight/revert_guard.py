@@ -34,6 +34,7 @@ from greenlight import constants
 from greenlight.constants import REVERTED_LABELS, STATUS_REVERTED
 from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
+from greenlight.latch import latch_rate_limit
 from greenlight.state import next_run_id
 
 if TYPE_CHECKING:
@@ -74,7 +75,7 @@ def _carries_reverted_label(
 
 def _note_revoke_failure(number: int, exc: Exception, *, failed: list[int], cancel_event: threading.Event) -> None:
     if is_rate_limit_error(exc):
-        cancel_event.set()
+        latch_rate_limit(cancel_event, exc)
     logger.error("failed to revoke greenlight approval on reverted PR #%d: %s", number, exc, exc_info=True)
     failed.append(number)
 
