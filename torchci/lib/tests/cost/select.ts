@@ -6,6 +6,7 @@ import {
   type Day,
   type DayRange,
   DEFAULT_PRESET,
+  DEFAULT_SHOW,
   type Rollup,
   SHOW_OPTIONS,
   type TrendContext,
@@ -587,6 +588,29 @@ export function selectionPatch(
     }
   }
   return { rollup: sel.rollup, cmp: null, a: sel.a, b: sel.b };
+}
+
+// The URL patch putting a preset in force from outside the picker (the
+// owner bars' keys): cmp, A and B cleared; the rollup kept when both periods
+// sit on its whole bars, else the preset's own with its default Show; Show
+// widened only when A would start before the bars shown, as Widen does.
+export function presetPatch(
+  id: ComparePreset,
+  q: TrendsQuery,
+  ctx: TrendContext
+): Pick<TrendsQuery, "rollup" | "show" | "cmp" | "a" | "b"> {
+  const r = presetRanges(id, ctx);
+  const last = addDays(ctx.end, -1);
+  const keep = isAligned(q.rollup, r.a, last) && isAligned(q.rollup, r.b, last);
+  const rollup = keep ? q.rollup : PRESET_ROLLUP[id];
+  let show = keep ? q.show : null;
+  if (
+    shownRange(rollup, show ?? DEFAULT_SHOW[rollup], ctx.end).from > r.a.from
+  ) {
+    const n = fitShow(rollup, r.a, ctx.end);
+    if (n !== null) show = n === DEFAULT_SHOW[rollup] ? null : n;
+  }
+  return { rollup, show, cmp: id, a: null, b: null };
 }
 
 // ── Words ──

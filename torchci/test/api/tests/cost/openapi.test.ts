@@ -91,6 +91,13 @@ describe("drill, bars, banner and cases OpenAPI", () => {
       false,
     ],
     [
+      "/api/tests/cost/owners",
+      "getTestsCostOwners",
+      ["repo", "from", "to", "workflow", "piece"],
+      "CostOwners",
+      false,
+    ],
+    [
       "/api/tests/cost/cases",
       "getTestsCostCases",
       ["repo", "file", "machine", "a", "b", "environment"],

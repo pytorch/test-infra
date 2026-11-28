@@ -1,6 +1,11 @@
 // The cost page: the types the page and its API share. Pure TypeScript with type-only imports (no zod or React at
 // runtime), so lib/api and the page both import it.
-import type { CostTrend } from "lib/api/tests/cost/types";
+import type {
+  CostMachine,
+  CostTrend,
+  RunnerHours,
+  RunnerHoursRow,
+} from "lib/api/tests/cost/types";
 import type { EnvironmentRecord, EnvVarsRecord } from "lib/api/tests/types";
 import type { CostUnit, PreparedHours } from "lib/tests/cost/runnerHours";
 import type { ReactNode } from "react";
@@ -356,6 +361,24 @@ export interface CostCoverageJobs {
   query_duration_ms: number;
 }
 
+// GET /api/tests/cost/owners: GET /api/tests/cost's rows over any from..to and workflow scope, machines named as
+// /scope names them (the label's machine that ISO week); by day (cells) with piece=day, for $. The owner bars over B.
+export interface CostOwners {
+  repo: string;
+  workflows: string[];
+  from: Day;
+  to: Day;
+  piece: "day" | null;
+  days: Day[];
+  filling: Day[]; // days the rollup holds
+  rows: RunnerHoursRow[];
+  machines: CostMachine[];
+  unprobed_labels: RunnerHours["unprobed_labels"];
+  cells: [day: number, row: number, h: number][]; // piece=day only: a row's hours by day, 0.0001 h rounding
+  method: string;
+  query_duration_ms: number;
+}
+
 // ── Request URLs (workflows sorted, so one scope is one cache key) ──
 function apiUrl(
   path: string,
@@ -458,6 +481,23 @@ export const costCoverageJobsUrl = (repo: string, range: DayRange) =>
     ["to", range.to],
   ]);
 
+export const costOwnersUrl = (
+  repo: string,
+  workflows: readonly string[],
+  range: DayRange,
+  piece?: "day"
+) =>
+  apiUrl(
+    "/owners",
+    [
+      ["repo", repo],
+      ["from", range.from],
+      ["to", range.to],
+      ...(piece === "day" ? ([["piece", "day"]] as [string, string][]) : []),
+    ],
+    workflows
+  );
+
 // keepPreviousData hands back the last URL's answer while this URL loads. An answer is current when its echo rebuilds
 // the URL asked for. Draw anything else dimmed, and never validate the trail or write the URL from it.
 export function current<T>(
@@ -481,6 +521,13 @@ export const coverageEcho = (c: CostCoverage) =>
   costCoverageUrl(c.repo, c.workflows, { from: c.from, to: c.to });
 export const jobsEcho = (c: CostCoverageJobs) =>
   costCoverageJobsUrl(c.repo, { from: c.from, to: c.to });
+export const ownersEcho = (o: CostOwners) =>
+  costOwnersUrl(
+    o.repo,
+    o.workflows,
+    { from: o.from, to: o.to },
+    o.piece ?? undefined
+  );
 
 // ── Rates, in browser memory only (ratePeriods.ts implements) ──
 export interface RatePeriod {
@@ -572,6 +619,21 @@ export interface DrillInput {
 }
 export interface DrillModelBase {
   bars: BarsScope;
+}
+export interface OwnerBarsPanelProps {
+  repo: string | undefined;
+  workflows: string[];
+  scopeLabel: string; // the heading's scope in words: "all workflows", "PR Critical Path"
+  context: TrendContext | null;
+  query: TrendsQuery;
+  compare: Compare | null; // live: names B and lights the presets
+  settled: Compare | null; // the drill's settled A/B: B is what the panel asks for
+  onTrendsChange(_patch: Partial<TrendsQuery>): void;
+  unit: Unit; // "usd" only with a pricer
+  pricer: Pricer | null;
+  runnerHours: PreparedHours | undefined; // 7-day answer: machine hues (prepared.colored) only
+  trail: readonly Pill[];
+  onTrailChange(_next: Pill[]): void; // the drill's focus
 }
 export interface CoverageBannerProps {
   repo: string | undefined;

@@ -1,5 +1,12 @@
 import type { RunnerHours } from "lib/api/tests/cost/types";
 import {
+  bucketInfo,
+  machineKeyRows,
+  ownerRows,
+  rowMix,
+  segments,
+} from "lib/tests/cost/ownerBars";
+import {
   amountLabel,
   fineAmountLabel,
   rateLabel,
@@ -169,6 +176,142 @@ describe("view", () => {
   });
 });
 
+describe("owner rows", () => {
+  const view = computeView(prepared, none);
+  const closed = { expanded: false, bucketsOpen: false };
+
+  test("top owners, the rest folded, then the unattributed hours together", () => {
+    expect(
+      ownerRows(view, { ...closed, top: 2 }).map((r) => [r.label, r.hours])
+    ).toEqual([
+      ["inductor", 240],
+      ["nn", 70],
+      ["2 more owners", 48],
+      ["Unattributed", 105],
+    ]);
+  });
+
+  test("a highlighted owner keeps its row wherever it ranks; expanded lists every owner and offers fewer", () => {
+    const lit = computeView(prepared, { ...none, owners: ["sparse"] });
+    expect(ownerRows(lit, { ...closed, top: 2 }).map((r) => r.key)).toEqual([
+      "inductor",
+      "nn",
+      "sparse",
+      "more",
+      "unattributed",
+    ]);
+    expect(
+      ownerRows(view, { expanded: true, bucketsOpen: false, top: 2 }).map(
+        (r) => r.key
+      )
+    ).toEqual(["inductor", "nn", "fx", "sparse", "less", "unattributed"]);
+  });
+
+  test("open, the unattributed row lists its buckets, No owner first", () => {
+    expect(
+      ownerRows(view, { expanded: false, bucketsOpen: true, top: 2 })
+        .filter((r) => r.kind === "bucket" || r.kind === "member")
+        .map((r) => [r.key, r.label, r.hours, r.kind])
+    ).toEqual([
+      ["unattributed", "Unattributed", 105, "bucket"],
+      ["unattributed:no_owner", "No owner", 5, "member"],
+      ["unattributed:no_test_reports", "No test reports", 100, "member"],
+    ]);
+  });
+
+  test("ran keeps an owner's row at none of the unit (in $, hours without a rate)", () => {
+    const priced = computeView(
+      { ...prepared, rowHours: prepared.rowHours.map(() => 0) },
+      none
+    );
+    expect(
+      ownerRows(priced, {
+        ...closed,
+        ran: (o) => (view.ownerScope.get(o) ?? 0) > 0,
+      }).map((r) => r.key)
+    ).toEqual(["fx", "inductor", "nn", "sparse", "unattributed"]);
+    expect(ownerRows(priced, closed)).toEqual([]);
+  });
+});
+
+describe("segments", () => {
+  const view = computeView(prepared, none);
+  const mix = (owner: string) =>
+    view.ownerMachines.get(owner) ?? new Float64Array(0);
+
+  test("in the fixed machine order, then other machines, then Unknown machine", () => {
+    const all = new Float64Array(prepared.machines.length).fill(1);
+    expect(
+      segments(prepared, all, new Set()).map((s) => [s.label, s.paint.kind])
+    ).toEqual([
+      ["Linux x86_64 avx512", "machine"],
+      ["NVIDIA L4", "machine"],
+      ["AMD Instinct MI350X VF", "machine"],
+      ["Windows x86_64 avx512", "machine"],
+      ["Apple M1", "machine"],
+      ["NVIDIA A10G", "machine"],
+      ["Linux aarch64 sve128", "machine"],
+      ["Other machines", "other"],
+      [NOT_PROBED, "not_probed"],
+    ]);
+  });
+
+  test("a highlighted machine without a hue takes the accent, not the others' grey", () => {
+    const t4 = prepared.machines.indexOf("Tesla T4");
+    expect(
+      segments(prepared, mix("sparse"), new Set([t4])).map((s) => [
+        s.label,
+        s.paint.kind,
+      ])
+    ).toEqual([
+      ["Tesla T4", "accent"],
+      ["other machines", "pale"],
+    ]);
+    const lit = computeView(prepared, { ...none, machines: ["Tesla T4"] });
+    expect(
+      machineKeyRows(prepared, lit, true).find((r) => r.label === "Tesla T4")
+        ?.paint.kind
+    ).toBe("accent");
+  });
+
+  test("highlighted machines move to the start, the rest one pale piece", () => {
+    const l4 = prepared.machines.indexOf("NVIDIA L4");
+    expect(
+      segments(prepared, mix("inductor"), new Set([l4])).map((s) => [
+        s.label,
+        s.hours,
+      ])
+    ).toEqual([
+      ["NVIDIA L4", 100],
+      ["other machines", 140],
+    ]);
+  });
+});
+
+describe("machine key", () => {
+  test("colored machines, other machines (listed while open), Unknown machine; owners' hours on each", () => {
+    const view = computeView(prepared, { ...none, owners: ["sparse"] });
+    const rows = machineKeyRows(prepared, view, true);
+    expect(rows.map((r) => [r.label, r.kind, r.hours, r.highlighted])).toEqual([
+      ["Linux x86_64 avx512", "machine", 120, 0],
+      ["NVIDIA L4", "machine", 105, 0],
+      ["AMD Instinct MI350X VF", "machine", 60, 0],
+      ["Windows x86_64 avx512", "machine", 30, 0],
+      ["Apple M1", "machine", 20, 0],
+      ["NVIDIA A10G", "machine", 15, 0],
+      ["Linux aarch64 sve128", "machine", 12, 12],
+      ["Other machines (1)", "group", 1, 1],
+      ["Tesla T4", "member", 1, 1],
+      [NOT_PROBED, "machine", 100, 0],
+    ]);
+    expect(machineKeyRows(prepared, view, false).map((r) => r.kind)).toEqual([
+      ...Array(7).fill("machine"),
+      "group",
+      "machine",
+    ]);
+  });
+});
+
 describe("workflows", () => {
   test("the top workflows with ticked ones pinned; expanded, the search narrows", () => {
     const view = computeView(prepared, { ...none, workflows: ["lint"] });
@@ -261,9 +404,64 @@ describe("estimated machines and the unattributed buckets", () => {
   const v = computeView(p, none);
   const l4 = p.machines.indexOf("NVIDIA L4");
 
+  const unattributed = ownerRows(v, {
+    expanded: false,
+    bucketsOpen: false,
+  }).find((r) => r.key === "unattributed");
+
   test("the view counts the hours whose machine came from a runner label", () => {
     expect(v.machineScope[l4]).toBe(18);
     expect(v.ownerEstimated.get("unattributed:no_test_reports")?.[l4]).toBe(6);
+    expect(machineKeyRows(p, v, false)[0]).toMatchObject({
+      label: "NVIDIA L4",
+      hours: 18,
+    });
+  });
+
+  test("a bar's machine splits into reported hours, then the estimated ones striped; unknown stays its own piece", () => {
+    const owners = unattributed?.owners ?? [];
+    const pieces = segments(
+      p,
+      rowMix(p, v, owners),
+      new Set(),
+      rowMix(p, v, owners, true)
+    );
+    expect(pieces.map((s) => [s.label, s.hours, s.paint.kind])).toEqual([
+      ["NVIDIA L4", 2, "machine"],
+      ["NVIDIA L4 (est.)", 6, "estimated"],
+      [NOT_PROBED, 3, "not_probed"],
+    ]);
+  });
+
+  test("a highlighted machine keeps its estimated piece", () => {
+    const owners = unattributed?.owners ?? [];
+    const lit = computeView(p, { ...none, machines: ["NVIDIA L4"] });
+    expect(
+      segments(
+        p,
+        rowMix(p, lit, owners),
+        lit.machines,
+        rowMix(p, lit, owners, true)
+      ).map((s) => [s.label, s.hours, s.paint.kind])
+    ).toEqual([
+      ["NVIDIA L4", 2, "machine"],
+      ["NVIDIA L4 (est.)", 6, "estimated"],
+      ["other machines", 3, "pale"],
+    ]);
+  });
+
+  test("both buckets explain themselves; the row holds No owner before No test reports", () => {
+    expect(unattributed?.owners).toEqual([
+      "unattributed:no_owner",
+      "unattributed:no_test_reports",
+    ]);
+    expect(bucketInfo("unattributed:no_owner")).toMatch(
+      /^No owner: Tests in files without an owner\.\n• C\+\+ test binaries/
+    );
+    expect(bucketInfo("unattributed:no_test_reports")).toContain(
+      "• Jobs cancelled before uploading"
+    );
+    expect(bucketInfo("inductor")).toBe("");
   });
 });
 

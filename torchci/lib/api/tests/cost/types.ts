@@ -643,8 +643,59 @@ export const CostCoverageJobsSchema = z
     "An organization's CI runner-hours by day, repository segment and runner label: the grey part of the cost page's coverage banner."
   );
 
+export const CostOwnersSchema = z
+  .object({
+    repo: z.string().describe("Repository as owner/name."),
+    workflows: WORKFLOWS,
+    from: DAY.describe("The first day, as asked."),
+    to: DAY.describe("The last day, as asked, included."),
+    piece: z
+      .enum(["day"])
+      .nullable()
+      .describe(
+        "day when the rows' runner-hours are split by day (cells), as asked; null otherwise."
+      ),
+    days: z
+      .array(DAY)
+      .describe(
+        "The range's days the rollup holds, ascending: what a daily average divides by."
+      ),
+    filling: z
+      .array(DAY)
+      .describe(
+        "The days still filling: last computed less than 27 hours after they began, so they read low by up to a few percent."
+      ),
+    rows: z
+      .array(RunnerHoursRowSchema)
+      .describe(
+        "Every owner, workflow, machine and runner label with runner-hours on the range's days, largest first, as GET /api/tests/cost's rows."
+      ),
+    machines: z
+      .array(CostMachineSchema)
+      .describe("Every machine in rows, largest first."),
+    unprobed_labels: z
+      .array(UnprobedLabelSchema)
+      .describe(
+        "The runner labels of the hours on no known machine, largest first."
+      ),
+    cells: z
+      .array(z.tuple([INDEX, INDEX, HOURS]))
+      .describe(
+        "[day, row, runner_hours]: indexes into days and rows, and the row's runner-hours on that day, rounded to 0.0001 h, so a row's cells sum to its runner-hours within that rounding; empty without piece=day."
+      ),
+    method: z.string().describe("How the runner-hours were split, in words."),
+    query_duration_ms: z
+      .number()
+      .int()
+      .describe("Time spent in the database requests, rounded."),
+  })
+  .describe(
+    "A repository's test-job runner-hours over a range of days and a workflow scope by owner, workflow, machine and runner label: the cost page's owner bars."
+  );
+
 export type CostScopeAnswer = z.infer<typeof CostScopeSchema>;
 export type CostSeriesAnswer = z.infer<typeof CostSeriesSchema>;
 export type CostCasesAnswer = z.infer<typeof CostCasesSchema>;
 export type CostCoverageAnswer = z.infer<typeof CostCoverageSchema>;
 export type CostCoverageJobsAnswer = z.infer<typeof CostCoverageJobsSchema>;
+export type CostOwnersAnswer = z.infer<typeof CostOwnersSchema>;

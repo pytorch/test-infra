@@ -5,10 +5,12 @@ import {
   getCostCoverage,
   getCostCoverageJobs,
 } from "lib/api/tests/cost/coverage";
+import { getCostOwners } from "lib/api/tests/cost/owners";
 import {
   parseCostCasesParams,
   parseCostCoverageJobsParams,
   parseCostCoverageParams,
+  parseCostOwnersParams,
   parseCostParams,
   parseCostScopeParams,
   parseCostSeriesParams,
@@ -106,6 +108,15 @@ export const costSeriesHandler = cachedCostHandler(
   "Failed to compute the scope's runner-hours by day",
   parseCostSeriesParams,
   getCostSeries,
+  600
+);
+
+// B's runner-hours by owner, workflow, machine and label: the owner bars.
+export const costOwnersHandler = cachedCostHandler(
+  "/api/tests/cost/owners",
+  "Failed to compute the runner-hours by owner",
+  parseCostOwnersParams,
+  getCostOwners,
   600
 );
 

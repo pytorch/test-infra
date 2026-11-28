@@ -21,10 +21,10 @@ import { COST_WINDOW_DAYS } from "lib/api/tests/cost/windows";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const METHOD =
+export const METHOD =
   "Test-job wall time, split among test files by occupancy, then evenly among each file's owners. Builds and other jobs are excluded. Machines come from test reports, or are estimated from runner labels for jobs without them.";
 
-interface RunnerHoursQueryRow {
+export interface RunnerHoursQueryRow {
   owner: string;
   workflow: string;
   machine: string;
@@ -35,7 +35,7 @@ interface RunnerHoursQueryRow {
   runner_hours: number;
 }
 
-interface MachineRow {
+export interface MachineRow {
   machine: string;
   family: string;
   device: string;

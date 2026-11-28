@@ -224,6 +224,20 @@ describe("the pages in /api/openapi.json", () => {
     expect(operations.getPullRequest.description).toMatch(/pullPage/);
   });
 
+  test("the cost page names every cost endpoint it reads", () => {
+    expect(operations.testsCostPage.description).toMatch(/getTestsCost\b/);
+    expect(operations.testsCostPage.description).toMatch(/getTestsCostOwners/);
+    const paths = Object.keys(document.paths).filter((path) =>
+      path.startsWith("/api/tests/cost/")
+    );
+    expect(paths).toContain("/api/tests/cost/owners");
+    for (const path of paths) {
+      expect(operations.testsCostPage.description).toContain(
+        path.slice("/api/tests/cost".length)
+      );
+    }
+  });
+
   test("every response that leads to a page says so", () => {
     const schemas = document.components.schemas;
     expect(schemas.TestRecord.properties.hud_url).toMatchObject({

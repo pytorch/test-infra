@@ -1637,8 +1637,8 @@ the rules above: nothing but `/api/tests` endpoints, its logic in
 
 `/tests/[organization]/[repo]/cost` shows where a repository's test-job
 runner-hours go and how they changed between two periods, summed in the
-browser from `GET /api/tests/cost/trend`, `/scope`, `/series`, `/cases`,
-`/coverage` and `/coverage/jobs`, and the last 7 days (`window`) of
+browser from `GET /api/tests/cost/trend`, `/scope`, `/series`, `/owners`,
+`/cases`, `/coverage` and `/coverage/jobs`, and the last 7 days (`window`) of
 `GET /api/tests/cost`. The API README's [Cost](../../app/api/README.md#cost)
 section has the method. The old `/cost/v2` path redirects here with its
 query.
@@ -1666,6 +1666,23 @@ query.
   (other repositories; this repository's builds, lint and other jobs; test
   jobs outside the workflow scope; then the page's own: no reports, setup and
   idle, active test time), with an ⓘ holding the definitions.
+- Usage by owner (`components/tests/cost/owners`): B's runner-hours (or $)
+  by owner as horizontal bars, largest first, each split by machine, "N more
+  owners" and the Unattributed row (its two buckets on a click) beneath,
+  with the machine key beside them; striped hours have a machine estimated
+  from their runner label. They have no dates of their own: they read B
+  (`GET /api/tests/cost/owners`), and their keys set A and B for the whole
+  page: Last day and Last 7 days put Trends' dod and 7v7 presets in force
+  (the rollup kept when their days sit on its bars), Last 3 days writes `a`
+  and `b` as a pick in Trends does, so its link pins the dates. A click on
+  an owner or a machine is the drill's pill. A machine's ▸ lists its runner
+  labels, and a row's › opens a drawer of its machines and runners; in $
+  each has its $/h over B (marked ~ on an average: every machine's, and a
+  runner's whose rate changed over B) and its unpriced hours, and the
+  runners without a rate are named. $
+  prices each day at that day's rate, as the drill does. The panel folds,
+  and the fold is kept in the browser (localStorage), not the URL; folded,
+  it asks for nothing.
 - Trends (`components/tests/cost/trends`): daily, weekly or monthly bars
   stacked by owner or by machine, in hours or $, per bar (Total; a partial
   bar counts as a whole one) or per commit (push:main runner-hours over the

@@ -9,8 +9,9 @@ import { COST_PARAMETER_DEFINITIONS } from "lib/api/tests/cost/parameters";
 import { z } from "zod/v4";
 
 // The cost page, /tests/[organization]/[repo]/cost: the headline facts, the
-// coverage banner, the trends (two periods A and B over daily, weekly or
-// monthly bars) with the drill-down under them, then the workflows card.
+// coverage banner, the owner bars over B, the trends (two periods A and B
+// over daily, weekly or monthly bars) with the drill-down under them, then
+// the workflows card.
 // workflow is the scope, and a, b, cmp and trail what the figures are of; the
 // other parameters are how they are drawn. The page reads and writes its URL
 // with these (decodePageQuery, pageUrlParams; lib/tests/cost/query.ts) and

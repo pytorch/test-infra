@@ -7,11 +7,14 @@
 import {
   addDays,
   type Compare,
+  type ComparePreset,
   type Day,
   type DayRange,
+  type Rollup,
   type TrendContext,
   type TrendsQuery,
 } from "lib/api/tests/cost/contracts";
+import type { CostTrend } from "lib/api/tests/cost/types";
 import {
   barCount,
   comparePresets,
@@ -23,6 +26,7 @@ import {
   type PickAction,
   type PickEnv,
   type Picker,
+  presetPatch,
   presetRanges,
   rangeText,
   reducePicker,
@@ -34,6 +38,7 @@ import {
   trendContext,
   visibleRange,
 } from "lib/tests/cost/select";
+import TREND_JSON from "./trend.json";
 
 const r = (from: Day, to: Day = from): DayRange => ({ from, to });
 
@@ -328,6 +333,67 @@ describe("presets on the data's dates", () => {
       a: r("2026-11-05", "2026-11-11"),
       b: r("2026-11-11", "2026-11-17"),
     });
+  });
+});
+
+describe("presets from outside the picker (the owner bars' keys)", () => {
+  // trend.json: end Nov 5, L Nov 4, a Wednesday.
+  const CTX = trendContext(TREND_JSON as unknown as CostTrend);
+  const apply = (q: TrendsQuery, id: ComparePreset) => {
+    const patch = presetPatch(id, q, CTX);
+    return { patch, compare: resolveCompare({ ...q, ...patch }, CTX)! };
+  };
+
+  it("keeps the rollup when A and B sit on its whole bars, else takes the preset's", () => {
+    expect(CTX.lastFull).toBe("2026-11-04");
+    const table: Record<Rollup, Record<string, Rollup>> = {
+      day: { dod: "day", "7v7": "day", wow: "day", "28v28": "day" },
+      week: { dod: "day", "7v7": "day", wow: "week", "28v28": "day" },
+      month: { dod: "day", "7v7": "day", wow: "week", "28v28": "day" },
+    };
+    for (const [rollup, row] of Object.entries(table) as [
+      Rollup,
+      Record<ComparePreset, Rollup>
+    ][]) {
+      for (const [id, to] of Object.entries(row) as [ComparePreset, Rollup][]) {
+        const q = query({ rollup, show: rollup === "week" ? 13 : null });
+        const { patch, compare } = apply(q, id);
+        expect([rollup, id, patch.rollup]).toEqual([rollup, id, to]);
+        expect(patch.cmp).toBe(id);
+        expect([patch.a, patch.b]).toEqual([null, null]);
+        // A switch drops the old rollup's Show (28 days back needs 90).
+        if (to !== rollup) {
+          expect(patch.show).toBe(id === "28v28" ? 90 : null);
+        }
+        // Round trip: A and B are exactly the preset's days.
+        const r = presetRanges(id, CTX);
+        expect([rollup, id, compare.a, compare.b]).toEqual([
+          rollup,
+          id,
+          r.a,
+          r.b,
+        ]);
+      }
+    }
+    // Week keeps its Show when A fits.
+    expect(apply(query({ rollup: "week", show: 13 }), "wow").patch.show).toBe(
+      13
+    );
+  });
+
+  it("wow in the day rollup keeps days: Mon–Sun, though compare.preset is null", () => {
+    const { compare } = apply(query(), "wow");
+    expect(compare.rollup).toBe("day");
+    expect(compare.b).toEqual(r("2026-10-26", "2026-11-01"));
+    expect(compare.a).toEqual(r("2026-10-19", "2026-10-25"));
+    expect(compare.preset).toBeNull();
+  });
+
+  it("widens Show only when A starts before the bars shown, as Widen does", () => {
+    expect(presetPatch("wow", query({ show: 14 }), CTX).show).toBeNull();
+    expect(presetPatch("dod", query({ show: 14 }), CTX).show).toBe(14);
+    expect(presetPatch("28v28", query(), CTX).show).toBe(90);
+    expect(presetPatch("7v7", query({ show: 14 }), CTX).show).toBe(14);
   });
 });
 

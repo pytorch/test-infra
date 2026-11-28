@@ -9,6 +9,7 @@ import {
   costCasesQueryParameters,
   costCoverageJobsQueryParameters,
   costCoverageQueryParameters,
+  costOwnersQueryParameters,
   costQueryParameters,
   costScopeQueryParameters,
   costSeriesQueryParameters,
@@ -21,6 +22,7 @@ import {
   CostCoverageJobsSchema,
   CostCoverageSchema,
   CostMachineSchema,
+  CostOwnersSchema,
   CostScopeSchema,
   CostSeriesSchema,
   CostSignalSchema,
@@ -68,6 +70,7 @@ export const costApiOpenApi: ApiResource = {
     CasesLane: CasesLaneSchema,
     CostCoverage: CostCoverageSchema,
     CostCoverageJobs: CostCoverageJobsSchema,
+    CostOwners: CostOwnersSchema,
   },
   paths: (ref) => ({
     "/api/tests/cost": {
@@ -140,6 +143,24 @@ export const costApiOpenApi: ApiResource = {
           "200": jsonResponse(
             "The scope's runner-hours by day.",
             ref(CostSeriesSchema)
+          ),
+          ...errorResponses(ref, INVALID),
+        },
+      },
+    },
+    "/api/tests/cost/owners": {
+      get: {
+        operationId: "getTestsCostOwners",
+        tags: ["tests"],
+        summary:
+          "A repository's CI runner-hours over a range of days by owner, workflow, machine and runner label",
+        description:
+          "Returns the same rows as GET /api/tests/cost (a row per owner, workflow, machine, machine source and runner label) for any from..to of whole UTC days (at most 400) and workflow scope, read from the test_cost rollup as GET /api/tests/cost/scope reads it: each day as last computed, owners from ci.owners split evenly, the buckets unattributed:no_owner and unattributed:no_test_reports. A machine is the environment's when the jobs have test reports (machine_source environment), else the machine the runner label's reporting jobs ran on most in that ISO week (runner_label, an estimate), else unknown (none, machine empty, its labels in unprobed_labels), so its machines match the drill's. With piece=day, cells split each row's runner-hours by day, for rates that change on any day. days and filling are the range's days with data and those still filling. The answer echoes the request (workflows sorted). The API holds no prices.",
+        parameters: costOwnersQueryParameters(),
+        responses: {
+          "200": jsonResponse(
+            "The runner-hours by owner, workflow, machine and runner label.",
+            ref(CostOwnersSchema)
           ),
           ...errorResponses(ref, INVALID),
         },

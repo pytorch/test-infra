@@ -368,6 +368,7 @@ old route in the same change.
 | `GET /api/releases/{version}/artifacts`                  | The release's expected artifacts and whether each is present, missing, size_anomalous or unexpected, problems first, with the counts; public                          | `lib/api/releases/`                |
 | `GET /api/tests/cost/scope`                              | A drill scope's children (owners, machines, files, lanes or labels) in two periods by runner label and piece, all and of pushes to main; prototype                    | `lib/api/tests/cost/scope.ts`      |
 | `GET /api/tests/cost/series`                             | A drill scope's runner-hours by day, child and runner label: the cost page's bars below the owner root; prototype                                                     | `lib/api/tests/cost/series.ts`     |
+| `GET /api/tests/cost/owners`                             | Test-job runner-hours of a range of days by owner, workflow, machine and label, by day with piece=day: the cost page's owner bars over B; prototype                   | `lib/api/tests/cost/owners.ts`     |
 | `GET /api/tests/cost/cases`                              | A test file's configurations and largest test-case moves on one machine in two periods, from the runs table, behind a size gate; heavy; prototype                     | `lib/api/tests/cost/cases.ts`      |
 | `GET /api/tests/cost/coverage`                           | A repository's test-job runner-hours by day, segment (running, setup and idle, no reports, out of scope) and runner label; prototype                                  | `lib/api/tests/cost/coverage.ts`   |
 | `GET /api/tests/cost/coverage/jobs`                      | An organization's job runner-hours by day, repository segment and runner label, up to 28 days; heavy; prototype                                                       | `lib/api/tests/cost/coverage.ts`   |
@@ -380,7 +381,7 @@ The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 | `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                                                                                                                                                | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                                   |
 | `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's jobs on a timeline and its runs in outcome order: `GET /api/tests/commit/{sha}`, its `/summary`, `/jobs` and `/greenlight`, and for a job `GET /api/tests/job/{job_id}`                                                        | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
 | `GET /tests/{organization}/{repo}/pull/{number}`  | The commit page of a pull request's newest head, found by `GET /api/tests/pull/{number}`                                                                                                                                                    | `pages/tests/[organization]/[repo]/pull/[number].tsx`                                    |
-| `GET /tests/{organization}/{repo}/cost`           | Runner-hours over time by owner, machine and test file, two periods compared, and their share of the organization's CI: `GET /api/tests/cost/trend`, `/scope`, `/series`, `/cases`, `/coverage`, `/coverage/jobs` and `GET /api/tests/cost` | `pages/tests/[organization]/[repo]/cost.tsx`, parameters in `lib/api/tests/cost/page.ts` |
+| `GET /tests/{organization}/{repo}/cost`           | Runner-hours over time by owner, machine and test file, two periods, and the share of the organization's CI: `GET /api/tests/cost/trend`, `/scope`, `/series`, `/owners`, `/cases`, `/coverage`, `/coverage/jobs` and `GET /api/tests/cost` | `pages/tests/[organization]/[repo]/cost.tsx`, parameters in `lib/api/tests/cost/page.ts` |
 
 ## Release endpoints
 
@@ -961,4 +962,11 @@ on its columns). Its SQL is in
   trunk.
 - The queries are cheap, about 0.3 CPU-seconds for 3 days of the rollup, so
   none runs in the heavy workload.
+- `GET /api/tests/cost/owners` gives the same rows for any `from..to` (at
+  most 400 days) and workflow scope: the cost page's owner bars over B. It
+  reads the rollup as `/scope` does, so a runner label's machine is the one
+  its reporting jobs recorded most that ISO week (the drill's machines),
+  where the window above takes it over the whole window; with `piece=day`,
+  `cells` split each row by day, for rates that change on any day. It has no
+  contributors or time to signal.
 - Planned: the rollup moves from the sandbox to `ci`.
