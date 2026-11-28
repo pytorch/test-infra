@@ -1,7 +1,10 @@
 import json
+import os
 import re
 import sys
+from collections.abc import Iterator
 from functools import lru_cache
+from html import escape
 from pathlib import Path
 from typing import Any, cast, Dict, List, NamedTuple, Optional, Tuple
 
@@ -109,39 +112,113 @@ def is_unstable(job: dict[str, Any]) -> bool:
     return False
 
 
+def iter_blockers(
+    workflow_checks: List[Dict[str, Any]], requires: List[str]
+) -> Iterator[tuple[str, dict[str, Any] | None]]:
+    # A failed required job is present (not missing), even if no attempt passed.
+    matched = {check: False for check in requires if check}
+    for check in workflow_checks:
+        if is_unstable(check):
+            continue
+        workflow_name = check["workflowName"]
+        reported = False
+        for required_check in matched:
+            # Full match: "pull" won't also match "pull-test-sandbox".
+            if re.fullmatch(required_check, workflow_name, flags=re.IGNORECASE):
+                matched[required_check] = True
+                if not reported and check["conclusion"] not in ["success", "skipped"]:
+                    yield (
+                        f"{workflow_name} was not successful, {check['name']} failed",
+                        check,
+                    )
+                    reported = True
+
+    missing = [name for name, seen in matched.items() if not seen]
+    if missing:
+        yield "missing required workflows: " + ", ".join(missing), None
+
+
 def is_green(
     commit: str, requires: List[str], results: List[Dict[str, Any]]
 ) -> Tuple[bool, str]:
-    workflow_checks = get_commit_results(commit, results)
+    checks = get_commit_results(commit, results)
+    first = next(iter_blockers(checks, requires), None)
+    return (False, first[0]) if first is not None else (True, "")
 
-    # Skip empty entries; fullmatch("") never matches a real workflow name.
-    regex = {check: False for check in requires if check}
 
-    for check in workflow_checks:
-        jobName = check["name"]
-        # Ignore result from unstable job, be it success or failure
-        if is_unstable(check):
-            continue
+def describe_check(check: dict[str, Any]) -> str:
+    label = escape(" ".join(str(check["name"]).split()))
+    url = check.get("htmlUrl")
+    if isinstance(url, str) and re.fullmatch(
+        r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+/job/\d+", url
+    ):
+        label = f'<a href="{url}">{label}</a>'
+    attempt = check.get("run_attempt")
+    if attempt is not None:
+        label += f" (attempt {escape(str(attempt))})"
+    return label
 
-        workflow_name = check["workflowName"]
-        conclusion = check["conclusion"]
-        for required_check in regex:
-            # Full match: "pull" won't also match "pull-test-sandbox".
-            # Explicit regex still works (e.g. "^Apple$").
-            if re.fullmatch(required_check, workflow_name, flags=re.IGNORECASE):
-                if conclusion not in ["success", "skipped"]:
-                    return (
-                        False,
-                        f"{workflow_name} was not successful, {jobName} failed",
-                    )
-                else:
-                    regex[required_check] = True
 
-    missing_workflows = [x for x in regex.keys() if not regex[x]]
-    if len(missing_workflows) > 0:
-        return False, "missing required workflows: " + ", ".join(missing_workflows)
+def write_run_summary(
+    path: Path,
+    commits: List[str],
+    requires: List[str],
+    results: List[Dict[str, Any]],
+    latest_viable_commit: Optional[str],
+) -> None:
+    heading = "## Why hasn't viable/strict advanced?\n\n"
+    if latest_viable_commit is not None:
+        heading += f"Selected `{latest_viable_commit}`.\n\n"
+        if commits and commits[0] != latest_viable_commit:
+            heading += "Newer rejected candidates:\n\n"
+    elif commits:
+        heading += "No candidate passed the required checks.\n\n"
+    else:
+        heading += "No newer candidates to evaluate.\n\n"
 
-    return True, ""
+    checks_by_commit: dict[str, list[dict[str, Any]]] = {}
+    for check in results:
+        checks_by_commit.setdefault(check["sha"], []).append(check)
+
+    sections = [heading]
+    size = len(heading.encode("utf-8"))
+    for commit in commits:
+        if commit == latest_viable_commit:
+            break
+        checks = checks_by_commit.get(commit, [])
+        passed: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for check in checks:
+            if check["conclusion"] == "success":
+                passed.setdefault((check["workflowName"], check["jobName"]), []).append(
+                    check
+                )
+        blockers = list(iter_blockers(checks, requires))
+        details = "<details open>" if commit == commits[0] else "<details>"
+        lines = [
+            f"{details}<summary><code>{escape(commit)}</code> — "
+            f"{len(blockers)} blocker finding(s)</summary><ul>"
+        ]
+        for message, blocker in blockers:
+            if blocker is None:
+                lines.append(f"<li>{escape(message)}</li>")
+                continue
+            conclusion = escape(str(blocker["conclusion"]))
+            line = f"<li><strong>{conclusion}</strong>: {describe_check(blocker)}"
+            other_runs = passed.get((blocker["workflowName"], blocker["jobName"]), [])
+            if other_runs:
+                line += "; also passed: " + ", ".join(map(describe_check, other_runs))
+            lines.append(line + "</li>")
+        section = "\n".join([*lines, "</ul></details>", "", ""])
+        size += len(section.encode("utf-8"))
+        # Leave headroom under GitHub's 1 MiB per-step summary limit.
+        if size > 900_000:
+            sections.append(
+                "Summary truncated. See the updater log for other candidates.\n"
+            )
+            break
+        sections.append(section)
+    with path.open("a", encoding="utf-8") as summary:
+        summary.writelines(sections)
 
 
 def get_latest_green_commit(
@@ -178,6 +255,20 @@ def main() -> None:
     except json.JSONDecodeError:
         required_checks = args.required_checks.split(",")
     latest_viable_commit = get_latest_green_commit(commits, required_checks, results)
+    if summary_path := os.getenv("GITHUB_STEP_SUMMARY"):
+        try:
+            write_run_summary(
+                Path(summary_path),
+                commits,
+                required_checks,
+                results,
+                latest_viable_commit,
+            )
+        except Exception:
+            # Diagnostics must not interfere with the branch update.
+            eprint(
+                "Could not write the viable/strict run summary; see the updater log."
+            )
     print(latest_viable_commit)
 
 
