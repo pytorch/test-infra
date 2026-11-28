@@ -2,18 +2,31 @@
   "params": {
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
-    "workflowNames": "Array(String)"
+    "workflowNames": "Array(String)",
+    "unstableOnly": "UInt8"
+  },
+  "defaults": {
+    "workflowNames": [],
+    "unstableOnly": 0
   },
   "tests": [
     {
       "startTime": "2025-03-18T21:09:47.987",
       "stopTime": "2025-03-25T21:09:47.987",
-      "workflowNames": ["pull"]
+      "workflowNames": ["pull"],
+      "unstableOnly": 0
     },
     {
       "startTime": "2025-03-18T21:09:47.987",
       "stopTime": "2025-03-25T21:09:47.987",
-      "workflowNames": ["lint", "pull", "trunk"]
+      "workflowNames": ["lint", "pull", "trunk"],
+      "unstableOnly": 0
+    },
+    {
+      "startTime": "2025-03-18T21:09:47.987",
+      "stopTime": "2025-03-25T21:09:47.987",
+      "workflowNames": [],
+      "unstableOnly": 1
     }
   ]
 }
