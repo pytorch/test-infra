@@ -28,6 +28,7 @@ on:
       - CODEOWNERS
       - .github/CODEOWNERS
       - docs/CODEOWNERS
+      - .github/greenlight/**
   push:
     branches:
       - main
@@ -46,6 +47,7 @@ on:
       - CODEOWNERS
       - .github/CODEOWNERS
       - docs/CODEOWNERS
+      - .github/greenlight/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
