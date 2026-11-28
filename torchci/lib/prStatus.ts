@@ -45,6 +45,14 @@ export const BOT_TRIAGED_LABEL = "bot-triaged";
 export const BOT_TRIAGE_ERROR_LABEL = "bot-triage-error";
 // Auto PR Triage leaves a PR with this label as is.
 export const AUTO_PR_TRIAGE_OPT_OUT_LABEL = "no automated triage";
+// Outcome labels of Auto PR Triage. While any is present a run is a no-op, so
+// clearing them lets the next ready_for_review triage the PR again.
+export const AUTO_PR_TRIAGE_OUTCOME_LABELS = [
+  PR_STATUS_LABEL_TRIAGED,
+  BOT_TRIAGED_LABEL,
+  PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+  BOT_TRIAGE_ERROR_LABEL,
+];
 
 export const PR_STATUS_LABELS = [
   PR_STATUS_LABEL_TRIAGED,

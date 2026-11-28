@@ -7,15 +7,12 @@ import { downstreamRepoFromCheckRunName } from "../crcr/crcrUtils";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
   AUTO_PR_TRIAGE_OPT_OUT_LABEL,
+  AUTO_PR_TRIAGE_OUTCOME_LABELS,
   AUTO_PR_TRIAGE_RETRIGGER_LABEL,
-  BOT_TRIAGE_ERROR_LABEL,
-  BOT_TRIAGED_LABEL,
   fetchLiveLabels,
   PR_STATUS_LABEL_IN_PROGRESS,
-  PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
-  PR_STATUS_LABEL_TRIAGED,
 } from "../prStatus";
 import {
   getApprovalStatusFromReviews,
@@ -660,10 +657,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     const labelsToRemove = [
-      PR_STATUS_LABEL_TRIAGED,
-      BOT_TRIAGED_LABEL,
-      PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
-      BOT_TRIAGE_ERROR_LABEL,
+      ...AUTO_PR_TRIAGE_OUTCOME_LABELS,
       AUTO_PR_TRIAGE_RETRIGGER_LABEL,
     ].filter((label) => labels.includes(label));
     for (const name of labelsToRemove) {
