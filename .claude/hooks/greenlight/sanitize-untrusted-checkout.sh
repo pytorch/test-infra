@@ -1,8 +1,9 @@
 #!/bin/bash
-# Sanitize an untrusted pytorch/pytorch checkout before the greenlight reviewer
-# (Claude Code) is pointed at it: strip every in-repo AI-assistant instruction
-# file so a reviewed PR cannot rewrite the reviewer's own steering, then restore
-# ONLY the trusted skills tree taken from pytorch main.
+# Sanitize the untrusted checkout of the reviewed repo before the greenlight
+# reviewer (Claude Code) is pointed at it: strip every in-repo AI-assistant
+# instruction file so a reviewed PR cannot rewrite the reviewer's own steering,
+# then restore ONLY the trusted skills tree taken from that repo's main, minus
+# GreenLight's own review-policy skill (greenlight-review).
 #
 # Usage: sanitize-untrusted-checkout.sh <untrusted_dir> <trusted_skills_src_dir>
 #
@@ -78,6 +79,10 @@ forbidden_find "$untrusted_dir" -exec rm -rf {} +
 # not auto-loaded steering, so restoring them cannot re-inject verdict-drifting
 # instructions. No-op when the source has no skills tree.
 skills_src="$trusted_skills_src/.claude/skills"
+# GreenLight's own policy: the reviewer reads it only from the workspace root, where
+# the workflow's "Stage the repository policy" step fills repo-policy.md from the
+# reviewed repo's .github/greenlight/review.md.
+greenlight_policy_skill=".claude/skills/greenlight-review"
 restored_skills_dir="$untrusted_dir/.claude/skills"
 restored_skills=false
 if [[ -d "$skills_src" ]]; then
@@ -89,7 +94,8 @@ if [[ -d "$skills_src" ]]; then
   # symlink so nothing in the tree can later be followed out of it.
   forbidden_find "$restored_skills_dir" -exec rm -rf {} +
   find "$restored_skills_dir" -type l -delete
-  # Only claim a restore if skills actually survived the scrub.
+  rm -rf "${untrusted_dir:?}/$greenlight_policy_skill"
+  # Only claim a restore if skills actually survived the scrub and the greenlight-review drop.
   if [[ -n "$(find "$restored_skills_dir" -mindepth 1 -print -quit)" ]]; then
     restored_skills=true
   fi
@@ -97,7 +103,8 @@ fi
 
 # Verify pass (fail-closed, SAME forbidden set): nothing forbidden may survive
 # anywhere under the checkout — including inside the restored skills tree — and
-# the only .claude permitted is the restored skills-only tree.
+# the only .claude permitted is the restored skills-only tree, which holds no
+# greenlight-review skill.
 [[ -d "$untrusted_dir" ]] || {
   echo "error: '$untrusted_dir' vanished during sanitize" >&2
   exit 1
@@ -123,6 +130,10 @@ if [[ -d "$untrusted_dir/.claude" ]]; then
   while IFS= read -r -d '' child; do
     [[ "${child##*/}" == "skills" ]] || violations+=("$child")
   done < <(find "$untrusted_dir/.claude" -mindepth 1 -maxdepth 1 -print0)
+fi
+
+if [[ -e "$untrusted_dir/$greenlight_policy_skill" || -L "$untrusted_dir/$greenlight_policy_skill" ]]; then
+  violations+=("$untrusted_dir/$greenlight_policy_skill")
 fi
 
 if [[ ${#violations[@]} -gt 0 ]]; then

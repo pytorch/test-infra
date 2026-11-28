@@ -285,7 +285,9 @@ Both modes require the head SHA.
 
 Each App token is minted for the validated repo alone. The reviewed repo is checked out under
 `./pytorch` for `pytorch/pytorch` and `./target` for any other repo, and a sparse checkout of its
-`main` takes `.claude/skills` and `.github/greenlight`.
+`main` takes `.claude/skills` and `.github/greenlight`. The sanitize step restores that `.claude/skills`
+into the checkout without its `greenlight-review` skill, so the checkout holds no copy of GreenLight's
+policy, the built-in `repo-policy.md` that pytorch/test-infra's `main` carries included.
 
 **The review policy.** The general policy (`.claude/skills/greenlight-review/SKILL.md` in
 `pytorch/test-infra`) reads one repository policy at `.claude/skills/greenlight-review/repo-policy.md`.
