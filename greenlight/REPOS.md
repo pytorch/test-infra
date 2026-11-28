@@ -1,15 +1,22 @@
 # Repos GreenLight serves (`.github/greenlight/config.yml`)
 
 Each repo GreenLight serves holds its own config at `.github/greenlight/config.yml` on its default
-branch. The directory also holds the repo's GreenLight review policy file, so one CODEOWNERS line,
-`/.github/greenlight/`, puts both under the owners' review. The modules involved are listed under
-"Modules" below.
+branch. The directory also holds the repo's GreenLight review policy file. The modules involved are
+listed under "Modules" below.
+
+A repo's own config decides whom GreenLight approves there, so its owners should protect the
+directory with both a CODEOWNERS line for `/.github/greenlight/` and branch protection's "Require
+review from Code Owners" on the default branch: a CODEOWNERS line alone only requests their review.
+The same owners must own the CODEOWNERS file itself (`/CODEOWNERS`, `/.github/CODEOWNERS` or
+`/docs/CODEOWNERS`, whichever the repo uses), or a PR that drops the `/.github/greenlight/` line
+needs no owner review. GreenLight itself must never be a code owner of either.
 
 ```yaml
 status_comment: greenlight    # drci | greenlight
 safety: gate                  # pytorchbot | gate
 eligibility: merge_rules      # merge_rules | write_permission
 mode: shadow                  # shadow | active | off
+# minimum_role: maintain      # write | maintain; optional, only with eligibility: write_permission
 ```
 
 - `status_comment`: `drci` leaves the status to Dr. CI's comment (and pokes Dr. CI after each
@@ -19,8 +26,12 @@ mode: shadow                  # shadow | active | off
   (`greenlight_guard.py`); `gate` is for repos without pytorchbot.
 - `eligibility`: whose PRs carry authority. `merge_rules` reads the repo's own
   `.github/merge_rules.yaml`; a missing or broken file fails that repo's scan, never falling back
-  to anything else. This release rejects `write_permission` when it has to resolve it.
+  to anything else. `write_permission` counts every User account with push access to the repo
+  (`writers.py`); a listing with none fails that repo's scan. Both are described in
+  [TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md).
 - `mode`: see "Modes" below.
+- `minimum_role`: optional, for `eligibility: write_permission` only. `write` (the default when the
+  key is absent) counts push access; `maintain` counts only the maintain and admin roles.
 
 The file names no repo: it belongs to the repo it sits in. Every value is read as a string: a bare
 `off` is the mode `off`, not a YAML boolean. `greenlight check-config PATH --repo OWNER/NAME`
@@ -46,7 +57,8 @@ Every problem is logged and reported by the scan.
   a verbatim `!<...>` tag): no valid config needs one. A bare `<<` is a plain, unknown key. For any repo but
   `pytorch/pytorch` also: a field missing or outside its values; `pytorchbot` outside
   `constants.PYTORCHBOT_GUARDED_REPOS`; `drci` outside `constants.DRCI_STATUS_COMMENT_REPOS`;
-  `safety: gate` with `mode: active`, which this release cannot serve safely.
+  `safety: gate` with `mode: active`, which this release cannot serve safely; `minimum_role` with
+  any `eligibility` but `write_permission`. Only `minimum_role` may be absent.
 - **safety-only**: the repo gets its safety work by its known fields and nothing else. An unknown
   key makes a repo safety-only so a newer config never takes safety work away from an older pinned
   release, and an older release never serves a file it does not fully understand.
@@ -59,10 +71,11 @@ Every problem is logged and reported by the scan.
 
 ## `pytorch/pytorch`
 
-The primary repo is never refused. Its `status_comment`, `safety` and `eligibility` are pinned to
-the built-in entry (`drci`, `pytorchbot`, `merge_rules`, mode `active`): a different or missing
-value is logged and ignored, so a config edit cannot widen whom GreenLight approves there. Unknown
-keys on it are logged and ignored too; only its `mode` comes from the file. Its file spells out
+The primary repo is never refused. Its `status_comment`, `safety`, `eligibility` and `minimum_role`
+are pinned to the built-in entry (`drci`, `pytorchbot`, `merge_rules`, `write`, mode `active`): a
+different or missing value is logged and ignored (an absent `minimum_role` is not reported), so a
+config edit cannot widen whom GreenLight approves there. Unknown keys on it are logged and ignored
+too; only its `mode` comes from the file. Its file spells out
 the built-in values with mode `active`, and `greenlight check-config` reports every value it pins
 or ignores as a problem, so a CI check running it can keep the file truthful.
 
@@ -137,15 +150,17 @@ place.
 ## Caches and the TTL trade-off
 
 The scan keeps, between scans in one process (a warm Lambda or a `--loop` daemon), each repo's
-eligibility source, kept for `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` (600 s). A transient
-failure (a GitHub 5xx, a network error or timeout) serves the last eligibility snapshot for at most
-three TTLs; a broken or missing source, or a rate limit, fails the repo's scan at once. `--pr`
-rechecks share the caches but never the tick memory.
+eligibility source, one cache per repo, `eligibility` and `minimum_role`, kept for
+`PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` (600 s). A transient failure (a GitHub 5xx, a network
+error or timeout) serves the last eligibility snapshot for at most three TTLs; a broken or missing
+source, or a rate limit, fails the repo's scan at once. `--pr` rechecks share the caches but never
+the tick memory.
 
-So a change to `merge_rules.yaml` reaches the scan within the TTL rather than on the next tick. The
-record job's eligibility check reads the rules live, so no new approval follows a removal. The
-ineligible revoke reaches only listed PRs, and the listing keeps cohort authors only, so an author
-who leaves the cohort keeps an approval already given until it is dismissed by hand.
+So a change to `merge_rules.yaml`, or to who holds a write_permission repo's minimum role, reaches
+the scan within the TTL rather than on the next tick. The record job's eligibility check reads the
+rules, or the author's permission, live, so no new approval follows a removal. The ineligible revoke
+reaches only listed PRs, and the listing keeps cohort authors only, so an author who leaves the
+cohort keeps an approval already given until it is dismissed by hand.
 
 ## Modules
 
@@ -158,3 +173,7 @@ who leaves the cohort keeps an approval already given until it is dismissed by h
   its error aggregation.
 - `drain.py`: the `off` drain; `scan_memory.py` keeps its progress between ticks.
 - `snapshot_cache.py`: the TTL cache each repo's eligibility source is read through.
+- `writers.py`: `write_permission` eligibility: the holders of the repo's minimum role as one rule
+  for the scan, and one author's role for the verdict.
+- `author_eligibility.py`: the verdict's live eligibility check (`has_eligible_author`), from either
+  source.

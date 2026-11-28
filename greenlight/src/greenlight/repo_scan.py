@@ -16,9 +16,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn
 
-from greenlight import drain, github_client, merge_authz, review
+from greenlight import drain, github_client, merge_authz, review, writers
 from greenlight.constants import REPO_CONFIG_PATH, TARGET_BRANCH
-from greenlight.repo_config import WRITE_PERMISSION_UNSUPPORTED, is_primary, read_settings
+from greenlight.repo_config import is_primary, read_settings
 from greenlight.scan_memory import ScanMemory
 from greenlight.snapshot_cache import SnapshotCache
 
@@ -29,10 +29,10 @@ if TYPE_CHECKING:
 
     from greenlight.config import Config
     from greenlight.merge_authz import MergeRulesSnapshot
-    from greenlight.repo_config import Eligibility, RepoEntry
+    from greenlight.repo_config import Eligibility, MinimumRole, RepoEntry
     from greenlight.review_finish import BuildClient
 
-    EligibilityCaches = dict[tuple[str, Eligibility], SnapshotCache[Github, MergeRulesSnapshot]]
+    EligibilityCaches = dict[tuple[str, Eligibility, MinimumRole], SnapshotCache[Github, MergeRulesSnapshot]]
 
 logger = logging.getLogger(__name__)
 
@@ -67,14 +67,15 @@ def identity_problem(entry: RepoEntry, identity: RepoIdentity) -> str | None:
     return None
 
 
-def _write_permission_unsupported(_client: Github) -> MergeRulesSnapshot:
-    raise ValueError(WRITE_PERMISSION_UNSUPPORTED)
-
-
 def eligibility_resolver(entry: RepoEntry) -> Callable[[Github], MergeRulesSnapshot]:
-    """The fetch of ``entry``'s eligibility source."""
+    """The fetch of ``entry``'s eligibility source: its merge rules, or its minimum role's holders as one rule."""
     if entry.eligibility == "write_permission":
-        return _write_permission_unsupported
+
+        def resolve_writers(client: Github) -> MergeRulesSnapshot:
+            return writers.resolve_writers(client, entry.repo, minimum_role=entry.minimum_role)
+
+        resolve_writers.__name__ = f"{entry.minimum_role}-role writers of {entry.repo}"
+        return resolve_writers
 
     def resolve(client: Github) -> MergeRulesSnapshot:
         return merge_authz.resolve_merge_rules(client, entry.repo)
@@ -94,7 +95,7 @@ def eligibility_cache(
     caches: EligibilityCaches, entry: RepoEntry, ttl_seconds: float
 ) -> SnapshotCache[Github, MergeRulesSnapshot]:
     """``entry``'s cache in ``caches``, made on first use: TTL ``ttl_seconds``, stale for at most three TTLs."""
-    key = (entry.repo, entry.eligibility)
+    key = (entry.repo, entry.eligibility, entry.minimum_role)
     cache = caches.get(key)
     if cache is None:
         cache = SnapshotCache(

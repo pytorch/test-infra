@@ -3,13 +3,13 @@ from __future__ import annotations
 import dataclasses
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, NoReturn
 from unittest.mock import Mock
 
 import pytest
 from github import GithubException, RateLimitExceededException, UnknownObjectException
 
-from greenlight import drain, github_client, merge_authz, repo_scan
+from greenlight import drain, github_client, merge_authz, repo_scan, writers
 from greenlight.constants import REPO_CONFIG_PATH, TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
@@ -118,11 +118,27 @@ def test_the_merge_rules_resolver_reads_the_entrys_own_repo(monkeypatch):
     assert calls == ["pytorch/vision"]
 
 
-def test_write_permission_eligibility_is_not_supported_by_this_release():
-    resolve = repo_scan.eligibility_resolver(dataclasses.replace(_VISION, eligibility="write_permission"))
+@pytest.mark.parametrize("minimum_role", ["write", "maintain"])
+def test_the_write_permission_resolver_reads_the_entrys_own_writers_at_its_minimum_role(monkeypatch, minimum_role):
+    calls: list[tuple[str, str]] = []
 
-    with pytest.raises(ValueError, match="write_permission eligibility is not supported by this release"):
-        resolve(object())  # type: ignore[arg-type]
+    def resolve(_client, repo, *, minimum_role):
+        calls.append((repo, minimum_role))
+        return _SNAPSHOT
+
+    monkeypatch.setattr(writers, "resolve_writers", resolve)
+    monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
+
+    entry = dataclasses.replace(_VISION, eligibility="write_permission", minimum_role=minimum_role)
+    resolver = repo_scan.eligibility_resolver(entry)
+
+    assert resolver(object()) is _SNAPSHOT  # type: ignore[arg-type]
+    assert calls == [("pytorch/vision", minimum_role)]
+    assert resolver.__name__ == f"{minimum_role}-role writers of pytorch/vision"
+
+
+def _unexpected_merge_rules_read(_client: object, repo: str) -> NoReturn:
+    raise AssertionError(f"a write_permission entry read the merge rules of {repo}")
 
 
 def test_the_primary_reads_its_eligibility_patiently_and_others_fail_fast(monkeypatch):
@@ -136,16 +152,24 @@ def test_the_primary_reads_its_eligibility_patiently_and_others_fail_fast(monkey
     assert built == [("patient", "t1"), ("fast", "t2")]
 
 
-def test_eligibility_caches_are_made_once_per_repo_and_eligibility_with_their_policy():
+def test_eligibility_caches_are_made_once_per_repo_eligibility_and_minimum_role_with_their_policy():
     caches: repo_scan.EligibilityCaches = {}
+    writers_entry = dataclasses.replace(_VISION, eligibility="write_permission")
 
     first = repo_scan.eligibility_cache(caches, _VISION, 600.0)
     again = repo_scan.eligibility_cache(caches, _VISION, 5.0)
-    other = repo_scan.eligibility_cache(caches, dataclasses.replace(_VISION, eligibility="write_permission"), 600.0)
+    other = repo_scan.eligibility_cache(caches, writers_entry, 600.0)
+    maintainers = repo_scan.eligibility_cache(
+        caches, dataclasses.replace(writers_entry, minimum_role="maintain"), 600.0
+    )
 
     assert first is again
-    assert other is not first
-    assert set(caches) == {("pytorch/vision", "merge_rules"), ("pytorch/vision", "write_permission")}
+    assert len({id(first), id(other), id(maintainers)}) == 3
+    assert set(caches) == {
+        ("pytorch/vision", "merge_rules", "write"),
+        ("pytorch/vision", "write_permission", "write"),
+        ("pytorch/vision", "write_permission", "maintain"),
+    }
     assert (first._ttl_seconds, first._max_stale_seconds) == (600.0, 1800.0)
 
 
@@ -209,7 +233,7 @@ def test_a_served_repo_runs_the_whole_review_with_its_entry_memory_and_eligibili
     monkeypatch.setattr(github_client, "build_client", lambda _token: _Client())
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", lambda _client, _repo: _SNAPSHOT)
     assert kwargs["resolve_merge_rules"]() is _SNAPSHOT
-    cache = scan.caches[("pytorch/vision", "merge_rules")]
+    cache = scan.caches[("pytorch/vision", "merge_rules", "write")]
     assert cache._ttl_seconds == make_config().merge_rules_ttl_seconds
     assert all(client.closed == 1 for client in scan.clients)
     scan.drain.assert_not_called()
@@ -228,6 +252,36 @@ def test_the_config_is_read_fresh_every_scan_from_the_scanned_repo_with_the_scan
     reads = [client for client in scan.clients if client.repo.paths]
     assert [client.names[0] for client in reads] == ["pytorch/vision", "pytorch/vision"]
     assert all(client.repo.paths == [REPO_CONFIG_PATH] for client in reads)
+
+
+@pytest.mark.parametrize(
+    ("fields", "minimum_role"),
+    [
+        pytest.param({}, "write", id="default-role"),
+        pytest.param({"minimum_role": "maintain"}, "maintain", id="maintain-role"),
+    ],
+)
+def test_a_write_permission_repo_reviews_with_its_writers_through_its_own_cache(
+    make_config, monkeypatch, fields, minimum_role
+):
+    writer_entry = dataclasses.replace(_VISION, eligibility="write_permission", minimum_role=minimum_role)
+    scan = _Scan(_file(eligibility="write_permission", **fields))
+
+    scan.run(make_config, "pytorch/vision")
+
+    roles: list[str] = []
+
+    def resolve(_client: object, _repo: str, *, minimum_role: str) -> merge_authz.MergeRulesSnapshot:
+        roles.append(minimum_role)
+        return _SNAPSHOT
+
+    monkeypatch.setattr(github_client, "build_client", lambda _token: _Client())
+    monkeypatch.setattr(writers, "resolve_writers", resolve)
+    monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
+    assert scan.review.call_args.kwargs["entry"] == writer_entry
+    assert scan.review.call_args.kwargs["resolve_merge_rules"]() is _SNAPSHOT
+    assert roles == [minimum_role]
+    assert set(scan.caches) == {("pytorch/vision", "write_permission", minimum_role)}
 
 
 def test_a_pr_recheck_gets_no_memory(make_config):

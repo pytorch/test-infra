@@ -50,7 +50,9 @@ PyTorch Green Light has one unit of work — the `review` phase:
 
 - `review.run()` — scans the open PRs from the evaluation cohort in one repo, run by `repo_scan.scan_repo` once it has
   read that repo's `.github/greenlight/config.yml` ([REPOS.md](REPOS.md); its mode picks review or drain) (`cohort.evaluation_cohort`: every `approved_by` login in `merge_rules.yaml`, team refs
-  expanded, minus bots and minus greenlight itself — that cohort is the match rule); for each PR
+  expanded, or on a `write_permission` repo every User account with push access, or maintain with
+  `minimum_role: maintain` (`writers`), minus bots and minus greenlight itself — that cohort is the
+  match rule); for each PR
   it computes the fingerprint (`eval_hash`), reads the PR's latest state from
   `misc.greenlight_pr_state`,
   and dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`)
@@ -61,8 +63,8 @@ PyTorch Green Light has one unit of work — the `review` phase:
   listing scan), and skipping any PR untouched beyond `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`
   (default 24) or carrying the `Stale` label that has no in-flight or retry-eligible
   (cancelled/failed) review, and skipping — without fingerprinting or dispatching — any PR a human
-  has already decided (approved by a `merge_rules.yaml` approver, bots excluded, or changes
-  requested by any non-bot reviewer).
+  has already decided (approved by a `merge_rules.yaml` approver, or on a `write_permission` repo by a
+  holder of its minimum role, bots excluded, or changes requested by any non-bot reviewer).
   The listing alternates per process (`pr_listing`, `scan_memory`): a full tick lists every open
   PR, on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
   `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed
@@ -94,10 +96,11 @@ PyTorch Green Light has one unit of work — the `review` phase:
   `BOT_LOGIN`, and `CLICKHOUSE_*` read access.
 
 `cohort.assess_rules` answers a different question, per PR: whose evaluation carries authority. A
-valid merge rule must name the author, whatever files the PR changes, and the PR must be on a base
-`merge_authz.accepts_base` accepts: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
+valid merge rule must name the author (or, on a `write_permission` repo, the author must have write
+access, or maintain with `minimum_role: maintain`), whatever files the PR changes, and the PR must be
+on a base `merge_authz.accepts_base` accepts: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
 is `main`, matched by branch names. The scan judges the base from the listing (`pr_listing`), the
-`--pr` gate and the verdict (`verdict.has_eligible_author`, which also requires the reviewed head)
+`--pr` gate and the verdict (`author_eligibility.has_eligible_author`, which also requires the reviewed head)
 from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's
