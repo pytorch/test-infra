@@ -48,8 +48,8 @@ defer; they block CI.
 
 PyTorch Green Light has one unit of work — the `review` phase:
 
-- `review.run()` — scans the open PRs from the evaluation cohort in `pytorch/pytorch`
-  (`cohort.evaluation_cohort`: every `approved_by` login in `merge_rules.yaml`, team refs
+- `review.run()` — scans the open PRs from the evaluation cohort in one repo, run by `repo_scan.scan_repo` once it has
+  read that repo's `.github/greenlight/config.yml` ([REPOS.md](REPOS.md); its mode picks review or drain) (`cohort.evaluation_cohort`: every `approved_by` login in `merge_rules.yaml`, team refs
   expanded, minus bots and minus greenlight itself — that cohort is the match rule); for each PR
   it computes the fingerprint (`eval_hash`), reads the PR's latest state from
   `misc.greenlight_pr_state`,
@@ -154,9 +154,10 @@ cannot reach.
 In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda: it runs
 the one-shot path with no single-instance lock and both hang-guard layers off
 (`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`; the watchdog's `os._exit` is wrong under Lambda),
-relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead. A warm Lambda
-keeps the scan's tick memory, kept fingerprints included, between invocations; a CLI one-shot always
-lists in full.
+relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead. The repo's
+config is read every scan; a warm Lambda keeps the scan's tick memory (kept fingerprints, a drain's
+progress) and its merge-rules (eligibility) caches between invocations; a CLI one-shot always lists
+in full.
 
 ## Comments
 

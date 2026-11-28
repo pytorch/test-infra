@@ -154,3 +154,30 @@ def test_dispatch_propagates_create_dispatch_exception() -> None:
         dispatch.dispatch_review(client, 99, _HEAD_SHA, _EVAL_HASH, shadow=False)
 
     assert len(workflow.calls) == 1
+
+
+def test_dispatch_sends_no_repo_input_for_the_primary_repo() -> None:
+    client, _repo, workflow = _wire()
+
+    dispatch.dispatch_review(client, 123, _HEAD_SHA, _EVAL_HASH, shadow=False, repo="pytorch/pytorch")
+
+    _ref, inputs, _throw = workflow.calls[0]
+    assert inputs == _EXPECTED_VISIBLE_INPUTS
+
+
+def test_dispatch_adds_the_repo_input_for_another_repo(caplog: pytest.LogCaptureFixture) -> None:
+    client, _repo, workflow = _wire()
+
+    with caplog.at_level("INFO", logger="greenlight"):
+        dispatch.dispatch_review(client, 123, _HEAD_SHA, _EVAL_HASH, shadow=True, repo="pytorch/vision")
+
+    _ref, inputs, _throw = workflow.calls[0]
+    assert inputs == {**_EXPECTED_SHADOW_INPUTS, "repo": "pytorch/vision"}
+    assert "to review pytorch/vision#123" in caplog.text
+
+
+def test_dispatch_failure_names_the_reviewed_repo() -> None:
+    client, _repo, _workflow = _wire(result=False)
+
+    with pytest.raises(RuntimeError, match=r"to review pytorch/vision#9 returned failure"):
+        dispatch.dispatch_review(client, 9, _HEAD_SHA, _EVAL_HASH, shadow=False, repo="pytorch/vision")

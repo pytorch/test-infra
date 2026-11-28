@@ -5,7 +5,6 @@ from collections.abc import Iterable
 import pytest
 
 from greenlight import constants, merge_authz
-from greenlight.guards import IterationTimeout
 
 
 class _FakeContent:
@@ -204,7 +203,7 @@ def test_resolve_merge_rules_keeps_exact_case_approvers_beside_the_lowercased_fl
     )
     client = _client(yaml_text, teams={"pytorch/pytorch-dev-infra": ["Dan", "erin"]})
 
-    snapshot = merge_authz.resolve_merge_rules(client)
+    snapshot = merge_authz.resolve_merge_rules(client, constants.TARGET_REPO)
 
     assert snapshot.authorized == frozenset({"alband", "dan", "erin"})
     docs, ci = snapshot.rules
@@ -227,7 +226,7 @@ def test_resolve_merge_rules_turns_an_invalid_pattern_into_a_rule_that_covers_no
     yaml_text = f"- name: Broken\n  patterns: {patterns}\n  approved_by: [Alice]\n"
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
-        snapshot = merge_authz.resolve_merge_rules(_client(yaml_text))
+        snapshot = merge_authz.resolve_merge_rules(_client(yaml_text), constants.TARGET_REPO)
 
     assert snapshot.authorized == frozenset({"alice"})
     (rule,) = snapshot.rules
@@ -238,7 +237,7 @@ def test_resolve_merge_rules_turns_an_invalid_pattern_into_a_rule_that_covers_no
 
 
 def test_resolve_merge_rules_never_reads_a_missing_pattern_list_as_a_catch_all():
-    snapshot = merge_authz.resolve_merge_rules(_client("- name: Odd\n  approved_by: [Alice]\n"))
+    snapshot = merge_authz.resolve_merge_rules(_client("- name: Odd\n  approved_by: [Alice]\n"), constants.TARGET_REPO)
 
     (rule,) = snapshot.rules
     assert rule.covers([]) is False
@@ -435,183 +434,19 @@ def test_changed_files_counts_a_repeated_path_toward_the_file_cap():
     assert merge_authz.changed_files(_files_pr(*filenames, filenames[-1], "a.py")) is None
 
 
-def _snapshot(*logins: str) -> merge_authz.MergeRulesSnapshot:
-    return merge_authz.MergeRulesSnapshot(authorized=frozenset(logins), rules=())
-
-
-class _Clock:
-    def __init__(self, start: float = 0.0) -> None:
-        self.t = start
-
-    def __call__(self) -> float:
-        return self.t
-
-
-def test_cache_is_lazy_no_fetch_before_snapshot():
-    calls: list[int] = []
-
-    def fetch(_client):
-        calls.append(1)
-        return _snapshot("alice")
-
-    merge_authz.AuthorizedLoginsCache(lambda: _FakeAuthzClient(), ttl_seconds=600, monotonic=lambda: 0.0, fetch=fetch)
-
-    assert calls == []
-
-
-def test_cache_first_snapshot_builds_client_and_passes_it_to_fetch():
-    client = _FakeAuthzClient()
-    fetched: list[object] = []
-
-    def fetch(passed):
-        fetched.append(passed)
-        return _snapshot("alice")
-
-    cache = merge_authz.AuthorizedLoginsCache(lambda: client, ttl_seconds=600, monotonic=lambda: 0.0, fetch=fetch)
-
-    assert cache.snapshot().authorized == frozenset({"alice"})
-    assert fetched == [client]
-
-
-def test_cache_serves_cached_within_ttl():
-    fetch_calls: list[int] = []
-
-    def fetch(_client):
-        fetch_calls.append(1)
-        return _snapshot(f"fetch{len(fetch_calls)}")
-
-    clock = _Clock(0.0)
-    cache = merge_authz.AuthorizedLoginsCache(lambda: _FakeAuthzClient(), ttl_seconds=600, monotonic=clock, fetch=fetch)
-
-    first = cache.snapshot().authorized
-    clock.t = 599.0
-    second = cache.snapshot().authorized
-
-    assert first == second == frozenset({"fetch1"})
-    assert len(fetch_calls) == 1
-
-
-def test_cache_refetches_after_ttl_expiry():
-    fetch_calls: list[int] = []
-
-    def fetch(_client):
-        fetch_calls.append(1)
-        return _snapshot(f"fetch{len(fetch_calls)}")
-
-    clock = _Clock(0.0)
-    cache = merge_authz.AuthorizedLoginsCache(lambda: _FakeAuthzClient(), ttl_seconds=600, monotonic=clock, fetch=fetch)
-
-    assert cache.snapshot().authorized == frozenset({"fetch1"})
-    clock.t = 600.0  # at the boundary the entry is already expired (strict <)
-    assert cache.snapshot().authorized == frozenset({"fetch2"})
-    assert len(fetch_calls) == 2
-
-
-def test_cache_serves_stale_set_on_refresh_error(caplog):
-    state = {"n": 0}
-
-    def fetch(_client):
-        state["n"] += 1
-        if state["n"] == 1:
-            return _snapshot("good")
-        raise RuntimeError("merge_rules down")
-
-    clock = _Clock(0.0)
-    cache = merge_authz.AuthorizedLoginsCache(lambda: _FakeAuthzClient(), ttl_seconds=600, monotonic=clock, fetch=fetch)
-
-    assert cache.snapshot().authorized == frozenset({"good"})
-    clock.t = 700.0
-    with caplog.at_level(logging.WARNING, logger="greenlight"):
-        stale = cache.snapshot().authorized
-
-    assert stale == frozenset({"good"})
-    assert "serving stale" in caplog.text
-    assert any(record.exc_info is not None for record in caplog.records)
-
-
-def test_cache_cold_failure_raises():
-    def fetch(_client):
-        raise RuntimeError("merge_rules down")
-
-    cache = merge_authz.AuthorizedLoginsCache(
-        lambda: _FakeAuthzClient(), ttl_seconds=600, monotonic=lambda: 0.0, fetch=fetch
-    )
-
-    with pytest.raises(RuntimeError, match="merge_rules down"):
-        cache.snapshot()
-
-
-def test_cache_default_fetch_resolves_from_merge_rules():
+def test_resolve_merge_rules_reads_the_named_repo_and_names_it_in_errors():
     client = _client("- name: CI\n  approved_by: [Alice]\n")
 
-    cache = merge_authz.AuthorizedLoginsCache(lambda: client, ttl_seconds=600, monotonic=lambda: 0.0)
-
-    assert cache.snapshot().authorized == frozenset({"alice"})
-
-
-class _ClosableAuthzClient(_FakeAuthzClient):
-    def __init__(self, *, close_error: bool = False) -> None:
-        super().__init__()
-        self.closed = 0
-        self._close_error = close_error
-
-    def close(self) -> None:
-        self.closed += 1
-        if self._close_error:
-            raise RuntimeError("close boom")
+    assert merge_authz.resolve_merge_rules(client, "pytorch/vision").authorized == frozenset({"alice"})
+    assert client.get_repo_names == ["pytorch/vision"]
+    with pytest.raises(ValueError, match=r"pytorch/vision/\.github/merge_rules\.yaml must be a list"):
+        merge_authz.resolve_merge_rules(_client("a: 1\n"), "pytorch/vision")
+    with pytest.raises(ValueError, match=r"pytorch/vision/\.github/merge_rules\.yaml: merge rule must be a mapping"):
+        merge_authz.resolve_merge_rules(_client("- 1\n"), "pytorch/vision")
 
 
-def test_cache_warm_refetch_propagates_iteration_timeout():
-    calls = {"n": 0}
+def test_resolve_authorized_logins_defaults_to_the_target_repo():
+    client = _client("- name: CI\n  approved_by: [Alice]\n")
 
-    def fetch(_client):
-        calls["n"] += 1
-        if calls["n"] == 1:
-            return _snapshot("good")
-        raise IterationTimeout("iteration exceeded")
-
-    clock = _Clock(0.0)
-    cache = merge_authz.AuthorizedLoginsCache(lambda: _FakeAuthzClient(), ttl_seconds=600, monotonic=clock, fetch=fetch)
-
-    assert cache.snapshot().authorized == frozenset({"good"})
-    clock.t = 700.0
-    # A warm cache must NOT mask the soft timeout as a transient refresh error and serve stale.
-    with pytest.raises(IterationTimeout):
-        cache.snapshot()
-
-
-def test_cache_closes_transient_client_after_fetch():
-    client = _ClosableAuthzClient()
-    cache = merge_authz.AuthorizedLoginsCache(
-        lambda: client, ttl_seconds=600, monotonic=lambda: 0.0, fetch=lambda _c: _snapshot("alice")
-    )
-
-    assert cache.snapshot().authorized == frozenset({"alice"})
-    assert client.closed == 1
-
-
-def test_cache_closes_transient_client_even_when_fetch_raises():
-    client = _ClosableAuthzClient()
-
-    def fetch(_client):
-        raise RuntimeError("boom")
-
-    cache = merge_authz.AuthorizedLoginsCache(lambda: client, ttl_seconds=600, monotonic=lambda: 0.0, fetch=fetch)
-
-    with pytest.raises(RuntimeError, match="boom"):
-        cache.snapshot()
-    assert client.closed == 1
-
-
-def test_cache_swallows_client_close_error(caplog):
-    client = _ClosableAuthzClient(close_error=True)
-    cache = merge_authz.AuthorizedLoginsCache(
-        lambda: client, ttl_seconds=600, monotonic=lambda: 0.0, fetch=lambda _c: _snapshot("alice")
-    )
-
-    with caplog.at_level(logging.WARNING, logger="greenlight"):
-        assert cache.snapshot().authorized == frozenset({"alice"})
-
-    assert client.closed == 1
-    assert "failed to close GitHub client" in caplog.text
-    assert any(record.exc_info is not None for record in caplog.records)
+    assert merge_authz.resolve_authorized_logins(client) == frozenset({"alice"})
+    assert client.get_repo_names == [constants.TARGET_REPO]

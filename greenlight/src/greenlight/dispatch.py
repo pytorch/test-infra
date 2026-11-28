@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from greenlight import constants
 from greenlight.constants import DEFAULT_DISPATCH_REF, DISPATCH_REPO, TARGET_REPO, WORKFLOW_FILE
+from greenlight.repo_config import is_primary
 
 if TYPE_CHECKING:
 
@@ -41,15 +42,18 @@ def dispatch_review(
     ref: str = DEFAULT_DISPATCH_REF,
     *,
     shadow: bool,
+    repo: str = TARGET_REPO,
 ) -> None:
-    """Fire the PR-review workflow for one PR.
+    """Fire the PR-review workflow for one PR of ``repo``.
 
     Every input is sent as a string, whatever type the workflow declares: GitHub's
     ``workflow_dispatch`` REST payload types ``inputs`` as ``{[key: string]: string}``, so the
     boolean ``shadow`` input travels as the lowercase literal the workflow's own YAML uses. A
     malformed ``eval_hash`` or ``head_sha`` raises before any GitHub call. The dispatch is
     issued with ``throw=True`` so a PyGithub API error propagates; a ``False`` return
-    becomes a ``RuntimeError`` rather than being swallowed.
+    becomes a ``RuntimeError`` rather than being swallowed. The ``repo`` input is sent only for a
+    repo other than the primary, so the primary's dispatch carries exactly the inputs the workflow
+    has always declared.
     """
     constants.validate_eval_hash(eval_hash)
     constants.validate_head_sha(head_sha)
@@ -60,10 +64,12 @@ def dispatch_review(
         "eval_hash": eval_hash,
         "shadow": "true" if shadow else "false",
     }
+    if not is_primary(repo):
+        inputs["repo"] = repo
     workflow = client.get_repo(DISPATCH_REPO).get_workflow(WORKFLOW_FILE)
     dispatched = workflow.create_dispatch(ref, inputs=inputs, throw=True)
     if not dispatched:
         raise RuntimeError(
-            f"dispatch of {WORKFLOW_FILE} ({DISPATCH_REPO}@{ref}) to review {TARGET_REPO}#{pr_number} returned failure"
+            f"dispatch of {WORKFLOW_FILE} ({DISPATCH_REPO}@{ref}) to review {repo}#{pr_number} returned failure"
         )
-    logger.info("dispatched %s (%s@%s) to review %s#%d", WORKFLOW_FILE, DISPATCH_REPO, ref, TARGET_REPO, pr_number)
+    logger.info("dispatched %s (%s@%s) to review %s#%d", WORKFLOW_FILE, DISPATCH_REPO, ref, repo, pr_number)

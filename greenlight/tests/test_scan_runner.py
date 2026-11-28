@@ -11,6 +11,7 @@ import pytest
 
 from greenlight import scan_runner
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
+from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
@@ -204,11 +205,12 @@ def test_fingerprint_task_returns_result_and_returns_client_to_pool():
     pool.put(client)
     event = threading.Event()
 
-    def fingerprint(borrowed, _number, _authorized, _skip):
+    def fingerprint(borrowed, repo, _number, _authorized, _skip):
+        assert repo == "pytorch/vision"
         assert borrowed is client
         return ("headsha", "b" * 64)
 
-    result = scan_runner._fingerprint_task(fingerprint, pool, 5, frozenset({"alice"}), True, event)
+    result = scan_runner._fingerprint_task(fingerprint, pool, "pytorch/vision", 5, frozenset({"alice"}), True, event)
 
     assert result == ("headsha", "b" * 64)
     assert pool.get_nowait() is client  # borrowed then returned via finally
@@ -225,7 +227,7 @@ def test_fingerprint_task_returns_cancelled_without_touching_pool_when_event_set
     def fingerprint(*_args):
         raise AssertionError("fingerprint must not run once the cancel event is set")
 
-    result = scan_runner._fingerprint_task(fingerprint, pool, 5, frozenset(), True, event)
+    result = scan_runner._fingerprint_task(fingerprint, pool, TARGET_REPO, 5, frozenset(), True, event)
 
     # A pre-set cancel event short-circuits before borrowing a client, so the already-limited API is
     # never hit again: the client is left untouched in the pool (get was never called).
@@ -248,7 +250,7 @@ def test_fingerprint_task_rate_limit_error_sets_cancel_and_reraises_returning_cl
     # A rate limit trips the shared cancel event (so sibling tasks abandon) yet still propagates,
     # and the borrowed client returns to the pool via the finally.
     with pytest.raises(RateLimitExceededException):
-        scan_runner._fingerprint_task(fingerprint, pool, 5, frozenset(), True, event)
+        scan_runner._fingerprint_task(fingerprint, pool, TARGET_REPO, 5, frozenset(), True, event)
 
     assert event.is_set()
     assert pool.get_nowait() is client
@@ -266,7 +268,7 @@ def test_fingerprint_task_non_rate_limit_error_propagates_without_cancel():
     # A non-rate-limit error must NOT be swallowed by the rate-limit arm -- it propagates with its
     # real type, leaves the cancel event untouched, and returns the client.
     with pytest.raises(ValueError, match="not a rate limit"):
-        scan_runner._fingerprint_task(fingerprint, pool, 5, frozenset(), True, event)
+        scan_runner._fingerprint_task(fingerprint, pool, TARGET_REPO, 5, frozenset(), True, event)
 
     assert not event.is_set()
     assert pool.get_nowait() is client
@@ -364,6 +366,7 @@ def _until_dispatchable(
     return scan_runner._fingerprint_until_dispatchable(
         pr_numbers,
         states or {},
+        repo=TARGET_REPO,
         fingerprint=fingerprint,
         client_pool=_client_pool(worker_count),
         worker_count=worker_count,
@@ -393,6 +396,7 @@ def _all(
     return scan_runner._fingerprint_all(
         pr_numbers,
         states,
+        repo=TARGET_REPO,
         fingerprint=fingerprint,
         client_pool=_client_pool(2),
         worker_count=2,
@@ -413,7 +417,7 @@ def test_fingerprint_until_dispatchable_stops_submitting_once_the_limit_is_reach
     fingerprinted: list[int] = []
     lock = threading.Lock()
 
-    def fingerprint(_client, number, _authorized, _skip):
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         with lock:
             fingerprinted.append(number)
         return (f"headsha{number}", _CHANGED_HASH)
@@ -439,7 +443,7 @@ def test_fingerprint_until_dispatchable_refills_the_pool_without_waiting_for_the
     later_task_started = threading.Event()
     failed: list[int] = []
 
-    def fingerprint(_client, number, _authorized, _skip):
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         if number == 1:
             # PR1 finishes only once a task beyond the first pool-sized group has started. Under a
             # batch barrier that task is never submitted (it waits on PR1), so this times out.
@@ -459,7 +463,7 @@ def test_fingerprint_until_dispatchable_returns_ranked_order_not_completion_orde
     other_finished = threading.Event()
     failed: list[int] = []
 
-    def fingerprint(_client, number, _authorized, _skip):
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         # A two-way handshake pins the completion order: PR5 cannot finish until PR9 is parked, and
         # PR9 cannot finish until PR5 has. The stalest PR therefore always completes last.
         if number == 9:
@@ -498,7 +502,7 @@ def test_fingerprint_until_dispatchable_stops_submitting_once_the_fan_out_is_can
     abandoned: list[int] = []
     skips: list[tuple[int, ReviewSkip]] = []
 
-    def fingerprint(_client, number, _authorized, _skip_on_approval):
+    def fingerprint(_client, _repo, number, _authorized, _skip_on_approval):
         with lock:
             fingerprinted.append(number)
         if number == 2:
@@ -543,7 +547,7 @@ def test_a_cached_result_that_settles_its_pr_is_judged_without_a_fingerprint(cap
     skips: list[tuple[int, ReviewSkip]] = []
     cache = _FakeCache({1: ("headsha1", _EVAL_HASH), 2: _skip("changes requested by bob")})
 
-    def fingerprint(_client, number, _authorized, _skip_on_approval):
+    def fingerprint(_client, _repo, number, _authorized, _skip_on_approval):
         fingerprinted.append(number)
         return (f"headsha{number}", _EVAL_HASH)
 
@@ -574,7 +578,7 @@ def test_a_cached_result_that_would_dispatch_is_fingerprinted_afresh_and_the_fre
     cache = _FakeCache({1: ("stalehead", _EVAL_HASH)})
     fingerprinted: list[int] = []
 
-    def fingerprint(_client, number, _authorized, _skip_on_approval):
+    def fingerprint(_client, _repo, number, _authorized, _skip_on_approval):
         fingerprinted.append(number)
         return ("freshhead", _CHANGED_HASH)
 
@@ -600,7 +604,7 @@ def test_cache_hits_take_no_slot_and_never_count_toward_the_limit():
     }
     cache = _FakeCache({1: ("headsha1", _EVAL_HASH), 2: ("headsha2", _EVAL_HASH)})
 
-    def fingerprint(_client, number, _authorized, _skip_on_approval):
+    def fingerprint(_client, _repo, number, _authorized, _skip_on_approval):
         with lock:
             fingerprinted.append(number)
         return (f"headsha{number}", _CHANGED_HASH)
@@ -629,7 +633,7 @@ def test_cache_hits_are_still_judged_when_a_rate_limit_cancels_the_fan_out():
     skips: list[tuple[int, ReviewSkip]] = []
     cache = _FakeCache({11: ("headsha11", _EVAL_HASH), 12: ("headsha12", _EVAL_HASH)})
 
-    def fingerprint(_client, number, _authorized, _skip_on_approval):
+    def fingerprint(_client, _repo, number, _authorized, _skip_on_approval):
         with lock:
             fingerprinted.append(number)
         if number == 2:
@@ -671,7 +675,7 @@ def test_fingerprint_all_judges_cache_hits_fingerprints_the_rest_and_never_cache
     abandoned: list[int] = []
     cache = _FakeCache({1: ("headsha1", _EVAL_HASH), 2: ("stalehead", _EVAL_HASH)})
 
-    def fingerprint(_client, number, _authorized, _skip_on_approval):
+    def fingerprint(_client, _repo, number, _authorized, _skip_on_approval):
         with lock:
             fingerprinted.append(number)
         return (f"freshhead{number}", _CHANGED_HASH)

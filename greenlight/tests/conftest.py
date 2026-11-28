@@ -4,8 +4,9 @@ import os
 
 import pytest
 
-from greenlight import guards, verdict
+from greenlight import guards, repo_config, verdict
 from greenlight.config import Config
+from greenlight.constants import DRCI_STATUS_COMMENT_REPOS, normalize_repo
 
 
 @pytest.fixture(autouse=True)
@@ -35,9 +36,13 @@ class _FakeEligibility:
     def __init__(self, authors: frozenset[str]) -> None:
         self.authors = authors
         self.calls: list[tuple[str, str, int, str, str | None]] = []
+        self.eligibilities: list[str] = []
 
-    def __call__(self, token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> bool:
+    def __call__(
+        self, token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: str
+    ) -> bool:
         self.calls.append((token, repo, pr_number, head_sha, author))
+        self.eligibilities.append(eligibility)
         return author in self.authors
 
 
@@ -54,6 +59,45 @@ def set_eligible(monkeypatch):
         return fake
 
     return _install
+
+
+def _served_active_entry(repo: str) -> repo_config.RepoEntry:
+    drci = normalize_repo(repo) in DRCI_STATUS_COMMENT_REPOS
+    return repo_config.RepoEntry(
+        repo,
+        status_comment="drci" if drci else "greenlight",
+        safety="pytorchbot" if drci else "gate",
+        eligibility="merge_rules",
+        mode="active",
+    )
+
+
+@pytest.fixture(autouse=True)
+def set_repo_settings(monkeypatch):
+    """Answer ``repo_config.fetch_settings``, verdict's read of a repo's config file, without GitHub.
+
+    By default every repo's file is valid, served and active, its status comment Dr. CI's exactly for
+    the repos the HUD renders. ``set_repo_settings(repo, outcome)`` overrides one repo with the
+    ``Settings`` to return or the exception to raise. ``calls`` on the returned function records every
+    ``(token, repo)`` read.
+    """
+    overrides: dict[str, repo_config.Settings | BaseException] = {}
+    calls: list[tuple[str, str]] = []
+
+    def fetch(token: str, repo: str) -> repo_config.Settings:
+        calls.append((token, repo))
+        outcome = overrides.get(repo)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome or repo_config.Settings(repo, "valid", _served_active_entry(repo), served=True)
+
+    monkeypatch.setattr(repo_config, "fetch_settings", fetch)
+
+    def _set(repo: str, outcome: repo_config.Settings | BaseException) -> None:
+        overrides[repo] = outcome
+
+    _set.calls = calls  # type: ignore[attr-defined]
+    return _set
 
 
 @pytest.fixture(autouse=True)

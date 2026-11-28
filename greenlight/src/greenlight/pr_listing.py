@@ -1,4 +1,4 @@
-"""List the open pytorch/pytorch PRs the review scan considers, and hand them to it as candidates.
+"""List a repo's open PRs the review scan considers, and hand them to it as candidates.
 
 A full listing walks every open PR. A fast listing walks the open PRs most recently updated first,
 stops at the review window's cutoff, and adds every open PR labelled ``Reverted``, which the revert
@@ -19,7 +19,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
-from greenlight.constants import REVERTED_LABELS, TARGET_REPO
+from greenlight.constants import REVERTED_LABELS
 from greenlight.merge_authz import accepts_base
 from greenlight.state import naive_utc
 
@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
     from greenlight.github_types import _IssueClient, _ListedPR, _PRHead, _PRRef, _PullRequest, _RepoClient
 
-    FetchFn = Callable[[Github, frozenset[str]], list["OpenPR"]]
-    FetchUpdatedFn = Callable[[Github, frozenset[str], datetime], list["OpenPR"]]
+    FetchFn = Callable[[Github, str, frozenset[str]], list["OpenPR"]]
+    FetchUpdatedFn = Callable[[Github, str, frozenset[str], datetime], list["OpenPR"]]
 
 logger = logging.getLogger(__name__)
 
@@ -141,17 +141,17 @@ def list_reverted_prs(client: _IssueClient, repo: str, authors: Iterable[str]) -
     )
 
 
-def default_fetch(client: Github, authors: frozenset[str]) -> list[OpenPR]:
-    return list_open_prs_by_authors(client, TARGET_REPO, authors)
+def default_fetch(client: Github, repo: str, authors: frozenset[str]) -> list[OpenPR]:
+    return list_open_prs_by_authors(client, repo, authors)
 
 
-def default_fetch_updated(client: Github, authors: frozenset[str], cutoff: datetime) -> list[OpenPR]:
+def default_fetch_updated(client: Github, repo: str, authors: frozenset[str], cutoff: datetime) -> list[OpenPR]:
     """The PRs updated after ``cutoff``, plus the open ``Reverted`` PRs that walk missed.
 
     A PR in both keeps the ``Reverted`` listing's copy: read after the walk, its labels are fresher.
     """
-    walked = list_recently_updated_prs(client, TARGET_REPO, authors, cutoff=cutoff)
-    reverted = list_reverted_prs(client, TARGET_REPO, authors)
+    walked = list_recently_updated_prs(client, repo, authors, cutoff=cutoff)
+    reverted = list_reverted_prs(client, repo, authors)
     walked_numbers = {pr.number for pr in walked}
     added = sum(pr.number not in walked_numbers for pr in reverted)
     logger.info("fast tick: %d PR(s) updated since the cutoff, plus %d labelled Reverted", len(walked), added)
@@ -161,6 +161,7 @@ def default_fetch_updated(client: Github, authors: frozenset[str], cutoff: datet
 def candidate_numbers(
     client: Github,
     *,
+    repo: str,
     pr: int | None,
     authors: frozenset[str],
     fetch: FetchFn,
@@ -176,15 +177,15 @@ def candidate_numbers(
     candidate but gets no author, so the scan treats it as shadow.
     """
     if pr is not None:
-        logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
+        logger.info("targeting single PR #%d in %s", pr, repo)
         return [pr], {}, {}, {}, {}
     if cutoff is None:
-        open_prs = fetch(client, authors)
+        open_prs = fetch(client, repo, authors)
         tick = "full tick"
     else:
-        open_prs = fetch_updated(client, authors, cutoff)
+        open_prs = fetch_updated(client, repo, authors, cutoff)
         tick = f"fast tick, updated since {cutoff:%Y-%m-%d %H:%M:%S} UTC"
-    logger.info("found %d open PR(s) from %d author(s) in %s (%s)", len(open_prs), len(authors), TARGET_REPO, tick)
+    logger.info("found %d open PR(s) from %d author(s) in %s (%s)", len(open_prs), len(authors), repo, tick)
     for open_pr in open_prs:
         logger.debug("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
         if open_pr.base_accepted is False:

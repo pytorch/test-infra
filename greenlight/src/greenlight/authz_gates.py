@@ -13,7 +13,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from greenlight.authority import Target, eligible_rule
-from greenlight.constants import TARGET_REPO
 from greenlight.merge_authz import accepts_base
 
 if TYPE_CHECKING:
@@ -39,6 +38,7 @@ def admit_target(
     client: Github,
     pr: int,
     *,
+    repo: str,
     rules: Sequence[EligibilityRule],
     get_pr: Callable[[Github, str, int], VerdictPR],
     allow_untrusted_author: bool,
@@ -55,7 +55,7 @@ def admit_target(
     local flag revoke a real one. A failed read propagates, failing the pass before the revert guard
     runs for the target.
     """
-    target = get_pr(client, TARGET_REPO, pr)
+    target = get_pr(client, repo, pr)
     user = target.user
     author = user.login if user is not None else None
     if not accepts_base(target):

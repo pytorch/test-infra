@@ -1,4 +1,4 @@
-"""What the review scan carries from one listing tick to the next within a process.
+"""What the scan carries for one repo from one tick to the next within a process.
 
 A fresh process starts cold. It is read and written from the main thread only.
 """
@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import datetime
 
+    from greenlight.repo_config import Settings
     from greenlight.scan_runner import FingerprintResult
 
 logger = logging.getLogger(__name__)
@@ -37,8 +38,39 @@ class _Entry:
     result: FingerprintResult
 
 
+@dataclass(slots=True)
+class DrainPass:
+    """One pass of the ``off`` drain over a repo's open PRs (``drain``).
+
+    ``recorded`` holds the PRs that had a ledger row when the pass started (the queue's first part);
+    ``cursor`` is the queue key of the last PR the pass reached; ``clean`` maps each PR found with no
+    live approval to the listed ``updated_at`` it was found at, kept only once that ``updated_at``
+    was ``FINGERPRINT_QUIET`` old. ``blocker`` says why the pass cannot complete the drain even if it
+    finds nothing (review runs older than the off switch were unfinished when it started), or is None.
+    """
+
+    number: int
+    blocker: str | None
+    recorded: frozenset[int] = frozenset()
+    cursor: tuple[int, int] | None = None
+    clean: dict[int, datetime] = field(default_factory=dict)
+    checked: int = 0
+    dismissed: int = 0
+    failures: int = 0
+
+    def is_clean(self, number: int, updated_at: datetime | None) -> bool:
+        return updated_at is not None and self.clean.get(number) == updated_at
+
+    def remember_clean(self, number: int, updated_at: datetime | None, now: datetime) -> None:
+        if updated_at is not None and now - updated_at >= FINGERPRINT_QUIET:
+            self.clean[number] = updated_at
+
+
 class ScanMemory:
-    """When the last full listing tick that completed started, and the fingerprint results to reuse.
+    """When the last full listing tick that completed started, the fingerprint results to reuse, and the drain.
+
+    ``last_settings`` is the repo's config as last read when that read was not unreadable, which an
+    unreadable read serves instead (``repo_config.read_settings``), or None.
 
     Times are the scan's naive-UTC wall clock: a monotonic clock may not advance while Lambda freezes
     the execution environment between invocations. A full tick is due when none has completed, or once
@@ -49,6 +81,11 @@ class ScanMemory:
     def __init__(self) -> None:
         self._last_full_tick_started: datetime | None = None
         self._fingerprints: dict[int, _Entry] = {}
+        self._off_since: datetime | None = None
+        self._drain_passes = 0
+        self._drain_pass: DrainPass | None = None
+        self._drain_completed_by: int | None = None
+        self.last_settings: Settings | None = None
 
     def full_tick_due(self, now: datetime) -> bool:
         if self._last_full_tick_started is None:
@@ -58,6 +95,36 @@ class ScanMemory:
 
     def mark_full_tick(self, started_at: datetime) -> None:
         self._last_full_tick_started = started_at
+
+    def off_since(self, now: datetime) -> datetime:
+        """When this process first saw the repo off, recording ``now`` the first time."""
+        if self._off_since is None:
+            self._off_since = now
+        return self._off_since
+
+    def clear_drain(self) -> None:
+        """Forget the drain: the repo is not off, so a later switch to off starts over."""
+        self._off_since = None
+        self._drain_pass = None
+        self._drain_completed_by = None
+
+    def drain_pass(self) -> DrainPass | None:
+        return self._drain_pass
+
+    def start_drain_pass(self, blocker: str | None, *, recorded: frozenset[int] = frozenset()) -> DrainPass:
+        self._drain_passes += 1
+        self._drain_pass = DrainPass(self._drain_passes, blocker, recorded)
+        return self._drain_pass
+
+    def end_drain_pass(self) -> None:
+        self._drain_pass = None
+
+    def drain_completed_by(self) -> int | None:
+        """The pass that completed the drain while the repo stayed off, or None."""
+        return self._drain_completed_by
+
+    def complete_drain(self, pass_number: int) -> None:
+        self._drain_completed_by = pass_number
 
 
 class FingerprintCache:
