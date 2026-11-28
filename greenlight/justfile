@@ -25,6 +25,7 @@ typecheck:
     uv run mypy
     uv run mypy ../.claude/hooks/greenlight/assert-loaded-instructions.py
     uv run mypy ../.claude/hooks/greenlight/restrict-read.py
+    uv run mypy ../.claude/hooks/greenlight/repo-policy.py
 
 # Run the test suite with coverage
 test:

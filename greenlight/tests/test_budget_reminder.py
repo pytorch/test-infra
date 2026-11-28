@@ -774,7 +774,7 @@ def _model_step_timeout_min() -> int:
 def _hook_settings() -> dict[str, Any]:
     """The .claude/settings.local.json the review job writes, parsed out of its heredoc."""
     for step in _review_job()["steps"]:
-        match = re.search(r"<<'EOF'\n(.*?)\n\s*EOF\s*$", str(step.get("run", "")), re.DOTALL)
+        match = re.search(r"<<'EOF'\n(.*?)\n\s*EOF\n", str(step.get("run", "")), re.DOTALL)
         if match and '"hooks"' in match.group(1):
             settings: dict[str, Any] = json.loads(match.group(1))
             return settings

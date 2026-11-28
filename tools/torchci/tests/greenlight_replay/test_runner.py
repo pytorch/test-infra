@@ -114,7 +114,7 @@ class RunnerTestCase(ScratchTestCase):
         patched.start()
         self.addCleanup(patched.stop)
 
-    def review(self, *replies):
+    def review(self, *replies, **repo):
         fake = FakeCli(*replies)
         with mock.patch.object(runner, "_invoke_cli", fake):
             result = runner.run_review(
@@ -124,6 +124,7 @@ class RunnerTestCase(ScratchTestCase):
                 self.run_dir,
                 pr_number=167890,
                 head_sha="a" * 40,
+                **repo,
             )
         self.last_cli = fake
         return result
@@ -131,6 +132,51 @@ class RunnerTestCase(ScratchTestCase):
 
 class TestEndToEnd(RunnerTestCase):
     """run_review wires the launch to the classifier and to the policy's canned decline."""
+
+    def read_sandbox_checkout(self):
+        written = json.loads((self.run_dir / runner.SETTINGS_FILENAME).read_text())
+        (command,) = [
+            entry["hooks"][0]["command"]
+            for entry in written["hooks"]["PreToolUse"]
+            if "restrict-read.py" in entry["hooks"][0]["command"]
+        ]
+        return command.split()[-1]
+
+    def test_the_reviewed_repo_reaches_the_prompt_and_the_read_sandbox(self):
+        self.policy = dataclasses.replace(
+            self.policy,
+            prompt_template=(
+                "You are reviewing ${{ steps.target.outputs.repo }} PR "
+                "#${{ steps.target.outputs.pr }} under "
+                "./${{ steps.target.outputs.checkout }}.\n"
+            ),
+        )
+        for repo, checkout in (
+            ({}, "pytorch"),
+            ({"repo": "pytorch/pytorch"}, "pytorch"),
+            ({"repo": "pytorch/vision"}, "target"),
+        ):
+            with self.subTest(repo=repo):
+                self.review((0, envelope(result_element()), GOOD_VERDICT), **repo)
+                name = repo.get("repo", "pytorch/pytorch")
+                self.assertEqual(
+                    self.last_cli.calls[0]["prompt"],
+                    f"You are reviewing {name} PR #167890 under ./{checkout}.\n",
+                )
+                self.assertEqual(self.read_sandbox_checkout(), checkout)
+
+    def test_a_repo_the_harness_cannot_replay_never_reaches_the_model(self):
+        # The seam refuses any launch, so reaching the model fails with AssertionError.
+        with self.assertRaises(ValueError):
+            runner.run_review(
+                self.policy,
+                self.workspace,
+                self.inputs,
+                self.run_dir,
+                pr_number=167890,
+                head_sha="a" * 40,
+                repo="facebook/vision",
+            )
 
     def test_a_written_valid_verdict_comes_back_as_a_success(self):
         result = self.review((0, envelope(result_element()), GOOD_VERDICT))

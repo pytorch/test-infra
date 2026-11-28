@@ -9,6 +9,7 @@ Every seam that reaches outside the process is patched by ``replay_fixtures``;
 nothing here invokes a model or opens a connection.
 """
 
+import contextlib
 import logging
 import os
 import signal
@@ -22,10 +23,22 @@ from types import SimpleNamespace
 from unittest import mock
 
 import torchci.greenlight_replay.__main__ as cli
-from replay_fixtures import Fakes, POLICY_MODEL, replay_row, run_replay, SCRATCH_PREFIX
+from replay_fixtures import (
+    Fakes,
+    GREENLIGHT_FILES_MESSAGE,
+    NO_POLICY_MESSAGE,
+    POLICY_MODEL,
+    replay_row,
+    REPO_POLICY_SLOT_RELPATH,
+    run_replay,
+    SCRATCH_PREFIX,
+    TOUCHING_DIFF,
+    UNTOUCHING_DIFF,
+)
 from torchci.greenlight_replay import (
     preflight as preflight_module,
     sweep as sweep_module,
+    sweep_setup as sweep_setup_module,
     workspace as workspace_module,
 )
 from torchci.greenlight_replay.runner import DEFAULT_MODEL, Outcome
@@ -34,6 +47,7 @@ from torchci.greenlight_replay.runner import DEFAULT_MODEL, Outcome
 BEDROCK_SWITCH = "CLAUDE_CODE_USE_BEDROCK"
 UNMAPPED_PROFILE = "global.anthropic.claude-something-else"
 POLICY_SHA = "be63f651c37edd81480004d96d22c4e8341456f1"
+TRUSTED_SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
 def setUpModule():
@@ -91,8 +105,8 @@ class TestWorkspaceLayout(unittest.TestCase):
             workspace = fakes.workspaces[0]
             worktree = fakes.pools[0].acquired[0][0]
             self.assertNotEqual(workspace, worktree)
-            self.assertEqual(workspace / workspace_module.PYTORCH_SUBDIR, worktree)
-            for root in workspace_module.WORKSPACE_ROOTS:
+            self.assertEqual(workspace / "pytorch", worktree)
+            for root in workspace_module.workspace_roots():
                 with self.subTest(root=root):
                     self.assertTrue((workspace / root).is_dir())
 
@@ -122,15 +136,231 @@ class TestWorkspaceLayout(unittest.TestCase):
         self.assertEqual(fakes.reviewed, [])
 
     def test_check_workspace_names_every_missing_root(self):
+        for repo, checkout in (
+            ("pytorch/pytorch", "pytorch"),
+            ("pytorch/vision", "target"),
+        ):
+            with self.subTest(repo=repo), tempfile.TemporaryDirectory() as directory:
+                workspace = Path(directory)
+                roots = workspace_module.workspace_roots(repo)
+                self.assertEqual(roots, (checkout, ".claude/skills", ".claude/hooks"))
+                with self.assertRaises(workspace_module.WorkspaceLayoutError) as caught:
+                    workspace_module.check_workspace(workspace, repo)
+                for root in roots:
+                    self.assertIn(root, str(caught.exception))
+                for root in roots:
+                    (workspace / root).mkdir(parents=True)
+                workspace_module.check_workspace(workspace, repo)
+
+    def test_another_repos_checkout_does_not_satisfy_this_repos_layout(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
-            with self.assertRaises(workspace_module.WorkspaceLayoutError) as caught:
-                workspace_module.check_workspace(workspace)
-            for root in workspace_module.WORKSPACE_ROOTS:
-                self.assertIn(root, str(caught.exception))
-            for root in workspace_module.WORKSPACE_ROOTS:
+            for root in workspace_module.workspace_roots("pytorch/pytorch"):
                 (workspace / root).mkdir(parents=True)
-            workspace_module.check_workspace(workspace)
+            with self.assertRaises(workspace_module.WorkspaceLayoutError) as caught:
+                workspace_module.check_workspace(workspace, "pytorch/vision")
+            self.assertIn("target", str(caught.exception))
+
+
+class TestReviewedRepo(unittest.TestCase):
+    """``--repo`` decides what is cloned, where the checkout sits and which
+    trusted tree the sanitize step restores from and the policy is staged from --
+    each as the workflow derives it for that repo. Get one wrong and the reviewer
+    reads the wrong tree, or the wrong repo's rules, and still answers."""
+
+    @contextlib.contextmanager
+    def replay(self, repo=None, argv=(), **options):
+        """Yield the fakes and the workspace while the scratch root still exists."""
+        fakes = Fakes([replay_row(194379, repo=repo or "pytorch/pytorch")], **options)
+        argv = ["--parallelism", "1", *argv] + (["--repo", repo] if repo else [])
+        with run_replay(fakes, argv) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+            yield fakes, fakes.workspaces[0]
+
+    def test_pytorch_is_replayed_as_it_always_was(self):
+        with self.replay() as (fakes, workspace):
+            pool = fakes.pools[0]
+            self.assertEqual(pool.repo_url, "https://github.com/pytorch/pytorch.git")
+            self.assertEqual(pool.dirname, "pytorch")
+            self.assertEqual(pool.bare_clone.name, "pytorch.git")
+            ((skills, skills_url, sha),) = fakes.trusted_skills
+            self.assertEqual(skills.name, "pytorch-main-trusted")
+            self.assertEqual(skills_url, "https://github.com/pytorch/pytorch.git")
+            self.assertIsNone(sha)
+            self.assertEqual(fakes.repos, ["pytorch/pytorch"])
+            self.assertTrue((workspace / REPO_POLICY_SLOT_RELPATH).is_file())
+            self.assertTrue((workspace / "pytorch").is_dir())
+
+    def test_another_repo_is_cloned_checked_out_and_reviewed_as_itself(self):
+        with self.replay("pytorch/vision") as (fakes, workspace):
+            pool = fakes.pools[0]
+            self.assertEqual(pool.repo_url, "https://github.com/pytorch/vision.git")
+            self.assertEqual(pool.dirname, "target")
+            self.assertEqual(pool.bare_clone.name, "vision.git")
+            ((skills, skills_url, _),) = fakes.trusted_skills
+            self.assertEqual(skills.name, "vision-main-trusted")
+            self.assertEqual(skills_url, "https://github.com/pytorch/vision.git")
+            self.assertEqual(fakes.repos, ["pytorch/vision"])
+            self.assertEqual(pool.acquired[0][0], workspace / "target")
+            self.assertTrue((workspace / "target").is_dir())
+            self.assertFalse((workspace / "pytorch").exists())
+
+    def test_the_trusted_ref_pins_the_trusted_tree_and_names_its_directory(self):
+        argv = ["--trusted-ref", TRUSTED_SHA]
+        with self.replay("pytorch/vision", argv) as (fakes, _):
+            ((skills, _, sha),) = fakes.trusted_skills
+            self.assertEqual(sha, TRUSTED_SHA)
+            self.assertEqual(skills.name, f"vision-trusted-{TRUSTED_SHA}")
+
+    def test_a_policy_without_the_staging_script_is_copied_as_it_is(self):
+        # A base arm from before the script: its slot keeps whatever the tree holds.
+        with self.replay("pytorch/vision") as (fakes, workspace):
+            self.assertEqual(fakes.repo_policy_calls(), [])
+            slot = workspace / REPO_POLICY_SLOT_RELPATH
+            self.assertEqual(slot.read_text(), "policy of pytorch/pytorch\n")
+            self.assertEqual(fakes.reviewed, [194379])
+
+    def test_the_staging_script_stages_once_into_what_every_slot_copies(self):
+        fakes = Fakes(
+            [replay_row(194000 + n, repo="pytorch/vision") for n in range(4)],
+            repo_policy_stage="true",
+        )
+        argv = ["--parallelism", "2", "--repo", "pytorch/vision"]
+        with run_replay(fakes, argv) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+            calls = fakes.repo_policy_calls()
+            stages = [call for call in calls if call.startswith("stage ")]
+            self.assertEqual(len(stages), 1)
+            _, repo, trusted, claude = stages[0].split(" ")
+            self.assertEqual(repo, "pytorch/vision")
+            self.assertEqual(Path(trusted), fakes.trusted_skills[0][0])
+            self.assertEqual(Path(claude).name, ".claude")
+            self.assertFalse(Path(claude).is_relative_to(fakes.materialized[0]))
+            self.assertEqual(len([c for c in calls if c.startswith("touches ")]), 4)
+            for workspace in set(fakes.workspaces):
+                slot = workspace / REPO_POLICY_SLOT_RELPATH
+                self.assertEqual(slot.read_text(), "policy of pytorch/vision\n")
+            source = fakes.materialized[0] / REPO_POLICY_SLOT_RELPATH
+            self.assertEqual(source.read_text(), "policy of pytorch/pytorch\n")
+        self.assertEqual(sorted(fakes.reviewed), [194000 + n for n in range(4)])
+
+    def test_no_staged_policy_records_review_error_without_a_model(self):
+        fakes = Fakes(
+            [replay_row(n, repo="pytorch/vision") for n in (194379, 194772)],
+            repo_policy_stage="false",
+            touching={194379},
+            too_large=True,
+        )
+        with run_replay(fakes, ["--repo", "pytorch/vision"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+            # staged=false wins over the diff gate, which never runs, and the size gate.
+            self.assertEqual(
+                [c.split(" ")[0] for c in fakes.repo_policy_calls()], ["stage"]
+            )
+        self.assertEqual(fakes.reviewed, [])
+        self.assertEqual(fakes.pools[0].acquired, [])
+        for number in (194379, 194772):
+            entry = fakes.checkpoint[number]
+            self.assertEqual(entry["new_decision"], "NO_LAND")
+            self.assertEqual(entry["new_decision_reason"], "review_error")
+            self.assertEqual(entry["new_decision_message"], NO_POLICY_MESSAGE)
+        # Not even the diff is fetched for a verdict that needs none of it.
+        self.assertEqual(fakes.diffs_fetched, [])
+        self.assertEqual(fakes.comment_cutoffs, [])
+
+    def test_a_diff_touching_greenlight_records_not_trivial_without_a_model(self):
+        fakes = Fakes(
+            [replay_row(n) for n in (194379, 194772)],
+            repo_policy_stage="true",
+            touching={194379},
+        )
+        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(fakes.reviewed, [194772])
+        entry = fakes.checkpoint[194379]
+        self.assertEqual(entry["new_decision"], "NO_LAND")
+        self.assertEqual(entry["new_decision_reason"], "not_trivial")
+        self.assertEqual(entry["new_decision_message"], GREENLIGHT_FILES_MESSAGE)
+        self.assertEqual(fakes.checkpoint[194772]["new_decision"], "LAND")
+        # The touching row's metadata and stack context were never read.
+        self.assertEqual(len(fakes.comment_cutoffs), 1)
+
+    def test_the_diff_gate_runs_ahead_of_the_size_gate(self):
+        fakes = Fakes(
+            [replay_row(194379)],
+            repo_policy_stage="true",
+            touching={194379},
+            too_large=True,
+        )
+        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(fakes.reviewed, [])
+        self.assertEqual(fakes.checkpoint[194379]["new_decision_reason"], "not_trivial")
+
+    def test_a_context_fault_never_costs_a_canned_verdict(self):
+        for stage, touching, reason in (
+            ("false", set(), "review_error"),
+            ("true", {194379}, "not_trivial"),
+        ):
+            with self.subTest(reason=reason):
+                fakes = Fakes(
+                    [replay_row(194379)],
+                    repo_policy_stage=stage,
+                    touching=touching,
+                    context_fails=True,
+                )
+                with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+                    self.assertEqual(code, cli.EXIT_OK)
+                entry = fakes.checkpoint[194379]
+                self.assertEqual(entry["new_decision_reason"], reason)
+
+    def test_a_context_fault_still_fails_a_row_the_gates_pass(self):
+        fakes = Fakes(
+            [replay_row(194379)], repo_policy_stage="true", context_fails=True
+        )
+        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_FAILED)
+        self.assertEqual(fakes.checkpoint, {})
+
+    def test_the_gate_and_the_reviewer_judge_one_diff_snapshot(self):
+        # A compare whose answer changes between fetches: the first passes the gate,
+        # the second touches .github/greenlight and must never reach the model.
+        answers = {194379: [UNTOUCHING_DIFF, TOUCHING_DIFF]}
+        fakes = Fakes(
+            [replay_row(194379)], repo_policy_stage="true", diff_answers=answers
+        )
+        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(fakes.diffs_fetched, [194379])
+        self.assertEqual(fakes.reviewed, [194379])
+        self.assertEqual(fakes.reviewed_diffs[194379], UNTOUCHING_DIFF)
+
+    def test_each_policy_tree_replays_with_its_own_canned_verdicts(self):
+        for messages in (
+            (NO_POLICY_MESSAGE, GREENLIGHT_FILES_MESSAGE),
+            ("- Review policy\n  - reworded", "- Merge authorization\n  - reworded"),
+        ):
+            with self.subTest(messages=messages[0]):
+                fakes = Fakes(
+                    [replay_row(n) for n in (194379, 194772)],
+                    repo_policy_stage="true",
+                    touching={194379},
+                    canned_messages=messages,
+                )
+                with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+                    self.assertEqual(code, cli.EXIT_OK)
+                entry = fakes.checkpoint[194379]
+                self.assertEqual(entry["new_decision_message"], messages[1])
+
+    def test_a_repo_the_harness_cannot_replay_stops_before_anything_is_fetched(self):
+        for repo in ("facebook/vision", "PyTorch/PyTorch", "pytorch/.."):
+            with self.subTest(repo=repo):
+                fakes = Fakes([replay_row(194379, repo=repo)])
+                with run_replay(fakes, ["--repo", repo]) as (code, _):
+                    self.assertEqual(code, cli.EXIT_FAILED)
+                self.assertEqual(fakes.materialized, [])
+                self.assertEqual(fakes.pools, [])
+                self.assertEqual(fakes.reviewed, [])
 
 
 class TestModelMapping(unittest.TestCase):
@@ -174,7 +404,7 @@ class TestModelMapping(unittest.TestCase):
 
     def test_local_model_names_what_it_knows(self):
         with self.assertRaises(ValueError) as caught:
-            sweep_module.local_model("nope")
+            sweep_setup_module.local_model("nope")
         self.assertIn(POLICY_MODEL, str(caught.exception))
         self.assertIn("--model", str(caught.exception))
 
@@ -183,10 +413,10 @@ class TestModelMapping(unittest.TestCase):
             with self.subTest(switch=switch):
                 with mock.patch.dict(os.environ, {BEDROCK_SWITCH: switch}, clear=False):
                     self.assertEqual(
-                        sweep_module.local_model(POLICY_MODEL), DEFAULT_MODEL
+                        sweep_setup_module.local_model(POLICY_MODEL), DEFAULT_MODEL
                     )
                     with self.assertRaises(ValueError):
-                        sweep_module.local_model(UNMAPPED_PROFILE)
+                        sweep_setup_module.local_model(UNMAPPED_PROFILE)
 
 
 class TestBedrockModel(unittest.TestCase):
@@ -201,11 +431,13 @@ class TestBedrockModel(unittest.TestCase):
         with mock.patch.dict(os.environ, {BEDROCK_SWITCH: "1"}, clear=False):
             for profile in (POLICY_MODEL, UNMAPPED_PROFILE):
                 with self.subTest(profile=profile):
-                    self.assertEqual(sweep_module.local_model(profile), profile)
+                    self.assertEqual(sweep_setup_module.local_model(profile), profile)
 
     def test_the_reviewer_is_asked_for_the_profile(self):
         fakes = Fakes([replay_row(194379)], policy_model=UNMAPPED_PROFILE)
-        with mock.patch.object(sweep_module, "bedrock_enabled", return_value=True):
+        with mock.patch.object(
+            sweep_setup_module, "bedrock_enabled", return_value=True
+        ):
             with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
                 self.assertEqual(code, cli.EXIT_OK)
         self.assertEqual(fakes.models, [UNMAPPED_PROFILE])
@@ -213,7 +445,9 @@ class TestBedrockModel(unittest.TestCase):
     def test_the_model_flag_still_overrides_the_profile(self):
         fakes = Fakes([replay_row(194379)])
         argv = ["--parallelism", "1", "--model", "claude-sonnet-5"]
-        with mock.patch.object(sweep_module, "bedrock_enabled", return_value=True):
+        with mock.patch.object(
+            sweep_setup_module, "bedrock_enabled", return_value=True
+        ):
             with run_replay(fakes, argv) as (code, _):
                 self.assertEqual(code, cli.EXIT_OK)
         self.assertEqual(fakes.models, ["claude-sonnet-5"])
@@ -433,7 +667,7 @@ class TestStartupChecks(unittest.TestCase):
             schema = Path(directory) / "verdict-schema.json"
             schema.write_text("{not json", encoding="utf-8")
             with self.assertRaises(ValueError) as caught:
-                sweep_module.check_schema(SimpleNamespace(schema_path=schema))
+                sweep_setup_module.check_schema(SimpleNamespace(schema_path=schema))
             self.assertIn("not readable JSON", str(caught.exception))
 
     def test_a_dry_run_refuses_a_scratch_root_it_could_not_use(self):

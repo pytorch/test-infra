@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -11,12 +13,8 @@ _SKILL = _POLICY / "SKILL.md"
 _REPO_POLICY = _POLICY / "repo-policy.md"
 _REPO_POLICY_PATH = ".claude/skills/greenlight-review/repo-policy.md"
 _REPO_OWN_DIR = ".github/greenlight/"
-_REQUIRED_HEADINGS = ("User-facing surface", "Merge-gating workflows", "Lint gate", "Test layout")
+_SCRIPT = ROOT / ".claude/hooks/greenlight/repo-policy.py"
 _META_INTERNAL = re.compile(r"^### Meta-internal only[ \t]*$", re.MULTILINE)
-
-
-def _level_two_headings(text: str) -> set[str]:
-    return {heading.strip() for heading in re.findall(r"^## (.+)$", text, re.MULTILINE)}
 
 
 def test_the_policy_files_are_regular_files() -> None:
@@ -25,13 +23,17 @@ def test_the_policy_files_are_regular_files() -> None:
         assert not path.is_symlink(), f"{path.relative_to(ROOT)} is a symlink"
 
 
-def test_the_repository_policy_defines_the_required_terms() -> None:
-    missing = set(_REQUIRED_HEADINGS) - _level_two_headings(_REPO_POLICY.read_text(encoding="utf-8"))
-    assert not missing, f"{_REPO_POLICY.name} lacks the required section(s) {sorted(missing)}"
+def test_the_built_in_passes_the_staging_checks_for_pytorch() -> None:
+    result = subprocess.run(  # noqa: S603 -- fixed argv
+        [sys.executable, str(_SCRIPT), "check", str(_REPO_POLICY), "--repo", "pytorch/pytorch"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_the_repository_policy_holds_the_meta_internal_class() -> None:
-    assert _META_INTERNAL.search(_REPO_POLICY.read_text(encoding="utf-8"))
+def test_the_meta_internal_class_lives_only_in_the_repository_policy() -> None:
     assert not _META_INTERNAL.search(_SKILL.read_text(encoding="utf-8"))
 
 

@@ -128,14 +128,14 @@ def build_inputs(
     comments_before: datetime,
     run_dir: Path,
     policy: Policy,
+    diff: bytes | None = None,
 ) -> ReplayInputs:
     """Fetch and write the reviewer's inputs for one pull request into ``run_dir``.
 
     ``base_ref`` is the PR's ``baseRefName``, not a SHA; ``head_sha`` is the commit the
-    replayed verdict was pinned to, not the PR's current head.
-
-    ``comments_before`` is the instant the replayed verdict was recorded. A naive value
-    is read as UTC.
+    replayed verdict was pinned to, not the PR's current head. ``comments_before`` is the
+    instant the replayed verdict was recorded; a naive value is read as UTC. ``diff`` is
+    that compare diff when the caller already fetched it, written as is, never refetched.
 
     A ``too_large`` result means the caller emits ``policy.too_large_verdict`` and runs
     no model, exactly as the workflow copies the canned file and skips the action step.
@@ -149,7 +149,7 @@ def build_inputs(
     clear_stack(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    diff = _fetch_diff(repo, base_ref, head_sha)
+    diff = _fetch_diff(repo, base_ref, head_sha) if diff is None else diff
     diff_path = run_dir / DIFF_FILENAME
     diff_path.write_bytes(diff)
 

@@ -25,6 +25,7 @@ from torchci.greenlight_replay import (
     collect as collect_module,
     preflight as preflight_module,
     sweep as sweep_module,
+    sweep_setup as sweep_setup_module,
 )
 from torchci.greenlight_replay.checkout import WorktreePool
 from torchci.greenlight_replay.frame import (
@@ -39,6 +40,34 @@ from torchci.greenlight_replay.runner import BEDROCK_SWITCH, Outcome
 POLICY_MODEL = "global.anthropic.claude-opus-5"
 POLICY_MARKER = "policy-marker"
 SANITIZE_RELPATH = ".claude/hooks/greenlight/sanitize-untrusted-checkout.sh"
+REPO_POLICY_SCRIPT_RELPATH = ".claude/hooks/greenlight/repo-policy.py"
+REPO_POLICY_SLOT_RELPATH = ".claude/skills/greenlight-review/repo-policy.md"
+TOUCHING_DIFF = (
+    "diff --git a/.github/greenlight/config.yml b/.github/greenlight/config.yml\n"
+)
+UNTOUCHING_DIFF = "diff --git a/torch/x.py b/torch/x.py\n"
+NO_POLICY_MESSAGE = "- Review policy\n  - no policy, as this tree words it"
+GREENLIGHT_FILES_MESSAGE = (
+    "- Merge authorization\n  - greenlight files, as this tree words it"
+)
+
+# Stands in for repo-policy.py: stages the repo's policy when STAGE says so, and reads
+# a diff as touching .github/greenlight when it names it. Every call is logged.
+FAKE_REPO_POLICY = """import pathlib, sys
+with open({log!r}, "a") as log:
+    log.write(" ".join(sys.argv[1:]) + "\\n")
+if sys.argv[1] == "stage":
+    slot = pathlib.Path(sys.argv[4]) / "skills/greenlight-review/repo-policy.md"
+    if {stage!r} == "true":
+        slot.parent.mkdir(parents=True, exist_ok=True)
+        slot.write_text("policy of " + sys.argv[2] + "\\n")
+    elif slot.exists():
+        slot.unlink()
+    print("staged=" + {stage!r})
+else:
+    text = pathlib.Path(sys.argv[2]).read_text()
+    print("touches=" + ("true" if ".github/greenlight" in text else "false"))
+"""
 SCRATCH_PREFIX = "greenlight-replay-test-"
 VERDICTS = frozenset({"LAND", "NO_LAND"})
 VALID_SCHEMA = '{"type": "object"}'
@@ -75,18 +104,19 @@ def run_result(status="LAND", outcome=Outcome.SUCCESS):
 
 
 class FakePool:
-    """Lays slots out as the real pool does: ``<workspace>/pytorch``, one per slot."""
+    """Lays slots out as the real pool does: ``<workspace>/<dirname>``, one per slot."""
 
-    def __init__(self, bare_clone, slots, repo_url=None):
+    def __init__(self, bare_clone, slots, repo_url=None, dirname="pytorch"):
         self.bare_clone = Path(bare_clone)
         self.slots = slots
         self.repo_url = repo_url
+        self.dirname = dirname
         self.slot_root = self.bare_clone.parent / f"{self.bare_clone.name}-slots"
         self.cloned = False
         self.acquired = []
         self._lock = threading.Lock()
         self._free = [
-            self.slot_root / f"slot-{index}" / "pytorch" for index in range(slots)
+            self.slot_root / f"slot-{index}" / dirname for index in range(slots)
         ]
 
     def ensure_clone(self):
@@ -120,8 +150,8 @@ class PoolFactory:
     def __init__(self, made):
         self.made = made
 
-    def __call__(self, bare_clone, slots, repo_url=None):
-        pool = FakePool(bare_clone, slots, repo_url)
+    def __call__(self, bare_clone, slots, repo_url=None, dirname="pytorch"):
+        pool = FakePool(bare_clone, slots, repo_url, dirname)
         self.made.append(pool)
         return pool
 
@@ -143,6 +173,11 @@ class Fakes:
         too_large=False,
         outcomes=None,
         on_review=None,
+        repo_policy_stage=None,
+        touching=(),
+        context_fails=False,
+        canned_messages=(NO_POLICY_MESSAGE, GREENLIGHT_FILES_MESSAGE),
+        diff_answers=None,
     ):
         self.rows = [dict(row) for row in rows]
         self.statuses = dict(statuses or {})
@@ -155,9 +190,22 @@ class Fakes:
         self.too_large = too_large
         self.outcomes = dict(outcomes or {})
         self.on_review = on_review
+        self.repo_policy_stage = repo_policy_stage
+        self.touching = frozenset(touching)
+        self.context_fails = context_fails
+        self.canned_messages = canned_messages
+        self.diffs_fetched = []
+        # Per PR, the compare answers in the order successive fetches get them.
+        self.diff_answers = {
+            pr: list(texts) for pr, texts in (diff_answers or {}).items()
+        }
+        self.reviewed_diffs = {}
+        self.repo_policy_log = None
         self.checkpoint = {}
         self.pools = []
         self.materialized = []
+        self.trusted_skills = []
+        self.repos = []
         self.workspaces = []
         self.reviewed = []
         self.comment_cutoffs = []
@@ -169,6 +217,7 @@ class Fakes:
 
     def install(self, stack, scratch):
         self.sanitize_log = Path(scratch) / "sanitize.log"
+        self.repo_policy_log = Path(scratch) / "repo-policy.log"
         framing = {
             "load_rows": self.load_rows,
             "connect": mock.MagicMock(),
@@ -182,12 +231,15 @@ class Fakes:
             "load_checkpoint": self.load_checkpoint,
             "write_replay_csv": self.write_replay_csv,
         }
-        machinery = {
+        setup = {
             "materialize_policy": self.materialize_policy,
             "materialize_trusted_skills": self.materialize_trusted_skills,
             "WorktreePool": PoolFactory(self.pools),
-            "build_inputs": self.build_inputs,
             "assert_hooks_present": self.assert_hooks_present,
+        }
+        machinery = {
+            "fetch_diff": self.fetch_diff,
+            "build_inputs": self.build_inputs,
             "run_review": self.run_review,
             "append_checkpoint": self.append_checkpoint,
         }
@@ -200,6 +252,7 @@ class Fakes:
         for module, names in (
             (collect_module, framing),
             (cli, entry_point),
+            (sweep_setup_module, setup),
             (sweep_module, machinery),
             (preflight_module, gates),
         ):
@@ -219,7 +272,7 @@ class Fakes:
         }
 
     def rederive_first_landing(self, client, repo, row, first_land_ts):
-        # The canned message frame.is_size_gate_decline matches on.
+        # The canned message canned.is_canned_decline matches on.
         return {
             **row,
             "decision": "NO_LAND",
@@ -246,6 +299,20 @@ class Fakes:
         self.materialized.append(root)
         for name in self.policy_claude:
             (root / ".claude" / name).mkdir(parents=True, exist_ok=True)
+        slot = root / REPO_POLICY_SLOT_RELPATH
+        if slot.parent.parent.is_dir():
+            slot.parent.mkdir(exist_ok=True)
+            slot.write_text("policy of pytorch/pytorch\n", encoding="utf-8")
+        repo_policy_script = None
+        if self.repo_policy_stage is not None:
+            repo_policy_script = root / REPO_POLICY_SCRIPT_RELPATH
+            repo_policy_script.parent.mkdir(parents=True, exist_ok=True)
+            repo_policy_script.write_text(
+                FAKE_REPO_POLICY.format(
+                    log=str(self.repo_policy_log), stage=self.repo_policy_stage
+                ),
+                encoding="utf-8",
+            )
         (root / POLICY_MARKER).write_text(ref, encoding="utf-8")
         script = root / SANITIZE_RELPATH
         script.parent.mkdir(parents=True, exist_ok=True)
@@ -264,21 +331,61 @@ class Fakes:
             ref=ref,
             sanitize_script=script,
             schema_path=schema,
+            repo_policy_script=repo_policy_script,
+            no_policy_verdict={
+                "status": "NO_LAND",
+                "reason": "review_error",
+                "message": self.canned_messages[0],
+            },
+            greenlight_files_verdict={
+                "status": "NO_LAND",
+                "reason": "not_trivial",
+                "message": self.canned_messages[1],
+            },
         )
 
     def assert_hooks_present(self, policy):
         if self.hooks_missing:
             raise RuntimeError("hook scripts are missing")
 
-    def materialize_trusted_skills(self, dest):
+    def materialize_trusted_skills(self, dest, **kwargs):
         dest = Path(dest)
+        self.trusted_skills.append((dest, kwargs.get("repo_url"), kwargs.get("sha")))
         (dest / ".claude" / "skills").mkdir(parents=True, exist_ok=True)
         return dest
 
-    def build_inputs(self, repo, pr, base_ref, head_sha, comments_before, run_dir, pol):
+    def diff_text(self, head_sha):
+        return TOUCHING_DIFF if int(head_sha) in self.touching else UNTOUCHING_DIFF
+
+    def fetch_diff(self, repo, base_ref, head_sha):
+        with self.lock:
+            self.diffs_fetched.append(int(head_sha))
+            answers = self.diff_answers.get(int(head_sha))
+            if answers:
+                return answers.pop(0).encode("utf-8")
+        return self.diff_text(head_sha).encode("utf-8")
+
+    def build_inputs(
+        self, repo, pr, base_ref, head_sha, comments_before, run_dir, pol, diff=None
+    ):
         with self.lock:
             self.comment_cutoffs.append(comments_before)
-        return SimpleNamespace(too_large=self.too_large, diff_lines=10, diff_bytes=400)
+        if self.context_fails:
+            raise RuntimeError("the stack context could not be rebuilt")
+        # As the real one: a diff not handed in is fetched here.
+        if diff is None:
+            diff = self.fetch_diff(repo, base_ref, head_sha)
+        diff_path = Path(run_dir) / "greenlight-pr.diff"
+        diff_path.write_bytes(diff)
+        return SimpleNamespace(
+            too_large=self.too_large, diff_lines=10, diff_bytes=400, diff_path=diff_path
+        )
+
+    def repo_policy_calls(self):
+        """Each repo-policy.py invocation's arguments, in order."""
+        if not self.repo_policy_log.exists():
+            return []
+        return self.repo_policy_log.read_text(encoding="utf-8").splitlines()
 
     def run_review(self, policy, workspace, inputs, run_dir, **kwargs):
         pr_number = kwargs["pr_number"]
@@ -286,7 +393,11 @@ class Fakes:
             self.workspaces.append(Path(workspace))
             self.reviewed.append(pr_number)
             self.models.append(kwargs["model"])
+            self.repos.append(kwargs.get("repo"))
             self.run_dirs.append(Path(run_dir))
+            diff_path = Path(run_dir) / "greenlight-pr.diff"
+            if diff_path.exists():
+                self.reviewed_diffs[pr_number] = diff_path.read_text(encoding="utf-8")
         if self.on_review is not None:
             self.on_review(pr_number)
         return run_result(

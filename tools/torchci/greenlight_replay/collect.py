@@ -44,7 +44,7 @@ from torchci.greenlight_replay.frame import (
     apply_frame,
     fetch_first_verdicts,
     fetch_landings,
-    is_size_gate_decline,
+    is_canned_decline,
     LAND,
     load_rows,
     rederive_first_landing,
@@ -53,6 +53,7 @@ from torchci.greenlight_replay.frame import (
 from torchci.greenlight_replay.options import build_parser
 from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
 from torchci.greenlight_replay.sweep import (
+    diff_gate,
     POLICY_DIRNAME,
     pr_number,
     row_inputs,
@@ -194,9 +195,9 @@ def select_sample(
     if declined:
         # apply_frame settles the gate only for rows whose verdict is final, so a
         # multi-landing row reaches its canned decline only once re-derived.
-        funnel["size_gate"] += declined
+        funnel["canned"] += declined
         logger.info(
-            "%d of %d sampled rows were size-gate declines at their first landing",
+            "%d of %d sampled rows were canned declines at their first landing",
             declined,
             requested,
         )
@@ -227,9 +228,9 @@ def rederive_multi_landing(
             restated = rederive_first_landing(
                 client, repo, dict(row), min(event.ts for event in lands)
             )
-            # The canned decline came from a byte comparison with no model in it,
-            # so replaying it would measure the cap rather than the policy.
-            if is_size_gate_decline(restated):
+            # A canned decline came from a gate with no model in it, so replaying
+            # it would measure the gate rather than the policy.
+            if is_canned_decline(restated):
                 declined += 1
                 continue
             rederived.append(restated)
@@ -242,11 +243,17 @@ def collect_one(repo: str, row: Mapping[str, str], runs: Path, policy: Policy) -
     """Build one sampled pull request's reviewer inputs, recording what GitHub says.
 
     Never raises, since it runs on a thread pool; a failure is logged and reported as
-    False.
+    False. A row the policy's diff gate declines is replayed from its diff alone, so
+    nothing more is read for it and no fault there can fail it.
     """
     label = str(row.get("pr_number"))
     try:
-        row_inputs(repo, row, runs / str(pr_number(row)), policy)
+        run_dir = runs / str(pr_number(row))
+        run_dir.mkdir(parents=True, exist_ok=True)
+        canned, diff = diff_gate(repo, row, run_dir, policy)
+        if canned is not None:
+            return True
+        row_inputs(repo, row, run_dir, policy, diff)
     except Exception as exc:
         logger.error("could not collect PR %s: %s", label, exc, exc_info=True)
         return False

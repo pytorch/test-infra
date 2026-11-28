@@ -1,4 +1,4 @@
-"""Tests for the worktree pool that materializes reviewed pytorch commits.
+"""Tests for the worktree pool that materializes the reviewed repo's commits.
 
 These drive real git against a synthetic repository rather than mocking it. The properties
 that matter here -- that a reused slot does not carry the previous review's sanitize damage
@@ -14,8 +14,11 @@ from pathlib import Path
 
 from replay_runner_fixtures import ScratchTestCase
 from torchci.greenlight_replay.checkout import (
+    checkout_dirname,
+    CHECKOUT_DIRNAMES,
+    clone_url,
     GitError,
-    PYTORCH_CHECKOUT_DIRNAME,
+    require_repo,
     WorktreePool,
 )
 from torchci.greenlight_replay.trusted_skills import materialize_trusted_skills
@@ -164,15 +167,36 @@ class TestFetchDepth(PoolTestCase):
 class TestSlotLayout(PoolTestCase):
     """A slot is a reviewer workspace whose checkout sits where the read sandbox looks.
 
-    restrict-read.py builds its allowed roots from ``<workspace>/pytorch``, so a slot handed
-    out at any other path leaves the reviewer unable to read the code it is reviewing.
+    restrict-read.py builds its allowed roots from ``<workspace>/<checkout>``, so a slot
+    handed out at any other path leaves the reviewer unable to read the code it is
+    reviewing.
     """
 
     def test_the_checkout_is_the_pytorch_directory_of_its_workspace(self):
         worktree = self.pool.acquire(self.second)
         self.addCleanup(self.pool.release, worktree)
-        self.assertEqual(worktree.name, PYTORCH_CHECKOUT_DIRNAME)
+        self.assertEqual(worktree.name, "pytorch")
         self.assertEqual(WorktreePool.workspace_of(worktree), worktree.parent)
+
+    def test_another_repos_checkout_is_the_target_directory_of_its_workspace(self):
+        pool = WorktreePool(
+            self.root / "bare-vision",
+            slots=1,
+            repo_url=f"file://{self.origin}",
+            dirname=checkout_dirname("pytorch/vision"),
+        )
+        pool.ensure_clone()
+        worktree = pool.acquire(self.second)
+        self.addCleanup(pool.release, worktree)
+        self.assertEqual(worktree.name, "target")
+        self.assertEqual(WorktreePool.workspace_of(worktree), worktree.parent)
+        self.assertTrue((worktree / "torch" / "two.py").is_file())
+
+    def test_a_directory_restrict_read_does_not_accept_is_refused(self):
+        for dirname in ("", "vision", "../pytorch", "pytorch/sub", "."):
+            with self.subTest(dirname=dirname):
+                with self.assertRaises(ValueError):
+                    WorktreePool(self.root / "bare-x", slots=1, dirname=dirname)
 
     def test_the_checkout_holds_the_requested_commit(self):
         worktree = self.pool.acquire(self.first)
@@ -429,5 +453,136 @@ class TestTrustedSkillsCheckout(ScratchTestCase):
         self.assertIn("half-finished clone", str(caught.exception))
 
 
+class TestPinnedTrustedCheckout(ScratchTestCase):
+    """``--trusted-ref`` pins the trusted tree, the repo's own policy included, so every
+    arm stages from one commit; a tree at another commit is never reused."""
+
+    def setUp(self):
+        self.root = self.scratch("greenlight-pinned-")
+        self.origin, _, _ = build_origin(self.root)
+        self.old = self.commit_policy("old policy\n")
+        self.new = self.commit_policy("new policy\n")
+        self.dest = self.root / "pytorch-trusted"
+
+    def commit_policy(self, text):
+        (self.origin / ".github" / "greenlight").mkdir(parents=True, exist_ok=True)
+        (self.origin / ".github" / "greenlight" / "review.md").write_text(text)
+        (self.origin / ".claude" / "skills").mkdir(parents=True, exist_ok=True)
+        (self.origin / ".claude" / "skills" / "SKILL.md").write_text(text)
+        git(["add", "-A"], self.origin)
+        git(["commit", "-qm", text.strip()], self.origin)
+        return rev_parse("HEAD", self.origin)
+
+    def materialize(self, sha, repo_url=None, dest=None):
+        return materialize_trusted_skills(
+            dest or self.dest,
+            repo_url=repo_url or f"file://{self.origin}",
+            sha=sha,
+        )
+
+    def test_the_checkout_is_the_pinned_commit_not_main(self):
+        dest = self.materialize(self.old)
+        self.assertEqual(rev_parse("HEAD", dest), self.old)
+        policy = dest / ".github" / "greenlight" / "review.md"
+        self.assertEqual(policy.read_text(), "old policy\n")
+        self.assertEqual(
+            (dest / ".claude" / "skills" / "SKILL.md").read_text(), "old policy\n"
+        )
+        self.assertFalse((dest / "torch").exists())
+        blob = subprocess.run(
+            ["git", "cat-file", "blob", "HEAD:.github/greenlight/review.md"],
+            cwd=dest,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(blob.stdout, "old policy\n")
+
+    def test_main_is_checked_out_with_the_same_cone_without_a_pin(self):
+        dest = self.materialize(None)
+        self.assertEqual(rev_parse("HEAD", dest), self.new)
+        policy = dest / ".github" / "greenlight" / "review.md"
+        self.assertEqual(policy.read_text(), "new policy\n")
+
+    def test_a_second_call_at_the_same_commit_reuses_the_checkout(self):
+        first = self.materialize(self.old)
+        self.assertEqual(self.materialize(self.old, "file:///nonexistent"), first)
+
+    def test_a_checkout_at_another_commit_is_never_reused(self):
+        self.materialize(self.old)
+        with self.assertRaises(GitError) as caught:
+            self.materialize(self.new, "file:///nonexistent")
+        self.assertIn("another commit", str(caught.exception))
+        self.assertEqual(rev_parse("HEAD", self.dest), self.old)
+
+    def test_an_unpinned_checkout_is_not_reused_as_a_pinned_one(self):
+        self.materialize(None)
+        with self.assertRaises(GitError):
+            self.materialize(self.old, "file:///nonexistent")
+
+    def test_a_ref_that_is_not_a_full_sha_is_refused_before_git_runs(self):
+        for bad in (
+            "main",
+            self.old[:12],
+            self.old.upper(),
+            f"--upload-pack={self.old}",
+        ):
+            with self.subTest(bad=bad), self.assertRaises(GitError):
+                self.materialize(bad)
+        self.assertFalse(self.dest.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReviewedRepo(unittest.TestCase):
+    """The repo names a clone URL, a checkout directory and a policy file, as the
+    workflow's target step derives them, and nothing else gets that far."""
+
+    def test_pytorch_is_checked_out_at_pytorch_and_any_other_repo_at_target(self):
+        self.assertEqual(checkout_dirname("pytorch/pytorch"), "pytorch")
+        self.assertEqual(checkout_dirname("pytorch/vision"), "target")
+        self.assertEqual(checkout_dirname("pytorch/test-infra"), "target")
+
+    def test_every_directory_it_names_is_one_restrict_read_accepts(self):
+        for repo in ("pytorch/pytorch", "pytorch/vision"):
+            with self.subTest(repo=repo):
+                self.assertIn(checkout_dirname(repo), CHECKOUT_DIRNAMES)
+
+    def test_the_clone_url_is_the_repos_own(self):
+        self.assertEqual(
+            clone_url("pytorch/vision"), "https://github.com/pytorch/vision.git"
+        )
+        self.assertEqual(
+            clone_url("pytorch/pytorch"), "https://github.com/pytorch/pytorch.git"
+        )
+
+    def test_a_repo_outside_the_pytorch_org_or_badly_shaped_is_refused(self):
+        for repo in (
+            "",
+            "pytorch",
+            "pytorch/",
+            "pytorch/.",
+            "pytorch/..",
+            "pytorch/vision/extra",
+            "facebook/pytorch",
+            "pytorch/vision.git?x=1",
+            "pytorch/vi sion",
+            "-pytorch/pytorch",
+            "pytorch/vision\n",
+        ):
+            with self.subTest(repo=repo):
+                for derive in (require_repo, checkout_dirname, clone_url):
+                    with self.assertRaises(ValueError):
+                        derive(repo)
+
+    def test_another_spelling_of_pytorch_is_refused_rather_than_read_as_another_repo(
+        self,
+    ):
+        # The workflow reaches pytorch/pytorch only by that exact name; read as another
+        # repo it would be reviewed at target, under no policy file of its own.
+        for repo in ("PyTorch/PyTorch", "pytorch/PyTorch", "Pytorch/pytorch"):
+            with self.subTest(repo=repo):
+                with self.assertRaises(ValueError):
+                    checkout_dirname(repo)

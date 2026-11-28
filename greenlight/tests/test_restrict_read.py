@@ -5,7 +5,9 @@ subprocess under the same interpreter (the way claude-code-action invokes it) ra
 imported. Deny-by-default: a Read/Glob/Grep target is allowed only when its os.path.realpath
 lands under $GITHUB_WORKSPACE/pytorch, .claude/skills, .claude/hooks, or the /tmp/greenlight-*
 scratch prefix, and never when it carries a .git component or a '..'. A path-less Glob/Grep is
-not denied but rewritten to default path=./pytorch. exit 0 allows, exit 2 blocks. Living
+not denied but rewritten to default path=./pytorch. An optional first argument names the checkout
+instead: "pytorch" or "target", and any other argument denies every read. exit 0 allows, exit 2
+blocks. Living
 outside the greenlight package, these tests do not affect --cov=greenlight.
 """
 
@@ -15,13 +17,17 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 _SCRIPT = Path(__file__).resolve().parents[2] / ".claude" / "hooks" / "greenlight" / "restrict-read.py"
 
 _SCRATCH_DIFF = "/tmp/greenlight-pr.diff"  # noqa: S108
 _SCRATCH_ABSENT_JSON = "/tmp/greenlight-pr.json"  # noqa: S108
 
 
-def _run(event: dict[str, object], *, workspace: Path | None) -> subprocess.CompletedProcess[str]:
+def _run(
+    event: dict[str, object], *, workspace: Path | None, args: tuple[str, ...] = ()
+) -> subprocess.CompletedProcess[str]:
     assert _SCRIPT.is_file(), f"hook script not found at {_SCRIPT}"
     env = dict(os.environ)
     if workspace is None:
@@ -29,7 +35,7 @@ def _run(event: dict[str, object], *, workspace: Path | None) -> subprocess.Comp
     else:
         env["GITHUB_WORKSPACE"] = str(workspace)
     return subprocess.run(  # noqa: S603
-        [sys.executable, str(_SCRIPT)],
+        [sys.executable, str(_SCRIPT), *args],
         input=json.dumps(event),
         capture_output=True,
         text=True,
@@ -308,3 +314,101 @@ def test_read_uppercase_git_component_denied(tmp_path):
     result = _run(_event("Read", file_path=str(ws / "pytorch" / ".GIT" / "config")), workspace=ws)
     assert result.returncode == 2
     assert ".git" in result.stderr
+
+
+def _target_workspace(tmp_path: Path) -> Path:
+    ws = _workspace(tmp_path)
+    (ws / "target").mkdir()
+    return ws
+
+
+def _file(path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("x", encoding="utf-8")
+    return path
+
+
+def test_explicit_pytorch_argument_matches_the_default(tmp_path):
+    ws = _target_workspace(tmp_path)
+    inside = _file(ws / "pytorch" / "torch" / "foo.py")
+    outside = _file(ws / "target" / "foo.py")
+    for args in ((), ("pytorch",)):
+        assert _run(_event("Read", file_path=str(inside)), workspace=ws, args=args).returncode == 0
+        denied = _run(_event("Read", file_path=str(outside)), workspace=ws, args=args)
+        assert denied.returncode == 2
+        assert "./pytorch," in denied.stderr
+
+
+def test_target_argument_allows_reads_under_target_and_denies_pytorch(tmp_path):
+    ws = _target_workspace(tmp_path)
+    inside = _file(ws / "target" / "src" / "foo.py")
+    elsewhere = _file(ws / "pytorch" / "torch" / "foo.py")
+    assert _run(_event("Read", file_path=str(inside)), workspace=ws, args=("target",)).returncode == 0
+    denied = _run(_event("Read", file_path=str(elsewhere)), workspace=ws, args=("target",))
+    assert denied.returncode == 2
+    assert "./target," in denied.stderr
+    assert "./pytorch" not in denied.stderr
+
+
+def test_target_argument_keeps_the_skills_hooks_and_scratch_roots(tmp_path):
+    ws = _target_workspace(tmp_path)
+    skill = _file(ws / ".claude" / "skills" / "greenlight-review" / "SKILL.md")
+    hook = _file(ws / ".claude" / "hooks" / "greenlight" / "restrict-read.py")
+    for path in (str(skill), str(hook), _SCRATCH_DIFF):
+        result = _run(_event("Read", file_path=path), workspace=ws, args=("target",))
+        assert result.returncode == 0, result.stderr
+
+
+def test_target_argument_denies_its_git_dir(tmp_path):
+    ws = _target_workspace(tmp_path)
+    result = _run(_event("Read", file_path=str(ws / "target" / ".git" / "config")), workspace=ws, args=("target",))
+    assert result.returncode == 2
+    assert ".git" in result.stderr
+
+
+def test_target_argument_glob_and_grep_with_explicit_path(tmp_path):
+    ws = _target_workspace(tmp_path)
+    allowed = _run(_event("Glob", path=str(ws / "target"), pattern="**/*.py"), workspace=ws, args=("target",))
+    assert allowed.returncode == 0, allowed.stderr
+    denied = _run(_event("Grep", path=str(ws / "pytorch"), pattern="x"), workspace=ws, args=("target",))
+    assert denied.returncode == 2
+
+
+@pytest.mark.parametrize("tool", ["Glob", "Grep"])
+def test_target_argument_rewrites_path_less_searches_to_target(tmp_path, tool):
+    ws = _target_workspace(tmp_path)
+    result = _run(_event(tool, pattern="*.py"), workspace=ws, args=("target",))
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["permissionDecision"] == "allow"
+    assert output["updatedInput"]["path"] == os.path.join(str(ws), "target")
+    assert output["permissionDecisionReason"] == "path-less Glob/Grep defaulted to ./target"
+
+
+def test_target_argument_names_target_in_its_error_texts(tmp_path):
+    ws = _target_workspace(tmp_path)
+    missing = _run({"tool_name": "Read", "tool_input": {}}, workspace=ws, args=("target",))
+    assert missing.returncode == 2
+    assert "under ./target." in missing.stderr
+    absolute = _run(_event("Glob", pattern="/etc/*"), workspace=ws, args=("target",))
+    assert absolute.returncode == 2
+    assert "under ./target." in absolute.stderr
+
+
+@pytest.mark.parametrize(
+    "args",
+    [("other",), ("../x",), ("target/x",), ("",), ("Target",), ("PYTORCH",), ("/etc",), ("target", "pytorch")],
+)
+def test_any_other_checkout_argument_denies_every_read(tmp_path, args):
+    ws = _target_workspace(tmp_path)
+    allowed_anywhere = [
+        _event("Read", file_path=str(_file(ws / "pytorch" / "foo.py"))),
+        _event("Read", file_path=str(_file(ws / "target" / "foo.py"))),
+        _event("Read", file_path=_SCRATCH_DIFF),
+        _event("Glob", pattern="*.py"),
+    ]
+    for event in allowed_anywhere:
+        result = _run(event, workspace=ws, args=args)
+        assert result.returncode == 2, (args, event, result.stdout)
+        assert "checkout argument" in result.stderr
+        assert result.stdout == ""

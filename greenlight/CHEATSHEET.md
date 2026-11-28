@@ -7,7 +7,7 @@ directory. `just` is the front-end for every workflow — run `just` or
 PyTorch Green Light runs one iteration of its `review` phase and exits (cron-like), or
 loops as a daemon with `--loop`; in production the scheduled scan runs as the `greenlight-scan`
 AWS Lambda (EventBridge `rate(2 minutes)`: a planner scans `pytorch/pytorch` and fans out a worker per other repo, [SCAN.md](SCAN.md)),
-with the CLI modes kept for local use. It also has the one-shot `verdict` and `drci-poke` subcommands:
+with the CLI modes kept for local use. It also has the one-shot `verdict`, `drci-poke` and `target` subcommands:
 
 - `review` — scan the open PRs from the evaluation cohort in `--repo` (default `pytorch/pytorch`;
   its `.github/greenlight/config.yml` decides the mode, `check-config PATH --repo R` validates one, [REPOS.md](REPOS.md)) (every
@@ -86,6 +86,11 @@ with the CLI modes kept for local use. It also has the one-shot `verdict` and `d
   15-minute sweep. Waits `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` first so the
   just-written state row reaches ClickHouse. Never fails: every error is logged and
   swallowed. Runs once, never as a daemon.
+- `target` — the reviewer workflow's input gate: `--strict` validates a dispatch's `--repo` (empty
+  for `pytorch/pytorch`), `--pr` and `--head-sha`, reading another repo's identity and config with
+  `GITHUB_TOKEN` or `GH_TOKEN`; `--from-review` re-checks the review job's repo (against the dispatch's
+  `--input-repo`) and `drci_poke` offline. Prints the
+  `key=value` step outputs, or nothing and a non-zero exit ([REPOS.md](REPOS.md), "Reviewing a repo's PRs").
 
 The delegation has a side the greenlight repo does not control: the HUD renders the Green Light
 section for the repos in `GREENLIGHT_REPOS` (`torchci/lib/greenlight/greenlightConfig.ts`), and
@@ -248,10 +253,14 @@ The end-to-end flow, per cohort PR:
    the `GL/*` labels of its reverted and `Stale` PRs and of those the review window keeps; `--pr` never does.
 4. The reviewer workflow's `announce_start` job records an `AI_REVIEW_STARTED` marker, so
    the next scan sees the review as in-flight and does not re-dispatch it.
-5. Before the model runs, the workflow sanitizes the untrusted `./pytorch` checkout —
-   stripping in-repo AI-assistant instruction files and restoring only trusted pytorch `main`
+5. Before the model runs, the workflow stages the repo's own review policy from its `main`
+   (`.github/greenlight/review.md`; REPOS.md, "Reviewing a repo's PRs") and sanitizes the untrusted
+   `./pytorch` checkout (`./target` for any other repo) —
+   stripping in-repo AI-assistant instruction files and restoring only trusted `main`
    skills, with a deny-root detector that fails the review if any instruction file loads from
-   `./pytorch` (see the README's "Reviewer checkout sanitizing"). It then reviews the PR and
+   the checkout (see the README's "Reviewer checkout sanitizing"). Without a valid policy, or on a
+   diff touching `.github/greenlight/`, it declines with a canned `NO_LAND` instead of running the
+   model. Otherwise it reviews the PR and
    records its verdict through `verdict`, which emits a row to
    `s3://gha-artifacts/greenlight_pr_state/` (ingested into `misc.greenlight_pr_state`) and,
    for `LAND`/`NO_LAND`, approves or dismisses greenlight's prior approval and, unless shadow,

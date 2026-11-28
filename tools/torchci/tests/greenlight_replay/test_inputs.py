@@ -128,18 +128,21 @@ class InputsTestCase(unittest.TestCase):
         base_ref=GHSTACK_BASE_REF,
         cutoff=CUTOFF,
         gh_version=(2, 93, 0),
+        repo=REPO,
+        diff=None,
     ):
         with mock.patch.object(inputs_mod, RUN_SEAM, side_effect=gh), mock.patch.object(
             inputs_mod, GH_VERSION_SEAM, return_value=gh_version
         ):
             return build_inputs(
-                REPO,
+                repo,
                 PR_NUMBER,
                 base_ref,
                 HEAD_SHA,
                 cutoff,
                 self.run_dir,
                 policy or make_policy(),
+                diff=diff,
             )
 
     def build_logging(self, level, gh, **kwargs):
@@ -179,6 +182,17 @@ class DiffFetchTest(InputsTestCase):
         result = self.build(gh)
         self.assertEqual(result.diff_path.name, inputs_mod.DIFF_FILENAME)
         self.assertEqual(result.diff_path.read_bytes(), DIFF)
+
+    def test_a_diff_already_fetched_is_written_and_gated_without_a_refetch(self):
+        gh = FakeGh(diff=b"a later, different answer\n")
+        given = b"diff --git a/x b/x\n" * 3
+        result = self.build(gh, diff=given)
+        self.assertEqual(result.diff_path.read_bytes(), given)
+        self.assertEqual((result.diff_lines, result.diff_bytes), (3, len(given)))
+        self.assertFalse(
+            [call for call in gh.calls if call[:2] == ["gh", "api"]],
+            "the compare must not be fetched again",
+        )
 
     def test_a_base_ref_carrying_parent_traversal_is_refused(self):
         with self.assertRaises(ValueError):
@@ -467,7 +481,7 @@ class DiffStepBaseRefTest(unittest.TestCase):
         (step,) = [step for step in steps if step.get("name") == DIFF_STEP]
         cls.script = step["run"]
 
-    def run_step(self, base_ref, locale="C.UTF-8"):
+    def run_step(self, base_ref, locale="C.UTF-8", repo="pytorch/pytorch"):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             gh = root / "gh"
@@ -482,6 +496,7 @@ class DiffStepBaseRefTest(unittest.TestCase):
                     "LC_ALL": locale,
                     "BASE_REF": base_ref,
                     "GH_CALLS": str(calls),
+                    "REPO": repo,
                     "PR_NUMBER": str(PR_NUMBER),
                     "HEAD_SHA": HEAD_SHA,
                 },
@@ -498,6 +513,11 @@ class DiffStepBaseRefTest(unittest.TestCase):
                 self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
                 endpoint = f"repos/pytorch/pytorch/compare/{name}...{HEAD_SHA}"
                 self.assertEqual(calls, [endpoint])
+
+    def test_the_reviewed_repo_names_the_compare_url(self):
+        completed_run, calls = self.run_step("main", repo="pytorch/vision")
+        self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
+        self.assertEqual(calls, [f"repos/pytorch/vision/compare/main...{HEAD_SHA}"])
 
     def test_any_other_name_fails_the_step_before_the_compare_unechoed(self):
         for locale in self.LOCALES:

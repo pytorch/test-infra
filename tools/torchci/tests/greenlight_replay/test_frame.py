@@ -21,7 +21,7 @@ from unittest import mock
 
 from torchci.greenlight_decisions.query import FIELDS
 from torchci.greenlight_decisions.rows import COLUMNS, write_csv
-from torchci.greenlight_replay import cells, frame, timeline
+from torchci.greenlight_replay import canned, cells, frame, timeline
 
 
 CANNED_OLD, CANNED_NEW = sorted(frame.CANNED_TOO_LARGE_MESSAGES, key=len)
@@ -146,6 +146,16 @@ class TestReExports(unittest.TestCase):
         for name in ("fetch_first_verdicts", "fetch_landings", "LAND", "Landing"):
             with self.subTest(name=name):
                 self.assertIs(getattr(frame, name), getattr(timeline, name))
+
+    def test_the_names_taken_from_canned_are_the_same_objects(self):
+        for name in (
+            "CANNED_DECLINE_MESSAGES",
+            "CANNED_STAGING_MESSAGES",
+            "CANNED_TOO_LARGE_MESSAGES",
+            "is_canned_decline",
+        ):
+            with self.subTest(name=name):
+                self.assertIs(getattr(frame, name), getattr(canned, name))
 
     def test_the_published_names_all_resolve_on_frame(self):
         # Broader than the two above on purpose: this also catches a name dropped from the
@@ -421,7 +431,7 @@ class TestSizeGateDeclines(unittest.TestCase):
         )
         kept, stats = frame.apply_frame(loaded, {})
         self.assertEqual(kept, [])
-        self.assertEqual(stats["size_gate"], 2)
+        self.assertEqual(stats["canned"], 2)
 
     def test_a_model_authored_scope_too_large_verdict_is_kept(self):
         # Six of the eighteen are the reviewer's own prose under the same reason code, and
@@ -443,13 +453,13 @@ class TestSizeGateDeclines(unittest.TestCase):
         # Its verdict is about to be replaced by rederive_first_landing, and the two can
         # disagree about whether a model ran at all. Settling the gate on the stored
         # verdict corrupts the frame in both directions: a PR declined by the gate at its
-        # last landing but genuinely reviewed at its first would be charged to size_gate,
+        # last landing but genuinely reviewed at its first would be charged to canned,
         # and one reviewed at its last but declined at its first would be admitted and
         # replayed -- which is the exact thing this exclusion exists to prevent.
         canned_now = csv_row(decision_message=CANNED_NEW, verdict_staleness="exact")
         admitted, stats = frame.apply_frame([canned_now], landed_twice())
         self.assertEqual(len(admitted), 1, "the stored verdict must not settle it")
-        self.assertEqual(stats["size_gate"], 0)
+        self.assertEqual(stats["canned"], 0)
         self.assertEqual(stats["multi_landing"], 1)
 
     def test_the_predicate_is_public_so_the_caller_can_settle_it_after_re_deriving(
@@ -457,17 +467,13 @@ class TestSizeGateDeclines(unittest.TestCase):
     ):
         # apply_frame hands the multi-landing case on rather than guessing; whoever
         # finalises the row applies the same test to the verdict that will be replayed.
-        self.assertTrue(
-            frame.is_size_gate_decline(csv_row(decision_message=CANNED_NEW))
-        )
-        self.assertTrue(
-            frame.is_size_gate_decline(csv_row(decision_message=CANNED_OLD))
-        )
-        self.assertFalse(frame.is_size_gate_decline(csv_row()))
+        self.assertTrue(frame.is_canned_decline(csv_row(decision_message=CANNED_NEW)))
+        self.assertTrue(frame.is_canned_decline(csv_row(decision_message=CANNED_OLD)))
+        self.assertFalse(frame.is_canned_decline(csv_row()))
 
     def test_the_predicate_tolerates_surrounding_whitespace(self):
         padded = csv_row(decision_message=f"  {CANNED_OLD}\n")
-        self.assertTrue(frame.is_size_gate_decline(padded))
+        self.assertTrue(frame.is_canned_decline(padded))
 
     def test_the_current_canned_text_still_matches_the_file_on_disk(self):
         # The gate copies this file verbatim. Rewriting it again adds a third variant, and
@@ -476,6 +482,48 @@ class TestSizeGateDeclines(unittest.TestCase):
             self.skipTest(f"{TOO_LARGE_VERDICT} is not present in this checkout")
         message = json.loads(TOO_LARGE_VERDICT.read_text())["message"]
         self.assertIn(message, frame.CANNED_TOO_LARGE_MESSAGES)
+
+
+class TestStagingGateDeclines(unittest.TestCase):
+    """The staging gates decline with no model too -- no repository policy staged, or a
+    diff touching .github/greenlight -- so their rows measure a gate, not a policy."""
+
+    def test_both_staging_declines_are_excluded_and_counted_as_canned(self):
+        rows = [
+            csv_row(decision="NO_LAND", decision_message=message)
+            for message in sorted(frame.CANNED_STAGING_MESSAGES)
+        ]
+        kept, stats = frame.apply_frame(rows, {})
+        self.assertEqual(kept, [])
+        self.assertEqual(stats["canned"], 2)
+
+    def test_a_model_authored_verdict_under_the_same_reasons_is_kept(self):
+        for reason in ("review_error", "not_trivial"):
+            with self.subTest(reason=reason):
+                row = csv_row(
+                    decision="NO_LAND",
+                    decision_reason=reason,
+                    decision_message="- Merge authorization\n  - edits CI workflows",
+                )
+                self.assertTrue(frame.apply_frame([row], {})[0])
+
+    def test_the_constants_match_the_files_the_workflow_copies(self):
+        # The frame reads production rows, so it pins the text rather than reading a
+        # policy tree; a reworded file needs its old text kept here as well.
+        hooks = TOO_LARGE_VERDICT.parent
+        for name in ("no-policy-verdict.json", "greenlight-files-verdict.json"):
+            with self.subTest(name=name):
+                path = hooks / name
+                if not path.exists():
+                    self.skipTest(f"{path} is not present in this checkout")
+                message = json.loads(path.read_text())["message"]
+                self.assertIn(message, frame.CANNED_STAGING_MESSAGES)
+
+    def test_every_canned_message_is_a_decline(self):
+        self.assertEqual(
+            frame.CANNED_DECLINE_MESSAGES,
+            frame.CANNED_TOO_LARGE_MESSAGES | frame.CANNED_STAGING_MESSAGES,
+        )
 
 
 class TestRederiveFirstLanding(unittest.TestCase):

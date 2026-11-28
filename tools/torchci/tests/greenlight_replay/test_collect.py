@@ -54,21 +54,38 @@ def full_row(pr_number, **extra):
 class FakeInputs:
     """Collect's policy and inputs seams, recording what each call was handed."""
 
-    def __init__(self, failing=()):
+    def __init__(self, failing=(), repo_policy_script=None, touching=()):
         self.failing = set(failing)
+        self.repo_policy_script = repo_policy_script
+        self.touching = set(touching)
         self.policies = []
         self.calls = []
+        self.diffs = []
         self.lock = threading.Lock()
 
     def materialize_policy(self, ref, workdir):
-        policy = SimpleNamespace(ref=ref, root=Path(workdir))
+        policy = SimpleNamespace(
+            ref=ref,
+            root=Path(workdir),
+            repo_policy_script=self.repo_policy_script,
+            greenlight_files_verdict={"status": "NO_LAND", "reason": "not_trivial"},
+        )
         self.policies.append(policy)
         return policy
 
-    def build_inputs(self, repo, pr, base_ref, head_sha, comments_before, run_dir, pol):
+    def fetch_diff(self, repo, base_ref, head_sha):
+        with self.lock:
+            self.diffs.append(int(head_sha))
+        touched = int(head_sha) in self.touching
+        return b"diff --git a/.github/greenlight/x" if touched else b"diff --git a/x"
+
+    def build_inputs(
+        self, repo, pr, base_ref, head_sha, comments_before, run_dir, pol, diff=None
+    ):
         with self.lock:
             self.calls.append(
                 SimpleNamespace(
+                    diff=diff,
                     repo=repo,
                     pr=pr,
                     base_ref=base_ref,
@@ -106,6 +123,9 @@ class CollectTestCase(unittest.TestCase):
             stack.enter_context(mock.patch.object(gh_answers, "_recording", None))
             stack.enter_context(
                 mock.patch.object(sweep_module, "build_inputs", inputs.build_inputs)
+            )
+            stack.enter_context(
+                mock.patch.object(sweep_module, "fetch_diff", inputs.fetch_diff)
             )
             seams = {"materialize_policy": inputs.materialize_policy, **seams}
             for name, replacement in seams.items():
@@ -254,6 +274,41 @@ class TestCollectionFailures(CollectTestCase):
         code, output, _ = self.run_failing(total=3, failing=2)
         self.assertEqual(code, collect.EXIT_DEGRADED)
         self.assertTrue([line for line in output if "more than half" in line])
+
+
+class TestDiffGateInCollect(CollectTestCase):
+    """A row the policy's diff gate declines is replayed from its diff alone, so collect
+    reads nothing more for it, and a fault in its context cannot fail the job."""
+
+    def test_a_declined_row_is_collected_from_its_diff_alone(self):
+        numbers = [194000, 194001, 194002]
+        script = self.root / "repo-policy.py"
+        script.write_text(
+            "import sys\n"
+            "text = open(sys.argv[2]).read()\n"
+            "print('touches=' + ('true' if '.github/greenlight' in text else 'false'))\n"
+        )
+        inputs = FakeInputs(
+            failing=numbers[:2], repo_policy_script=script, touching=numbers[:2]
+        )
+        code = self.collect(
+            Fakes([replay_row(n) for n in numbers]), inputs, "--sample-n", "9"
+        )
+        self.assertEqual(code, collect.EXIT_OK)
+        self.assertEqual(sorted(inputs.diffs), numbers)
+        self.assertEqual(built(inputs), numbers[2:])
+        # The row that passes is built from the diff the gate fetched, not a refetch.
+        self.assertEqual([call.diff for call in inputs.calls], [b"diff --git a/x"])
+
+    def test_a_policy_without_the_script_fetches_no_separate_diff(self):
+        numbers = [194000, 194001]
+        inputs = FakeInputs()
+        code = self.collect(
+            Fakes([replay_row(n) for n in numbers]), inputs, "--sample-n", "9"
+        )
+        self.assertEqual(code, collect.EXIT_OK)
+        self.assertEqual(inputs.diffs, [])
+        self.assertEqual(built(inputs), numbers)
 
 
 class TestPresampledCollect(CollectTestCase):
