@@ -1,4 +1,5 @@
 import argparse
+import importlib.util
 import json
 import os
 import sys
@@ -9,6 +10,9 @@ from tools.scripts.generate_binary_build_matrix import (
     OSDC_RUNNERS,
     parse_version,
     ROCM_ARCHES_DICT,
+    ROCM_PREVIEW_DESIRED_CUDA,
+    ROCM_PREVIEW_PYTHON_ARCHES,
+    ROCM_PREVIEW_VERSION,
     validation_runner,
 )
 
@@ -331,6 +335,7 @@ class GenerateBuildMatrixTest(TestCase):
             entry["gpu_arch_version"]
             for entry in out["include"]
             if entry["gpu_arch_type"] == "rocm"
+            and entry["desired_cuda"] != ROCM_PREVIEW_DESIRED_CUDA
         }
 
     def _cuda_versions(
@@ -489,6 +494,66 @@ class GenerateBuildMatrixTest(TestCase):
             versions = self._rocm_versions(channel, "false")
             self.assertEqual(versions, set(ROCM_ARCHES_DICT[channel]), channel)
             self.assertGreater(len(versions), 1, channel)
+
+    def _rocm_preview_entries(
+        self, operating_system: str, channel: str, getting_started: str
+    ) -> list:
+        out = generate_build_matrix(
+            "wheel",
+            operating_system,
+            channel,
+            "enable",
+            "enable",
+            "enable",
+            "disable",
+            "false",
+            "false",
+            "disable",
+            getting_started,
+            None,
+        )
+        return [
+            entry
+            for entry in out["include"]
+            if entry["desired_cuda"] == ROCM_PREVIEW_DESIRED_CUDA
+        ]
+
+    def test_rocm_preview_only_on_nightly_getting_started_linux(self):
+        preview = self._rocm_preview_entries("linux", "nightly", "true")
+        self.assertEqual(
+            [entry["python_version"] for entry in preview], ROCM_PREVIEW_PYTHON_ARCHES
+        )
+        for entry in preview:
+            self.assertEqual(entry["gpu_arch_version"], ROCM_PREVIEW_VERSION)
+            self.assertEqual(
+                entry["installation"],
+                "pip3 install --pre torch --index-url "
+                "https://download.pytorch.org/whl/nightly/rocm-preview",
+            )
+        for args in (
+            ("linux", "nightly", "false"),
+            ("linux", "release", "true"),
+            ("windows", "nightly", "true"),
+        ):
+            self.assertEqual(self._rocm_preview_entries(*args), [], args)
+
+    def test_quick_start_keeps_preview_out_of_the_rocm_box(self):
+        # A wrong version leaves the old command in place, so QUICKSTART's
+        # regenerate-and-diff check can't catch it; check the map directly.
+        spec = importlib.util.spec_from_file_location(
+            "quick_start_linter", "tools/linter/adapters/quick_start_linter.py"
+        )
+        linter = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(linter)
+        preview = self._rocm_preview_entries("linux", "nightly", "true")
+        linter.extract_arch_ver_map(
+            {chan: {"linux": preview} for chan in ("nightly", "release")}
+        )
+        self.assertNotIn("rocm5.x", linter.acc_arch_ver_map["nightly"])
+        self.assertEqual(
+            linter.acc_arch_ver_map["nightly"]["rocm.alpha"],
+            ("rocm", ROCM_PREVIEW_VERSION, "alpha"),
+        )
 
 
 def parse_args():
