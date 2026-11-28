@@ -125,6 +125,8 @@ just review --ref my-branch          # dispatch the reviewer workflow at this te
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
 just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: review an ineligible author's PR, in shadow
 just review --repo pytorch/test-infra  # scan another repo with a GreenLight config, once
+just run gate-check --repo pytorch/test-infra --pr 123 --head-sha "$SHA" --timeout-minutes 1
+                                     # the gate's poll on one PR (GATE.md): exit 0 passes, 1 holds past the timeout
 ```
 
 `just review` scans the evaluation cohort's open PRs and, for each eligible PR that is new or changed

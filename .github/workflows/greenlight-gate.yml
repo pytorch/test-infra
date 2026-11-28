@@ -1,0 +1,75 @@
+name: GreenLight gate
+
+# The workflow an organization ruleset ("Require workflows to pass before merging") requires, pinned to a commit of
+# pytorch/test-infra; a ruleset ignores the path filter, which limits this repo's own runs to PRs that change the gate.
+# No concurrency group: a cancelled run would leave the required workflow without a result.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/greenlight-gate.yml
+      - "greenlight/**"
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check where this workflow comes from
+        id: self
+        env:
+          JOB_CONTEXT: ${{ toJSON(job) }}
+        run: |
+          set -euo pipefail
+          repository="$(jq -r '.workflow_repository // ""' <<<"$JOB_CONTEXT")"
+          file_path="$(jq -r '.workflow_file_path // ""' <<<"$JOB_CONTEXT")"
+          sha="$(jq -r '.workflow_sha // ""' <<<"$JOB_CONTEXT")"
+          echo "workflow repository: $repository"
+          echo "workflow file path: $file_path"
+          echo "workflow sha: $sha"
+          if [[ "$repository" != "pytorch/test-infra" ]]; then
+            echo "the gate must run from pytorch/test-infra, not '$repository'" >&2
+            exit 1
+          fi
+          if [[ "$file_path" != ".github/workflows/greenlight-gate.yml" ]]; then
+            echo "the gate must run from .github/workflows/greenlight-gate.yml, not '$file_path'" >&2
+            exit 1
+          fi
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "the workflow sha '$sha' is not a commit sha" >&2
+            exit 1
+          fi
+          echo "sha=$sha" >>"$GITHUB_OUTPUT"
+
+      - name: Checkout GreenLight at the gate's commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          repository: pytorch/test-infra
+          ref: ${{ steps.self.outputs.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: greenlight
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          version: "0.11.14"
+          enable-cache: false
+
+      - name: Hold while a GreenLight approval stands on an older commit
+        env:
+          PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ github.token }}
+          GATE_REPO: ${{ github.repository }}
+          GATE_PR: ${{ github.event.pull_request.number }}
+          GATE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          uv run --project greenlight --frozen --no-dev greenlight gate-check \
+            --repo "$GATE_REPO" --pr "$GATE_PR" --head-sha "$GATE_HEAD_SHA"

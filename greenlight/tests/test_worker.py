@@ -1,17 +1,24 @@
 from __future__ import annotations
 
+import dataclasses
+import functools
 import logging
+from datetime import timedelta
 from typing import Any
 
 import pytest
 from github import GithubException, RateLimitExceededException
 
-from greenlight.constants import LEASE_DURATION, OTHER_REPO_MAX_DISPATCHES, TARGET_REPO
+from greenlight import approval_backing
+from greenlight.approvals import GREENLIGHT_LOGIN
+from greenlight.constants import LEASE_DURATION, OTHER_REPO_MAX_DISPATCHES, STATUS_LAND, TARGET_REPO
+from greenlight.gate_rules import GateRules
 from greenlight.scan_memory import ScanMemory, decode_memory, encode_memory
 from greenlight.state_store import ConfigRecord
 from greenlight.tick_outcomes import RATE_LIMITED
 from greenlight.worker import Worker, WorkerPayload, parse_payload, worker_cap, worker_event
 from tests.fanout_fakes import NOW, OFF, SHADOW, START, World, identity
+from tests.test_approval_backing import _GitHub, _pull, _review, _row
 
 _REPO = "pytorch/vision"
 
@@ -25,7 +32,13 @@ def _served(world: World, text: str = SHADOW, *, memory: ScanMemory | None = Non
 
 
 def _worker(
-    world: World, make_config: Any, *, cap: int = 3, tick: str = "t1", max_dispatches: int | None = 30
+    world: World,
+    make_config: Any,
+    *,
+    cap: int = 3,
+    tick: str = "t1",
+    max_dispatches: int | None = 30,
+    bot_login: str = "bot[bot]",
 ) -> Worker:
     world.events.append("bot login")
     return Worker(
@@ -33,7 +46,7 @@ def _worker(
         WorkerPayload(_REPO, tick, cap),
         world.store,
         world.tokens(),  # type: ignore[arg-type]
-        resolve_bot_login=lambda: "bot[bot]",
+        resolve_bot_login=lambda: bot_login,
         ref="main",
         timeout_minutes=45,
         started=START,
@@ -64,6 +77,7 @@ def test_a_worker_runs_its_repo_under_its_lease_and_saves_the_completed_tick(mak
         f"token {_REPO}",
         "dispatch token",
         f"identity {_REPO}",
+        f"backing {_REPO} shadow",
         f"prepare {_REPO} shadow max=3",
         f"finish {_REPO} optional=True max=3",
     ]
@@ -322,3 +336,72 @@ def test_a_drained_off_repo_gets_no_work_and_a_change_away_from_off_forgets_the_
     item = world.store.read_repo(_REPO)
     assert not item.drain_complete
     assert decode_memory(item.memory, _REPO).drain_completed_by() is None
+
+
+def test_a_backing_report_error_fails_the_worker_after_its_memory_is_saved(make_config):
+    world = World(backing_errors=("the ledger could not be read: down",))
+    _served(world)
+
+    with pytest.raises(RuntimeError, match=r"^pytorch/vision: the ledger could not be read: down$"):
+        _worker(world, make_config).run()
+
+    kwargs = world.backing_kwargs[_REPO]
+    assert kwargs["config"].github_token == f"token-{_REPO}"
+    assert kwargs["bot_login"] == "bot[bot]"
+    assert kwargs["build_github"].keywords["meter"].repo == _REPO
+    item = world.store.read_repo(_REPO)
+    assert (item.last_tick, item.lease_owner) == ("t1", None)
+
+
+class _GateGitHub(_GitHub):
+    """The backing check's GitHub, answering the worker's identity check too."""
+
+    def requestJsonAndCheck(self, verb: str, url: str, *args: Any, **kwargs: Any) -> tuple[dict[str, Any], Any]:
+        if url == f"/repos/{_REPO}":
+            return {}, identity(_REPO)._asdict()
+        return super().requestJsonAndCheck(verb, url, *args, **kwargs)
+
+
+def test_a_gate_repos_backing_memory_round_trips_through_the_store_and_the_next_run_reads_only_what_changed(
+    make_config,
+):
+    given = NOW - timedelta(minutes=5)
+    moved = "c" * 40
+    github = _GateGitHub()
+    github.reviews = {7: [_review(1, given=given)], 8: [_review(2, given=given)]}
+    pulls = [_pull(7, updated_at=given), _pull(8, updated_at=given)]
+    rows = {number: _row(number, STATUS_LAND, version=given - timedelta(minutes=1)) for number in (7, 8)}
+    meters: list[Any] = []
+
+    def build(_token: str, *, meter: Any = None, **_kwargs: Any) -> Any:
+        meters.append(meter)
+        return github
+
+    world = World()
+    world.seams = lambda: dataclasses.replace(  # type: ignore[method-assign]
+        World.seams(world),
+        build_github=build,
+        run_backing=functools.partial(
+            approval_backing.check,
+            list_prs=lambda _client, _repo: list(pulls),  # type: ignore[arg-type]
+            read_gates=lambda _repo, numbers: ({n: rows[n] for n in numbers if n in rows},) * 2,
+            read_ledger_newest=lambda: given,
+            read_rules=lambda _client, _repo: GateRules(enforced=True),
+        ),
+    )
+    _served(world)
+
+    assert _worker(world, make_config, tick="t1", bot_login=GREENLIGHT_LOGIN).run() == "done"
+    first = sorted(github.read_numbers())
+    stored = decode_memory(world.store.read_repo(_REPO).memory, _REPO).backing
+    pulls[1] = _pull(8, head=moved, updated_at=given + timedelta(minutes=1))
+    github.fresh[8] = (moved, "main")
+    github.reads.clear()
+    assert _worker(world, make_config, tick="t2", bot_login=GREENLIGHT_LOGIN).run() == "done"
+
+    assert first == [7, 8]
+    assert set(stored.keys) == {7, 8}
+    assert github.read_numbers() == [8]
+    assert [(number, review) for number, review, _message in github.dismissals] == [(8, 2)]
+    assert {meter.repo for meter in meters if meter is not None} == {_REPO}
+    assert decode_memory(world.store.read_repo(_REPO).memory, _REPO).backing.keys[8].head_sha == moved

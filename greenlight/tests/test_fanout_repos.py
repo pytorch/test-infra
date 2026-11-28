@@ -207,13 +207,13 @@ def test_a_private_repo_with_a_stored_config_is_refused_with_its_reason(make_con
     assert "it is private" in (_failure(planner) or "")
 
 
-def test_a_safety_only_gate_repo_gets_no_worker(make_config):
+def test_a_safety_only_gate_repo_gets_a_worker_with_no_dispatches_for_its_backing_check(make_config):
     world = _world(identity("pytorch/vision"), files={"pytorch/vision": file_answer(SHADOW + "extra: 1\n")})
 
     planner = _tick(world, make_config)
 
-    assert planner.lines["pytorch/vision"].outcome == "safety-only"
-    assert world.invoked == []
+    assert planner.lines["pytorch/vision"].outcome == "invoked"
+    assert _caps(world) == {"pytorch/vision": 0}
 
 
 def _with_work(world: World, repo: str, *, completed: float | None = None, lease: str | None = None) -> None:
@@ -317,7 +317,8 @@ def test_a_repo_without_work_forgets_when_its_work_began(make_config):
     world = _world()
     _with_work(world, "pytorch/a")
     _tick(world, make_config)
-    world.files["pytorch/a"] = file_answer(SHADOW + "extra: 1\n", '"e9"')
+    world.files["pytorch/a"] = file_answer(OFF, '"e9"')
+    world.store.save_memory("pytorch/a", b"m", owner=None, now=START, tick="t0", drain_complete=True)
 
     _tick(world, make_config)
 

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from greenlight import drci_poke, repo_config, repo_scan, verdict, workflow_target
+from greenlight import drci_poke, gate_check, repo_config, repo_scan, verdict, workflow_target
 from greenlight.config import Config
 from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
@@ -58,8 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Scan the open PRs from the evaluation cohort in --repo (every merge_rules.yaml "
             "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
             "dispatch the review workflow for new or changed PRs whose author is eligible under the "
-            "merge rules: named by a valid rule, whatever files the PR changes, on a base trymerge "
-            "accepts. Requires "
+            "merge rules: named by a valid rule, whatever files the PR changes, on a base the repo's "
+            "rule accepts (on a safety: gate repo, main alone). Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials. The repo must have a "
             f"GreenLight config at {REPO_CONFIG_PATH} (pytorch/pytorch has a built-in one), revalidated on its "
             "default branch every scan; its mode decides what the scan does (REPOS.md). "
@@ -107,7 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "LOCAL USE ONLY: waive the eligibility requirement on the --pr target, reviewing it even "
-            "when no valid merge rule names its author or trymerge refuses its base. Eligibility is still "
+            "when no valid merge rule names its author or its base is not accepted. Eligibility is still "
             "resolved and still decides shadow, so such a PR is reviewed in shadow and never approved "
             "(never exposed as a workflow input)"
         ),
@@ -189,6 +189,7 @@ def build_parser() -> argparse.ArgumentParser:
     check_parser.add_argument("path", type=Path, help="path to the config file")
     check_parser.add_argument("--repo", required=True, help="owner/name of the repository the file belongs to")
     workflow_target.add_parser(subparsers)
+    gate_check.add_parser(subparsers)
     return parser
 
 
@@ -285,6 +286,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_check_config(args)
     if args.command == "target":
         return workflow_target.run(args)
+    if args.command == "gate-check":
+        return gate_check.run(args)
     try:
         config = _config_from_args(args)
         configure_logging(config.log_level)

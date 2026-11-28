@@ -76,7 +76,10 @@ never starts waits for the next tick's plan.
 - **Phase A, safety work**, never stopped by a budget or a quota floor: an `off` repo runs its
   drain slice, a `pytorchbot` repo lists its PRs and runs the revert guard and the ineligible
   revoke (`review.prepare`; a `clickhouse` repo's listing reads HUD ClickHouse first), a `gate`
-  repo has no Phase A work yet. A safety-only repo stops here.
+  repo that is not `off` its approval-backing check ([GATE.md](GATE.md)), which starts no read
+  `BACKING_DEADLINE` (120 s) after its invocation started and whose report errors are the repo's; an
+  `active` gate repo whose gate is not enforced, or whose rules could not be read, runs no Phase B. A
+  safety-only repo stops here; a safety-only `gate` repo gets a worker (dispatch cap 0) for its check.
 - **Phase B, optional work**: `review.prepare` (unless Phase A ran it) and `review_finish.finish`
   (fingerprint fan-out, dispatch, label pass). It starts no GitHub request 240 s after its
   invocation started (`WORKER_DEADLINE`), nor below `QUOTA_FLOOR_PRIMARY` (1000) requests left on
@@ -119,8 +122,10 @@ in-process one with the same semantics. Items are keyed by the string attribute 
 
 - `repo#<repo>`: the repo's lease (`lease_owner`, `lease_expires`); its scan memory (`memory`:
   when its last full and wide ticks that completed started, the fingerprint results later ticks
-  reuse, its drain's progress and, on a `clickhouse` repo, its view of its open PRs with their
-  markers ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)), compressed; a memory over 300 KB is saved
+  reuse, its drain's progress, on a `clickhouse` repo its view of its open PRs with their
+  markers ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)), and on a `gate` repo its approval-backing
+  memory (an optional key with its own version, never dropped, cleared while the repo does not back
+  approvals), compressed; a memory over 300 KB is saved
   without its fingerprint results, then without its view too; a memory stored by the release before
   is read forward without a view, and one of any other version starts cold); the last tick a run completed and when (`last_tick`,
   `last_completed_at`); whether its drain is complete (`drain_complete`); and its config cache
@@ -281,3 +286,6 @@ Beyond the variables the README lists for every path, the Lambda reads `SECRET_S
 6. Other `pytorch` repos opt in themselves ([REPOS.md](REPOS.md), "Opting a repo in"): a repo admin
    (or, where the org restricts that, a `pytorch` org admin) adds the repo to the App's `pytorch`
    installation, then the repo commits its file, in `mode: shadow` first.
+
+Before rolling the Lambda back past a release that accepts `safety: gate` with `mode: active`, follow
+GATE.md's "Leaving": every gate repo `off` and drained first.

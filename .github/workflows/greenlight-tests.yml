@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/greenlight-tests.yml
       - .github/workflows/greenlight-pr-review.yml
+      - .github/workflows/greenlight-gate.yml
       - greenlight/**
       - .claude/hooks/greenlight/**
       - .claude/skills/greenlight-review/**
@@ -29,6 +30,7 @@ on:
     paths:
       - .github/workflows/greenlight-tests.yml
       - .github/workflows/greenlight-pr-review.yml
+      - .github/workflows/greenlight-gate.yml
       - greenlight/**
       - .claude/hooks/greenlight/**
       - .claude/skills/greenlight-review/**

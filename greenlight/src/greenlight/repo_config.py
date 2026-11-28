@@ -46,6 +46,7 @@ from greenlight.constants import (
     FULL_TICK_MINUTES_DEFAULT,
     FULL_TICK_MINUTES_MAX,
     FULL_TICK_MINUTES_MIN,
+    GATE_ACTIVE_REPOS,
     PYTORCHBOT_GUARDED_REPOS,
     REPO_CONFIG_PATH,
     TARGET_REPO,
@@ -102,6 +103,11 @@ class RepoEntry:
     minimum_role: MinimumRole = _DEFAULT_MINIMUM_ROLE
     change_source: ChangeSource = _DEFAULT_CHANGE_SOURCE
     full_tick_minutes: int = FULL_TICK_MINUTES_DEFAULT
+
+    @property
+    def strict_base(self) -> bool:
+        """Whether the repo takes the strict base rule (``merge_authz.accepts_base_for``): a ``gate`` repo does."""
+        return self.safety == "gate"
 
 
 BUILTIN_PYTORCH = RepoEntry(TARGET_REPO, "drci", "pytorchbot", "merge_rules", "active")
@@ -187,8 +193,8 @@ def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
     change_source = raw.get("change_source", _DEFAULT_CHANGE_SOURCE)
     if change_source == "clickhouse" and normalize_repo(repo) not in CLICKHOUSE_CHANGE_SOURCE_REPOS:
         problems.append(f"change_source: clickhouse is only for {sorted(CLICKHOUSE_CHANGE_SOURCE_REPOS)}")
-    if raw["safety"] == "gate" and raw["mode"] == "active":
-        problems.append("safety: gate cannot be active in this release")
+    if raw["safety"] == "gate" and raw["mode"] == "active" and normalize_repo(repo) not in GATE_ACTIVE_REPOS:
+        problems.append(f"safety: gate with mode: active is only for {sorted(GATE_ACTIVE_REPOS)}")
     if "minimum_role" in raw and raw["eligibility"] != "write_permission":
         problems.append("minimum_role is only for eligibility: write_permission")
     if "full_tick_minutes" in raw and change_source != "clickhouse":

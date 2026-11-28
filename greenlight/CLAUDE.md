@@ -103,12 +103,14 @@ PyTorch Green Light has one unit of work — the `review` phase:
 valid merge rule must name the author (or, on a `write_permission` repo, the author must have write
 access, or maintain with `minimum_role: maintain`), whatever files the PR changes, and the PR must be
 on a base `merge_authz.accepts_base` accepts: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
-is `main`, matched by branch names. The scan judges the base from the listing (`pr_listing`), the
+is `main`, matched by branch names; on a `safety: gate` repo, `main` alone (`merge_authz.accepts_base_for`,
+GATE.md). The scan judges the base from the listing (`pr_listing`), the
 `--pr` gate and the verdict (`author_eligibility.has_eligible_author`, which also requires the reviewed head)
 from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the repo's mode (REPOS.md), the verdict's
-record-time downgrade, `verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
+record-time downgrade (eligibility, and on a `gate` repo its rules check and App login: GATE.md), `verdict --shadow`, a
+local `--allow-untrusted-author` run, or the revert
 guard: a `REVERTED` row, which can only deny, is non-shadow on a PR that already has a recorded row
 and follows the PR's eligibility otherwise. A shadow verdict is never approved and always dismisses
 any prior greenlight approval; every shadow row is filtered out of both HUD readers (Dr. CI's
@@ -137,7 +139,9 @@ The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
 back over HTTP through `https://hud.pytorch.org/api/greenlight/pr_state` and gates on the stored
 `head_sha`, not on `eval_hash`.
 
-Add a repo's scan logic to `review.prepare()` (safety work) or `review_finish.finish()` (optional work), a repo's run in an
+Add a repo's scan logic to `review.prepare()` (a `pytorchbot` repo's safety work) or `review_finish.finish()` (optional
+work); an `off` repo's drain (`drain.py`) and a `gate` repo's approval-backing check (`approval_backing.py`) are safety work
+outside `prepare`; a repo's run in an
 invocation to `tick.RepoRun`, and work across repos to the planner (`fanout.py`, `fanout_repos.py`); `review.run()`,
 `fanout.Planner.run()` and `worker.Worker.run()` **must keep raising on failure** (each invocation raises one error for every
 repo's problems).
@@ -165,7 +169,8 @@ paths: on each scheduled event its planner (`fanout.Planner`) runs `pytorch/pyto
 one asynchronous worker (`worker.Worker`) per other repo with work. It mints App tokens per job and repo, takes no
 single-instance lock and arms neither hang-guard layer (the watchdog's `os._exit` is wrong under Lambda): every Lambda scan
 of a repo holds that repo's lease in the DynamoDB state store, and the function timeout bounds each invocation. The store
-also keeps each repo's scan memory (kept fingerprints, a drain's progress), its config cache (revalidated every tick by
+also keeps each repo's scan memory (kept fingerprints, a drain's progress, a gate repo's approval-backing memory), its
+config cache (revalidated every tick by
 ETag) and its eligibility snapshots across invocations; a CLI one-shot uses an in-process store (its config read through
 the same config cache), takes no lease and always lists in full.
 

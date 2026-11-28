@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import github_client, state
+from greenlight import approvals, github_client, state
 from greenlight.constants import DISPATCH_REPO, DRAIN_PRS_PER_TICK, WORKFLOW_FILE
 from greenlight.ineligible_approvals import dismiss_each
 
@@ -51,8 +51,9 @@ if TYPE_CHECKING:
     from github.PullRequest import PullRequest
 
     from greenlight.config import Config
+    from greenlight.drain_pass import DrainPass
     from greenlight.github_types import VerdictPR
-    from greenlight.scan_memory import DrainPass, ScanMemory
+    from greenlight.scan_memory import ScanMemory
     from greenlight.state import PRState
 
     _RunsFn = Callable[[Github, datetime], int]
@@ -130,7 +131,7 @@ def drain(
     list_prs: Callable[[Github, str], Sequence[PullRequest]] = list_open_pulls,
     read_states: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
     unfinished_runs: _RunsFn = count_unfinished_review_runs,
-    dismiss: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
+    dismiss: Callable[..., list[int]] = approvals.dismiss_prior_greenlight_approvals,
     now: Callable[[], datetime] = _utcnow,
     cancel_event: threading.Event | None = None,
 ) -> DrainReport:

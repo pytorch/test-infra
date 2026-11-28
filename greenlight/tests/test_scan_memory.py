@@ -11,11 +11,13 @@ from typing import Any
 import pytest
 
 from greenlight import scan_memory
+from greenlight.backing_memory import BackingKey, BackingMemory
 from greenlight.change_feed import Marker
 from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE
+from greenlight.drain_pass import DrainPass
 from greenlight.fingerprint_cache import FingerprintCache
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
-from greenlight.scan_memory import MEMORY_VERSION, DrainPass, ScanMemory, decode_memory, encode_memory
+from greenlight.scan_memory import MEMORY_VERSION, ScanMemory, decode_memory, encode_memory
 from tests.change_helpers import RECENT, record
 
 _STARTED = datetime(2026, 10, 13, 12, 0, 0)
@@ -294,6 +296,47 @@ def test_a_checked_pr_is_never_pending_again_in_its_pass():
     assert current.pending([1, 2]) == [2]
 
 
+def test_a_pass_has_no_blocker_unless_given_one():
+    assert DrainPass(1).blocker is None
+
+
+def test_a_cold_memory_has_an_empty_backing_slot():
+    backing = ScanMemory().backing
+
+    assert backing == BackingMemory()
+    assert (backing.keys, backing.checked_at, backing.waiting) == ({}, None, frozenset())
+    assert (backing.sweep, backing.sweep_started_at, backing.sweeps, backing.decode_error) == (None, None, 0, None)
+
+
+def test_clearing_the_drain_never_touches_the_backing_slot():
+    memory = ScanMemory()
+    backing = memory.backing
+    sweep = backing.start_sweep(_STARTED, recorded=frozenset({1}))
+    backing.waiting = frozenset({2})
+
+    memory.clear_drain()
+
+    assert memory.backing is backing
+    assert (backing.sweep, backing.sweep_started_at, backing.sweeps, backing.waiting) == (
+        sweep,
+        _STARTED,
+        1,
+        frozenset({2}),
+    )
+
+
+def test_clearing_the_backing_check_starts_it_cold_and_leaves_the_drain():
+    memory = ScanMemory()
+    memory.off_since(_STARTED)
+    current = memory.start_drain_pass(None)
+    _with_backing(memory)
+
+    memory.clear_backing()
+
+    assert memory.backing == BackingMemory()
+    assert (memory.drain_pass(), memory.off_since(_STARTED + timedelta(hours=1))) == (current, _STARTED)
+
+
 _MARKER = Marker(reviews=1, comments=2)
 
 
@@ -497,6 +540,21 @@ def _full_memory() -> ScanMemory:
     return memory
 
 
+def _with_backing(memory: ScanMemory) -> ScanMemory:
+    backing = memory.backing
+    backing.keys = {
+        5: BackingKey(_UPDATED, "headsha5", "main", ("LAND", 9, _STARTED - timedelta(minutes=2)), True),
+        6: BackingKey(None, "headsha6", "release/2.9", None, None),
+    }
+    backing.checked_at = _STARTED
+    backing.waiting = frozenset({6})
+    backing.attempt(6)
+    sweep = backing.start_sweep(_STARTED - timedelta(minutes=4), recorded=frozenset({5}))
+    sweep.attempt(5)
+    sweep.checked.add(5)
+    return memory
+
+
 def test_the_memory_codec_round_trips_every_part_of_the_memory():
     memory = _full_memory()
 
@@ -515,6 +573,26 @@ def test_the_memory_codec_round_trips_every_part_of_the_memory():
     assert restored._drain_pass == memory._drain_pass
     assert restored.drain_completed_by() == 4
     assert _tick(restored).lookup(1) == _RESULT
+
+
+def test_the_memory_codec_round_trips_the_backing_memory_with_the_rest():
+    memory = _with_backing(_full_memory())
+
+    restored = decode_memory(encode_memory(memory, _REPO), _REPO)
+
+    assert restored.backing == memory.backing
+    assert restored.backing.sweep_started_at == _STARTED - timedelta(minutes=4)
+    assert (restored.backing.attempted, restored.backing.attempts) == ({6: 1}, 1)
+    assert restored.fingerprints == memory.fingerprints
+    assert restored.view.to_form() == memory.view.to_form()
+    assert (restored.drain_pass(), restored.drain_completed_by()) == (memory.drain_pass(), 4)
+
+
+def test_a_cold_backing_memory_is_not_stored():
+    form = json.loads(zlib.decompress(encode_memory(_full_memory(), _REPO)))
+
+    assert "backing" not in form
+    assert decode_memory(encode_memory(_full_memory(), _REPO), _REPO).backing == BackingMemory()
 
 
 def test_the_memory_codec_round_trips_the_view():
@@ -630,6 +708,83 @@ def test_a_version_two_memory_is_read_forward_without_a_view():
     assert _marker_tick(restored, markers={1: None}, revalidate=frozenset({1})).lookup(1) is None
 
 
+def _backing_blob(backing: Any) -> bytes:
+    form = json.loads(zlib.decompress(encode_memory(_with_backing(_full_memory()), _REPO)))
+    form["backing"] = backing
+    return zlib.compress(json.dumps(form).encode())
+
+
+def _kept_apart_from_its_backing(restored: ScanMemory) -> None:
+    memory = _full_memory()
+    assert restored.fingerprints == memory.fingerprints
+    assert restored.view.to_form() == memory.view.to_form()
+    assert (restored.drain_pass(), restored.drain_completed_by()) == (memory.drain_pass(), 4)
+
+
+@pytest.mark.parametrize("version", [0, 2, True, None])
+def test_another_backing_version_starts_the_backing_memory_cold_alone(caplog, version):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        restored = decode_memory(_backing_blob({"version": version, "keys": "anything"}), _REPO)
+
+    assert restored.backing == BackingMemory()
+    assert restored.backing.decode_error is None
+    _kept_apart_from_its_backing(restored)
+    assert f"stored approval-backing memory has version {version!r}, not 1; starting it cold" in caplog.text
+    assert [record for record in caplog.records if record.levelno >= logging.ERROR] == []
+
+
+def _broken_backing(**changes: Any) -> dict[str, Any]:
+    form: dict[str, Any] = json.loads(zlib.decompress(encode_memory(_with_backing(_full_memory()), _REPO)))["backing"]
+    form.update(changes)
+    return form
+
+
+@pytest.mark.parametrize(
+    "backing",
+    [
+        ["not", "an", "object"],
+        {"version": 1},
+        _broken_backing(keys=[[5, None, "headsha5", "main"]]),
+        _broken_backing(keys=[[5, None, "headsha5", "main", None, "yes"]]),
+        _broken_backing(keys=[[5, None, None, "main", None, True]]),
+        _broken_backing(keys=[[5, None, "headsha5", "main", ["LAND", 9, None], True]]),
+        _broken_backing(sweep_started_at=None),
+        _broken_backing(waiting=["6"]),
+    ],
+    ids=[
+        "not-an-object",
+        "missing-parts",
+        "a-short-key",
+        "a-rules-state-not-a-bool",
+        "a-key-without-its-head",
+        "a-gate-row-without-its-version",
+        "a-sweep-without-its-start",
+        "a-waiting-pr-not-a-number",
+    ],
+)
+def test_a_backing_memory_that_does_not_decode_starts_cold_alone_and_is_noted(caplog, backing):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        restored = decode_memory(_backing_blob(backing), _REPO)
+
+    assert restored.backing.keys == {}
+    assert restored.backing.sweep is None
+    assert restored.backing.decode_error is not None
+    assert restored.backing.decode_error.startswith("its stored approval-backing memory did not decode (")
+    assert restored.backing.decode_error.endswith("); it started cold")
+    _kept_apart_from_its_backing(restored)
+    [record] = [r for r in caplog.records if "cannot decode its stored approval-backing memory" in r.getMessage()]
+    assert record.exc_info
+    assert "cannot decode its stored scan memory" not in caplog.text
+
+
+def test_a_noted_decode_error_is_stored_until_a_report_carries_it():
+    restored = decode_memory(_backing_blob({"version": 1}), _REPO)
+
+    again = decode_memory(encode_memory(restored, _REPO), _REPO)
+
+    assert again.backing.decode_error == restored.backing.decode_error
+
+
 def test_no_memory_starts_cold():
     assert decode_memory(None, _REPO).fingerprints == {}
 
@@ -713,7 +868,7 @@ def test_a_memory_over_the_size_cap_is_saved_without_its_fingerprints(monkeypatc
 
 
 def test_a_memory_still_over_the_size_cap_without_its_fingerprints_is_saved_without_its_view_too(monkeypatch, caplog):
-    memory = _full_memory()
+    memory = _with_backing(_full_memory())
     full = _size(memory, fingerprints=True, view=True)
     without_fingerprints = _size(memory, fingerprints=False, view=True)
     smallest = _size(memory, fingerprints=False, view=False)
@@ -727,6 +882,7 @@ def test_a_memory_still_over_the_size_cap_without_its_fingerprints_is_saved_with
     assert restored.fingerprints == {}
     assert not restored.view.built
     assert restored.drain_completed_by() == 4
+    assert restored.backing == memory.backing
     assert restored._last_wide_tick_started == _STARTED + timedelta(minutes=15)
     assert f"its scan memory is {full} bytes, over {without_fingerprints - 1}; saved without its 2 fingerprint" in (
         caplog.text
@@ -740,12 +896,13 @@ def test_a_memory_still_over_the_size_cap_without_its_fingerprints_is_saved_with
 
 
 def test_a_memory_over_the_size_cap_in_its_smallest_form_is_still_encoded(monkeypatch):
-    memory = _full_memory()
+    memory = _with_backing(_full_memory())
     monkeypatch.setattr(scan_memory, "MEMORY_MAX_BYTES", 0)
 
     restored = decode_memory(encode_memory(memory, _REPO), _REPO)
 
     assert restored.drain_completed_by() == 4
+    assert restored.backing == memory.backing
     assert restored.fingerprints == {}
     assert not restored.view.built
 

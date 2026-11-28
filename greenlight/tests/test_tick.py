@@ -10,9 +10,10 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 from github import GithubException, RateLimitExceededException
 
-from greenlight import drain, fanout_repos, merge_authz, quota, review, review_finish, tick
+from greenlight import approval_backing, drain, fanout_repos, merge_authz, quota, review, review_finish, tick
 from greenlight.change_feed import Marker
 from greenlight.constants import (
+    BACKING_DEADLINE,
     OTHER_REPO_REQUEST_BUDGET,
     QUOTA_FLOOR_OTHERS,
     QUOTA_FLOOR_PRIMARY,
@@ -21,6 +22,7 @@ from greenlight.constants import (
     WORKER_DEADLINE,
 )
 from greenlight.fanout import primary_line
+from greenlight.gate_rules import GateRules
 from greenlight.guards import IterationTimeout
 from greenlight.latch import SharedLatch
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
@@ -39,6 +41,15 @@ _NOW = datetime(2026, 11, 24, 12, 0, 0)
 _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow")
 _OFF = RepoEntry("pytorch/data", "greenlight", "gate", "merge_rules", "off")
 _SNAPSHOT = merge_authz.MergeRulesSnapshot(authorized=frozenset({"alice"}), rules=())
+_ENFORCED = GateRules(enforced=True)
+_NOT_ENFORCED = GateRules(enforced=False, problems=("a merge_queue rule applies",))
+_ACTIVE = dataclasses.replace(_VISION, mode="active")
+
+
+def _backing_report(
+    rules: GateRules | None = _ENFORCED, errors: tuple[str, ...] = ()
+) -> approval_backing.BackingReport:
+    return approval_backing.BackingReport(rules, 0, 0, 0, 0, 0, 1, 0, 0, (), errors)
 
 
 class _Client:
@@ -69,12 +80,15 @@ class _Fakes:
         clock: list[float] | None = None,
         drain_failed: tuple[int, ...] = (),
         optional_failed: tuple[int, ...] = (),
+        backing: approval_backing.BackingReport | None = None,
     ) -> None:
         self.failures = failures or {}
         self.quota_reading = quota_reading
         self.clock = clock if clock is not None else [0.0]
         self.drain_failed = drain_failed
         self.optional_failed = optional_failed
+        self.backing_report = backing or _backing_report()
+        self.backing_kwargs: dict[str, Any] = {}
         self.events: list[str] = []
         self.prepare_kwargs: dict[str, Any] = {}
         self.drain_kwargs: dict[str, Any] = {}
@@ -117,6 +131,12 @@ class _Fakes:
         self._fail("drain")
         return drain.DrainReport(1, 0, 0, False, "x", self.drain_failed)
 
+    def backing(self, config: Any, *, entry: RepoEntry, **kwargs: Any) -> approval_backing.BackingReport:
+        self.events.append(f"backing {entry.repo}")
+        self.backing_kwargs = {"config": config, "entry": entry, **kwargs}
+        self._fail("backing")
+        return self.backing_report
+
     def read_quota(self, _client: Any) -> tuple[int, int]:
         return self.quota_reading
 
@@ -129,6 +149,7 @@ class _Fakes:
             run_prepare=self.prepare,
             run_finish=self.finish,
             run_drain=self.drain,
+            run_backing=self.backing,
             read_quota=self.read_quota,
             monotonic=self.monotonic,
             clock=lambda: 1000.0,
@@ -201,11 +222,15 @@ def test_a_served_gate_repo_prepares_and_finishes_in_phase_b_only(make_config):
     with contextlib.ExitStack() as stack:
         run = _run(fakes, stack, make_config, _VISION)
         run.phase_a()
-        assert fakes.events == []
+        assert fakes.events == ["backing pytorch/vision"]
         run.phase_b()
         run.close()
 
-    assert fakes.events == ["prepare pytorch/vision max=5", "finish pytorch/vision optional=True max=5"]
+    assert fakes.events == [
+        "backing pytorch/vision",
+        "prepare pytorch/vision max=5",
+        "finish pytorch/vision optional=True max=5",
+    ]
     assert run.invocation.meter.meter("pytorch/vision").requests("B") == 2
 
 
@@ -223,16 +248,166 @@ def test_an_off_repo_drains_in_phase_a_with_the_dispatch_token_and_its_failures_
     assert errors == ["pytorch/data: the drain failed on 2 PR(s): [4, 9]"]
 
 
-def test_a_safety_only_gate_repo_runs_nothing_and_forgets_its_drain(make_config):
-    fakes = _Fakes()
+@pytest.mark.parametrize("entry", [_VISION, _ACTIVE], ids=["shadow", "active"])
+def test_a_safety_only_gate_repo_runs_its_backing_check_alone_and_forgets_its_drain(make_config, entry):
+    fakes = _Fakes(clock=[7.0])
     memory = ScanMemory()
     memory.off_since(_NOW)
+    memory.backing.waiting = frozenset({4})
     with contextlib.ExitStack() as stack:
-        errors = _all(_run(fakes, stack, make_config, _VISION, served=False, memory=memory))
+        run = _run(fakes, stack, make_config, entry, served=False, memory=memory)
+        errors = _all(run)
+
+        kwargs = fakes.backing_kwargs
+        assert kwargs["config"].github_token == "repo-token"
+        assert kwargs["entry"] == entry
+        assert kwargs["memory"] is memory
+        assert kwargs["bot_login"] == "bot[bot]"
+        assert kwargs["build_github"].keywords["meter"] is run.invocation.meter.meter("pytorch/vision")
+        assert kwargs["cancel_event"] is run.invocation.meter.latch
+        assert kwargs["now"]() == _NOW
+        assert kwargs["deadline"] == 7.0 + BACKING_DEADLINE.total_seconds()
+        assert kwargs["monotonic"] == fakes.monotonic
+
+    assert fakes.events == ["backing pytorch/vision"]
+    assert errors == []
+    assert (run.held, primary_line(run).outcome) == (None, "safety-only")
+    assert memory.backing.waiting == frozenset({4})
+    assert memory.off_since(datetime(2027, 1, 1)) == datetime(2027, 1, 1)
+
+
+def test_the_backing_checks_errors_are_the_repos_and_its_phase_b_still_runs(make_config):
+    fakes = _Fakes(backing=_backing_report(errors=("sweep 3 incomplete after 15 minutes: 4 PRs unread", "late")))
+    with contextlib.ExitStack() as stack:
+        errors = _all(_run(fakes, stack, make_config, _VISION))
+
+    assert errors == [
+        "pytorch/vision: sweep 3 incomplete after 15 minutes: 4 PRs unread",
+        "pytorch/vision: late",
+    ]
+    assert fakes.events[-1] == "finish pytorch/vision optional=True max=5"
+
+
+@pytest.mark.parametrize(
+    ("report", "expected"),
+    [
+        pytest.param(
+            _backing_report(None, errors=("GreenLight's gate rules on pytorch/vision could not be read: boom",)),
+            [
+                "pytorch/vision: GreenLight's gate rules on pytorch/vision could not be read: boom",
+                "pytorch/vision: no dispatch this run: the rules could not be read",
+            ],
+            id="unknown",
+        ),
+        pytest.param(
+            _backing_report(_NOT_ENFORCED),
+            [
+                "pytorch/vision: no dispatch this run: GreenLight's gate is not enforced on pytorch/vision: "
+                "a merge_queue rule applies"
+            ],
+            id="not-enforced",
+        ),
+    ],
+)
+def test_an_active_gate_repo_without_enforced_rules_is_held_from_phase_b(make_config, report, expected):
+    fakes = _Fakes(backing=report)
+    with contextlib.ExitStack() as stack:
+        run = _run(fakes, stack, make_config, _ACTIVE)
+        errors = _all(run)
+
+    assert errors == expected
+    assert fakes.events == ["backing pytorch/vision"]
+    assert run.held == expected[-1].removeprefix("pytorch/vision: ")
+    assert primary_line(run).detail == f"no Phase B: {run.held}"
+    assert run.memory.full_tick_due(_NOW)
+
+
+def test_a_failed_backing_check_is_the_repos_error_and_holds_an_active_gate_repo(make_config):
+    fakes = _Fakes(failures={"backing": ValueError("clickhouse down")})
+    with contextlib.ExitStack() as stack:
+        run = _run(fakes, stack, make_config, _ACTIVE)
+        errors = _all(run)
+
+    assert errors == [
+        "pytorch/vision: Phase A (approval backing) failed: clickhouse down",
+        "pytorch/vision: no dispatch this run: the rules could not be read",
+    ]
+    assert fakes.events == ["backing pytorch/vision"]
+
+
+@pytest.mark.parametrize("report", [_backing_report(None), _backing_report(_NOT_ENFORCED)], ids=["unknown", "off"])
+def test_a_shadow_gate_repo_runs_phase_b_whatever_its_rules(make_config, report):
+    fakes = _Fakes(backing=report)
+    with contextlib.ExitStack() as stack:
+        run = _run(fakes, stack, make_config, _VISION)
+        errors = _all(run)
+
+    assert errors == []
+    assert run.held is None
+    assert fakes.events[-1] == "finish pytorch/vision optional=True max=5"
+
+
+def test_a_failed_backing_check_of_a_shadow_gate_repo_is_its_error_and_phase_b_still_runs(make_config):
+    fakes = _Fakes(failures={"backing": ValueError("clickhouse down")})
+    with contextlib.ExitStack() as stack:
+        errors = _all(_run(fakes, stack, make_config, _VISION))
+
+    assert errors == ["pytorch/vision: Phase A (approval backing) failed: clickhouse down"]
+    assert fakes.events[-1] == "finish pytorch/vision optional=True max=5"
+
+
+def test_an_active_gate_repo_with_enforced_rules_runs_phase_b(make_config):
+    fakes = _Fakes()
+    with contextlib.ExitStack() as stack:
+        errors = _all(_run(fakes, stack, make_config, _ACTIVE))
+
+    assert errors == []
+    assert fakes.events == [
+        "backing pytorch/vision",
+        "prepare pytorch/vision max=5",
+        "finish pytorch/vision optional=True max=5",
+    ]
+
+
+def test_a_rate_limit_in_a_backing_check_latches_and_skips_phase_b(make_config):
+    error = RateLimitExceededException(403, {"message": "rate limit"}, {"retry-after": "90"})
+    fakes = _Fakes(failures={"backing": error})
+    with contextlib.ExitStack() as stack:
+        run = _run(fakes, stack, make_config, _VISION)
+        errors = _all(run)
+
+    assert run.invocation.meter.latch.until == 1090.0
+    assert errors == [
+        f"pytorch/vision: Phase A (approval backing) stopped: {RATE_LIMITED}",
+        f"pytorch/vision: Phase B skipped: {RATE_LIMITED}",
+    ]
+    assert fakes.events == ["backing pytorch/vision"]
+
+
+def test_a_gate_repo_with_the_latch_set_runs_no_backing_check(make_config):
+    fakes = _Fakes()
+    with contextlib.ExitStack() as stack:
+        run = _run(fakes, stack, make_config, _ACTIVE)
+        run.invocation.meter.latch.set()
+        errors = _all(run)
 
     assert fakes.events == []
-    assert errors == []
-    assert memory.off_since(datetime(2027, 1, 1)) == datetime(2027, 1, 1)
+    assert errors == [
+        f"pytorch/vision: Phase A skipped: {RATE_LIMITED}",
+        f"pytorch/vision: Phase B skipped: {RATE_LIMITED}",
+    ]
+
+
+@pytest.mark.parametrize("entry", [BUILTIN_PYTORCH, _OFF, dataclasses.replace(_VISION, mode="off")])
+def test_a_repo_that_does_not_back_approvals_forgets_the_backing_memory_and_runs_no_check(make_config, entry):
+    fakes = _Fakes()
+    memory = ScanMemory()
+    memory.backing.waiting = frozenset({4})
+    with contextlib.ExitStack() as stack:
+        _all(_run(fakes, stack, make_config, entry, memory=memory))
+
+    assert memory.backing.waiting == frozenset()
+    assert not any(event.startswith("backing") for event in fakes.events)
 
 
 @pytest.mark.parametrize(
@@ -328,7 +503,7 @@ def test_no_dispatch_token_means_no_phase_b(make_config, caplog):
     with contextlib.ExitStack() as stack, caplog.at_level(logging.WARNING, logger="greenlight"):
         errors = _all(_run(fakes, stack, make_config, _VISION, dispatch_token=None))
 
-    assert fakes.events == []
+    assert fakes.events == ["backing pytorch/vision"]
     assert errors == []
     assert "no Phase B: without the dispatch token" in caplog.text
 
@@ -339,7 +514,11 @@ def test_a_failed_phase_b_is_finished_and_its_failure_is_the_repos_error(make_co
         errors = _all(_run(fakes, stack, make_config, _VISION))
 
     assert errors == ["pytorch/vision: Phase B failed: failed to dispatch 1 PR(s): [2]"]
-    assert fakes.events == ["prepare pytorch/vision max=5", "finish pytorch/vision optional=True max=5"]
+    assert fakes.events == [
+        "backing pytorch/vision",
+        "prepare pytorch/vision max=5",
+        "finish pytorch/vision optional=True max=5",
+    ]
 
 
 def test_a_failed_phase_a_prepare_leaves_phase_b_to_prepare_again(make_config):

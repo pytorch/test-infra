@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from datetime import datetime
+
+    from github.Commit import Commit
 
     class _PRUser(Protocol):
         @property
@@ -102,14 +104,28 @@ if TYPE_CHECKING:
     class _ScanRepo(Protocol):
         def get_pull(self, number: int) -> _FingerprintPR: ...
 
-    class _VerdictReview(Protocol):
+    class _ReviewUser(Protocol):
         @property
-        def id(self) -> int: ...
+        def login(self) -> str | None: ...
         @property
-        def user(self) -> _PRUser | None: ...
+        def type(self) -> str | None: ...
+
+    class GateReview(Protocol):
+        @property
+        def user(self) -> _ReviewUser | None: ...
         @property
         def state(self) -> str: ...
+        @property
+        def commit_id(self) -> str | None: ...
+
+    class DismissibleReview(Protocol):
         def dismiss(self, message: str) -> None: ...
+
+    class PostedReview(DismissibleReview, Protocol):
+        @property
+        def id(self) -> int: ...
+
+    class _VerdictReview(GateReview, PostedReview, Protocol): ...
 
     class _VerdictComment(Protocol):
         @property
@@ -130,6 +146,18 @@ if TYPE_CHECKING:
         @property
         def raw_data(self) -> Mapping[str, object]: ...
 
+    class _DefaultBranchRepo(Protocol):
+        @property
+        def default_branch(self) -> str: ...
+
+    class _RepoRef(_PRRef, Protocol):
+        @property
+        def repo(self) -> _DefaultBranchRepo: ...
+
+    class RepoBasedPR(_BasedPR, Protocol):
+        @property
+        def base(self) -> _RepoRef: ...
+
     class _FilesPR(_BasedPR, Protocol):
         def get_files(self) -> Iterable[_PRFile]: ...
 
@@ -143,19 +171,33 @@ if TYPE_CHECKING:
         def add_to_labels(self, *labels: str) -> None: ...
         def remove_from_labels(self, label: str) -> None: ...
 
-    class VerdictPR(_FilesPR, _RelabelPR, Protocol):
+    class VerdictPR(_FilesPR, _RelabelPR, RepoBasedPR, Protocol):
         @property
         def user(self) -> _PRActor | None: ...
-        def create_review(self, *, body: str, event: str) -> object: ...
+        def create_review(self, *, commit: Commit, body: str, event: str) -> PostedReview: ...
         def create_issue_comment(self, body: str) -> object: ...
         def get_issue_comments(self) -> Iterable[_VerdictComment]: ...
         def get_reviews(self) -> Iterable[_VerdictReview]: ...
 
     class _VerdictRepo(Protocol):
         def get_pull(self, number: int) -> VerdictPR: ...
+        def get_commit(self, sha: str) -> Commit: ...
 
     class _LabelRepo(Protocol):
         def get_pull(self, number: int) -> _LabelledPR: ...
+
+
+class JsonRequester(Protocol):
+    """The part of PyGithub's ``Requester`` greenlight calls directly; a 304 answers ``(headers, None)``."""
+
+    def requestJsonAndCheck(
+        self,
+        verb: str,
+        url: str,
+        parameters: dict[str, Any] | None = ...,
+        headers: dict[str, str] | None = ...,
+        input: Any | None = ...,
+    ) -> tuple[dict[str, Any], Any]: ...
 
 
 class VerdictClient(Protocol):

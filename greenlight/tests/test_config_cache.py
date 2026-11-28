@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from github import GithubException, RateLimitExceededException
 
-from greenlight import config_cache, github_client
+from greenlight import config_cache, github_client, repo_config
 from greenlight.config_cache import PRIMARY_ABSENT, REMOVED, UNREACHABLE, decide, revalidate
 from greenlight.constants import CONFIG_ABSENT_TTL, CONFIG_MAX_BYTES, REPO_CONFIG_PATH, TARGET_REPO
 from greenlight.guards import IterationTimeout
@@ -367,3 +367,29 @@ def test_the_primarys_change_keys_flow_from_its_file_through_an_unreadable_read_
         False,
         PRIMARY_ABSENT,
     )
+
+
+_GATE_ACTIVE = _SHADOW.replace("shadow", "active")
+
+
+def test_an_active_gate_file_outside_the_allowlist_is_safety_only_under_the_last_valid_shadow_settings():
+    record = _file_record(_GATE_ACTIVE, valid_text=_SHADOW, served=True)
+
+    decision = decide(_REPO, record, unreadable=None, reachable=True, drain_complete=False)
+
+    assert (decision.settings.entry, decision.settings.served) == (_ENTRY, False)
+    assert decision.settings.problem is not None
+    assert "safety: gate with mode: active is only for []" in decision.settings.problem
+    assert decision.settings.problem.endswith("safety-only under its last valid settings instead")
+    assert decision.record.valid_text == _SHADOW
+
+
+def test_an_active_gate_file_in_the_allowlist_is_served_and_becomes_the_last_valid_settings(monkeypatch):
+    monkeypatch.setattr(repo_config, "GATE_ACTIVE_REPOS", frozenset({_REPO}))
+    record = _file_record(_GATE_ACTIVE, valid_text=_SHADOW, served=True)
+
+    decision = decide(_REPO, record, unreadable=None, reachable=True, drain_complete=False)
+
+    assert (decision.settings.entry, decision.settings.served) == (dataclasses.replace(_ENTRY, mode="active"), True)
+    assert decision.settings.problem is None
+    assert decision.record.valid_text == _GATE_ACTIVE

@@ -127,8 +127,12 @@ def list_candidates(
     read_record: ReadRecordFn = pr_listing.read_record,
 ) -> Listing:
     """List the tick's candidates; ``now`` is the clock read before any of the tick's listings, ``authors``
-    the tick's evaluation cohort."""
+    the tick's evaluation cohort.
+
+    A ``gate`` repo's candidates take the strict base rule (``pr_listing.candidate_fields``).
+    """
     repo = entry.repo
+    strict_base = entry.strict_base
     clickhouse = entry.change_source == "clickhouse" and pr is None
     usable = memory is not None and memory.view.usable(authors)
     if memory is not None and clickhouse and not usable:
@@ -146,6 +150,7 @@ def list_candidates(
             fetch=fetch,
             cutoff=None if full_tick else now - window,
             fetch_updated=fetch_updated,
+            strict_base=strict_base,
         )
         if memory is not None and clickhouse:
             listed = len(candidates.numbers)
@@ -187,7 +192,8 @@ def list_candidates(
         picked = [by_number[number] for number in sorted(by_number)]
     source = "ClickHouse" if stale is None else f"GitHub, stale: {stale}"
     _log_tick(repo, kind, source, listed=len(records), reads=reads, picked=len(picked), changed=len(changed))
-    return Listing(candidate_fields(picked), kind, {record.number: view.seen(record.number) for record in picked})
+    markers_seen = {record.number: view.seen(record.number) for record in picked}
+    return Listing(candidate_fields(picked, strict_base=strict_base), kind, markers_seen)
 
 
 def recheck_landed(

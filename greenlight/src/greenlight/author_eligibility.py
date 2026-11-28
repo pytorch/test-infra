@@ -25,6 +25,7 @@ def has_eligible_author(
     eligibility: Eligibility,
     minimum_role: MinimumRole,
     author_type: str | None,
+    strict_base: bool,
 ) -> bool:
     """True when ``repo``'s eligibility source qualifies ``author`` and the PR is still as reviewed.
 
@@ -33,9 +34,11 @@ def has_eligible_author(
     ``merge_rules``: ``cohort.assess_rules`` decides on the author against ``repo``'s merge rules.
     ``write_permission``: ``writers.author_holds_role`` decides on the author's live permission against
     ``minimum_role`` and on ``author_type``, the account type on the PR the caller read. One fresh read of
-    the PR must then find its head still at ``head_sha``, the reviewed commit, on a base
-    ``merge_authz.accepts_base`` accepts, so a PR reviewed for its native stack on main must still be in
-    one. A push to the base branch is not caught.
+    the PR must then find its head still at ``head_sha``, the reviewed commit, on a base the repo's rule
+    accepts (``merge_authz.accepts_base_for``, ``strict_base`` on a ``gate`` repo): on a ``pytorchbot`` repo
+    a PR reviewed for its native stack on main must still be in one; on a ``gate`` repo the base is exactly
+    ``main``, which that same read must report as the repo's default branch. A push to the base branch is
+    not caught.
     """
     client = github_client.build_authz_client(token)
     try:
@@ -52,7 +55,7 @@ def has_eligible_author(
             pull = client.get_repo(repo).get_pull(pr_number)
             if pull.head.sha != head_sha:
                 rule, reason = None, "head moved"
-            elif not merge_authz.accepts_base(pull):
+            elif not merge_authz.accepts_base_for(pull, strict=strict_base):
                 rule, reason = None, "base not accepted"
     finally:
         github_client.close_client(client)
