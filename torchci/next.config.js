@@ -44,6 +44,11 @@ module.exports = {
         destination: "/tests/pytorch/pytorch",
         permanent: false,
       },
+      {
+        source: "/tests/:organization/:repo/cost/v2",
+        destination: "/tests/:organization/:repo/cost",
+        permanent: false,
+      },
     ];
   },
   transpilePackages: [

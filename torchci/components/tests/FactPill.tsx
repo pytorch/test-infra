@@ -54,7 +54,7 @@ export interface FactPillProps {
   // link of its own the chip's is the whole pill's.
   chip?: FactPillChip;
   // Given, the pill is a button that opens something under it, and ends in
-  // a chevron, as the title's pills do (InlinePill).
+  // a chevron, as a choice in the hub's row does (HubSelect).
   onClick?: () => void;
   // For a button: whether what it opens is open, and that element's id.
   // While it is open the pill keeps the look it has under the pointer.

@@ -25,7 +25,7 @@ export interface KeyButtonProps {
 // A key that is not a choice now is marked aria-disabled, faded and inert,
 // but stays focusable and under the pointer: its tooltip says why, it keeps
 // its name (an icon key has no other), and a key the reader just pressed
-// that turns off, as › at the last owner, keeps the focus.
+// that turns off keeps the focus.
 export default function KeyButton({
   title,
   active,

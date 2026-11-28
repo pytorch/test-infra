@@ -27,11 +27,6 @@ export interface CostFrameProps {
   // while folded.
   open?: boolean;
   onOpenChange?: (_open: boolean) => void;
-  // A sentence under the band saying why the chart matters, for a reader
-  // who reads nothing else.
-  subtitle?: string;
-  // A line under the band, on the page's background: a legend.
-  legend?: ReactNode;
   // A new answer is on its way: the theme's progress bar runs under the band
   // while the answer shown last stays.
   loading?: boolean;
@@ -50,8 +45,6 @@ export default function CostFrame({
   keys,
   open,
   onOpenChange,
-  subtitle,
-  legend,
   loading = false,
   children,
 }: CostFrameProps) {
@@ -130,20 +123,7 @@ export default function CostFrame({
       <Box sx={{ height: 2 }}>
         {loading && <LinearProgress sx={{ height: 2 }} />}
       </Box>
-      {open === false ? null : (
-        <>
-          {subtitle !== undefined && (
-            <Typography
-              variant="body2"
-              sx={{ px: 2, pt: 1, color: "text.secondary", maxWidth: "110ch" }}
-            >
-              {subtitle}
-            </Typography>
-          )}
-          {legend !== undefined && <Box sx={{ px: 2, pt: 1 }}>{legend}</Box>}
-          <Box sx={{ px: 2, py: 1.5 }}>{children}</Box>
-        </>
-      )}
+      {open === false ? null : <Box sx={{ px: 2, py: 1.5 }}>{children}</Box>}
     </Box>
   );
 }

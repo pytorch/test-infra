@@ -34,3 +34,11 @@ export const TREND_PERIODS: Record<TrendRollup, number> = {
   week: 26,
   month: 13,
 };
+
+// The most periods a trend may ask for with periods=: day matches
+// MAX_CHANGE_DAYS, so a year of daily bars (plus slack) fits in one answer.
+export const TREND_MAX_PERIODS: Record<TrendRollup, number> = {
+  day: 400,
+  week: 60,
+  month: 14,
+};

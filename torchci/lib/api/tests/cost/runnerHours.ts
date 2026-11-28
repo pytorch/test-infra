@@ -74,8 +74,7 @@ function sortedByHours(hours: Map<string, number>): string[] {
 
 // The answer's rows, files folded away: one row per owner, workflow, machine,
 // machine source and runner label, largest first. The label stays so the
-// page can price the hours by runner (lib/tests/cost/rates.ts); the API
-// holds no prices.
+// hours can be priced by runner; the API holds no prices.
 export function runnerHoursRows(
   rows: RunnerHoursQueryRow[]
 ): RunnerHours["rows"] {

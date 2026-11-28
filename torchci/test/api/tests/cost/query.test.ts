@@ -7,9 +7,13 @@
 // from the table it was measured on.
 
 import { readFileSync } from "fs";
+import { casesGateQuery } from "lib/api/tests/cost/cases";
+import { decodeTrail } from "lib/api/tests/cost/contracts";
 import {
-  changesDaysQuery,
-  changesQuery,
+  coverageOwnedQuery,
+  coverageTestsQuery,
+} from "lib/api/tests/cost/coverage";
+import {
   coverageQuery,
   FILLING_HOURS,
   runnerHoursQuery,
@@ -18,6 +22,7 @@ import {
   trendPushesQuery,
   trendQuery,
 } from "lib/api/tests/cost/query";
+import { scopeDaysQuery, scopeQuery } from "lib/api/tests/cost/scope";
 import { TREND_ROLLUPS } from "lib/api/tests/cost/windows";
 import { CI_DATABASE } from "lib/api/tests/database";
 import { join } from "path";
@@ -50,9 +55,24 @@ const READERS: Record<string, string> = {
     TREND_ROLLUPS.map((r) => [`trend ${r}`, trendQuery(r)])
   ),
   trendDaily: trendDailyQuery(),
-  "changes for owners": changesQuery(true),
-  "changes for every owner": changesQuery(false),
-  changesDays: changesDaysQuery(),
+  // The drill, its bars, the banner and the cases gate.
+  "scope root": scopeQuery("sides", [], "o"),
+  "scope pair files": scopeQuery(
+    "sides",
+    decodeTrail("o:inductor;m:Linux%20x86_64%20avx512"),
+    "f"
+  ),
+  "series machines": scopeQuery("days", decodeTrail("o:inductor"), "m"),
+  "series lanes": scopeQuery(
+    "days",
+    decodeTrail("o:inductor;m:NVIDIA%20L4;f:test%2Ftest_ops.py"),
+    "lane"
+  ),
+  scopeDays: scopeDaysQuery("sides"),
+  seriesDays: scopeDaysQuery("days"),
+  coverageTests: coverageTestsQuery(),
+  coverageOwned: coverageOwnedQuery(),
+  casesGate: casesGateQuery(),
 };
 
 // The columns of test_cost the queries read, by name.
@@ -136,8 +156,11 @@ describe("each day as last computed", () => {
     for (const sql of [
       ...TREND_ROLLUPS.map(trendQuery),
       trendDailyQuery(),
-      changesQuery(true),
-      changesQuery(false),
+      scopeQuery("sides", [], "o"),
+      scopeQuery("days", decodeTrail("m:NVIDIA%20L4"), "o"),
+      coverageTestsQuery(),
+      coverageOwnedQuery(),
+      casesGateQuery(),
     ]) {
       expect(sql).toContain("(day, computed_at) IN (");
       expect(sql).toContain("SELECT day, max(computed_at) FROM ci.test_cost");
@@ -153,7 +176,7 @@ describe("each day as last computed", () => {
 });
 
 describe("the two triggers", () => {
-  test("sum together in every query; the trend and the changes set push:main's part aside", () => {
+  test("sum together in every query; the trend sets push:main's part aside", () => {
     // No query groups or filters rows by trigger: each sums every row of a
     // key, push:main and other alike, into its runner-hours.
     for (const [name, sql] of Object.entries(READERS)) {
@@ -163,14 +186,11 @@ describe("the two triggers", () => {
     // The part of pushes to main, beside the whole, for cost per commit.
     const part =
       "sumIf(occupancy_runner_milliseconds, trigger = 'push:main') AS main_ms";
-    for (const sql of [...TREND_ROLLUPS.map(trendQuery), changesQuery(true)]) {
+    for (const sql of TREND_ROLLUPS.map(trendQuery)) {
       expect(sql).toContain("sum(occupancy_runner_milliseconds) AS ms");
       expect(sql).toContain(part);
       expect(sql).toContain("AS main_runner_hours");
     }
-    expect(changesQuery(false)).toContain(
-      "round(sumIf(occupancy_runner_milliseconds, trigger = 'push:main') / 3600000, 4) AS main_runner_hours"
-    );
     expect(trendDailyQuery()).toContain("AND trigger = 'push:main'");
     for (const sql of [runnerHoursQuery(), coverageQuery()]) {
       expect(sql).not.toMatch(/\btrigger\b/);
@@ -178,53 +198,18 @@ describe("the two triggers", () => {
   });
 });
 
-describe("the changes SQL", () => {
-  test("splits the owners' share as the trend does: a file's hours evenly among its owners, the buckets included", () => {
-    const owners = changesQuery(true);
-    expect(owners).toContain(
-      "arrayCount(owner -> has({owners: Array(String)}, owner), owner_list)"
-    );
-    expect(owners).toContain("/ length(owner_list)");
-    for (const sql of [owners, trendQuery("day")]) {
-      expect(sql).toContain(
-        "multiIf(c.test_file = '', ['unattributed:no_test_reports'],"
-      );
-      expect(sql).toContain(
-        "empty(o.owners), ['unattributed:no_owner'], o.owners)"
-      );
-    }
-    // Summed by file before the join, so each file's share applies once.
-    expect(owners).toContain("GROUP BY side, test_file, label");
-  });
-
-  test("answers each side's hours by runner label only, for owners or every owner; every owner needs no owners join", () => {
-    for (const sql of [changesQuery(true), changesQuery(false)]) {
-      expect(sql).toMatch(/GROUP BY side, label\nHAVING runner_hours > 0/);
-      expect(sql).not.toMatch(/workflow AS|'file'|'workflow'|ARRAY JOIN/);
-    }
-    expect(changesQuery(false)).not.toContain("owners");
-  });
-
-  test("a day in both periods counts in both", () => {
-    for (const sql of [changesQuery(true), changesQuery(false)]) {
-      expect(sql).toContain("arrayJoin(arrayFilter(s -> s >= 0, [");
-    }
-  });
-
-  test("the pushes are distinct head commits pushed to main, read by subcolumns", () => {
-    for (const sql of [changesDaysQuery(), trendPushesQuery()]) {
-      expect(sql).toContain("uniqExact(head_commit.id) AS pushes");
-      expect(sql).toContain("repository.full_name = {repo: String}");
-      expect(sql).toContain("ref IN ('refs/heads/main', 'refs/heads/master')");
-      expect(sql).toContain("NOT deleted");
-      // The quoted form (head_commit.'timestamp') prunes by the sort key
-      // but reads whole tuples: 20 times the bytes for a year
-      // (query-validation.md).
-      expect(sql).not.toMatch(/(head_commit|repository)\.'/);
-    }
-    expect(trendPushesQuery()).toContain(
-      "head_commit.timestamp >= {start: DateTime64(3)}"
-    );
+describe("the pushes to main", () => {
+  test("are distinct head commits pushed to main, read by subcolumns", () => {
+    const sql = trendPushesQuery();
+    expect(sql).toContain("uniqExact(head_commit.id) AS pushes");
+    expect(sql).toContain("repository.full_name = {repo: String}");
+    expect(sql).toContain("ref IN ('refs/heads/main', 'refs/heads/master')");
+    expect(sql).toContain("NOT deleted");
+    // The quoted form (head_commit.'timestamp') prunes by the sort key but
+    // reads whole tuples: 20 times the bytes for a year
+    // (query-validation.md).
+    expect(sql).not.toMatch(/(head_commit|repository)\.'/);
+    expect(sql).toContain("head_commit.timestamp >= {start: DateTime64(3)}");
   });
 });
 
