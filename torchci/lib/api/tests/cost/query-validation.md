@@ -23,7 +23,7 @@ time is within noise. Both filter on the table's sort-key prefix, `(repo,
 day)`. Client wall time, network and JSON included, was 1.0–1.2 s for 1 day
 and 1.1–1.3 s for 7 days (which held 3). At about 0.3 CPU-seconds the query is
 far below the heavy workload's bar ([Heavy
-queries](../../../app/api/README.md#heavy-queries)), so it runs without it.
+queries](../../../../app/api/README.md#heavy-queries)), so it runs without it.
 `coverageQuery()` takes about 0.3 s of client wall time.
 
 Rolled up to (owner, workflow, runner label), the shipped query's rows equal
