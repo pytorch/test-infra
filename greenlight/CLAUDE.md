@@ -65,7 +65,11 @@ PyTorch Green Light has one unit of work — the `review` phase:
   (cancelled/failed) review, and skipping — without fingerprinting or dispatching — any PR a human
   has already decided (approved by a `merge_rules.yaml` approver, or on a `write_permission` repo by a
   holder of its minimum role, bots excluded, or changes requested by any non-bot reviewer).
-  The listing alternates per repo's scan memory (`pr_listing`, `scan_memory`): a full tick lists every open
+  How a repo lists depends on its `change_source` (its config file): a `clickhouse` repo keeps a view of its
+  open PRs in its stored memory (`pr_view`), lists GitHub's recently updated PRs into it each tick and reads HUD
+  ClickHouse's webhook tables (`change_feed`) for what `updated_at` cannot show, with full, wide and event ticks
+  (`change_listing`; CHANGE_DETECTION.md). A `github` repo's listing, below,
+  alternates per repo's scan memory (`pr_listing`, `scan_memory`): a full tick lists every open
   PR, on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
   `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed
   (its listing, fingerprint fan-out and dispatch finished with no rate limit or budget stop); the fast ticks between

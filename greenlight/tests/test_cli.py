@@ -872,6 +872,37 @@ def test_check_config_logs_every_problem_and_fails(tmp_path, caplog, monkeypatch
     ]
 
 
+@pytest.mark.parametrize(
+    ("repo", "text", "problem"),
+    [
+        pytest.param(
+            "pytorch/pytorch",
+            "mode: active\nchange_source: hud\n",
+            "change_source 'hud' is not one of ['github', 'clickhouse']; ignored, it stays 'github'",
+            id="primary-bad-source",
+        ),
+        pytest.param(
+            "pytorch/vision",
+            "status_comment: greenlight\nsafety: gate\neligibility: merge_rules\nmode: shadow\n"
+            "change_source: clickhouse\n",
+            "change_source: clickhouse is only for ['pytorch/pytorch']",
+            id="clickhouse-outside-the-allowlist",
+        ),
+    ],
+)
+def test_check_config_fails_on_a_bad_change_source(tmp_path, caplog, monkeypatch, repo, text, problem):
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    path = tmp_path / "config.yml"
+    path.write_text(text)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        rc = cli.main(["check-config", str(path), "--repo", repo])
+
+    assert rc == EXIT_FAILURE
+    errors = [record.getMessage() for record in caplog.records if record.levelno == logging.ERROR]
+    assert f"{path}: {problem}" in errors
+
+
 def test_check_config_needs_a_repo(tmp_path):
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["check-config", str(tmp_path / "config.yml")])

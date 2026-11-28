@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import threading
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
@@ -11,10 +12,12 @@ from github import GithubException
 
 from greenlight import merge_authz, quota, review_finish, verdict_labels
 from greenlight.authority import Authority
+from greenlight.change_feed import Marker
+from greenlight.fingerprint_cache import FingerprintCache
 from greenlight.latch import RateLimitLatch, SharedLatch
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_finish import PreparedScan
-from greenlight.scan_memory import FingerprintCache, ScanMemory
+from greenlight.scan_memory import ScanMemory
 from greenlight.state import PRState
 from greenlight.state_store import InProcessStore
 
@@ -43,7 +46,7 @@ def prepared_scan(**overrides: Any) -> PreparedScan:
         "bot_login": "",
         "timeout": timedelta(minutes=45),
         "memory": None,
-        "full_tick": True,
+        "kind": "full",
         "listed_at": _NOW,
         "evaluated_at": _NOW,
         "states": {},
@@ -76,23 +79,21 @@ def test_without_optional_work_nothing_optional_runs_and_a_clean_safety_pass_ret
 
 
 @pytest.mark.parametrize(
-    ("full_tick", "rate_limited", "pr", "marked"),
+    ("kind", "rate_limited", "pr", "marked"),
     [
-        pytest.param(True, False, None, True, id="clean-full-tick"),
-        pytest.param(True, True, None, False, id="rate-limited"),
-        pytest.param(False, False, None, False, id="fast-tick"),
-        pytest.param(True, False, 5, False, id="recheck"),
+        pytest.param("full", False, None, True, id="clean-full-tick"),
+        pytest.param("full", True, None, False, id="rate-limited"),
+        pytest.param("fast", False, None, False, id="fast-tick"),
+        pytest.param("full", False, 5, False, id="recheck"),
     ],
 )
-def test_a_safety_only_full_tick_counts_as_the_last_full_tick_unless_rate_limited(full_tick, rate_limited, pr, marked):
+def test_a_safety_only_full_tick_counts_as_the_last_full_tick_unless_rate_limited(kind, rate_limited, pr, marked):
     memory = ScanMemory()
     cancel_event = threading.Event()
     if rate_limited:
         cancel_event.set()
 
-    review_finish.finish(
-        prepared_scan(memory=memory, full_tick=full_tick, cancel_event=cancel_event, pr=pr), optional=False
-    )
+    review_finish.finish(prepared_scan(memory=memory, kind=kind, cancel_event=cancel_event, pr=pr), optional=False)
 
     assert memory.full_tick_due(_NOW + timedelta(minutes=1)) is not marked
 
@@ -317,7 +318,7 @@ def test_fingerprint_results_already_stored_survive_a_stop_that_ends_the_fan_out
     with pytest.raises(quota.RepoBudgetExceeded), prepared.stack:
         review_finish.finish(prepared)
 
-    assert set(memory._fingerprints) == {1}
+    assert set(memory.fingerprints) == {1}
     assert dispatched == []
     assert memory.full_tick_due(_NOW + timedelta(minutes=1))
 
@@ -350,7 +351,7 @@ def test_a_stopped_fast_tick_keeps_the_earlier_results_of_the_prs_it_never_looke
     prepared, _dispatched = _dispatching(
         fingerprint=fingerprint,
         memory=memory,
-        full_tick=False,
+        kind="fast",
         fingerprint_numbers=[1, 2],
         updated_at_by_number={1: quiet, 2: quiet + timedelta(minutes=1)},
         head_sha_by_number=dict.fromkeys((1, 2), "h" * 40),
@@ -362,7 +363,7 @@ def test_a_stopped_fast_tick_keeps_the_earlier_results_of_the_prs_it_never_looke
     with contextlib.suppress(quota.RepoBudgetExceeded), prepared.stack:
         review_finish.finish(prepared)
 
-    assert set(memory._fingerprints) == kept
+    assert set(memory.fingerprints) == kept
 
 
 @pytest.mark.parametrize(
@@ -434,3 +435,108 @@ def test_a_dispatch_without_a_dispatch_token_fails_loudly():
         review_finish.finish(prepared)
 
     assert dispatched == []
+
+
+def _landed(number: int) -> PRState:
+    return PRState(pr_number=number, status="LAND", eval_hash=_HASH, head_sha="h" * 40, version=_NOW, run_id=1)
+
+
+def _built_memory() -> ScanMemory:
+    memory = ScanMemory()
+    memory.view.rebuild([], _NOW, frozenset({"alice"}))
+    memory.mark_full_tick(_NOW - timedelta(minutes=15))
+    return memory
+
+
+def test_a_wide_tick_whose_fan_out_hit_no_rate_limit_is_marked_at_its_listing_time():
+    memory = _built_memory()
+    prepared, _dispatched = _dispatching(memory=memory, kind="wide")
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert not memory.wide_due(_NOW + timedelta(minutes=14))
+    assert memory.wide_due(_NOW + timedelta(minutes=15))
+    assert memory.sweep_due(_NOW)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({"kind": "fast"}, id="fast-tick"),
+        pytest.param({"kind": "wide", "pr": 1}, id="single-pr"),
+    ],
+)
+def test_neither_a_fast_tick_nor_a_single_pr_scan_marks_a_wide_tick(overrides):
+    memory = _built_memory()
+    prepared, _dispatched = _dispatching(memory=memory, **overrides)
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert memory.wide_due(_NOW)
+
+
+def test_a_safety_only_wide_tick_is_marked_as_a_wide_tick():
+    memory = _built_memory()
+
+    review_finish.finish(prepared_scan(memory=memory, kind="wide"), optional=False)
+
+    assert not memory.wide_due(_NOW + timedelta(minutes=1))
+    assert memory.sweep_due(_NOW + timedelta(minutes=1))
+
+
+def test_a_wide_tick_cut_by_a_rate_limit_is_not_marked():
+    memory = _built_memory()
+    prepared, _dispatched = _dispatching(
+        memory=memory, kind="wide", fingerprint=_rate_limited, recent=[1], fingerprint_numbers=[1]
+    )
+
+    with pytest.raises(RuntimeError, match=r"failed during scan: \[1\]"), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert prepared.cancel_event.is_set()
+    assert memory.wide_due(_NOW)
+
+
+def _rate_limited(*_args: object) -> NoReturn:
+    raise GithubException(429, {"message": "secondary rate limit"})
+
+
+def _cache_inputs(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    seen: dict[str, Any] = {}
+
+    class Recording(FingerprintCache):
+        def __init__(self, memory: ScanMemory, **kwargs: Any) -> None:
+            seen.update(kwargs)
+            super().__init__(memory, **kwargs)
+
+    monkeypatch.setattr(review_finish, "FingerprintCache", Recording)
+    return seen
+
+
+def test_the_cache_gets_the_scans_markers_and_revalidates_its_landed_prs(monkeypatch):
+    seen = _cache_inputs(monkeypatch)
+    markers = {1: (Marker(reviews=1), _NOW), 2: None}
+    prepared, _dispatched = _dispatching(memory=_built_memory(), kind="fast", markers=markers)
+    prepared.states.update({1: _landed(1), 3: _landed(3)})
+    prepared.states[2] = replace(_landed(2), status="NO_LAND")
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert seen["reuse"] is True
+    assert seen["markers"] is markers
+    assert seen["revalidate"] == frozenset({1, 3})
+
+
+def test_a_scan_without_markers_revalidates_nothing(monkeypatch):
+    seen = _cache_inputs(monkeypatch)
+    prepared, _dispatched = _dispatching(memory=ScanMemory(), kind="fast")
+    prepared.states.update({1: _landed(1)})
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert seen["markers"] == {}
+    assert seen["revalidate"] == frozenset()

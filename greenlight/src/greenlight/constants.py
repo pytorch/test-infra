@@ -145,6 +145,36 @@ FULL_TICK_INTERVAL = timedelta(minutes=15)
 # A tick scheduled one interval after a full tick can start slightly early; the tolerance keeps it a
 # full tick instead of pushing the full listing back a whole schedule period.
 FULL_TICK_TOLERANCE = timedelta(seconds=30)
+
+# A clickhouse repo's full tick (its reconciliation sweep) comes every full_tick_minutes while HUD's webhook tables
+# are fresh; the repo's own .github/greenlight/config.yml may set the value within these bounds.
+FULL_TICK_MINUTES_DEFAULT = 240
+FULL_TICK_MINUTES_MIN = 60
+FULL_TICK_MINUTES_MAX = 1440
+# HUD's webhook tables count as stale once the newest event over all four is older than STALE_AFTER, or one table's
+# newest is older than its own threshold, each set above that table's longest gap measured over a week.
+STALE_AFTER = timedelta(minutes=10)
+# Its keys, in this order, are the tables change_feed reads.
+TABLE_STALE_AFTER: dict[str, timedelta] = {
+    "pull_request": timedelta(minutes=45),
+    "issue_comment": timedelta(minutes=30),
+    "pull_request_review": timedelta(minutes=75),
+    "pull_request_review_comment": timedelta(minutes=120),
+}
+# A clickhouse repo's own HUD events count as stale once its newest issue comment is older than this: set above
+# pytorch/pytorch's longest gap between issue-comment events over two weeks (64 minutes). A repo quieter than that
+# reads stale and polls.
+REPO_STALE_AFTER = timedelta(minutes=75)
+# A webhook row dated further ahead than this is ignored when taking a table's newest event.
+FUTURE_EVENT_TOLERANCE = timedelta(minutes=5)
+CHANGE_FEED_MAX_EXECUTION_SECONDS = 10
+CHANGE_FEED_TIMEOUT_SECONDS = 15
+# A tick's HUD ClickHouse reading is abandoned after this long: the client's timeouts bound neither its connection
+# set-up, nor its retries, nor a response that keeps trickling in.
+CHANGE_FEED_DEADLINE_SECONDS = 20
+# The recent listing walks back to the previous listing's start less this much, so an updated_at that GitHub shows
+# late is still caught.
+LISTING_OVERLAP = timedelta(minutes=10)
 # A fingerprint is cached only when its PR's updated_at is this old at the clock read after the listing.
 # Close to an update GitHub can skip a review's updated_at bump (a second review within about 10 s of
 # the first), stamp two events with the same second, or serve updated_at and the reviews out of step,
@@ -180,6 +210,10 @@ def normalize_repo(repo: str) -> str:
 # in torchci/lib/greenlight/greenlightConfig.ts; greenlight/tests/test_render_sync.py enforces that.
 # Entries are folded at construction, so a mixed-case addition cannot silently never match.
 DRCI_STATUS_COMMENT_REPOS: frozenset[str] = frozenset(normalize_repo(repo) for repo in (TARGET_REPO,))
+
+# Repos whose config may name change_source: clickhouse. Each one runs its own change queries on HUD's shared
+# ClickHouse cluster every tick, so a repo joins this set only through a test-infra PR.
+CLICKHOUSE_CHANGE_SOURCE_REPOS: frozenset[str] = frozenset({normalize_repo(TARGET_REPO)})
 
 # A GitHub App acts through a bot account whose login is ``<app-slug>[bot]``. The verdict writer
 # and the scan's recheck-refusal poster author-scope their comment writes to this login, so it must

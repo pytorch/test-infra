@@ -38,7 +38,9 @@ class _FakeClient:
         self.queries: list[tuple[str, dict[str, object] | None]] = []
         self.closed = 0
 
-    def query(self, query: str, parameters: dict[str, object] | None = None) -> _FakeResult:
+    def query(
+        self, query: str, parameters: dict[str, object] | None = None, settings: dict[str, object] | None = None
+    ) -> _FakeResult:
         self.queries.append((query, parameters))
         return _FakeResult(self._rows)
 
@@ -47,7 +49,9 @@ class _FakeClient:
 
 
 class _RaisingClient(_FakeClient):
-    def query(self, query: str, parameters: dict[str, object] | None = None) -> _FakeResult:
+    def query(
+        self, query: str, parameters: dict[str, object] | None = None, settings: dict[str, object] | None = None
+    ) -> _FakeResult:
         self.queries.append((query, parameters))
         raise RuntimeError("query boom")
 

@@ -12,11 +12,14 @@ reviewed under the local-only ``--allow-untrusted-author`` -- never approved, ne
 CI poke -- and the REVERTED row of an ineligible PR with no recorded row; on a recorded PR the
 REVERTED row is always non-shadow, since it can only deny. A repo in ``shadow`` mode stamps every
 dispatch and marker row shadow. State is re-read from ClickHouse every
-scan. ``memory`` decides how much a listing scan lists: a full tick lists every open PR, on every
-tick until one completes, and again ``FULL_TICK_INTERVAL`` (less ``FULL_TICK_TOLERANCE``) after the
-start of the last full tick that completed; the fast ticks in between list the recently updated PRs
-plus the open Reverted-labelled ones (``pr_listing``). ``memory=None`` makes every tick full. All
-GitHub, ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable
+scan. ``memory`` and the repo's change source decide how much a listing scan lists
+(``change_listing``): on a ``github`` repo a full tick lists every open PR, on every tick until one
+completes, and again ``FULL_TICK_INTERVAL`` (less ``FULL_TICK_TOLERANCE``) after the start of the
+last full tick that completed, and the fast ticks in between list the recently updated PRs plus the
+open Reverted-labelled ones (``pr_listing``); a ``clickhouse`` repo lists from its view of its open
+PRs, which HUD ClickHouse's markers steer, and its wide tick reads each LAND candidate's base and author
+afresh before judging it (``change_listing.recheck_landed``). ``memory=None`` makes every tick full.
+All GitHub, ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable
 without any of them.
 
 ``prepare`` runs the safety work: both authz gates (``authz_gates``) once the merge rules resolve,
@@ -50,6 +53,8 @@ from typing import TYPE_CHECKING
 
 from greenlight import (
     candidate_filter,
+    change_feed,
+    change_listing,
     cohort,
     drci_poke,
     github_client,
@@ -64,7 +69,7 @@ from greenlight.authority import Authority, Target
 from greenlight.authz_gates import admit_target, requester_allowed
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, EXCLUDED_LABELS
 from greenlight.ineligible_approvals import revoke_ineligible_approvals
-from greenlight.pr_listing import candidate_numbers, default_fetch, default_fetch_updated
+from greenlight.pr_listing import default_fetch, default_fetch_updated
 from greenlight.repo_config import BUILTIN_PYTORCH
 from greenlight.review_finish import PreparedScan
 
@@ -74,6 +79,8 @@ if TYPE_CHECKING:
 
     from github import Github
 
+    from greenlight.change_feed import Freshness
+    from greenlight.change_listing import ReadMarkersFn
     from greenlight.config import Config
     from greenlight.github_types import VerdictPR
     from greenlight.merge_authz import MergeRulesSnapshot
@@ -96,6 +103,8 @@ if TYPE_CHECKING:
         allow_untrusted_author: bool
         fetch: FetchFn
         fetch_updated: FetchUpdatedFn
+        read_markers: ReadMarkersFn
+        read_freshness: Callable[[str], Freshness]
         fetch_labels: Callable[[Github, str, int], tuple[str, ...]]
         fingerprint: FingerprintFn
         read_state: Callable[[str, Sequence[int]], dict[int, PRState]]
@@ -185,6 +194,8 @@ def prepare(
     build_github: BuildClient = github_client.build_client,
     fetch: FetchFn = default_fetch,
     fetch_updated: FetchUpdatedFn = default_fetch_updated,
+    read_markers: ReadMarkersFn = change_feed.read_markers,
+    read_freshness: Callable[[str], Freshness] = change_feed.read_freshness,
     fetch_labels: Callable[[Github, str, int], tuple[str, ...]] = revert_guard.fetch_pr_labels,
     fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
@@ -241,17 +252,25 @@ def prepare(
     logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
     window = timedelta(hours=config.review_window_hours)
     listed_at = now()
-    full_tick = memory is None or memory.full_tick_due(listed_at)
-    pr_numbers, updated_at_by_number, labels_by_number, authors_by_number, head_sha_by_number = candidate_numbers(
+    listing = change_listing.list_candidates(
         client,
-        repo=repo,
+        entry=entry,
         pr=pr,
         authors=evaluable,
+        memory=memory,
+        now=listed_at,
+        window=window,
         fetch=fetch,
-        cutoff=None if full_tick else listed_at - window,
         fetch_updated=fetch_updated,
+        read_markers=read_markers,
+        read_freshness=read_freshness,
     )
+    pr_numbers = listing.candidates.numbers
     states = read_state(repo, pr_numbers)
+    candidates = change_listing.recheck_landed(
+        client, repo=repo, listing=listing, states=states, memory=memory, authors=evaluable, now=listed_at
+    )
+    updated_at_by_number, labels_by_number = candidates.updated_at, candidates.labels
     evaluated_at = now()
     failed: list[int] = []
     # Owned here (not inside the helpers) so finish can read it back after the fan-out: a rate limit
@@ -262,7 +281,7 @@ def prepare(
         cancel_event = threading.Event()
     authority = Authority(
         rules=snapshot.rules,
-        authors=authors_by_number,
+        authors=candidates.authors,
         recorded=states.keys(),
         target=target,
         forced_shadow=entry.mode == "shadow",
@@ -330,7 +349,8 @@ def prepare(
         bot_login=bot_login,
         timeout=timedelta(minutes=timeout_minutes),
         memory=memory,
-        full_tick=full_tick,
+        kind=listing.kind,
+        markers=listing.markers,
         listed_at=listed_at,
         evaluated_at=evaluated_at,
         states=states,
@@ -342,7 +362,7 @@ def prepare(
         excluded=excluded,
         skip_on_approval=skip_on_approval,
         labels_by_number=labels_by_number,
-        head_sha_by_number=head_sha_by_number,
+        head_sha_by_number=candidates.heads,
         updated_at_by_number=updated_at_by_number,
         cancel_event=cancel_event,
         poke=poke,

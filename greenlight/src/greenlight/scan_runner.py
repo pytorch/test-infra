@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
     from github import Github
 
+    from greenlight.fingerprint_cache import FingerprintCache
     from greenlight.github_types import VerdictPR
-    from greenlight.scan_memory import FingerprintCache
     from greenlight.state import PRState
 
     # The fingerprint seam takes (client, repo, number, authorized_logins, skip_on_approval) and returns

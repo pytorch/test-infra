@@ -1,16 +1,24 @@
-"""List a repo's open PRs the review scan considers, and hand them to it as candidates.
+"""List a repo's PRs for the review scan, and hand its candidates to it.
 
-A full listing walks every open PR. A fast listing walks the open PRs most recently updated first,
-stops at the review window's cutoff, and adds every open PR labelled ``Reverted``, which the revert
-guard acts on at any age. Anything else the scan acts on waits for a full listing: an idle PR
-reverted only by its recorded row; a PR whose place in GitHub's updated order lags its
-``updated_at``; and a PR idle longer than the review window whose review is unfinished: a failed,
-cancelled or stuck one is retried at the first full listing after its timeout, and an in-flight one
-whose fingerprint changed without bumping ``updated_at`` is re-dispatched there. Every source keeps
-a PR only when its author is in the evaluation cohort and it is not a draft, and every listing comes
-back de-duplicated and sorted by number. A PR from the pulls endpoint also carries whether
-``merge_authz.accepts_base``, trymerge's base rule matched by branch names, accepts it, judged from
-the listing's own payload.
+Each listed PR becomes an ``OpenPR`` record, whoever wrote it, drafts included; ``is_candidate`` is the
+one rule that makes a record a candidate: open, its author in the evaluation cohort, not a draft. Every
+listing comes back de-duplicated and sorted by number. A PR from the pulls endpoint also carries
+whether ``merge_authz.accepts_refs``, trymerge's base rule matched by branch names, accepts it, and the
+branch names it was judged by (``base_ref``, ``head_ref``, ``stack_trunk``), all from the listing's own
+payload. ``change_listing`` picks the listings each tick runs, by the repo's change source.
+
+On a ``github`` repo, a full listing walks every open PR. A fast listing walks the open PRs most
+recently updated first, stops at the review window's cutoff, and adds every open PR labelled
+``Reverted``, which the revert guard acts on at any age. Anything else the scan acts on waits for a
+full listing: an idle PR reverted only by its recorded row; a PR whose place in GitHub's updated order
+lags its ``updated_at``; and a PR idle longer than the review window whose review is unfinished: a
+failed, cancelled or stuck one is retried at the first full listing after its timeout, and an in-flight
+one whose fingerprint changed without bumping ``updated_at`` is re-dispatched there.
+
+On a ``clickhouse`` repo, ``change_listing`` builds the repo's view of its open PRs from the unfiltered
+records: every open PR (``list_open_records``), the walk of every PR, open or closed, updated since a
+cutoff (``list_recent_records``), and one PR read alone (``read_record``). ``change_listing`` and
+CHANGE_DETECTION.md describe its ticks.
 """
 
 from __future__ import annotations
@@ -20,11 +28,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from greenlight.constants import REVERTED_LABELS
-from greenlight.merge_authz import accepts_base
+from greenlight.merge_authz import accepts_refs, native_stack_trunk
 from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
+    from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
     from datetime import datetime
 
     from github import Github
@@ -39,9 +47,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class OpenPR:
-    """One listed PR; ``head_sha`` and ``base_accepted`` are None when it came from the issues endpoint.
+    """One listed PR; ``head_sha``, ``base_accepted`` and its base inputs are None from the issues endpoint.
 
-    That endpoint carries no head and no base, so such a PR is judged by its author alone.
+    That endpoint carries no head and no base, so such a PR is judged by its author alone. ``state`` is
+    GitHub's ``open`` or ``closed`` (a merged PR is closed). ``base_ref``, ``head_ref`` and
+    ``stack_trunk`` (its GitHub-native stack's trunk, or None) are what ``base_accepted`` was judged by.
     """
 
     repo: str
@@ -53,6 +63,21 @@ class OpenPR:
     updated_at: datetime | None
     base_accepted: bool | None
     labels: tuple[str, ...] = ()
+    draft: bool = False
+    state: str = "open"
+    base_ref: str | None = None
+    head_ref: str | None = None
+    stack_trunk: str | None = None
+
+
+class Candidates(NamedTuple):
+    """The scan's candidate PR numbers, with each one's ``updated_at``, labels, author and head."""
+
+    numbers: list[int]
+    updated_at: dict[int, datetime | None]
+    labels: dict[int, tuple[str, ...]]
+    authors: dict[int, str]
+    heads: dict[int, str | None]
 
 
 class _ListedRefs(NamedTuple):
@@ -61,24 +86,39 @@ class _ListedRefs(NamedTuple):
     raw_data: Mapping[str, object]
 
 
-def _lowered(authors: Iterable[str]) -> frozenset[str]:
+class _ListedBase(NamedTuple):
+    base_ref: str
+    head_ref: str
+    stack_trunk: str | None
+
+
+def lowered(authors: Iterable[str]) -> frozenset[str]:
     return frozenset(author.lower() for author in authors)
 
 
-def _listed_base_accepted(pr: _PullRequest) -> bool:
+def is_candidate(record: OpenPR, cohort: frozenset[str]) -> bool:
+    """Whether the scan considers ``record``: open, its author in ``cohort`` (lower-cased logins), not a draft."""
+    return record.state == "open" and record.author.lower() in cohort and not record.draft
+
+
+def _listed_base(pr: _PullRequest) -> _ListedBase:
     # PyGithub's raw_data completes a listed PR with one GET each; _rawData is the list payload as received.
-    return accepts_base(_ListedRefs(pr.head, pr.base, pr._rawData))
+    trunk = native_stack_trunk(_ListedRefs(pr.head, pr.base, pr._rawData))
+    return _ListedBase(pr.base.ref, pr.head.ref, trunk)
 
 
-def _to_open_pr(pr: _ListedPR, repo: str, cohort: frozenset[str], pull: _PullRequest | None) -> OpenPR | None:
-    """``pr`` as an ``OpenPR``; ``pull`` is ``pr`` itself from the pulls endpoint, None from the issues endpoint."""
+def _record(pr: _ListedPR, repo: str, pull: _PullRequest | None) -> OpenPR | None:
+    """``pr`` as an ``OpenPR`` whoever wrote it, or None when it names no author.
+
+    ``pull`` is ``pr`` itself from the pulls endpoint, None from the issues endpoint, which is only ever
+    asked for open PRs.
+    """
     user = pr.user
-    if user is None:
-        return None
-    login = user.login
-    if not login or login.lower() not in cohort or pr.draft:
+    login = None if user is None else user.login
+    if not login:
         return None
     updated_at = pr.updated_at
+    base = _listed_base(pull) if pull is not None else None
     return OpenPR(
         repo=repo,
         number=pr.number,
@@ -87,8 +127,13 @@ def _to_open_pr(pr: _ListedPR, repo: str, cohort: frozenset[str], pull: _PullReq
         url=pr.html_url,
         head_sha=pull.head.sha if pull is not None else None,
         updated_at=naive_utc(updated_at) if updated_at is not None else None,
-        base_accepted=_listed_base_accepted(pull) if pull is not None else None,
+        base_accepted=accepts_refs(*base) if base is not None else None,
         labels=tuple(label.name for label in pr.labels),
+        draft=pr.draft,
+        state=pull.state if pull is not None else "open",
+        base_ref=base.base_ref if base is not None else None,
+        head_ref=base.head_ref if base is not None else None,
+        stack_trunk=base.stack_trunk if base is not None else None,
     )
 
 
@@ -99,45 +144,78 @@ def _by_number(prs: Iterable[OpenPR | None]) -> list[OpenPR]:
     return sorted(unique.values(), key=lambda pr: pr.number)
 
 
+def _candidates(records: Iterable[OpenPR | None], authors: Iterable[str]) -> list[OpenPR]:
+    cohort = lowered(authors)
+    return _by_number(record for record in records if record is not None and is_candidate(record, cohort))
+
+
+def _open_records(client: _RepoClient, repo: str) -> Iterator[OpenPR | None]:
+    return (_record(pr, repo, pr) for pr in client.get_repo(repo).get_pulls(state="open"))
+
+
+def list_open_records(client: _RepoClient, repo: str) -> list[OpenPR]:
+    """Every open PR, whoever wrote it, drafts included."""
+    return _by_number(_open_records(client, repo))
+
+
 def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
-    cohort = _lowered(authors)
-    pulls = client.get_repo(repo).get_pulls(state="open")
-    return _by_number(_to_open_pr(pr, repo, cohort, pr) for pr in pulls)
+    return _candidates(_open_records(client, repo), authors)
+
+
+def _walk_updated(client: _RepoClient, repo: str, *, cutoff: datetime, state: str) -> list[OpenPR | None]:
+    listed: list[OpenPR | None] = []
+    # GitHub sorts by updated ascending unless asked for descending.
+    for pr in client.get_repo(repo).get_pulls(state=state, sort="updated", direction="desc"):
+        updated_at = pr.updated_at
+        if updated_at is not None and naive_utc(updated_at) <= cutoff:
+            break
+        listed.append(_record(pr, repo, pr))
+    return listed
+
+
+def read_record(client: Github, repo: str, number: int) -> OpenPR | None:
+    """PR ``number`` as ``list_open_records`` builds each record, read with one GET; None when it names no author.
+
+    The scan's client builds lazy objects: the GET happens at the record builder's first attribute read,
+    before it reads the payload the base is judged from.
+    """
+    pull = client.get_repo(repo).get_pull(number)
+    return _record(pull, repo, pull)
+
+
+def list_recent_records(client: _RepoClient, repo: str, *, cutoff: datetime) -> list[OpenPR]:
+    """Every PR, open or closed, updated after ``cutoff`` (naive UTC), whoever wrote it.
+
+    The walk goes most recently updated first and stops at the first PR updated at or before ``cutoff``;
+    PyGithub requests each page only when the walk reaches it, so no later page is fetched. A PR with no
+    ``updated_at`` never stops it.
+    """
+    return _by_number(_walk_updated(client, repo, cutoff=cutoff, state="all"))
 
 
 def list_recently_updated_prs(
     client: _RepoClient, repo: str, authors: Iterable[str], *, cutoff: datetime
 ) -> list[OpenPR]:
-    """List the open PRs updated after ``cutoff`` (naive UTC), walking the most recently updated first.
-
-    The walk stops at the first PR updated at or before ``cutoff``; PyGithub requests each page only
-    when the walk reaches it, so no later page is fetched. A PR with no ``updated_at`` never stops it.
-    """
-    cohort = _lowered(authors)
-    listed: list[OpenPR | None] = []
-    # GitHub sorts by updated ascending unless asked for descending.
-    for pr in client.get_repo(repo).get_pulls(state="open", sort="updated", direction="desc"):
-        updated_at = pr.updated_at
-        if updated_at is not None and naive_utc(updated_at) <= cutoff:
-            break
-        listed.append(_to_open_pr(pr, repo, cohort, pr))
-    return _by_number(listed)
+    """The candidates among the open PRs updated after ``cutoff``, walked as ``list_recent_records`` walks."""
+    return _candidates(_walk_updated(client, repo, cutoff=cutoff, state="open"), authors)
 
 
 def list_reverted_prs(client: _IssueClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
-    """List the open PRs carrying a label the revert guard matches, at any age.
+    """List the candidates among the open PRs carrying a label the revert guard matches, at any age.
 
     One issues-endpoint listing per label in ``REVERTED_LABELS``. The endpoint matches a label
     case-insensitively, as the guard does. Its payload carries each PR's author, labels,
     ``updated_at`` and draft flag but no head or base, so ``head_sha`` and ``base_accepted`` are None.
     """
-    cohort = _lowered(authors)
     repo_obj = client.get_repo(repo)
-    return _by_number(
-        _to_open_pr(issue, repo, cohort, None)
-        for label in sorted(REVERTED_LABELS)
-        for issue in repo_obj.get_issues(state="open", labels=[label])
-        if issue.pull_request is not None
+    return _candidates(
+        (
+            _record(issue, repo, None)
+            for label in sorted(REVERTED_LABELS)
+            for issue in repo_obj.get_issues(state="open", labels=[label])
+            if issue.pull_request is not None
+        ),
+        authors,
     )
 
 
@@ -158,6 +236,21 @@ def default_fetch_updated(client: Github, repo: str, authors: frozenset[str], cu
     return _by_number([*walked, *reverted])
 
 
+def candidate_fields(open_prs: Sequence[OpenPR]) -> Candidates:
+    """``open_prs`` as the scan's candidates; a PR on a base ``merge_authz.accepts_base`` refuses gets no author."""
+    for open_pr in open_prs:
+        logger.debug("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
+        if open_pr.base_accepted is False:
+            logger.info("PR #%d by %s: base not accepted", open_pr.number, open_pr.author)
+    return Candidates(
+        [open_pr.number for open_pr in open_prs],
+        {open_pr.number: open_pr.updated_at for open_pr in open_prs},
+        {open_pr.number: open_pr.labels for open_pr in open_prs},
+        {open_pr.number: open_pr.author for open_pr in open_prs if open_pr.base_accepted is not False},
+        {open_pr.number: open_pr.head_sha for open_pr in open_prs},
+    )
+
+
 def candidate_numbers(
     client: Github,
     *,
@@ -167,7 +260,7 @@ def candidate_numbers(
     fetch: FetchFn,
     cutoff: datetime | None,
     fetch_updated: FetchUpdatedFn,
-) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]], dict[int, str], dict[int, str | None]]:
+) -> Candidates:
     """Return the candidate PR numbers with their ``updated_at``, labels, author, and head.
 
     With no ``cutoff`` the listing is full (``fetch``); with one it is fast (``fetch_updated``). The
@@ -178,7 +271,7 @@ def candidate_numbers(
     """
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, repo)
-        return [pr], {}, {}, {}, {}
+        return Candidates([pr], {}, {}, {}, {})
     if cutoff is None:
         open_prs = fetch(client, repo, authors)
         tick = "full tick"
@@ -186,14 +279,4 @@ def candidate_numbers(
         open_prs = fetch_updated(client, repo, authors, cutoff)
         tick = f"fast tick, updated since {cutoff:%Y-%m-%d %H:%M:%S} UTC"
     logger.info("found %d open PR(s) from %d author(s) in %s (%s)", len(open_prs), len(authors), repo, tick)
-    for open_pr in open_prs:
-        logger.debug("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
-        if open_pr.base_accepted is False:
-            logger.info("PR #%d by %s: base not accepted", open_pr.number, open_pr.author)
-    return (
-        [open_pr.number for open_pr in open_prs],
-        {open_pr.number: open_pr.updated_at for open_pr in open_prs},
-        {open_pr.number: open_pr.labels for open_pr in open_prs},
-        {open_pr.number: open_pr.author for open_pr in open_prs if open_pr.base_accepted is not False},
-        {open_pr.number: open_pr.head_sha for open_pr in open_prs},
-    )
+    return candidate_fields(open_prs)

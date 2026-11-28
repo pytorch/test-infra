@@ -2,47 +2,40 @@
 
 It is read and written from the main thread only. ``encode_memory`` and ``decode_memory`` are the form
 the state store keeps between invocations (``state_store``): versioned JSON, zlib-compressed, the
-approvers digest of the fingerprint results stored once. A form over ``MEMORY_MAX_BYTES`` is saved without
-its fingerprint results, logged as an error; a blob of another version, or one that does not decode,
-starts the repo cold. ``save_memory`` saves it with whether its drain is complete, for the CLI's scan and
-the scan Lambda's (``leased_run``) alike.
+approvers digest of the fingerprint results stored once, times and markers in ``pr_view``'s encodings.
+A form over ``MEMORY_MAX_BYTES`` is saved without its fingerprint results, and, still over, without its
+view of the open PRs too, each logged as an error. A blob of the previous version is read forward
+without a view; one of another version, or one that does not decode, starts the repo cold.
+``save_memory`` saves it with whether its drain is complete, for the CLI's scan and the scan Lambda's
+(``leased_run``) alike. ``fingerprint_cache.FingerprintCache`` is a tick's view of the fingerprint
+results.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import zlib
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, cast
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Literal
 
-from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE, MEMORY_MAX_BYTES
+from greenlight.constants import FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE, MEMORY_MAX_BYTES
+from greenlight.fingerprint_cache import Entry, Key
+from greenlight.pr_view import PRView, marker_form, marker_from_form, required_time, time_form, time_from_form
 from greenlight.review_gate import ReviewSkip
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Mapping, Sequence
 
     from greenlight.scan_runner import FingerprintResult
     from greenlight.state_store import StateStore
 
 logger = logging.getLogger(__name__)
 
-
-@dataclass(frozen=True, slots=True)
-class _Key:
-    """What a fingerprint result was computed under: the PR as listed before its fetch, and the approvers."""
-
-    updated_at: datetime
-    head_sha: str
-    approvers_digest: str
-
-
-@dataclass(frozen=True, slots=True)
-class _Entry:
-    key: _Key
-    result: FingerprintResult
+# A clickhouse repo's event tick is a fast one.
+TickKind = Literal["full", "wide", "fast"]
 
 
 @dataclass(slots=True)
@@ -92,32 +85,58 @@ class DrainPass:
 
 
 class ScanMemory:
-    """When the last full listing tick that completed started, the fingerprint results to reuse, and the drain:
-    when the process first saw the repo off, and the pass under way (``DrainPass``: the PRs it checked
-    and its read attempts), which ends when no open PR is pending.
+    """When the last full and wide listing ticks that completed started, the fingerprint results to reuse,
+    a ``clickhouse`` repo's view of its open PRs (``view``), and the drain: when the process first saw
+    the repo off, and the pass under way (``DrainPass``: the PRs it checked and its read attempts), which
+    ends when no open PR is pending.
 
     Times are the scan's naive-UTC wall clock: a monotonic clock may not advance while Lambda freezes
-    the execution environment between invocations. A full tick is due when none has completed, or once
-    ``FULL_TICK_INTERVAL`` less ``FULL_TICK_TOLERANCE`` has passed since the last one started; a clock
-    that steps back past the start of the last full tick counts as due.
+    the execution environment between invocations. A full tick (the sweep) is due when none has
+    completed, or once ``full_tick_interval`` less ``FULL_TICK_TOLERANCE`` has passed since the last one
+    started; ``change_listing`` sets that interval every tick, ``FULL_TICK_INTERVAL`` but on a
+    ``clickhouse`` repo whose view is usable and whose HUD reading is fresh. A wide tick is due only once
+    the view is built, when no full or wide tick has completed or once ``FULL_TICK_INTERVAL`` less the
+    tolerance has passed since the later of the last two to start, a full tick counting as a wide one. A
+    clock that steps back past the start it counts from makes either due.
     """
 
     def __init__(self) -> None:
         self._last_full_tick_started: datetime | None = None
-        self._fingerprints: dict[int, _Entry] = {}
+        self._last_wide_tick_started: datetime | None = None
+        self.full_tick_interval = FULL_TICK_INTERVAL
+        self.view = PRView()
+        self._fingerprints: dict[int, Entry] = {}
         self._off_since: datetime | None = None
         self._drain_passes = 0
         self._drain_pass: DrainPass | None = None
         self._drain_completed_by: int | None = None
 
+    def sweep_due(self, now: datetime) -> bool:
+        return _due(now, self._last_full_tick_started, self.full_tick_interval)
+
+    def wide_due(self, now: datetime) -> bool:
+        if not self.view.built:
+            return False
+        marks = [mark for mark in (self._last_full_tick_started, self._last_wide_tick_started) if mark is not None]
+        return _due(now, max(marks, default=None), FULL_TICK_INTERVAL)
+
     def full_tick_due(self, now: datetime) -> bool:
-        if self._last_full_tick_started is None:
-            return True
-        elapsed = now - self._last_full_tick_started
-        return elapsed < timedelta(0) or elapsed >= FULL_TICK_INTERVAL - FULL_TICK_TOLERANCE
+        """Whether this tick is a full or a wide one: either must complete."""
+        return self.sweep_due(now) or self.wide_due(now)
+
+    @property
+    def fingerprints(self) -> Mapping[int, Entry]:
+        """The fingerprint results kept, by PR, read-only; ``replace_fingerprints`` sets them."""
+        return MappingProxyType(self._fingerprints)
+
+    def replace_fingerprints(self, entries: Mapping[int, Entry]) -> None:
+        self._fingerprints = dict(entries)
 
     def mark_full_tick(self, started_at: datetime) -> None:
         self._last_full_tick_started = started_at
+
+    def mark_wide_tick(self, started_at: datetime) -> None:
+        self._last_wide_tick_started = started_at
 
     def off_since(self, now: datetime) -> datetime:
         """When this process first saw the repo off, recording ``now`` the first time."""
@@ -150,91 +169,16 @@ class ScanMemory:
         self._drain_completed_by = pass_number
 
 
-class FingerprintCache:
-    """One listing tick's view of the fingerprint results its ``ScanMemory`` keeps.
-
-    A full tick passes ``reuse=False`` and reads no kept result. ``authorized_logins`` is the set the
-    tick's fingerprints filter comments by; ``updated_at`` and ``head_sha`` are the listing's, and
-    ``now`` is the clock read after the listing. A result is reused only while the PR's listed
-    ``updated_at`` and head and the approver set are those it was stored under. ``commit`` leaves the
-    memory holding only the results this tick reused or ``store`` kept; a ``partial`` commit (a stopped
-    fan-out) also keeps the earlier results of the PRs the tick never looked up.
-    """
-
-    def __init__(
-        self,
-        memory: ScanMemory,
-        *,
-        reuse: bool,
-        authorized_logins: frozenset[str],
-        updated_at: Mapping[int, datetime | None],
-        head_sha: Mapping[int, str | None],
-        now: datetime,
-    ) -> None:
-        self._memory = memory
-        self._previous = memory._fingerprints if reuse else {}
-        self._digest = hashlib.sha256("\n".join(sorted(authorized_logins)).encode()).hexdigest()
-        self._updated_at = updated_at
-        self._head_sha = head_sha
-        self._now = now
-        self._kept: dict[int, _Entry] = {}
-        self._looked_up: set[int] = set()
-        self._reused = 0
-        self._fetched = 0
-
-    def lookup(self, number: int) -> FingerprintResult | None:
-        self._looked_up.add(number)
-        entry = self._previous.get(number)
-        if entry is None or entry.key != self._key(number):
-            return None
-        return entry.result
-
-    def keep(self, number: int) -> None:
-        """Carry a looked-up result into this tick: it settled its PR without a fingerprint."""
-        self._kept[number] = self._previous[number]
-        self._reused += 1
-
-    def store(self, number: int, result: FingerprintResult) -> None:
-        """Count a fresh result, and keep it once the PR's listed ``updated_at`` is ``FINGERPRINT_QUIET`` old.
-
-        A fingerprint read at a head other than the listed one is never kept: after a push the next
-        listing misses it anyway, and after a read that lagged the listing it would settle the listed
-        head on an older head's hash.
-        """
-        self._fetched += 1
-        key = self._key(number)
-        if key is None or self._now - key.updated_at < FINGERPRINT_QUIET:
-            return
-        if isinstance(result, tuple) and result[0] != key.head_sha:
-            return
-        self._kept[number] = _Entry(key, result)
-
-    def commit(self, *, partial: bool = False) -> None:
-        untouched = (
-            {number: entry for number, entry in self._previous.items() if number not in self._looked_up}
-            if partial
-            else {}
-        )
-        self._memory._fingerprints = untouched | self._kept
-        logger.info("fingerprints: %d reused from the cache, %d fetched fresh", self._reused, self._fetched)
-
-    def _key(self, number: int) -> _Key | None:
-        updated_at = self._updated_at.get(number)
-        head_sha = self._head_sha.get(number)
-        if updated_at is None or head_sha is None:
-            return None
-        return _Key(updated_at, head_sha, self._digest)
+def _due(now: datetime, since: datetime | None, interval: timedelta) -> bool:
+    if since is None:
+        return True
+    elapsed = now - since
+    return elapsed < timedelta(0) or elapsed >= interval - FULL_TICK_TOLERANCE
 
 
-MEMORY_VERSION = 2
-
-
-def _time(value: datetime | None) -> str | None:
-    return None if value is None else value.isoformat()
-
-
-def _parse_time(value: object) -> datetime | None:
-    return None if value is None else datetime.fromisoformat(str(value))
+MEMORY_VERSION = 3
+_FORWARD_VERSION = 2
+_FORWARD_STORED_AT = datetime(1970, 1, 1)
 
 
 def _result_form(result: FingerprintResult) -> dict[str, list[str]]:
@@ -281,21 +225,33 @@ def _drain(form: Mapping[str, Any] | None) -> DrainPass | None:
     )
 
 
-def _form(memory: ScanMemory, *, fingerprints: bool) -> dict[str, Any]:
+def _form(memory: ScanMemory, *, fingerprints: bool, view: bool) -> dict[str, Any]:
     digests: list[str] = []
     rows: list[list[Any]] = []
     for number, entry in sorted(memory._fingerprints.items()) if fingerprints else ():
         key = entry.key
         if key.approvers_digest not in digests:
             digests.append(key.approvers_digest)
-        digest = digests.index(key.approvers_digest)
-        rows.append([number, key.updated_at.isoformat(), key.head_sha, digest, _result_form(entry.result)])
+        rows.append(
+            [
+                number,
+                time_form(key.updated_at),
+                key.head_sha,
+                digests.index(key.approvers_digest),
+                _result_form(entry.result),
+                None if key.marker is None else marker_form(key.marker),
+                time_form(entry.stored_at),
+            ]
+        )
     return {
         "version": MEMORY_VERSION,
-        "last_full_tick_started": _time(memory._last_full_tick_started),
+        "last_full_tick_started": time_form(memory._last_full_tick_started),
+        "last_wide_tick_started": time_form(memory._last_wide_tick_started),
+        "full_tick_interval": memory.full_tick_interval.total_seconds(),
         "digests": digests,
         "fingerprints": rows,
-        "off_since": _time(memory._off_since),
+        "view": memory.view.to_form() if view else None,
+        "off_since": time_form(memory._off_since),
         "drain_passes": memory._drain_passes,
         "drain_pass": _drain_form(memory._drain_pass),
         "drain_completed_by": memory._drain_completed_by,
@@ -307,18 +263,32 @@ def _compress(form: dict[str, Any]) -> bytes:
 
 
 def encode_memory(memory: ScanMemory, repo: str) -> bytes:
-    """``memory``'s stored form; without its fingerprint results when it would pass ``MEMORY_MAX_BYTES``."""
-    blob = _compress(_form(memory, fingerprints=True))
-    if len(blob) > MEMORY_MAX_BYTES:
-        logger.error(
-            "%s: its scan memory is %d bytes, over %d; saved without its %d fingerprint result(s)",
-            repo,
-            len(blob),
-            MEMORY_MAX_BYTES,
-            len(memory._fingerprints),
-        )
-        blob = _compress(_form(memory, fingerprints=False))
-    return blob
+    """``memory``'s stored form; without its fingerprint results, then also without its view, while over
+    ``MEMORY_MAX_BYTES``. A form still over the cap without both is returned as it is."""
+    blob = _compress(_form(memory, fingerprints=True, view=True))
+    if len(blob) <= MEMORY_MAX_BYTES:
+        return blob
+    logger.error(
+        "%s: its scan memory is %d bytes, over %d; saved without its %d fingerprint result(s)",
+        repo,
+        len(blob),
+        MEMORY_MAX_BYTES,
+        len(memory._fingerprints),
+    )
+    blob = _compress(_form(memory, fingerprints=False, view=True))
+    if len(blob) <= MEMORY_MAX_BYTES:
+        return blob
+    smaller = _compress(_form(memory, fingerprints=False, view=False))
+    logger.error(
+        "%s: its scan memory is still %d bytes without its fingerprint results, over %d; saved without its "
+        "view of %d PR(s) too, in %d bytes",
+        repo,
+        len(blob),
+        MEMORY_MAX_BYTES,
+        len(memory.view.records),
+        len(smaller),
+    )
+    return smaller
 
 
 def save_memory(
@@ -330,34 +300,56 @@ def save_memory(
     store.save_memory(repo, encode_memory(memory, repo), owner=owner, now=now, tick=tick, drain_complete=completed)
 
 
-def _restore(form: Mapping[str, Any]) -> ScanMemory:
+def _fingerprint(row: Sequence[Any], digests: Sequence[str], version: int) -> tuple[int, Entry]:
+    """A stored fingerprint row's PR and entry. A row of the previous version holds no marker and no time
+    it was stored at: its marker is None, and it dates from the epoch, so a LAND revalidation counts it as
+    old."""
+    if version == MEMORY_VERSION:
+        number, updated_at, head_sha, digest, result, marker, stored_at = row
+        key_marker = None if marker is None else marker_from_form(marker)
+        stored = required_time(stored_at)
+    else:
+        number, updated_at, head_sha, digest, result = row
+        key_marker, stored = None, _FORWARD_STORED_AT
+    key = Key(required_time(updated_at), str(head_sha), digests[int(digest)], key_marker)
+    return int(number), Entry(key, _result(result), stored)
+
+
+def _restore(form: Mapping[str, Any], repo: str, version: int) -> ScanMemory:
     memory = ScanMemory()
-    memory._last_full_tick_started = _parse_time(form["last_full_tick_started"])
+    memory._last_full_tick_started = time_from_form(form["last_full_tick_started"])
     digests = [str(digest) for digest in form["digests"]]
-    for number, updated_at, head_sha, digest, result in form["fingerprints"]:
-        key = _Key(cast("datetime", _parse_time(updated_at)), str(head_sha), digests[int(digest)])
-        memory._fingerprints[int(number)] = _Entry(key, _result(result))
-    memory._off_since = _parse_time(form["off_since"])
+    for row in form["fingerprints"]:
+        number, entry = _fingerprint(row, digests, version)
+        memory._fingerprints[number] = entry
+    memory._off_since = time_from_form(form["off_since"])
     memory._drain_passes = int(form["drain_passes"])
     memory._drain_pass = _drain(form["drain_pass"])
     completed_by = form["drain_completed_by"]
     memory._drain_completed_by = None if completed_by is None else int(completed_by)
+    if version == MEMORY_VERSION:
+        memory._last_wide_tick_started = time_from_form(form["last_wide_tick_started"])
+        memory.full_tick_interval = timedelta(seconds=float(form["full_tick_interval"]))
+        view = form["view"]
+        if view is not None:
+            memory.view = PRView.from_form(view, repo)
     return memory
 
 
 def decode_memory(blob: bytes | None, repo: str) -> ScanMemory:
-    """The memory ``encode_memory`` stored as ``blob``; a cold one for None, another version or a bad blob."""
+    """The memory ``encode_memory`` stored as ``blob``, a previous version's read forward without a view;
+    a cold one for None, another version or a bad blob."""
     if blob is None:
         return ScanMemory()
     try:
         form = json.loads(zlib.decompress(blob))
         version = form.get("version") if isinstance(form, dict) else None
-        if version != MEMORY_VERSION:
+        if version not in (MEMORY_VERSION, _FORWARD_VERSION):
             logger.warning(
                 "%s: stored scan memory has version %r, not %d; starting cold", repo, version, MEMORY_VERSION
             )
             return ScanMemory()
-        return _restore(form)
+        return _restore(form, repo, version)
     except Exception:
         logger.error("%s: cannot decode its stored scan memory; starting cold", repo, exc_info=True)
         return ScanMemory()

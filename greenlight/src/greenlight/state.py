@@ -107,15 +107,7 @@ def read_latest_states(
         query += _PR_FILTER
         params["pr_numbers"] = tuple(pr_numbers)
     query += _ORDER_LIMIT
-    return {int(row["pr_number"]): _to_state(row) for row in _query(connect, query, params)}
-
-
-def _query(connect: Callable[[], Client], sql: str, params: dict[str, object]) -> list[dict[str, Any]]:
-    client = connect()
-    try:
-        return list(client.query(sql, parameters=params).named_results())
-    finally:
-        client.close()
+    return {int(row["pr_number"]): _to_state(row) for row in clickhouse_client.query(query, params, connect=connect)}
 
 
 def _to_state(row: dict[str, Any]) -> PRState:
@@ -153,7 +145,9 @@ def read_gate_rows(
     }
     gates: dict[int, PRState] = {}
     verdicts: dict[int, PRState] = {}
-    for row in _query(connect, _QUERY + _PR_FILTER + _AUTHORITATIVE + _GATE_ORDER_LIMIT, params):
+    for row in clickhouse_client.query(
+        _QUERY + _PR_FILTER + _AUTHORITATIVE + _GATE_ORDER_LIMIT, params, connect=connect
+    ):
         recorded = _to_state(row)
         if recorded.status in TERMINAL_STATUSES:
             verdicts[recorded.pr_number] = recorded
@@ -186,4 +180,4 @@ def read_reverted_pr_numbers(
     if pr_numbers is not None:
         query += _PR_FILTER
         params["pr_numbers"] = tuple(pr_numbers)
-    return {int(row["pr_number"]) for row in _query(connect, query, params)}
+    return {int(row["pr_number"]) for row in clickhouse_client.query(query, params, connect=connect)}

@@ -6,20 +6,22 @@ raises one error naming every PR that failed, failed to dispatch or was abandone
 the safety work's failures (``PreparedScan.failed``) included. The optional work's own failures are
 kept apart (``PreparedScan.optional_failed``), so a caller whose optional work was cut short reports
 them with the cut. The dispatch goes through a client on the scan's dispatch token when that differs
-from its repo token. A fast tick reuses a PR's cached fingerprint result while its listed
-``updated_at`` and head and the approver set are unchanged, but fingerprints afresh any PR it would
-dispatch (``scan_memory``);
-``--pr`` and ``--force`` never touch the cache. Every listing tick that reaches its dispatch phase
+from its repo token. A tick other than a full one reuses a PR's cached fingerprint result while its
+listed ``updated_at`` and head, the approver set and, on a ``clickhouse`` repo, its HUD marker are
+unchanged, but fingerprints afresh any PR it would dispatch (``fingerprint_cache``); there a PR whose
+latest recorded row is a LAND reuses no result stored ``FULL_TICK_INTERVAL`` ago. ``--pr`` and
+``--force`` never touch the cache. Every listing tick that reaches its dispatch phase
 without a rate limit, and whose dispatch hits none, relabels the PRs it listed that are reverted, kept
 by the recency filter or Stale-skipped. ``optional=False`` (a safety-only repo) skips all of the
-optional work and raises only the safety work's errors; a full tick whose safety work met no rate limit
-still counts as the last full tick, so a safety-only repo is not listed in full on every tick, unless the
-caller says its optional work did not finish (``marks_full_tick=False``). A listing tick counts as the
-last full tick once its fan-out and dispatch ended without a stop (``quota.RepoBudgetExceeded``,
-``quota.RateLimitStop``, or a rate limit they latched); a PR whose dispatch failed on its own does not hold
-it back. The fingerprint results the fan-out stored are kept in the scan memory even when a stop ends it,
-with the earlier results of the PRs it never looked up (``FingerprintCache.commit``). The shared rate-limit
-latch is read again before the dispatch (``latch.recheck``).
+optional work and raises only the safety work's errors; a full or wide tick whose safety work met no rate
+limit still counts as done, so a safety-only repo is not listed in full on every tick, unless the caller
+says its optional work did not finish (``marks_full_tick=False``). A listing tick counts as done once its
+fan-out and dispatch ended without a stop (``quota.RepoBudgetExceeded``, ``quota.RateLimitStop``, or a
+rate limit they latched); a PR whose dispatch failed on its own does not hold it back. A full tick done is
+marked in its memory as the last full tick, a wide one as the last wide tick; a fast tick and a ``--pr``
+scan mark nothing. The fingerprint results the fan-out stored are kept in the scan memory even when a stop
+ends it, with the earlier results of the PRs it never looked up (``FingerprintCache.commit``). The shared
+rate-limit latch is read again before the dispatch (``latch.recheck``).
 """
 
 from __future__ import annotations
@@ -30,7 +32,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from greenlight import github_client, latch, scan_dispatch, scan_runner, verdict_labels
-from greenlight.scan_memory import FingerprintCache
+from greenlight.constants import STATUS_LAND
+from greenlight.fingerprint_cache import FingerprintCache
 
 if TYPE_CHECKING:
     import contextlib
@@ -42,11 +45,12 @@ if TYPE_CHECKING:
     from github import Github
 
     from greenlight.authority import Authority
+    from greenlight.change_feed import Marker
     from greenlight.github_types import VerdictPR
     from greenlight.repo_config import RepoEntry
     from greenlight.review_gate import ReviewSkip
     from greenlight.scan_dispatch import DispatchFn
-    from greenlight.scan_memory import ScanMemory
+    from greenlight.scan_memory import ScanMemory, TickKind
     from greenlight.scan_runner import FingerprintFn
     from greenlight.state import PRState
 
@@ -85,7 +89,7 @@ class PreparedScan:
     bot_login: str
     timeout: timedelta
     memory: ScanMemory | None
-    full_tick: bool
+    kind: TickKind
     listed_at: datetime
     evaluated_at: datetime
     states: dict[int, PRState]
@@ -108,6 +112,7 @@ class PreparedScan:
     get_pr: Callable[[Github, str, int], VerdictPR]
     upsert_comment: Callable[..., None]
     now: Callable[[], datetime]
+    markers: Mapping[int, tuple[Marker, datetime] | None] = field(default_factory=dict)
     failed: list[int] = field(default_factory=list)
     optional_failed: list[int] = field(default_factory=list)
 
@@ -136,8 +141,17 @@ def finish(prepared: PreparedScan, *, optional: bool = True, marks_full_tick: bo
 
 
 def _mark_full_tick(scan: PreparedScan) -> None:
-    if scan.full_tick and scan.memory is not None and scan.pr is None:
+    """Mark a listing scan's full or wide tick done at its listing time; a fast tick marks nothing."""
+    if scan.memory is None or scan.pr is not None:
+        return
+    if scan.kind == "full":
         scan.memory.mark_full_tick(scan.listed_at)
+    elif scan.kind == "wide":
+        scan.memory.mark_wide_tick(scan.listed_at)
+
+
+def _landed(scan: PreparedScan) -> frozenset[int]:
+    return frozenset(number for number, recorded in scan.states.items() if recorded.status == STATUS_LAND)
 
 
 def _dispatch_client(scan: PreparedScan) -> Github:
@@ -216,11 +230,13 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
         if scan.memory is None or scan.pr is not None or scan.force
         else FingerprintCache(
             scan.memory,
-            reuse=not scan.full_tick,
+            reuse=scan.kind != "full",
             authorized_logins=scan.authorized_logins,
             updated_at=scan.updated_at_by_number,
             head_sha=scan.head_sha_by_number,
             now=scan.evaluated_at,
+            markers=scan.markers,
+            revalidate=_landed(scan) if scan.markers else frozenset(),
         )
     )
     stopped = True

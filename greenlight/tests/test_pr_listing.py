@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock
 
 import pytest
@@ -56,6 +57,7 @@ class _FakePull:
         base_ref: str = "main",
         head_ref: str = "feature",
         stack_trunk: str | None = None,
+        state: str = "open",
     ) -> None:
         self.number = number
         self.user = _FakeUser(login) if login is not None else None
@@ -67,6 +69,7 @@ class _FakePull:
         self.updated_at = updated_at
         self.labels = [_FakeLabel(name) for name in (labels or [])]
         self.draft = draft
+        self.state = state
 
     @property
     def raw_data(self) -> dict[str, object]:
@@ -182,6 +185,9 @@ def test_full_listing_maps_pull_fields():
             updated_at=datetime(2026, 7, 30, 9, 0, 0),
             base_accepted=True,
             labels=(),
+            base_ref="main",
+            head_ref="feature",
+            stack_trunk=None,
         )
     ]
 
@@ -208,15 +214,37 @@ def test_every_pulls_listing_records_whether_trymerge_accepts_each_prs_base(pull
     assert [pr.base_accepted for pr in fast] == [accepted]
 
 
+def test_every_pulls_endpoint_record_carries_the_branch_names_its_base_was_judged_by():
+    pull = _FakePull(1, "alice", updated_at=_NOW, base_ref="alice/part-1", head_ref="alice/part-2", stack_trunk="main")
+    client = _client(pull)
+    single = _SinglePullRepo(pull)
+
+    records = [
+        *pr_listing.list_open_records(client, TARGET_REPO),
+        *pr_listing.list_recent_records(client, TARGET_REPO, cutoff=_CUTOFF),
+        *pr_listing.list_open_prs_by_authors(client, TARGET_REPO, ["alice"]),
+        pr_listing.read_record(cast("Github", single), TARGET_REPO, 1),
+    ]
+
+    assert {(pr.base_ref, pr.head_ref, pr.stack_trunk, pr.base_accepted) for pr in records if pr is not None} == {
+        ("alice/part-1", "alice/part-2", "main", True)
+    }
+    assert len(records) == 4
+
+
 @pytest.mark.parametrize(
-    ("refs", "accepted"),
+    ("refs", "base"),
     [
-        pytest.param({"base": {"ref": "main"}}, True, id="no-stack-on-main"),
-        pytest.param({"base": {"ref": "release/2.9"}}, False, id="no-stack-off-main"),
-        pytest.param({"base": {"ref": "alice/part-1"}, "stack": {"base": {"ref": "main"}}}, True, id="stack-on-main"),
+        pytest.param({"base": {"ref": "main"}}, ("main", "alice/part-2", None), id="no-stack-on-main"),
+        pytest.param({"base": {"ref": "release/2.9"}}, ("release/2.9", "alice/part-2", None), id="no-stack-off-main"),
+        pytest.param(
+            {"base": {"ref": "alice/part-1"}, "stack": {"base": {"ref": "main"}}},
+            ("alice/part-1", "alice/part-2", "main"),
+            id="stack-on-main",
+        ),
     ],
 )
-def test_judging_a_listed_pygithub_pulls_base_sends_no_request(refs, accepted):
+def test_reading_a_listed_pygithub_pulls_base_sends_no_request(refs, base):
     requester = Mock()
     requester.requestJsonAndCheck.side_effect = AssertionError("a listed PR was fetched")
     payload = {
@@ -228,7 +256,7 @@ def test_judging_a_listed_pygithub_pulls_base_sends_no_request(refs, accepted):
     # A get_pulls page builds each item this way: from the list payload, not yet completed.
     pull = PullRequest(requester, {}, payload, completed=False)
 
-    assert pr_listing._listed_base_accepted(pull) is accepted
+    assert pr_listing._listed_base(pull) == base
     assert requester.mock_calls == []
 
 
@@ -631,3 +659,136 @@ def test_candidate_numbers_lists_and_logs_the_scanned_repo(caplog):
     assert calls == ["fetch:pytorch/vision"]
     assert "in pytorch/vision (full tick)" in caplog.text
     assert "targeting single PR #3 in pytorch/vision" in caplog.text
+
+
+def test_the_open_records_keep_every_author_and_draft_in_one_default_traversal():
+    client = _client(
+        _FakePull(3, "carol", draft=True, labels=["Stale"]),
+        _FakePull(1, "alice"),
+        _FakePull(2, None),
+        _FakePull(4, ""),
+    )
+
+    records = pr_listing.list_open_records(client, TARGET_REPO)
+
+    # Only a PR that names no author is left out: the view holds every open PR, whoever wrote it.
+    assert _numbers(records) == [1, 3]
+    assert records[1] == OpenPR(
+        repo=TARGET_REPO,
+        number=3,
+        author="carol",
+        title="fix",
+        url="https://example.test/3",
+        head_sha="head-sha",
+        updated_at=None,
+        base_accepted=True,
+        labels=("Stale",),
+        draft=True,
+        state="open",
+        base_ref="main",
+        head_ref="feature",
+    )
+    assert client.repo.get_pulls_calls == [{"state": "open", "sort": None, "direction": None}]
+
+
+def test_the_recent_records_walk_open_and_closed_prs_most_recently_updated_first_and_stop_at_the_cutoff():
+    repo = _FakeRepo(
+        [
+            [
+                _FakePull(1, "carol", updated_at=_NOW - timedelta(hours=1), state="closed"),
+                _FakePull(2, "alice", updated_at=_NOW - timedelta(hours=2), draft=True),
+                _FakePull(3, "alice", updated_at=None),
+            ],
+            [_FakePull(4, "alice", updated_at=_CUTOFF), _FakePull(5, "alice", updated_at=_NOW)],
+            [_FakePull(6, "alice", updated_at=_NOW)],
+        ]
+    )
+
+    records = pr_listing.list_recent_records(_FakeClient(repo), TARGET_REPO, cutoff=_CUTOFF)
+
+    assert [(record.number, record.state, record.draft) for record in records] == [
+        (1, "closed", False),
+        (2, "open", True),
+        (3, "open", False),
+    ]
+    assert repo.get_pulls_calls == [{"state": "all", "sort": "updated", "direction": "desc"}]
+    assert repo.pages.fetched == [0, 1]
+
+
+@pytest.mark.parametrize(
+    ("record", "expected"),
+    [
+        pytest.param({}, True, id="open-cohort-ready"),
+        pytest.param({"author": "ALICE"}, True, id="author-case"),
+        pytest.param({"author": "carol"}, False, id="outside-the-cohort"),
+        pytest.param({"draft": True}, False, id="draft"),
+        pytest.param({"state": "closed"}, False, id="closed"),
+    ],
+)
+def test_a_record_is_a_candidate_only_open_by_a_cohort_author_and_not_a_draft(record, expected):
+    fields: dict[str, Any] = {"author": "alice", **record}
+    base = OpenPR(TARGET_REPO, 1, fields.pop("author"), "fix", "url", "sha", None, True)
+
+    assert pr_listing.is_candidate(replace(base, **fields), frozenset({"alice", "bob"})) is expected
+
+
+def test_an_issues_endpoint_record_is_open_and_carries_its_draft_flag(monkeypatch):
+    monkeypatch.setattr(pr_listing, "is_candidate", lambda _record, _cohort: True)
+    repo = _FakeRepo(issues=[_FakeIssue(7, "carol", draft=True)])
+
+    [record] = pr_listing.list_reverted_prs(_FakeClient(repo), TARGET_REPO, ["alice"])
+
+    assert (record.state, record.draft, record.head_sha, record.base_accepted) == ("open", True, None, None)
+    assert (record.base_ref, record.head_ref, record.stack_trunk) == (None, None, None)
+
+
+def test_candidate_fields_name_each_map_and_leave_out_the_author_of_a_refused_base():
+    candidates = pr_listing.candidate_fields([_open_pr(2, "sha2", base_accepted=False), _open_pr(1)])
+
+    assert candidates.numbers == [2, 1]
+    assert candidates.updated_at == {1: None, 2: None}
+    assert candidates.labels == {1: (), 2: ()}
+    assert candidates.authors == {1: "alice"}
+    assert candidates.heads == {1: None, 2: "sha2"}
+
+
+class _SinglePullRepo:
+    def __init__(self, pull: _FakePull) -> None:
+        self.pull = pull
+        self.asked: list[int] = []
+
+    def get_repo(self, _name: str) -> _SinglePullRepo:
+        return self
+
+    def get_pull(self, number: int) -> _FakePull:
+        self.asked.append(number)
+        return self.pull
+
+
+def test_read_record_builds_one_pr_as_the_listings_build_each_record():
+    pull = _FakePull(7, "carol", updated_at=_NOW, draft=True, state="closed", base_ref="release/2.9", labels=["x"])
+    client = _SinglePullRepo(pull)
+
+    record = pr_listing.read_record(cast("Github", client), TARGET_REPO, 7)
+
+    assert client.asked == [7]
+    assert record == OpenPR(
+        TARGET_REPO,
+        7,
+        "carol",
+        "fix",
+        "https://example.test/7",
+        "head-sha",
+        _NOW,
+        False,
+        ("x",),
+        True,
+        "closed",
+        "release/2.9",
+        "feature",
+        None,
+    )
+
+
+def test_read_record_of_a_pr_that_names_no_author_is_none():
+    assert pr_listing.read_record(cast("Github", _SinglePullRepo(_FakePull(7, None))), TARGET_REPO, 7) is None

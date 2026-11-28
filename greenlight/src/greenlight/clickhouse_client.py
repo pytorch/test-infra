@@ -1,17 +1,19 @@
 """ClickHouse connection helper for the greenlight service.
 
 Connection settings come from the standard ``CLICKHOUSE_*`` environment variables. The
-returned client is used for the service's read (SELECT) queries; verdict writes go
-through the S3 -> replicator path (see ``verdict``), not a direct INSERT from here.
+returned client is used for the service's read (SELECT) queries, run through ``query``; verdict
+writes go through the S3 -> replicator path (see ``verdict``), not a direct INSERT from here.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from clickhouse_connect.driver.client import Client
 
 logger = logging.getLogger(__name__)
@@ -60,7 +62,7 @@ def _ensure_clickhouse_cloud_no_proxy() -> None:
             os.environ[var] = ",".join([*entries, _CLICKHOUSE_CLOUD_DOMAIN])
 
 
-def connect() -> Client:
+def connect(*, send_receive_timeout: int = _SEND_RECEIVE_TIMEOUT_SECONDS) -> Client:
     host = _host_from_env()
     username = _require_env("CLICKHOUSE_USERNAME")
     password = _require_env("CLICKHOUSE_PASSWORD")
@@ -76,6 +78,25 @@ def connect() -> Client:
         secure=True,
         interface="https",
         connect_timeout=_CONNECT_TIMEOUT_SECONDS,
-        send_receive_timeout=_SEND_RECEIVE_TIMEOUT_SECONDS,
+        send_receive_timeout=send_receive_timeout,
     )
     return client
+
+
+def query(
+    sql: str,
+    params: dict[str, object],
+    *,
+    connect: Callable[[], Client] = connect,
+    settings: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Run ``sql`` with ``params`` on a client from ``connect`` and return its rows by column name.
+
+    ``settings`` are ClickHouse settings for this query alone. Query and connection errors propagate;
+    the connection is always closed.
+    """
+    client = connect()
+    try:
+        return list(client.query(sql, parameters=params, settings=settings).named_results())
+    finally:
+        client.close()
