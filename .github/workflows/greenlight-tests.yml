@@ -29,6 +29,8 @@ on:
       - .github/CODEOWNERS
       - docs/CODEOWNERS
       - .github/greenlight/**
+      # test_checkout_dir_sync.py reads the replay harness's checkout directories as source.
+      - tools/torchci/greenlight_replay/**
   push:
     branches:
       - main
@@ -48,6 +50,7 @@ on:
       - .github/CODEOWNERS
       - docs/CODEOWNERS
       - .github/greenlight/**
+      - tools/torchci/greenlight_replay/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}

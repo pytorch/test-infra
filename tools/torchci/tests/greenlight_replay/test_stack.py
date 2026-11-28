@@ -27,7 +27,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-import yaml
+from replay_runner_fixtures import build_arm_tree
 from test_inputs import (
     completed,
     CUTOFF,
@@ -771,7 +771,11 @@ class GateTest(unittest.TestCase):
         self.root = Path(self._tmp.name) / "policy"
 
     def materialize(self, mutate):
-        """The shipped policy tree, materialized after ``mutate`` edits its workflow."""
+        """The shipped policy tree, materialized after ``mutate`` edits its workflow.
+
+        Its shape is not checked: an edited stack step is the stack gate's to refuse,
+        and test_ledger covers the shape check.
+        """
         document = workflow_mod.load(WORKFLOW)
         (steps,) = [
             job["steps"]
@@ -780,25 +784,19 @@ class GateTest(unittest.TestCase):
         ]
         (step,) = stack_step.stack_steps(steps)
         mutate(steps, step)
-        workflow_path = self.root / workflow_mod.WORKFLOW_RELPATH
-        workflow_path.parent.mkdir(parents=True, exist_ok=True)
-        workflow_path.write_text(
-            yaml.safe_dump(document, sort_keys=False), encoding="utf-8"
-        )
-        hooks = self.root / policy_mod.HOOKS_RELPATH
-        hooks.mkdir(parents=True, exist_ok=True)
-        for name in (
-            policy_mod.SCHEMA_FILENAME,
-            policy_mod.TOO_LARGE_FILENAME,
-            policy_mod.SANITIZE_FILENAME,
+        build_arm_tree(self.root, workflow_document=document)
+        with mock.patch.object(policy_mod, "_checkout"), mock.patch.object(
+            policy_mod, "require_registered"
         ):
-            shutil.copy(REPO_ROOT / policy_mod.HOOKS_RELPATH / name, hooks / name)
-        with mock.patch.object(policy_mod, "_checkout"):
-            return policy_mod.materialize("8830", self.root)
+            return policy_mod.materialize(
+                "8830", self.root, reviewed_repo="pytorch/pytorch"
+            )
 
     def test_the_repositorys_own_policy_collects_both_kinds_of_stack_context(self):
         with mock.patch.object(policy_mod, "_checkout"):
-            policy = policy_mod.materialize("main", REPO_ROOT)
+            policy = policy_mod.materialize(
+                "main", REPO_ROOT, reviewed_repo="pytorch/pytorch"
+            )
         self.assertIs(policy.stack_context, stack_step.StackContext.BOTH)
 
     def test_the_unchanged_step_survives_a_yaml_round_trip(self):

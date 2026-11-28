@@ -8,20 +8,15 @@ than of any pull request, so it stops the sweep before anything is spent.
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from torchci.greenlight_replay.checkout import checkout_dirname, clone_url, WorktreePool
+from torchci.greenlight_replay.checkout import clone_url, require_repo, WorktreePool
 from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
 from torchci.greenlight_replay.preflight import preflight
-from torchci.greenlight_replay.runner import (
-    bedrock_enabled,
-    DEFAULT_MODEL,
-    schema_support_violation,
-)
+from torchci.greenlight_replay.runner import bedrock_enabled, DEFAULT_MODEL
 from torchci.greenlight_replay.settings import assert_hooks_present
 from torchci.greenlight_replay.trusted_skills import materialize_trusted_skills
 from torchci.greenlight_replay.workspace import stage_policy_half
@@ -80,29 +75,30 @@ def open_sweep(
     checkpoint_path: Path,
     repo: str,
     parallelism: int,
-    timeout_s: int,
+    timeout_s: int | None,
     model: str | None,
     context_window: int,
     interrupted: threading.Event,
     trusted_ref: str | None = None,
 ) -> Sweep:
-    """Materialize the policy, the shared clone and the trusted tree, and stage.
+    """Materialize the policy and the trusted tree, stage, and clone the repo.
 
     ``model`` overrides what the policy's own inference profile maps to; without
     one an unrecognised profile stops a sweep off Bedrock here, before the clone
     and before anything is spent. ``trusted_ref`` pins the trusted tree to one
-    commit of the repo; without it the tree is the repo's ``main``.
+    commit of the repo; without it the tree is the repo's ``main``. ``timeout_s``
+    None is the policy's own. A repo that gets no staged policy declines every pull
+    request unread, so it is not cloned.
     """
-    dirname, name = checkout_dirname(repo), repo.partition("/")[2]
+    name = require_repo(repo).partition("/")[2]
     preflight(workdir, policy_ref)
-    policy, model = prepare_policy(policy_ref, workdir, model)
+    policy, model = prepare_policy(policy_ref, workdir, model, repo)
     pool = WorktreePool(
         workdir / BARE_CLONE_DIRNAME.format(name),
         parallelism,
         repo_url=clone_url(repo),
-        dirname=dirname,
+        dirname=policy.target.checkout,
     )
-    pool.ensure_clone()
     trusted_dirname = (
         TRUSTED_PINNED_DIRNAME.format(name, trusted_ref)
         if trusted_ref
@@ -114,7 +110,9 @@ def open_sweep(
     policy_source, staged = stage_policy_half(
         policy, repo, trusted, workdir / STAGED_POLICY_DIRNAME
     )
-    if not staged:
+    if staged:
+        pool.ensure_clone()
+    else:
         logger.warning(
             "no review policy was staged for %s, so every pull request gets the "
             "workflow's canned review_error verdict and no model runs",
@@ -129,7 +127,7 @@ def open_sweep(
         workdir=workdir,
         checkpoint_path=checkpoint_path,
         repo=repo,
-        timeout_s=timeout_s,
+        timeout_s=policy.timeout_s if timeout_s is None else timeout_s,
         interrupted=interrupted,
         policy_source=policy_source,
         staged=staged,
@@ -137,17 +135,18 @@ def open_sweep(
 
 
 def prepare_policy(
-    policy_ref: str, workdir: Path, model: str | None
+    policy_ref: str, workdir: Path, model: str | None, repo: str
 ) -> tuple[Policy, str]:
-    """Materialize the policy and refuse anything about it a sweep cannot survive.
+    """Materialize the policy for ``repo`` and refuse anything a sweep cannot survive.
 
     Every fault found here is a property of the policy rather than of any pull
     request, so each would otherwise fail every review in the sweep identically.
     Safe to run twice: ``materialize`` clears its destination and re-extracts, so
     a dry run doing this does not spoil the real run that follows it.
     """
-    policy = materialize_policy(policy_ref, workdir / POLICY_DIRNAME)
-    check_schema(policy)
+    policy = materialize_policy(
+        policy_ref, workdir / POLICY_DIRNAME, reviewed_repo=repo
+    )
     # A hook that cannot exec does not deny, it silently does not run.
     assert_hooks_present(policy)
     model = model or local_model(policy.model)
@@ -177,20 +176,3 @@ def local_model(profile: str) -> str:
             f"the policy asks for {profile!r}; this harness maps only "
             f"{', '.join(sorted(LOCAL_MODELS))}. Pass --model to name one"
         ) from None
-
-
-def check_schema(policy: Policy) -> None:
-    """Refuse a verdict schema the runner could not read or could not interpret.
-
-    Both are properties of the policy rather than of any pull request, so either
-    fails every review in the sweep identically -- and a keyword the validator
-    does not implement fails them twice, since each gets retried first. Checked
-    once here instead, before anything is spent.
-    """
-    try:
-        schema = json.loads(Path(policy.schema_path).read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        raise ValueError(f"{policy.schema_path} is not readable JSON: {exc}") from exc
-    unsupported = schema_support_violation(schema)
-    if unsupported is not None:
-        raise ValueError(f"{policy.schema_path} cannot be interpreted: {unsupported}")

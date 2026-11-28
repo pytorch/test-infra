@@ -503,7 +503,7 @@ class TestUntrustedCells(ReplayCase):
         # Counted as verdicts, these two rows would make base a 2-1 NO_LAND split.
         rejected = {
             "new_decision": "NO_LAND",
-            "new_decision_reason": "harness:schema_invalid",
+            "new_decision_reason": "harness:rejected",
         }
         base = [
             write_run(self.root, "base-1", [replay_row(1)]),
@@ -516,17 +516,13 @@ class TestUntrustedCells(ReplayCase):
         self.assertEqual(
             [comparison.base.total(NO_LAND), comparison.base.total(FAILED)], [0, 2]
         )
-        self.assertEqual(
-            comparison.base.reasons(failed=True), {"harness:schema_invalid": 2}
-        )
+        self.assertEqual(comparison.base.reasons(failed=True), {"harness:rejected": 2})
         self.assertEqual(comparison.base.reasons(failed=False), {"clean": 1})
         self.assertEqual((pr.base.verdicts, pr.base.majority), (1, LAND))
         self.assertEqual(pr.exclusion, "fewer than 2 verdicts under base")
         self.assertEqual(comparison.non_true_flips, [])
         markdown = self.render(comparison)
-        self.assertIn(
-            "| `harness:schema_invalid` | 2 | 0 |", section(markdown, "Run health")
-        )
+        self.assertIn("| `harness:rejected` | 2 | 0 |", section(markdown, "Run health"))
         self.assertNotIn("harness:", section(markdown, "### Reason codes"))
 
     def test_a_status_outside_the_vocabulary_is_a_failure(self):

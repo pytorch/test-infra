@@ -63,7 +63,7 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertIsNone(args.sample_frac)
         self.assertEqual(args.seed, options.DEFAULT_SEED)
         self.assertEqual(args.parallelism, options.DEFAULT_PARALLELISM)
-        self.assertEqual(args.timeout_minutes, options.DEFAULT_TIMEOUT_MINUTES)
+        self.assertIsNone(args.timeout_minutes)
         self.assertEqual(args.workdir, options.DEFAULT_WORKDIR)
         self.assertEqual(args.repo, "pytorch/pytorch")
         self.assertIsNone(args.model)
@@ -196,14 +196,10 @@ class TestDryRun(unittest.TestCase):
         self.assertEqual(len(fakes.materialized), 1)
         self.assertEqual(fakes.pools, [])
 
-    def test_a_schema_the_validator_cannot_read_fails_the_dry_run(self):
-        # The shape that priced a clean plan and then aborted the real run: a
-        # policy PR whose verdict-schema.json uses a keyword the harness has not
-        # implemented. The cheapest check has to catch the likeliest fault.
-        fakes = Fakes(
-            [replay_row(194379)], policy_schema='{"type": "object", "maxLength": 3}'
-        )
-        with run_replay(fakes, ["--dry-run"]) as (code, _):
+    def test_a_repo_the_policys_target_refuses_fails_the_dry_run(self):
+        # The shape that would price a clean plan and then abort the real run.
+        fakes = Fakes([replay_row(194379, repo="pytorch/vision")], target_step=False)
+        with run_replay(fakes, ["--dry-run", "--repo", "pytorch/vision"]) as (code, _):
             self.assertEqual(code, cli.EXIT_FAILED)
 
     def test_an_unrunnable_hook_fails_the_dry_run(self):
@@ -219,6 +215,25 @@ class TestDryRun(unittest.TestCase):
     def test_an_empty_frame_is_a_failure_not_an_empty_sweep(self):
         with run_replay(Fakes([]), ["--dry-run"]) as (code, _):
             self.assertEqual(code, cli.EXIT_FAILED)
+
+
+class TestRunTimeout(unittest.TestCase):
+    """Each run's wall clock is the policy's, unless the operator names one."""
+
+    def test_the_policys_timeout_is_the_default(self):
+        fakes = Fakes([replay_row(194379)])
+        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(fakes.timeouts, [37 * 60])
+
+    def test_timeout_minutes_overrides_it(self):
+        fakes = Fakes([replay_row(194379)])
+        with run_replay(fakes, ["--parallelism", "1", "--timeout-minutes", "5"]) as (
+            code,
+            _,
+        ):
+            self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(fakes.timeouts, [300])
 
 
 class TestSizeGateAfterRederivation(unittest.TestCase):

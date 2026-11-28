@@ -109,7 +109,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     policy_ref = args.policy_ref or str(args.policy_pr)
     workdir = Path(args.workdir).expanduser() / COLLECT_DIRNAME
     try:
-        policy = materialize_policy(policy_ref, workdir / POLICY_DIRNAME)
+        policy = materialize_policy(
+            policy_ref, workdir / POLICY_DIRNAME, reviewed_repo=args.repo
+        )
     except Exception as exc:
         logger.error(
             "could not materialize the policy %s: %s", policy_ref, exc, exc_info=True

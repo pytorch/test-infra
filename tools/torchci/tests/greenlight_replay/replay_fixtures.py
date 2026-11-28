@@ -27,6 +27,7 @@ from torchci.greenlight_replay import (
     sweep as sweep_module,
     sweep_setup as sweep_setup_module,
 )
+from torchci.greenlight_replay.arm_code import Target
 from torchci.greenlight_replay.checkout import WorktreePool
 from torchci.greenlight_replay.frame import (
     CANNED_TOO_LARGE_MESSAGES,
@@ -35,6 +36,7 @@ from torchci.greenlight_replay.frame import (
     Landing,
 )
 from torchci.greenlight_replay.runner import BEDROCK_SWITCH, Outcome
+from torchci.greenlight_replay.verdict_cells import POLICY_VERDICT_OUTCOMES
 
 
 POLICY_MODEL = "global.anthropic.claude-opus-5"
@@ -70,7 +72,6 @@ else:
 """
 SCRATCH_PREFIX = "greenlight-replay-test-"
 VERDICTS = frozenset({"LAND", "NO_LAND"})
-VALID_SCHEMA = '{"type": "object"}'
 CANNED_TOO_LARGE = sorted(CANNED_TOO_LARGE_MESSAGES)[0]
 
 
@@ -166,7 +167,6 @@ class Fakes:
         statuses=None,
         policy_claude=None,
         policy_model=POLICY_MODEL,
-        policy_schema=VALID_SCHEMA,
         append_fails=None,
         decline_after=None,
         hooks_missing=False,
@@ -178,12 +178,12 @@ class Fakes:
         context_fails=False,
         canned_messages=(NO_POLICY_MESSAGE, GREENLIGHT_FILES_MESSAGE),
         diff_answers=None,
+        target_step=True,
     ):
         self.rows = [dict(row) for row in rows]
         self.statuses = dict(statuses or {})
         self.policy_claude = policy_claude or ("skills", "hooks")
         self.policy_model = policy_model
-        self.policy_schema = policy_schema
         self.append_fails = set(append_fails or ())
         self.decline_after = decline_after
         self.hooks_missing = hooks_missing
@@ -201,6 +201,7 @@ class Fakes:
         }
         self.reviewed_diffs = {}
         self.repo_policy_log = None
+        self.target_step = target_step
         self.checkpoint = {}
         self.pools = []
         self.materialized = []
@@ -210,6 +211,7 @@ class Fakes:
         self.reviewed = []
         self.comment_cutoffs = []
         self.models = []
+        self.timeouts = []
         self.run_dirs = []
         self.written = []
         self.sanitize_log = None
@@ -294,7 +296,7 @@ class Fakes:
     def sample_rows(self, rows, *, frac, n, seed):
         return list(rows)
 
-    def materialize_policy(self, ref, workdir, **kwargs):
+    def materialize_policy(self, ref, workdir, *, reviewed_repo, **kwargs):
         root = Path(workdir)
         self.materialized.append(root)
         for name in self.policy_claude:
@@ -323,14 +325,12 @@ class Fakes:
             encoding="utf-8",
         )
         script.chmod(0o755)
-        schema = root / ".claude/hooks/greenlight/verdict-schema.json"
-        schema.write_text(self.policy_schema, encoding="utf-8")
+        target = self.target(root, reviewed_repo)
         return SimpleNamespace(
             root=root,
             model=self.policy_model,
             ref=ref,
             sanitize_script=script,
-            schema_path=schema,
             repo_policy_script=repo_policy_script,
             no_policy_verdict={
                 "status": "NO_LAND",
@@ -342,6 +342,17 @@ class Fakes:
                 "reason": "not_trivial",
                 "message": self.canned_messages[1],
             },
+            target=target,
+            timeout_s=37 * 60,
+        )
+
+    def target(self, root, repo):
+        """What the policy's resolver names, as ``greenlight target`` derives it."""
+        if not self.target_step and repo != "pytorch/pytorch":
+            raise ValueError(f"the policy reviews pytorch/pytorch alone, not {repo}")
+        return Target(
+            repo=repo,
+            checkout="pytorch" if repo == "pytorch/pytorch" else "target",
         )
 
     def assert_hooks_present(self, policy):
@@ -393,7 +404,8 @@ class Fakes:
             self.workspaces.append(Path(workspace))
             self.reviewed.append(pr_number)
             self.models.append(kwargs["model"])
-            self.repos.append(kwargs.get("repo"))
+            self.timeouts.append(kwargs["timeout_s"])
+            self.repos.append(policy.target.repo)
             self.run_dirs.append(Path(run_dir))
             diff_path = Path(run_dir) / "greenlight-pr.diff"
             if diff_path.exists():
@@ -406,13 +418,15 @@ class Fakes:
         )
 
     def append_checkpoint(self, path, row, result):
-        # Mirrors emit: a status outside the verdict vocabulary reaches no
-        # column, a harness failure is recorded as a prefixed reason, and the
-        # run metrics ride alongside so a resumed sweep can still total its cost.
+        # Mirrors emit: a status outside the verdict vocabulary, or one a failed
+        # run carries, reaches no column, a harness failure is recorded as a
+        # prefixed reason, and the run metrics ride alongside so a resumed sweep
+        # can still total its cost.
         pr_number = int(row["pr_number"])
         if pr_number in self.append_fails:
             raise OSError("no space left on device")
-        status = result.status if result.status in VERDICTS else ""
+        answered = result.outcome.value in POLICY_VERDICT_OUTCOMES
+        status = result.status if answered and result.status in VERDICTS else ""
         reason = (
             result.reason
             if status

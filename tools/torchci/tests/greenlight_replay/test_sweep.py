@@ -129,44 +129,48 @@ class TestWorkspaceLayout(unittest.TestCase):
 
     def test_a_policy_without_its_skills_never_reaches_the_model(self):
         fakes = Fakes(
-            [replay_row(n) for n in (194379, 194772)], policy_claude=("hooks",)
+            [replay_row(n) for n in (194379, 194772)],
+            policy_claude=("hooks",),
+            target_step=False,
         )
         with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
             self.assertEqual(code, cli.EXIT_FAILED)
         self.assertEqual(fakes.reviewed, [])
 
     def test_check_workspace_names_every_missing_root(self):
-        for repo, checkout in (
-            ("pytorch/pytorch", "pytorch"),
-            ("pytorch/vision", "target"),
-        ):
-            with self.subTest(repo=repo), tempfile.TemporaryDirectory() as directory:
-                workspace = Path(directory)
-                roots = workspace_module.workspace_roots(repo)
-                self.assertEqual(roots, (checkout, ".claude/skills", ".claude/hooks"))
-                with self.assertRaises(workspace_module.WorkspaceLayoutError) as caught:
-                    workspace_module.check_workspace(workspace, repo)
-                for root in roots:
-                    self.assertIn(root, str(caught.exception))
-                for root in roots:
-                    (workspace / root).mkdir(parents=True)
-                workspace_module.check_workspace(workspace, repo)
+        for checkout in ("pytorch", "target"):
+            with self.subTest(checkout=checkout):
+                with tempfile.TemporaryDirectory() as directory:
+                    workspace = Path(directory)
+                    roots = workspace_module.workspace_roots(checkout)
+                    self.assertEqual(
+                        roots, (checkout, ".claude/skills", ".claude/hooks")
+                    )
+                    with self.assertRaises(
+                        workspace_module.WorkspaceLayoutError
+                    ) as caught:
+                        workspace_module.check_workspace(workspace, checkout)
+                    for root in roots:
+                        self.assertIn(root, str(caught.exception))
+                    for root in roots:
+                        (workspace / root).mkdir(parents=True)
+                    workspace_module.check_workspace(workspace, checkout)
 
-    def test_another_repos_checkout_does_not_satisfy_this_repos_layout(self):
+    def test_another_checkout_does_not_satisfy_this_layout(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
-            for root in workspace_module.workspace_roots("pytorch/pytorch"):
+            for root in workspace_module.workspace_roots("pytorch"):
                 (workspace / root).mkdir(parents=True)
             with self.assertRaises(workspace_module.WorkspaceLayoutError) as caught:
-                workspace_module.check_workspace(workspace, "pytorch/vision")
+                workspace_module.check_workspace(workspace, "target")
             self.assertIn("target", str(caught.exception))
 
 
 class TestReviewedRepo(unittest.TestCase):
-    """``--repo`` decides what is cloned, where the checkout sits and which
-    trusted tree the sanitize step restores from and the policy is staged from --
-    each as the workflow derives it for that repo. Get one wrong and the reviewer
-    reads the wrong tree, or the wrong repo's rules, and still answers."""
+    """``--repo`` decides what is cloned and which trusted tree the sanitize step
+    restores from and the policy is staged from; the policy's own target names where
+    the checkout sits. Get one wrong and the reviewer reads the wrong tree, or the
+    wrong repo's rules, and still answers."""
 
     @contextlib.contextmanager
     def replay(self, repo=None, argv=(), **options):
@@ -264,9 +268,18 @@ class TestReviewedRepo(unittest.TestCase):
             self.assertEqual(entry["new_decision"], "NO_LAND")
             self.assertEqual(entry["new_decision_reason"], "review_error")
             self.assertEqual(entry["new_decision_message"], NO_POLICY_MESSAGE)
-        # Not even the diff is fetched for a verdict that needs none of it.
+        # Not even the diff is fetched for a verdict that needs none of it, nor the
+        # repo cloned.
         self.assertEqual(fakes.diffs_fetched, [])
         self.assertEqual(fakes.comment_cutoffs, [])
+        self.assertFalse(fakes.pools[0].cloned)
+
+    def test_a_staged_policy_clones_the_repo(self):
+        fakes = Fakes([replay_row(194379)], repo_policy_stage="true")
+        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_OK)
+        self.assertTrue(fakes.pools[0].cloned)
+        self.assertEqual(fakes.reviewed, [194379])
 
     def test_a_diff_touching_greenlight_records_not_trivial_without_a_model(self):
         fakes = Fakes(
@@ -351,6 +364,13 @@ class TestReviewedRepo(unittest.TestCase):
                     self.assertEqual(code, cli.EXIT_OK)
                 entry = fakes.checkpoint[194379]
                 self.assertEqual(entry["new_decision_message"], messages[1])
+
+    def test_a_policy_without_a_target_step_refuses_another_repo(self):
+        fakes = Fakes([replay_row(194379, repo="pytorch/vision")], target_step=False)
+        with run_replay(fakes, ["--repo", "pytorch/vision"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_FAILED)
+        self.assertEqual(fakes.pools, [])
+        self.assertEqual(fakes.reviewed, [])
 
     def test_a_repo_the_harness_cannot_replay_stops_before_anything_is_fetched(self):
         for repo in ("facebook/vision", "PyTorch/PyTorch", "pytorch/.."):
@@ -455,9 +475,9 @@ class TestBedrockModel(unittest.TestCase):
 
 class TestCircuitBreaker(unittest.TestCase):
     """A fault the warm-up hits is a fault every run hits: the model the gateway
-    resolved, the schema the policy ships, the prompt the CLI parsed. None varies
-    by pull request, so the sweep must stop on the first rather than bill the
-    rest -- reporting it in the exit status after the fact is thirty runs late."""
+    resolved, the prompt the CLI parsed, the hooks the session loaded. None varies by
+    pull request, so the sweep must stop on the first rather than bill the rest --
+    reporting it in the exit status after the fact is thirty runs late."""
 
     def _sweep(self, outcome, total=4):
         numbers = [194000 + n for n in range(total)]
@@ -484,9 +504,29 @@ class TestCircuitBreaker(unittest.TestCase):
 
     def test_a_per_pull_request_fault_does_not_stop_the_sweep(self):
         # A timeout is the one pull request being slow, not the harness being
-        # broken; stopping on it would throw away a usable sweep.
-        _, fakes, _ = self._sweep(Outcome.TIMEOUT)
-        self.assertEqual(sorted(fakes.reviewed), [194000, 194001, 194002, 194003])
+        # broken; stopping on it would throw away a usable sweep. So is a verdict
+        # the record path refused, or an instruction file the pull request carried.
+        for outcome in (
+            Outcome.TIMEOUT,
+            Outcome.REJECTED,
+            Outcome.UNTRUSTED_INSTRUCTIONS,
+        ):
+            with self.subTest(outcome=outcome.value):
+                _, fakes, _ = self._sweep(outcome)
+                self.assertEqual(
+                    sorted(fakes.reviewed), [194000, 194001, 194002, 194003]
+                )
+
+    def test_hooks_or_arm_checks_that_fail_stop_the_sweep_after_one_run(self):
+        # No pull request makes the hooks fail to load or the policy's own checks
+        # fail to run, so every run would repeat it.
+        for outcome in (Outcome.HOOKS_NOT_LOADED, Outcome.ARM_CHECK_FAILED):
+            with self.subTest(outcome=outcome.value):
+                self.assertIn(outcome, sweep_module.FATAL_OUTCOMES)
+                code, fakes, lines = self._sweep(outcome)
+                self.assertEqual(fakes.reviewed, [194000])
+                self.assertEqual(code, cli.EXIT_FAILED)
+                self.assertEqual(len(lines), 2)
 
     def test_the_warm_up_row_still_reaches_the_file(self):
         # The run was paid for; its diagnostic row is what names the fault.
@@ -643,17 +683,6 @@ class TestStartupChecks(unittest.TestCase):
                 preflight_module.check_binaries(path=empty)
             self.assertIn("claude", str(caught.exception))
 
-    def test_a_schema_keyword_the_validator_cannot_read_is_refused(self):
-        # A property of the policy, identical for every pull request, and retried
-        # once apiece -- so it bills the whole corpus twice for nothing.
-        fakes = Fakes(
-            [replay_row(n) for n in (194379, 194772)],
-            policy_schema='{"type": "object", "maxLength": 3}',
-        )
-        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
-            self.assertEqual(code, cli.EXIT_FAILED)
-        self.assertEqual(fakes.reviewed, [])
-
     def test_an_unrunnable_hook_stops_the_sweep(self):
         # A hook that cannot exec does not deny; it silently does not run, so the
         # sandbox is off and every review still returns a verdict.
@@ -661,14 +690,6 @@ class TestStartupChecks(unittest.TestCase):
         with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
             self.assertEqual(code, cli.EXIT_FAILED)
         self.assertEqual(fakes.reviewed, [])
-
-    def test_an_unparseable_verdict_schema_is_refused(self):
-        with tempfile.TemporaryDirectory() as directory:
-            schema = Path(directory) / "verdict-schema.json"
-            schema.write_text("{not json", encoding="utf-8")
-            with self.assertRaises(ValueError) as caught:
-                sweep_setup_module.check_schema(SimpleNamespace(schema_path=schema))
-            self.assertIn("not readable JSON", str(caught.exception))
 
     def test_a_dry_run_refuses_a_scratch_root_it_could_not_use(self):
         fakes = Fakes([replay_row(194379)])

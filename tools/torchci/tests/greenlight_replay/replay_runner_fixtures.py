@@ -11,12 +11,15 @@ drift onto different ideas of what the CLI returns or what a policy looks like. 
 needed fixing.
 """
 
-import copy
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+from torchci.greenlight_replay import arm_code, settings, workflow, workflow_steps
+from torchci.greenlight_replay.arm_code import Target
 from torchci.greenlight_replay.policy import Policy
 
 
@@ -37,7 +40,10 @@ class ScratchTestCase(unittest.TestCase):
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 HOOKS_DIR = REPO_ROOT / ".claude/hooks/greenlight"
-REAL_SCHEMA = HOOKS_DIR / "verdict-schema.json"
+WORKFLOW_PATH = REPO_ROOT / workflow.WORKFLOW_RELPATH
+HEAD_WORKFLOW = workflow.load(WORKFLOW_PATH)
+
+PYTORCH_TARGET = Target(repo="pytorch/pytorch", checkout="pytorch")
 
 PROMPT_TEMPLATE = (
     "Read the skill file at .claude/skills/greenlight-review/SKILL.md.\n"
@@ -158,52 +164,90 @@ def envelope(result, tool_uses=()):
 CI_BUDGET_MINUTES = (20, 25, 33)
 
 
-def replay_policy(root, **overrides):
-    """A Policy pointing at this repository's real hooks, schema and sanitize script.
+def head_hook_settings(checkout="pytorch"):
+    """This repository's workflow's hook settings, derived as materialize derives them."""
+    return settings.derive_hook_settings(
+        workflow_steps.hook_settings_text(HEAD_WORKFLOW, WORKFLOW_PATH),
+        checkout,
+        WORKFLOW_PATH,
+    )
+
+
+HEAD_RECORD_STEP = workflow_steps.record_step(HEAD_WORKFLOW, WORKFLOW_PATH)
+
+
+def replay_policy(root=REPO_ROOT, **overrides):
+    """A Policy pointing at this repository's real tree: hooks, record step, greenlight.
 
     Real paths rather than stubs: several tests assert against what those files actually
-    contain, so a policy built out of placeholders would pass while the harness broke.
+    contain, and the record checks and the detector run as this tree's own code, so a
+    policy built out of placeholders would pass while the harness broke.
     """
     fields = {
         "root": root,
         "prompt_template": PROMPT_TEMPLATE,
         "max_diff_lines": 2000,
         "max_diff_bytes": 500_000,
+        "max_diff_files": 200,
         "review_budget_minutes": CI_BUDGET_MINUTES,
+        "timeout_s": 37 * 60,
         "too_large_verdict": {
             "status": "NO_LAND",
             "reason": "scope_too_large",
             "message": "- Scope\n  - The diff exceeds the size cap",
         },
-        "schema_path": REAL_SCHEMA,
+        "no_policy_verdict": None,
         "sanitize_script": HOOKS_DIR / "sanitize-untrusted-checkout.sh",
-        "hooks_dir": HOOKS_DIR,
+        "hook_settings": head_hook_settings(),
+        "output_style": "Concise",
         "model": "global.anthropic.claude-opus-5",
         "effort": "high",
         "tools": "Read,Glob,Grep,Write",
+        "target": PYTORCH_TARGET,
+        "record_step": HEAD_RECORD_STEP,
+        "detector_script": REPO_ROOT / workflow_steps.DETECTOR_RELPATH,
+        "detector_dirname": "pytorch",
     }
     fields.update(overrides)
     return Policy(**fields)
 
 
-# The conditional constraint pytorch/test-infra#8814 adds to verdict-schema.json: a LAND may
-# carry only the reason "clean". Kept as a fixture because it is the first real policy PR to
-# use a keyword the harness did not support, and the shape is what the validator must cover.
-LAND_MUST_BE_CLEAN = {
-    "if": {"properties": {"status": {"const": "LAND"}}, "required": ["status"]},
-    "then": {"properties": {"reason": {"const": "clean"}}},
-}
+def build_arm_tree(root, *, target_step=True, workflow_document=None):
+    """A policy tree laid out as this repository's is, in ``root``: greenlight's code,
+    the hooks and the review workflow.
 
-NEW_REASONS = ("not_trivial", "needs_socialization")
-
-
-def conditional_schema():
-    """This repository's schema plus #8814's two new reasons and its LAND/clean rule.
-
-    Deep-copied: tests mutate the result to plant unsupported keywords, and a shared
-    subschema would leak those between them.
+    ``target_step`` False removes ``workflow_target.py`` (:func:`_drop_target_step`).
     """
-    schema = json.loads(REAL_SCHEMA.read_text())
-    schema["properties"]["reason"]["enum"].extend(NEW_REASONS)
-    schema["allOf"] = [copy.deepcopy(LAND_MUST_BE_CLEAN)]
-    return schema
+    root = Path(root)
+    shutil.copytree(
+        REPO_ROOT / arm_code.ARM_SRC_RELPATH,
+        root / arm_code.ARM_SRC_RELPATH,
+        ignore=shutil.ignore_patterns("__pycache__"),
+        dirs_exist_ok=True,
+    )
+    if not target_step:
+        _drop_target_step(root)
+    shutil.copytree(
+        HOOKS_DIR,
+        root / ".claude/hooks/greenlight",
+        ignore=shutil.ignore_patterns("__pycache__"),
+        dirs_exist_ok=True,
+    )
+    workflow_path = root / workflow.WORKFLOW_RELPATH
+    workflow_path.parent.mkdir(parents=True, exist_ok=True)
+    workflow_path.write_text(
+        yaml.safe_dump(workflow_document or HEAD_WORKFLOW, sort_keys=False)
+    )
+    return root
+
+
+def _drop_target_step(root):
+    """Remove ``workflow_target.py`` from ``root``'s greenlight, as a tree without a
+    target step has none. The modules that import it import it under another name, so
+    the rest of greenlight still loads."""
+    package = root / arm_code.ARM_SRC_RELPATH / "greenlight"
+    (package / "workflow_target.py").rename(package / "target_absent.py")
+    for module in package.glob("*.py"):
+        text = module.read_text()
+        if "workflow_target" in text:
+            module.write_text(text.replace("workflow_target", "target_absent"))

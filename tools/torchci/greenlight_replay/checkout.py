@@ -30,8 +30,9 @@ previous PR's deletions forward -- the next PR then gets reviewed against a tree
 never have produced. Every acquisition therefore resets the slot before use.
 
 Each slot is laid out as a reviewer workspace rather than as a bare checkout: the worktree
-is ``<slot>/<checkout_dirname(repo)>`` -- ``pytorch`` for pytorch/pytorch, ``target`` for
-any other repo -- and ``<slot>`` is what the reviewer is given as ``GITHUB_WORKSPACE``.
+is ``<slot>/<dirname>``, the directory the policy's ``greenlight target`` names --
+``pytorch`` for pytorch/pytorch, ``target`` for any other repo -- and ``<slot>`` is what
+the reviewer is given as ``GITHUB_WORKSPACE``.
 That is not cosmetic. ``restrict-read.py`` computes its allowed roots as
 ``<workspace>/<checkout>`` and ``<workspace>/.claude/{skills,hooks}``, and ``--restricted``
 confines the file tools to the ``--add-dir`` roots after resolving symlinks -- so a shared
@@ -66,8 +67,8 @@ __all__ = [
     "DEFAULT_REPO",
     "GitError",
     "SCRUBBED_GIT_VARS",
+    "PRIMARY_CHECKOUT",
     "WorktreePool",
-    "checkout_dirname",
     "clone_url",
     "git_env",
     "require_repo",
@@ -75,9 +76,11 @@ __all__ = [
 
 # The only checkout directories restrict-read.py accepts as its argument.
 CHECKOUT_DIRNAMES = ("pytorch", "target")
+# pytorch/pytorch's, and so the only one of a policy whose workflow has no target step.
+PRIMARY_CHECKOUT = CHECKOUT_DIRNAMES[0]
 
-# GreenLight serves repos of the pytorch org alone, and a repo's policy file is named
-# after the part past the slash, so nothing else is a repo this harness can replay.
+# GreenLight serves repos of the pytorch org alone, so nothing else is a repo this
+# harness can replay.
 _REVIEWED_REPO = re.compile(r"pytorch/[A-Za-z0-9._-]+")
 
 _SHA_RE = re.compile(r"\A[0-9a-f]{40}\Z")
@@ -117,10 +120,9 @@ def _require_sha(head_sha: str) -> str:
 def require_repo(repo: str) -> str:
     """Return ``repo`` when it is ``pytorch/<name>``, the shape the workflow accepts.
 
-    It becomes a clone URL, a directory name and a policy file name, so ``.`` and ``..``
-    are refused as names. Another spelling of pytorch/pytorch is refused too: the
-    workflow reaches pytorch/pytorch only by that exact name, and this one would be
-    reviewed under the wrong checkout directory and policy file.
+    It becomes a clone URL and the names of a sweep's scratch directories, so ``.`` and
+    ``..`` are refused as names. Another spelling of pytorch/pytorch is refused too: the
+    workflow reaches pytorch/pytorch only by that exact name.
     """
     name = repo.partition("/")[2]
     if (
@@ -130,11 +132,6 @@ def require_repo(repo: str) -> str:
     ):
         raise ValueError(f"not a pytorch/<name> repo this harness can replay: {repo!r}")
     return repo
-
-
-def checkout_dirname(repo: str) -> str:
-    """The workspace directory the workflow checks ``repo`` out into."""
-    return "pytorch" if require_repo(repo) == "pytorch/pytorch" else "target"
 
 
 def clone_url(repo: str) -> str:
@@ -204,7 +201,7 @@ class WorktreePool:
         bare_clone: Path,
         slots: int,
         repo_url: str = clone_url(DEFAULT_REPO),
-        dirname: str = checkout_dirname(DEFAULT_REPO),
+        dirname: str = PRIMARY_CHECKOUT,
     ) -> None:
         if slots < 1:
             raise ValueError(f"slots must be at least 1, got {slots}")
